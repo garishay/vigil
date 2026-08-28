@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+package-lock.json
+
+# authored documents — preserved verbatim
+docs/mvp-scope.md

@@ -28,13 +28,13 @@ Vite · React · TypeScript (strict) · MapLibre GL · Vitest · ESLint · Prett
 
 ## Commands
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Dev server |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run test` | Vitest (single run) |
+| Command             | Purpose             |
+| ------------------- | ------------------- |
+| `npm run dev`       | Dev server          |
+| `npm run build`     | Production build    |
+| `npm run lint`      | ESLint              |
+| `npm run typecheck` | `tsc --noEmit`      |
+| `npm run test`      | Vitest (single run) |
 
 CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a suggestion.
 
