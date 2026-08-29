@@ -1,0 +1,21 @@
+# Line endings are pinned here, not left to each contributor's core.autocrlf.
+#
+# Without this file the working tree's endings depend on a local Git setting: a clone with
+# autocrlf=true checks out CRLF, one without checks out LF, and whichever contributor differs
+# eventually commits the other form. The result is a whole-file diff that reviews as "everything
+# changed", which defeats the read-the-full-diff-cold step in docs/mvp-scope.md §12.
+#
+# LF everywhere, in the repository and in the working tree, matching .prettierrc.json's
+# endOfLine: "lf" so `npm run format:check` agrees on Windows and on CI.
+
+* text=auto eol=lf
+
+# Binary: never transform, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
