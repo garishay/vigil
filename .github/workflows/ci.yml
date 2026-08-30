@@ -25,6 +25,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      # Formatting rides in the lint job rather than a job of its own, so this needs no change
+      # to the required-checks list in branch protection.
+      - run: npm run format:check
 
   typecheck:
     name: typecheck
