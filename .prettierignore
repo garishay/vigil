@@ -5,3 +5,7 @@ package-lock.json
 
 # authored documents — preserved verbatim
 docs/mvp-scope.md
+
+# Recorded ADS-B fixture, written by scripts/capture-adsb.ts — one frame per line so a recapture
+# diffs as data. Prettier would expand it to ~37,000 lines and 1.7x the bytes, destroying that.
+public/*.json
