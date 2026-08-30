@@ -120,3 +120,17 @@
   height: 100%;
   background: var(--bg);
 }
+
+/*
+ * Deliberately cool. The theme keeps the warm end of the spectrum unspent so alarm colour stays
+ * something a score has to earn (PR 01); a failed fetch is not a threat.
+ */
+.rail__error {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.625rem;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
