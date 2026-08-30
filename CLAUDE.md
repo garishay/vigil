@@ -43,7 +43,9 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
 - **Every PR starts as a GitHub Issue** carrying a mini-PRD (user story + acceptance criteria).
 - **Branch naming:** `feat/pr-02-scenario-data` — kind, PR number, short slug.
 - **Squash-merge only**, delete the branch after merge.
-- **PR size target: under ~400 changed lines.** When a PR swells, split it rather than grow it.
+- **PR size target: under ~400 implementation lines.** Tests, comments, and recorded fixtures sit
+  outside the budget; report the split as raw / implementation / tests in the PR description. When
+  a PR swells, split it rather than grow it.
 - Conventional-ish commit subjects, imperative mood.
 - Reply to every review comment with a fix or a reasoned "won't fix."
 - At least one test per behavior change. No dead code, no `console` noise.

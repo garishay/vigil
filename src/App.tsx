@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import './App.css'
 import { MapView } from './components/MapView'
 import { AO } from './config/ao'
+import { frameTracks } from './data/capture'
+import { useCapture } from './data/useCapture'
 
 type SurfaceId = 'home' | 'queue' | 'review'
 
@@ -16,7 +18,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'queue',
     label: 'Queue',
     title: 'Ranked queue',
-    body: 'The ranked track list arrives with the scenario data (PR 02) and gains its scores in PR 04.',
+    body: 'The ranked track list arrives with the injects (PR 02b) and gains its scores in PR 04.',
   },
   {
     id: 'review',
@@ -26,17 +28,26 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
   },
 ]
 
-/** Placeholder until the replay clock and track layers exist. */
-const STATUS_FIELDS = [
-  { label: 'Cooperative', value: '—' },
-  { label: 'Injects', value: '—' },
-  { label: 'Seed', value: '—' },
-  { label: 'Sim clock', value: '—' },
-]
-
 export default function App() {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
   const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
+  const capture = useCapture()
+
+  // The replay clock lands in PR 06; until then the picture holds the recording's first frame.
+  const tracks = useMemo(
+    () => (capture.status === 'ready' ? frameTracks(capture.capture.frames[0]) : []),
+    [capture],
+  )
+
+  const cooperative =
+    capture.status === 'ready' ? String(tracks.length) : capture.status === 'loading' ? '…' : '—'
+
+  const statusFields = [
+    { label: 'Cooperative', value: cooperative },
+    { label: 'Injects', value: '—' },
+    { label: 'Seed', value: '—' },
+    { label: 'Sim clock', value: '—' },
+  ]
 
   return (
     <div className="shell">
@@ -59,7 +70,7 @@ export default function App() {
       </header>
 
       <dl className="strip" aria-label="Picture status">
-        {STATUS_FIELDS.map((field) => (
+        {statusFields.map((field) => (
           <div className="strip__field" key={field.label}>
             <dt>{field.label}</dt>
             <dd>{field.value}</dd>
@@ -77,8 +88,14 @@ export default function App() {
             {surface.title}
           </h2>
           <p className="rail__body">{surface.body}</p>
+          {/* A picture that cannot load its traffic says so, rather than showing an empty map. */}
+          {capture.status === 'error' && (
+            <p className="rail__error" role="alert">
+              {capture.message}
+            </p>
+          )}
         </section>
-        <MapView ao={AO} />
+        <MapView ao={AO} tracks={tracks} />
       </main>
     </div>
   )

@@ -5,7 +5,7 @@
 
 *Name confirmed: Vigil — short, intuitive (keeping watch), and it fits the night-watch scoring theme.*
 
-**v2 changes:** DFW counter-UAS scenario with real ADS-B data replacing the open-ocean synthetic AO · plain-language identity model replacing MIL-STD-2525 references · scoring roadmap extended with pattern features, time context, and a learned anomaly layer · PR plan and setup checklist reworked accordingly. **v2.1 changes:** name locked (Vigil) · AO moved from DFW to PHL (home turf, real-world testing downstream) and fully parameterized · no-VIP-tracking rule added to guardrails · real-data special-status enrichment queued for Phase 2. **v2.2 changes:** plain-English UI labels added to the factor table · track workflow upgraded from bare actions to an incident lifecycle grounded in the current US domestic C-UAS framework (SAFER SKIES Act, July 2026 rule) · escalation handoff summary added to MVP and PR 03 scope grown accordingly · no-simulated-engagement guardrail added. **v2.3 changes:** Remote ID added as a synthetic inject attribute — injects split into RID-broadcasting cooperative drones and silent non-cooperative ones · military IFF explicitly out of scope.
+**v2 changes:** DFW counter-UAS scenario with real ADS-B data replacing the open-ocean synthetic AO · plain-language identity model replacing MIL-STD-2525 references · scoring roadmap extended with pattern features, time context, and a learned anomaly layer · PR plan and setup checklist reworked accordingly. **v2.1 changes:** name locked (Vigil) · AO moved from DFW to PHL (home turf, real-world testing downstream) and fully parameterized · no-VIP-tracking rule added to guardrails · real-data special-status enrichment queued for Phase 2. **v2.2 changes:** plain-English UI labels added to the factor table · track workflow upgraded from bare actions to an incident lifecycle grounded in the current US domestic C-UAS framework (SAFER SKIES Act, July 2026 rule) · escalation handoff summary added to MVP and PR 03 scope grown accordingly · no-simulated-engagement guardrail added. **v2.3 changes:** Remote ID added as a synthetic inject attribute — injects split into RID-broadcasting cooperative drones and silent non-cooperative ones · military IFF explicitly out of scope. **v2.4 changes:** PR size budget clarified — the ~400-line target counts implementation lines only, with tests, comments, and fixtures reported in the PR description but outside the budget · capture etiquette added to §5.1 after a five-second poll earned a rate limit and then a block.
 
 ---
 
@@ -46,6 +46,7 @@ The AO is pure configuration — center point, capture bounding box, protected s
 
 - **MVP uses a recorded fixture, not a live feed:** a capture script pulls ~15–30 minutes of real PHL-area traffic once from a public aggregator, saved as JSON in the repo, replayed on a clock. This keeps tests deterministic, demos reproducible, and the MVP free of rate limits, CORS, and outage risk. Going live is Phase 2, where it belongs — behind the backend.
 - **Source:** adsb.lol (free, open-data, unfiltered API) for the capture; OpenSky Network (free for research/personal use, registered account) as backup.
+- **Capture etiquette.** The aggregators are free services running on donated receivers, and a capture that abuses one is a capture that stops working: the script floors its polling interval at 10 seconds, honors `Retry-After`, and abandons the run on the second 429 rather than grinding through a rate limit into a block.
 - Fields normalized into the common track model: ICAO hex, callsign, position, altitude, ground speed, heading, vertical rate, last-seen.
 
 ### 5.2 Synthetic layer — the injects
@@ -107,7 +108,13 @@ Live ADS-B polling (Phase 2), backend/API and WebSocket (Phase 2), any ML (Phase
 
 ## 11. Build plan — PR sequence
 
-Target under ~400 changed lines per PR; when a PR swells, split it rather than grow it.
+Target under ~400 **implementation** lines per PR; when a PR swells, split it rather than grow it.
+
+The budget counts implementation only. Tests, comments, and recorded fixtures sit outside it — a
+size target that discourages any of the three is buying small diffs with the things that make the
+diff trustworthy. They are still reported, not ignored: every PR description states the split as
+**raw / implementation / tests**, so the cost of a change stays visible even where it is not
+charged against the budget.
 
 | PR | Scope | Acceptance criteria | Learning objective |
 |---|---|---|---|
