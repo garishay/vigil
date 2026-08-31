@@ -9,7 +9,7 @@ import {
 import type { InjectScenario } from './injects'
 import { AO } from '../config/ao'
 import { SCENARIO } from '../config/scenario'
-import { distanceMeters } from './geo'
+import { destinationPoint, distanceMeters } from './geo'
 import type { AdsbCapture } from './adsb'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
@@ -57,9 +57,24 @@ describe('determinism', () => {
     const now = vi.spyOn(Date, 'now').mockImplementation(() => {
       throw new Error('Date.now is not available to the inject generator')
     })
+    const perf = vi.spyOn(performance, 'now').mockImplementation(() => {
+      throw new Error('performance.now is not available to the inject generator')
+    })
     expect(() => generateScenario(TIMELINE)).not.toThrow()
     expect(random).not.toHaveBeenCalled()
     expect(now).not.toHaveBeenCalled()
+    expect(perf).not.toHaveBeenCalled()
+  })
+
+  it('is a function of seed and config alone — the timeline samples it, never reshapes it', () => {
+    // A recapture one frame longer must add a frame to every inject, not replace the scenario:
+    // every drawn parameter is identical, and the dropout chain is the old one plus one entry.
+    const short = planScenario({ frameCount: 80, intervalMs: 15000 })
+    const long = planScenario({ frameCount: 81, intervalMs: 15000 })
+    expect(long.specs.map((spec) => ({ ...spec, heard: spec.heard.slice(0, 80) }))).toEqual(
+      short.specs,
+    )
+    expect(long.specs.some((spec) => spec.heard.length === 81)).toBe(true)
   })
 
   afterEach(() => {
@@ -105,8 +120,8 @@ describe('scenario coverage', () => {
   const scenario = generateScenario(TIMELINE)
   const first = scenario.frames[0].tracks
 
-  it('fields 3–8 injects, per scope §5.2', () => {
-    expect(first.length).toBeGreaterThanOrEqual(3)
+  it('fields 5–8 injects, per scope §5.2', () => {
+    expect(first.length).toBeGreaterThanOrEqual(5)
     expect(first.length).toBeLessThanOrEqual(8)
   })
 
@@ -123,6 +138,12 @@ describe('scenario coverage', () => {
       expect(new Set(tracks.map((t) => t.behavior))).toEqual(new Set(BEHAVIORS))
       expect(new Set(tracks.map((t) => t.remoteId))).toEqual(new Set(REMOTE_ID_STATES))
     }
+  })
+
+  it('refuses a config whose floor is below the behavior count', () => {
+    // "By construction" must not depend on a config edit staying unmade. §5.2 says 5–8 for
+    // exactly this reason.
+    expect(() => generateScenario(TIMELINE, { ...SCENARIO, minInjects: 3 })).toThrow(/at least 5/)
   })
 
   it('gives every inject a distinct launch point', () => {
@@ -226,12 +247,24 @@ describe('behaviors', () => {
 
   it('orbit keeps a constant radius about a fixed center and comes back around', () => {
     const spec = plan.specs[specFor('orbit')]
-    const samples = [60, 180, 300, 420].map((t) => trackFor('orbit', spec.inboundS + t).position)
-    const center = samples.map((p) => distanceMeters(p, samples[0]))
-    // Every sample sits within a diameter of every other — a closed pattern, not a departure.
-    for (const d of center) expect(d).toBeLessThanOrEqual(2 * spec.radiusM + 1)
-
     const period = (2 * Math.PI * spec.radiusM) / spec.speedMs
+    // The center the generator orbits: one radius to the right of where the inbound leg ends.
+    const entry = trackFor('orbit', spec.inboundS).position
+    const center = destinationPoint(entry, (spec.courseDeg + 90) % 360, spec.radiusM)
+
+    // Constant radius: every sample sits one radius from the center. A hovering drone fails this
+    // — it would sit at the entry point, a full radius away from where it should be.
+    for (const t of [0, period / 8, period / 3, period / 2, period * 0.8]) {
+      const at = trackFor('orbit', spec.inboundS + t).position
+      expect(distanceMeters(center, at)).toBeCloseTo(spec.radiusM, -1)
+    }
+
+    // Actually moving around it: a quarter period apart is a chord of R√2, not zero.
+    const a = trackFor('orbit', spec.inboundS + period / 4).position
+    const b = trackFor('orbit', spec.inboundS + period / 2).position
+    expect(distanceMeters(a, b)).toBeGreaterThan(spec.radiusM)
+
+    // And closed: one lap later it is back where it started.
     const start = trackFor('orbit', spec.inboundS + 1).position
     const lap = trackFor('orbit', spec.inboundS + 1 + period).position
     expect(distanceMeters(start, lap)).toBeLessThan(spec.radiusM / 4)
