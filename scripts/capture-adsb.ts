@@ -168,7 +168,6 @@ async function main(): Promise<void> {
   // the next one still ahead of us rather than the one after this (#29).
   let i = 0
   while (i < frameCount) {
-    const requestedAt = Date.now()
     const snapshot = await fetchSnapshot(url)
 
     if (snapshot.ok) {
@@ -194,7 +193,7 @@ async function main(): Promise<void> {
       }
     }
 
-    const next = scheduleNextFrame({ attempted: i, requestedAt, startedAt, intervalMs })
+    const next = scheduleNextFrame({ attempted: i, startedAt, intervalMs })
     if (next.index >= frameCount) break
     await sleep(next.waitMs)
     i = next.index
