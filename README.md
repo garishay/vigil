@@ -15,16 +15,20 @@ Every score decomposes into visible factors. A ranked list nobody can interrogat
 ## How it fits together
 
 Two layers converge on one track model; pure modules do the work and the UI only consumes them.
-Dashed boxes are later PRs.
+The capture script runs offline, once, and is the only box that does I/O without a test seam.
+The app calls the modules; nothing calls back. Dashed boxes are later PRs.
 
 ```mermaid
 flowchart LR
+  subgraph offline["Offline, run once — network and filesystem, not a runtime module"]
+    direction LR
+    cap["scripts/capture-adsb.ts<br/>rate-limit etiquette"] --> fx[("public/adsb-phl.json<br/>committed fixture<br/>80 frames @ 15 s")]
+  end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
     direction LR
     subgraph real["Real layer — public ADS-B, cooperative by construction"]
       direction LR
-      cap["scripts/capture-adsb.ts<br/>run once, offline<br/>rate-limit etiquette"] --> fx[("public/adsb-phl.json<br/>committed fixture<br/>80 frames @ 15 s")]
-      fx --> norm["lib/adsb.ts<br/>normalize → AdsbTrack<br/>identity is the literal 'cooperative'"]
+      load["data/capture.ts<br/>loadCapture: fetch once at startup, AO guard<br/>frameTracks"] --> norm["lib/adsb.ts<br/>normalize → AdsbTrack<br/>identity is the literal 'cooperative'"]
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
@@ -42,9 +46,10 @@ flowchart LR
     model --> rank
     model -.-> score
   end
+  fx -. fetched at startup .-> load
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
-    app["App.tsx<br/>holds the inject plan · samples t = 0"]
+    app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context"]
     review["Review drawer — PR 03"]
@@ -54,7 +59,8 @@ flowchart LR
     app -.-> review
     clock -.-> app
   end
-  rank --> app
+  model -- adsb + injects: map, strip --> app
+  rank -- ranked: queue --> app
   score -.-> app
   classDef planned stroke-dasharray: 6 4,fill:none;
   class score,review,clock planned;
