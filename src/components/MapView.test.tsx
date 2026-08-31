@@ -92,6 +92,8 @@ const { mapInstance, setData, clickHandlers, MapConstructor, NavigationControl }
         if (event === 'load') (arg2 as () => void)()
         if (event === 'click' && typeof arg2 === 'string')
           clicks[arg2] = arg3 as (event: unknown) => void
+        if (event === 'click' && Array.isArray(arg2))
+          for (const layerId of arg2 as string[]) clicks[layerId] = arg3 as (event: unknown) => void
       }),
     }
     return {
@@ -166,17 +168,20 @@ describe('MapView', () => {
     expect(hit.paint['circle-radius']).toBeGreaterThan(5)
   })
 
-  it('selects through exactly one handler per pixel: the hit area and the halo (03a)', () => {
+  it('selects through one registration and one dispatch: hit area and halo together (03a)', () => {
     const onSelect = vi.fn()
     render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} onSelect={onSelect} />)
+    // A single array-form listener covers both containing layers, so an overlap is one dispatch
+    // with the top-rendered feature first — never two handlers overwriting each other.
+    const clickRegistrations = mapInstance.on.mock.calls.filter(([event]) => event === 'click')
+    expect(clickRegistrations).toHaveLength(1)
+    expect(clickRegistrations[0][1]).toEqual(['adsb-tracks-hit', 'inject-tracks-halo'])
     clickHandlers['adsb-tracks-hit']({ features: [{ properties: { id: 'adsb-a3303d' } }] })
     clickHandlers['inject-tracks-halo']({ features: [{ properties: { id: 'inject-02' } }] })
     expect(onSelect.mock.calls.map(([id]) => id)).toEqual(['adsb-a3303d', 'inject-02'])
-    // The dot layers carry no handler: a second handler on the same source would fire for the
-    // same click and overwrite a precise dot selection with tile-order's first feature.
+    // The dot layers carry no handler of their own, and the basemap none at all.
     expect(clickHandlers['adsb-tracks-dot']).toBeUndefined()
     expect(clickHandlers['inject-tracks-dot']).toBeUndefined()
-    // An empty basemap click registers no handler at all, so it can select nothing.
     expect(clickHandlers['selected-track-ring']).toBeUndefined()
   })
 

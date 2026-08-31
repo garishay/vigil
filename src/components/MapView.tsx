@@ -212,17 +212,15 @@ export function MapView({
       })
 
       // Selection flows both ways (§7): a click selects the track, exactly as a row click does.
-      // One handler per pixel: only the containing layer of each pair is registered — the ADS-B
-      // hit area strictly contains its dot, the inject halo its own — because two handlers on
-      // one source both fire for a shared click, and the second, fuzzier one would overwrite a
-      // precise dot selection with whichever feature tile order returns first. Empty basemap
-      // clicks select nothing.
-      for (const layerId of [`${ADSB_SOURCE}-hit`, `${INJECT_SOURCE}-halo`]) {
-        map.on('click', layerId, (event) => {
-          const id = event.features?.[0]?.properties?.id as unknown
-          if (typeof id === 'string') onSelectRef.current?.(id)
-        })
-      }
+      // One registration, one dispatch, one selection: the two containing layers (the ADS-B hit
+      // area strictly contains its dot, the inject halo its own) share a single array-form
+      // listener, so an overlap cannot fire two handlers and let the later one overwrite the
+      // first — and features[0] under a single dispatch is the top-rendered feature, the one
+      // under the cursor visually. Empty basemap clicks select nothing.
+      map.on('click', [`${ADSB_SOURCE}-hit`, `${INJECT_SOURCE}-halo`], (event) => {
+        const id = event.features?.[0]?.properties?.id as unknown
+        if (typeof id === 'string') onSelectRef.current?.(id)
+      })
 
       setStyleReady(true)
     })
