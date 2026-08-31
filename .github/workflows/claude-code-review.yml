@@ -38,7 +38,18 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # The plugin stays silent when nothing clears its confidence bar. Silence is what hid a
+          # misconfigured workflow for four PRs (#17), so this review always posts: findings, or a receipt.
+          prompt: |
+            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+
+            Always post a comment on the pull request. If no issue meets the confidence bar, post exactly
+            one line with gh pr comment: "Code review: reviewed, nothing above the confidence bar."
+          # The code-review plugin runs subagents, reads the PR with gh, walks git history, and posts
+          # its result with gh pr comment. Granting only the inline-comment tool let every run since #8
+          # finish green having been denied all of that and posted nothing (see issue #17).
+          # Opus 5: the reviewer is the one check that did not write the code, so it is the strongest
+          # model that is not the author, and deliberately dissimilar from the engineer on Fable.
+          claude_args: '--model claude-opus-5 --allowedTools "Agent,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git log:*),Bash(git blame:*),Bash(git diff:*),Bash(git show:*),Bash(npm ci),Bash(npm run lint),Bash(npm run typecheck),Bash(npm run test),Bash(npm run format:check),mcp__github_inline_comment__create_inline_comment"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
