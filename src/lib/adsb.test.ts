@@ -9,8 +9,9 @@ import {
   retryAfterSeconds,
   toTrack,
 } from './adsb'
-import type { AdsbLolAircraft, CaptureFailure } from './adsb'
+import type { AdsbCapture, AdsbLolAircraft, CaptureFailure } from './adsb'
 import { PHL } from '../config/ao'
+import captureRaw from '../../public/adsb-phl.json?raw'
 
 /** Shapes recorded from adsb.lol v2 over the AO, trimmed to the fields the normalizer reads. */
 const AIRBORNE: AdsbLolAircraft = {
@@ -247,6 +248,17 @@ describe('toTrack', () => {
     expect(toTrack(foreign).registry).toBeNull()
   })
 
+  it('applies the blank/trim rule to foreign records, as the normalizer would have', () => {
+    // The read path is what the UI consumes; its guards must be as strong as capture-time's.
+    const base = normalizeAircraft(AIRBORNE)!
+    expect(toTrack({ ...base, category: '  ' }).category).toBeNull()
+    expect(toTrack({ ...base, category: ' A3 ' }).category).toBe('A3')
+    expect(toTrack({ ...base, registry: { typeCode: '' } }).registry).toBeNull()
+    expect(toTrack({ ...base, registry: { typeCode: ' B738 ', typeDesc: '  ' } }).registry).toEqual(
+      { typeCode: 'B738' },
+    )
+  })
+
   it('carries the enrichment through as nullable display fields', () => {
     const bare = toTrack(normalizeAircraft(AIRBORNE)!)
     expect(bare.category).toBeNull()
@@ -266,6 +278,43 @@ describe('toTrack', () => {
     const tampered = { ...normalizeAircraft(AIRBORNE)!, identity: 'non-cooperative' }
     expect(toTrack(tampered).identity).toBe('cooperative')
     expect(toTrack(tampered).source).toBe('adsb')
+  })
+})
+
+describe('the shipped recording (§2)', () => {
+  // The function tests above pin the mapping rules; this pins the artifact the browser actually
+  // downloads. A recapture from an edited script — or a hand-edit — that lands owner data or an
+  // unknown field in the committed recording fails here, whatever the code says.
+  const capture = JSON.parse(captureRaw) as AdsbCapture
+  const RECORD_KEYS = new Set([
+    'hex',
+    'callsign',
+    'position',
+    'altitudeFt',
+    'onGround',
+    'groundSpeedKt',
+    'headingDeg',
+    'verticalRateFpm',
+    'lastSeenSec',
+    'category',
+    'registry',
+  ])
+  const REGISTRY_KEYS = new Set(['typeCode', 'typeDesc', 'registration'])
+
+  it('carries only the fields the model names — no owner, no operator, anywhere', () => {
+    const badRecordKeys = new Set<string>()
+    const badRegistryKeys = new Set<string>()
+    for (const frame of capture.frames) {
+      for (const record of frame.records) {
+        for (const key of Object.keys(record)) if (!RECORD_KEYS.has(key)) badRecordKeys.add(key)
+        if (record.registry)
+          for (const key of Object.keys(record.registry))
+            if (!REGISTRY_KEYS.has(key)) badRegistryKeys.add(key)
+      }
+    }
+    expect([...badRecordKeys]).toEqual([])
+    expect([...badRegistryKeys]).toEqual([])
+    expect(captureRaw).not.toMatch(/ownOp|operator/)
   })
 })
 

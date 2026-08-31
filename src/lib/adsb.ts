@@ -145,6 +145,9 @@ export function captureRadiusNm(ao: AreaOfOperations): number {
 /** The emitter-category codes that mean "no category information" in each ADS-B category set. */
 const NO_CATEGORY: ReadonlySet<string> = new Set(['A0', 'B0', 'C0', 'D0'])
 
+/** A trimmed string, or undefined for absent, empty, and whitespace-only — blanks are absence. */
+const text = (value: string | undefined) => value?.trim() || undefined
+
 /** One raw record to one storable record, or null when it carries no usable position. */
 export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
   const { hex, lat, lon } = raw
@@ -162,7 +165,6 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
   // Barometric rate is the primary; geometric is the fallback the feed offers when it is absent.
   const verticalRate = raw.baro_rate ?? raw.geom_rate
   const lastSeenSec = round(raw.seen ?? 0, 1)
-  const text = (value: string | undefined) => value?.trim() || undefined
   // `A0`/`B0`/`C0`/`D0` encode "no emitter category information" — the aircraft saying it has
   // none, which is the same thing as the field being absent.
   const rawCategory = text(raw.category)
@@ -240,14 +242,30 @@ export function toTrack(record: CaptureRecord): AdsbTrack {
     headingDeg: record.headingDeg ?? null,
     verticalRateFpm: record.verticalRateFpm ?? null,
     lastSeenSec: record.lastSeenSec ?? 0,
-    // The no-category sentinels are filtered at capture time too, but this record may not have
-    // come from our capture script — a hand-built fixture, or Phase 2's live feed. The invariant
-    // holds here so it holds wherever the record came from.
-    category: record.category && !NO_CATEGORY.has(record.category) ? record.category : null,
-    // An empty registry object is the same as no registry — the doc contract says null, and a
-    // truthy `{}` from a foreign record would render an empty lookup panel behind a guard.
-    registry: record.registry && Object.keys(record.registry).length > 0 ? record.registry : null,
+    // Blank/trim and the no-category sentinels are enforced at capture time too, but this record
+    // may not have come from our capture script — a hand-built fixture, or Phase 2's live feed.
+    // The read path applies the same rules, so the invariants hold wherever the record came from.
+    category: cleanCategory(record.category),
+    registry: cleanRegistry(record.registry),
   }
+}
+
+/** The category as the display may use it: trimmed, and null for blanks and the sentinels. */
+function cleanCategory(category: string | undefined): string | null {
+  const trimmed = text(category)
+  return trimmed && !NO_CATEGORY.has(trimmed) ? trimmed : null
+}
+
+/**
+ * The registry with blank values dropped, or null when nothing usable remains — an empty lookup
+ * is the same as no lookup, and the `AdsbTrack.registry` contract says null.
+ */
+function cleanRegistry(registry: AircraftRegistry | undefined): AircraftRegistry | null {
+  if (!registry) return null
+  const entries = Object.entries(registry)
+    .map(([key, value]) => [key, text(value)] as const)
+    .filter((entry): entry is readonly [string, string] => entry[1] !== undefined)
+  return entries.length > 0 ? Object.fromEntries(entries) : null
 }
 
 /**
