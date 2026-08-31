@@ -41,7 +41,7 @@ jobs:
           # The plugin stays silent when nothing clears its confidence bar. Silence is what hid a
           # misconfigured workflow for four PRs (#17), so this review always posts: findings, or a receipt.
           prompt: |
-            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment
 
             Always post a comment on the pull request. If no issue meets the confidence bar, post exactly
             one line with gh pr comment: "Code review: reviewed, nothing above the confidence bar."
