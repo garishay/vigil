@@ -70,6 +70,17 @@ describe('normalizeAircraft', () => {
     })
   })
 
+  it('treats the "no emitter category information" codes as no category', () => {
+    // A0/B0/C0/D0 are the aircraft declaring it has none — the same as the field being absent,
+    // so a display falls back to the type-code lookup rather than showing an empty category.
+    for (const code of ['A0', 'B0', 'C0', 'D0']) {
+      const record = normalizeAircraft({ ...AIRBORNE, category: code })
+      expect(record).not.toBeNull()
+      expect(record).not.toHaveProperty('category')
+    }
+    expect(normalizeAircraft({ ...AIRBORNE, category: 'A7' })).toMatchObject({ category: 'A7' })
+  })
+
   it('omits the enrichment entirely when the feed carried none, and blanks are none', () => {
     // Non-null first: `expect(null).not.toHaveProperty()` passes, so without it these could not
     // tell "kept the record, omitted the field" from "rejected the record".

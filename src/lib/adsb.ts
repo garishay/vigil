@@ -139,6 +139,9 @@ export function captureRadiusNm(ao: AreaOfOperations): number {
   return Math.ceil(farthestM / 1852)
 }
 
+/** The emitter-category codes that mean "no category information" in each ADS-B category set. */
+const NO_CATEGORY: ReadonlySet<string> = new Set(['A0', 'B0', 'C0', 'D0'])
+
 /** One raw record to one storable record, or null when it carries no usable position. */
 export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
   const { hex, lat, lon } = raw
@@ -157,7 +160,10 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
   const verticalRate = raw.baro_rate ?? raw.geom_rate
   const lastSeenSec = round(raw.seen ?? 0, 1)
   const text = (value: string | undefined) => value?.trim() || undefined
-  const category = text(raw.category)
+  // `A0`/`B0`/`C0`/`D0` encode "no emitter category information" — the aircraft saying it has
+  // none, which is the same thing as the field being absent.
+  const rawCategory = text(raw.category)
+  const category = rawCategory && !NO_CATEGORY.has(rawCategory) ? rawCategory : undefined
   const registry: AircraftRegistry = {
     ...(text(raw.t) ? { typeCode: text(raw.t) } : {}),
     ...(text(raw.desc) ? { typeDesc: text(raw.desc) } : {}),

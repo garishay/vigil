@@ -183,7 +183,11 @@ describe('arrival order', () => {
   // Synthetic on purpose: the capture is data, not a test oracle, so a recapture re-pins the
   // frame-0 tests above and nothing else.
   it('produces the same order whatever order the tracks arrive in', () => {
+    // Two tracks share a range on purpose: without a tie the sort key is already a strict total
+    // order and any comparator passes. The tie is what makes the shuffles exercise the id
+    // tie-break, and `a00004` arrives first so a stable sort alone cannot save it.
     const tracks: Track[] = [
+      adsb('a00004', 9000),
       adsb('a00003', 9000),
       inject(2, 'cooperative', 4000),
       adsb('a00001', 100, { onGround: true, altitudeFt: 0 }),
@@ -191,18 +195,19 @@ describe('arrival order', () => {
       adsb('a00002', 2000),
       inject(3, 'unknown', 12_000),
     ]
-    const expected = order(tracks)
-    expect(expected).toEqual([
+    const expected = [
       'inject-01',
       'inject-03',
       'adsb-a00002',
       'inject-02',
       'adsb-a00003',
+      'adsb-a00004',
       'adsb-a00001',
-    ])
+    ]
+    expect(order(tracks)).toEqual(expected)
     expect(order([...tracks].reverse())).toEqual(expected)
-    expect(order([tracks[3], tracks[0], tracks[5], tracks[1], tracks[4], tracks[2]])).toEqual(
-      expected,
-    )
+    expect(
+      order([tracks[4], tracks[0], tracks[6], tracks[2], tracks[5], tracks[3], tracks[1]]),
+    ).toEqual(expected)
   })
 })
