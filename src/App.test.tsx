@@ -207,6 +207,16 @@ describe('App shell', () => {
     )
   })
 
+  it('lands a Home-surface map selection on the Queue, where it can be reviewed and cleared (03a)', () => {
+    render(<App />)
+    // Home has no drawer and no close button; a selection made there must not strand the user.
+    fireEvent.click(screen.getByTestId('map-select'))
+    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close review' }))
+    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
+  })
+
   it('filters by layer without renumbering the ranks (03a)', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))

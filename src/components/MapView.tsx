@@ -163,6 +163,14 @@ export function MapView({
           'circle-stroke-opacity': 0.35,
         },
       })
+      // Invisible hit area: the ADS-B dot is ~3 px of visible radius, close to unclickable on a
+      // dense frame. This layer widens the click target without changing the picture.
+      map.addLayer({
+        id: `${ADSB_SOURCE}-hit`,
+        type: 'circle',
+        source: ADSB_SOURCE,
+        paint: { 'circle-radius': 8, 'circle-opacity': 0 },
+      })
       // Added last, so injects draw above cooperative traffic rather than under it.
       map.addSource(INJECT_SOURCE, { type: 'geojson', data: injectFeatures([]) })
       map.addLayer({
@@ -203,9 +211,15 @@ export function MapView({
         },
       })
 
-      // Selection flows both ways (§7): a dot click selects the track, exactly as a row click
-      // does. Registered per dot layer, so empty basemap clicks select nothing.
-      for (const layerId of [`${ADSB_SOURCE}-dot`, `${INJECT_SOURCE}-dot`]) {
+      // Selection flows both ways (§7): a click on a dot, the widened ADS-B hit area, or the
+      // inject halo — the visually dominant part of the marker — selects the track, exactly as a
+      // row click does. Registered per layer, so empty basemap clicks select nothing.
+      for (const layerId of [
+        `${ADSB_SOURCE}-dot`,
+        `${ADSB_SOURCE}-hit`,
+        `${INJECT_SOURCE}-halo`,
+        `${INJECT_SOURCE}-dot`,
+      ]) {
         map.on('click', layerId, (event) => {
           const id = event.features?.[0]?.properties?.id as unknown
           if (typeof id === 'string') onSelectRef.current?.(id)

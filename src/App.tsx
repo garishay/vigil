@@ -180,7 +180,12 @@ export default function App() {
           tracks={adsb}
           injects={injects}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={(id) => {
+            setSelectedId(id)
+            // A selection is an intent to review; Home has no drawer and no way to clear one,
+            // so a map selection made there lands the operator on the Queue.
+            setSurfaceId((current) => (current === 'home' ? 'queue' : current))
+          }}
         />
       </main>
     </div>

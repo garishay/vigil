@@ -171,13 +171,26 @@ describe('Queue', () => {
     expect(within(silent).getByRole('button')).not.toHaveAttribute('aria-current')
   })
 
-  it('scrolls the selected row into view when the selection arrives from outside (03a)', () => {
+  it('scrolls the selected row into view, including a row that arrives after the selection (03a)', () => {
+    // Patched and restored: jsdom has no scrollIntoView — which is why the component's call is
+    // optional — so the stub must not outlive this test.
+    const original = Element.prototype.scrollIntoView
     const scroll = vi.fn()
     Element.prototype.scrollIntoView = scroll
-    const { rerender } = render(<Queue ranked={RANKED} selectedId={null} onSelect={vi.fn()} />)
-    expect(scroll).not.toHaveBeenCalled()
-    rerender(<Queue ranked={RANKED} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
-    expect(scroll).toHaveBeenCalledWith({ block: 'nearest' })
+    try {
+      const filtered = RANKED.filter((entry) => entry.track.source === 'inject')
+      const { rerender } = render(<Queue ranked={filtered} selectedId={null} onSelect={vi.fn()} />)
+      expect(scroll).not.toHaveBeenCalled()
+      // Selection lands while the row is filtered out: nothing to scroll to yet.
+      rerender(<Queue ranked={filtered} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
+      expect(scroll).not.toHaveBeenCalled()
+      // The filter clears and the selected row renders on this later commit — it still scrolls.
+      rerender(<Queue ranked={RANKED} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
+      expect(scroll).toHaveBeenCalledWith({ block: 'nearest' })
+    } finally {
+      if (original) Element.prototype.scrollIntoView = original
+      else delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    }
   })
 })
 

@@ -334,6 +334,13 @@
   overflow-y: auto;
 }
 
+/* On the Review surface the drawer nests inside the rail: no second border, no doubled padding. */
+.rail .drawer {
+  border-right: none;
+  padding: 0.75rem 0 0;
+  overflow-y: visible;
+}
+
 .drawer__header {
   display: flex;
   align-items: center;

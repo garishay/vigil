@@ -155,18 +155,30 @@ describe('MapView', () => {
     const [selectId, selectSource] = mapInstance.addSource.mock.calls[3]
     expect(selectId).toBe('selected-track')
     expect(selectSource.data.features).toEqual([])
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(6)
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(7)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.at(-1)).toBe('selected-track-ring')
+    // The ADS-B hit layer widens the click target and paints nothing.
+    const hit = mapInstance.addLayer.mock.calls.find(
+      ([layer]) => layer.id === 'adsb-tracks-hit',
+    )![0]
+    expect(hit.paint['circle-opacity']).toBe(0)
+    expect(hit.paint['circle-radius']).toBeGreaterThan(5)
   })
 
-  it('selects the track under a dot click, on either layer (03a)', () => {
+  it('selects the track under a click on a dot, the hit area, or the halo (03a)', () => {
     const onSelect = vi.fn()
     render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} onSelect={onSelect} />)
     clickHandlers['adsb-tracks-dot']({ features: [{ properties: { id: 'adsb-a06461' } }] })
+    clickHandlers['adsb-tracks-hit']({ features: [{ properties: { id: 'adsb-a3303d' } }] })
+    clickHandlers['inject-tracks-halo']({ features: [{ properties: { id: 'inject-02' } }] })
     clickHandlers['inject-tracks-dot']({ features: [{ properties: { id: 'inject-01' } }] })
-    expect(onSelect).toHaveBeenNthCalledWith(1, 'adsb-a06461')
-    expect(onSelect).toHaveBeenNthCalledWith(2, 'inject-01')
+    expect(onSelect.mock.calls.map(([id]) => id)).toEqual([
+      'adsb-a06461',
+      'adsb-a3303d',
+      'inject-02',
+      'inject-01',
+    ])
     // An empty basemap click registers no handler at all, so it can select nothing.
     expect(clickHandlers['selected-track-ring']).toBeUndefined()
   })

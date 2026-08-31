@@ -1,26 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { IdentityDot } from './IdentityDot'
+import { LAYER_BADGE, formatRangeKm, trackIdent } from '../lib/display'
 import { IDENTITY_LABEL } from '../lib/identity'
 import type { RankedTrack } from '../lib/ranking'
-import type { Track } from '../lib/tracks'
-
-/**
- * What the row calls the track — observed or derived, never assigned. A broadcast ident when
- * there is one; the ICAO address a real aircraft broadcasts when it sends no flight ident; and
- * for a track with no broadcast identity at all, a neutral track number derived from its stable
- * id. Not `inject-nn`: the inject id says what the track *is*, and the layer badge is the one
- * place the Queue discloses that.
- */
-function ident(track: Track): string {
-  if (track.callsign) return track.callsign
-  if (track.source === 'adsb') return track.icaoHex
-  return `TRK-${track.id.slice(track.id.lastIndexOf('-') + 1)}`
-}
-
-const LAYER_BADGE: Record<Track['source'], string> = { adsb: 'ADS-B', inject: 'INJECT' }
-
-/** Range to the protected site's center, km to one decimal (§7). */
-const formatRange = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
 
 /**
  * The ranked list (§7). Two-line rows: rank, identity, and the score chip on the first line; the
@@ -46,11 +28,13 @@ export function Queue({
 
   useEffect(() => {
     if (!selectedId) return
-    // Optional call: jsdom implements querySelector but not scrollIntoView.
+    // `ranked` is a dependency on purpose: the selected row can render on a *later* commit than
+    // the selection — a cleared filter, or a re-rank — and that arriving row still gets scrolled
+    // to. Optional call: jsdom implements querySelector but not scrollIntoView.
     listRef.current
       ?.querySelector(`[data-id="${CSS.escape(selectedId)}"]`)
       ?.scrollIntoView?.({ block: 'nearest' })
-  }, [selectedId])
+  }, [selectedId, ranked])
 
   return (
     <ol className="queue" aria-label="Ranked queue" ref={listRef}>
@@ -78,9 +62,9 @@ export function Queue({
                 <span className="queue__badge" data-layer={track.source}>
                   {LAYER_BADGE[track.source]}
                 </span>
-                <span className="queue__ident">{ident(track)}</span>
+                <span className="queue__ident">{trackIdent(track)}</span>
                 {track.onGround && <span className="queue__ground">on ground</span>}
-                <span className="queue__range">{formatRange(rangeM)}</span>
+                <span className="queue__range">{formatRangeKm(rangeM)}</span>
               </span>
             </button>
           </li>
