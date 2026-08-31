@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { CAPTURE_ETIQUETTE } from '../src/lib/adsb.ts'
 
@@ -30,18 +31,21 @@ describe('importing the script', () => {
 
 describe('parseArgs', () => {
   it('defaults to an interval the etiquette floor accepts (#27)', () => {
-    // The old default of 5 s sat below the 10 s floor, so the bare `npm run capture:adsb`
-    // threw on the script's own etiquette check. Both real captures used 15 s.
+    // The old default of 5 s sat below the 10 s floor, so the bare `npm run capture:adsb` threw
+    // on the script's own etiquette check. The floor comparison is the pin — a legal future
+    // change to the default stays green here, and one below the floor fires this line.
     const options = parseArgs([])
-    expect(options).toEqual({ minutes: 20, intervalS: 15, out: 'public/adsb-phl.json' })
+    expect(options).toMatchObject({ minutes: 20, out: 'public/adsb-phl.json' })
     expect(options.intervalS).toBeGreaterThanOrEqual(CAPTURE_ETIQUETTE.minIntervalS)
   })
 
-  it('accepts the header example verbatim', () => {
-    expect(parseArgs(['--minutes', '20', '--interval', '15'])).toMatchObject({
-      minutes: 20,
-      intervalS: 15,
-    })
+  it('accepts the usage example actually written in the header', () => {
+    // Read from the file, not hardcoded: reverting the header to a below-floor example is the
+    // documentation half of #27, and this is the test that guards it.
+    const source = readFileSync(new URL('./capture-adsb.ts', import.meta.url), 'utf8')
+    const example = /npm run capture:adsb -- (.+)$/m.exec(source)
+    expect(example).not.toBeNull()
+    expect(() => parseArgs(example![1].trim().split(/\s+/))).not.toThrow()
   })
 
   it('still refuses an interval below the etiquette floor', () => {

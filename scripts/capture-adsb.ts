@@ -220,8 +220,13 @@ function isEntry(): boolean {
   if (!process.argv[1]) return false
   try {
     return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
-  } catch {
-    return false
+  } catch (error) {
+    // Loud, not false: a fallback that swallows its own failure is the silent no-op this
+    // function exists to prevent. Only reachable on runtimes without import.meta.main.
+    throw new Error(
+      `cannot determine whether capture-adsb.ts is the entry: ${(error as Error).message}`,
+      { cause: error },
+    )
   }
 }
 
