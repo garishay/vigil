@@ -73,17 +73,18 @@ Every PR is planned and approved before it is built. Two standing rules govern i
 
 ## Decision rights and adjudication
 
-This replaces per-round check-ins. Plan gates, closure declarations, and merges remain the
-owner's alone.
+This replaces per-round check-ins — the prior practice of pausing for the owner after every
+review round. Plan gates, closure declarations, and merges remain the owner's alone.
 
 **Proceed without asking (log, don't ask):** review-round triage under a declared closure;
 thread reconciliation with dispositions; filing follow-up Issues; branch updates and changelog
 conflicts in the known ordering; retriggering CI; fixes to factual errors within the approved
 design and budget; cleanup PRs that only bundle filed follow-ups, ≤50 implementation lines.
 
-**Stop and queue** (append to the pinned **Adjudication queue** Issue with options and a
-recommendation; batch, never block unrelated work): anything a user sees that isn't in the
-approved mockup, including on-screen wording; scope adds or cuts; data provenance, privacy,
+**Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with options
+and a recommendation; batch, never block unrelated work): anything a user sees that isn't in
+the approved mockup (the mockup in the plan comment on the PR's Issue), including on-screen
+wording; scope adds or cuts; data provenance, privacy,
 licensing, new dependencies, any new network call; design or budget changes mid-build (the
 existing re-gate rule); conflicts between doc rules; model or workflow changes; anything where
 two rulings could plausibly apply. The owner answers the queue in batches via notifications.
@@ -98,7 +99,7 @@ working tree.
   Lane B.
 - **`docs/mvp-scope.md` changelog edits happen only at PR open or at merge-time conflict
   resolution in the known ordering** (current-AO statement first, newest entries lead, then the
-  record).
+  record; whoever prepends an entry maintains the lead sentence's wording as part of the edit).
 - **The adjudication queue serves both lanes.**
 
 ## Architecture notes
