@@ -30,6 +30,9 @@ const { entryPathsMatch, parseArgs } = await import('./capture-adsb.ts')
 afterAll(() => {
   logSpy.mockRestore()
   errorSpy.mockRestore()
+  // The stubbed fetch is restored too: under `isolate: false` a `vi.fn()` left on globalThis
+  // would leak into whatever file next shares this worker (#30).
+  vi.unstubAllGlobals()
 })
 
 describe('importing the script', () => {
@@ -47,7 +50,7 @@ describe('invoking the script directly', () => {
     // the config — unlike a below-floor interval, which is offline only while the floor stands.
     // A guard stuck false would exit 0 printing nothing — a silent no-op strictly worse than
     // the throw #27 fixed — and fail both assertions here.
-    const result = spawnSync(process.execPath, [scriptPath, '--no-such-flag', 'x'], {
+    const result = spawnSync(process.execPath, [scriptPath, '--no-such-flag'], {
       encoding: 'utf8',
       timeout: 20_000,
     })
@@ -113,11 +116,22 @@ describe('parseArgs', () => {
   })
 
   it('still refuses an interval below the etiquette floor', () => {
-    expect(() => parseArgs(['--interval', '5'])).toThrow(/at least 10/)
+    // Argument and expectation both derived from the constant the file already imports: raising
+    // the floor is a legal change and must not fail this test for a reason unrelated to what it
+    // pins, which a hardcoded `5` against `/at least 10/` would (#30).
+    expect(() => parseArgs(['--interval', String(CAPTURE_ETIQUETTE.minIntervalS - 1)])).toThrow(
+      new RegExp(`at least ${CAPTURE_ETIQUETTE.minIntervalS}s`),
+    )
   })
 
   it('refuses unknown and valueless arguments', () => {
     expect(() => parseArgs(['--frames', '10'])).toThrow(/Unknown argument/)
     expect(() => parseArgs(['--minutes'])).toThrow(/Missing value/)
+  })
+
+  it('names the flag, not a missing value, for an unrecognised trailing flag', () => {
+    // `--help` is the flag a person reaches for first and the one this script does not have.
+    // It used to be met with `Missing value for --help`, which describes neither problem (#30).
+    expect(() => parseArgs(['--help'])).toThrow(/Unknown argument --help/)
   })
 })

@@ -7,9 +7,11 @@ import {
   normalizeAircraft,
   normalizeResponse,
   retryAfterSeconds,
+  scheduleNextFrame,
   toTrack,
 } from './adsb'
-import type { AdsbCapture, AdsbLolAircraft, AircraftRegistry, CaptureFailure } from './adsb'
+import type { AdsbCapture, AdsbLolAircraft, CaptureFailure } from './adsb'
+import type { AircraftRegistry } from './tracks'
 import { PHL } from '../config/ao'
 import captureRaw from '../../public/adsb-phl.json?raw'
 
@@ -405,5 +407,54 @@ describe('decideAfterFailure', () => {
 describe('capture etiquette', () => {
   it('floors the polling interval well above what earned a block', () => {
     expect(CAPTURE_ETIQUETTE.minIntervalS).toBeGreaterThanOrEqual(10)
+  })
+})
+
+describe('scheduleNextFrame', () => {
+  const STARTED = Date.parse('2026-08-29T21:00:00Z')
+  const INTERVAL = 15_000
+  const FLOOR_MS = CAPTURE_ETIQUETTE.minIntervalS * 1000
+  /** Frame `i` is due here; a request takes a moment, so "now" is always past its own slot. */
+  const slot = (i: number) => STARTED + i * INTERVAL
+
+  const after = (attempted: number, nowMs: number, requestedAt = nowMs - 2_000) =>
+    scheduleNextFrame({ attempted, requestedAt, startedAt: STARTED, intervalMs: INTERVAL }, nowMs)
+
+  it('takes the next frame, on the next slot, when the run is on time', () => {
+    // The unslipped path is the old arithmetic exactly: sleep off the rest of the interval.
+    expect(after(4, slot(4) + 2_000)).toEqual({ index: 5, waitMs: 13_000 })
+  })
+
+  it('skips the slots a backoff ran past instead of firing them back to back', () => {
+    // The #29 failure: a 60 s rate-limit backoff leaves frames 5–8 due in the past, and the old
+    // `dueAt + intervalMs - now` went negative for each — so the whole backlog fired with no
+    // delay at all, moments after the service asked us to slow down.
+    const next = after(4, slot(4) + 62_000, slot(4) + 500)
+    expect(next.index).toBe(9)
+    expect(next.waitMs).toBeGreaterThanOrEqual(FLOOR_MS)
+  })
+
+  it('leaves the skipped slots as a gap rather than restamping the frames it does take', () => {
+    // tMs comes from the index, so the index has to keep telling the truth about elapsed time:
+    // a gap in the recording is by design, a frame stamped with a time it was not taken is not.
+    const next = after(4, slot(30) - 1, slot(4))
+    expect(next.index).toBe(30)
+    expect(STARTED + next.index * INTERVAL).toBe(slot(30))
+  })
+
+  it('never returns a wait below the etiquette floor, however the slots fall', () => {
+    // Landing exactly on a slot boundary is the case that reads as zero: legal by the schedule,
+    // and still two requests inside the floor. The floor is measured from the last request.
+    const onBoundary = after(4, slot(9), slot(9) - 1_000)
+    expect(onBoundary.index).toBe(9)
+    expect(onBoundary.waitMs).toBe(FLOOR_MS - 1_000)
+    expect(after(4, slot(9), slot(9)).waitMs).toBe(FLOOR_MS)
+  })
+
+  it('never returns a negative wait', () => {
+    // Two callers read this: `sleep` and nothing else. A negative would be a silent no-sleep.
+    for (const elapsed of [0, 7_000, 15_000, 61_000, 600_000]) {
+      expect(after(4, slot(4) + elapsed, slot(4) - FLOOR_MS).waitMs).toBeGreaterThanOrEqual(0)
+    }
   })
 })

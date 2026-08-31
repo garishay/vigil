@@ -8,8 +8,6 @@
  * Making it unrepresentable is the point; making it merely unlikely would not be.
  */
 
-import type { AircraftRegistry } from './adsb.ts'
-
 /** Plain English (principle 3). Vigil ships no military identification symbology — scope §9. */
 export type Identity = 'cooperative' | 'non-cooperative' | 'unknown'
 
@@ -52,6 +50,21 @@ interface TrackBase {
   verticalRateFpm: number | null
   /** Seconds since this track last updated — the raw material for the staleness factor. */
   lastSeenSec: number
+}
+
+/**
+ * What the registry says about an airframe, as opposed to what the airframe broadcast. Kept apart
+ * from the observed fields so a display can label it as a lookup, and so the scoring path has
+ * nothing to reach for by accident.
+ *
+ * Part of the track model's shape rather than the feed's, so it lives here and `adsb.ts` imports
+ * it: the arrow runs adapter → model everywhere, and the header's promise above — that nothing
+ * here sees the ADS-B feed underneath — holds for this file's imports too.
+ */
+export interface AircraftRegistry {
+  typeCode?: string
+  typeDesc?: string
+  registration?: string
 }
 
 /** A real, publicly broadcast aircraft. Cooperative by construction; see the note above. */
