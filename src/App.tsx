@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import './App.css'
 import { MapView } from './components/MapView'
 import { AO } from './config/ao'
+import { SCENARIO } from './config/scenario'
 import { frameTracks } from './data/capture'
 import { useCapture } from './data/useCapture'
+import { generateScenario } from './lib/injects'
 
 type SurfaceId = 'home' | 'queue' | 'review'
 
@@ -18,7 +20,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'queue',
     label: 'Queue',
     title: 'Ranked queue',
-    body: 'The ranked track list arrives with the injects (PR 02b) and gains its scores in PR 04.',
+    body: 'The ranked track list arrives in PR 02c and gains its scores in PR 04.',
   },
   {
     id: 'review',
@@ -39,13 +41,24 @@ export default function App() {
     [capture],
   )
 
-  const cooperative =
-    capture.status === 'ready' ? String(tracks.length) : capture.status === 'loading' ? '…' : '—'
+  /**
+   * The injects share the recording's frame grid rather than inventing one, so PR 06 advances a
+   * single clock across both layers. The generator is pure and synchronous — it takes the
+   * timeline as an argument and never reads the capture itself.
+   */
+  const injects = useMemo(() => {
+    if (capture.status !== 'ready') return []
+    const { frames, intervalMs } = capture.capture
+    return generateScenario({ frameCount: frames.length, intervalMs }).frames[0].tracks
+  }, [capture])
+
+  const pending = capture.status === 'loading' ? '…' : '—'
+  const count = (n: number) => (capture.status === 'ready' ? String(n) : pending)
 
   const statusFields = [
-    { label: 'Cooperative', value: cooperative },
-    { label: 'Injects', value: '—' },
-    { label: 'Seed', value: '—' },
+    { label: 'Cooperative', value: count(tracks.length) },
+    { label: 'Injects', value: count(injects.length) },
+    { label: 'Seed', value: SCENARIO.seed },
     { label: 'Sim clock', value: '—' },
   ]
 
@@ -95,7 +108,7 @@ export default function App() {
             </p>
           )}
         </section>
-        <MapView ao={AO} tracks={tracks} />
+        <MapView ao={AO} tracks={tracks} injects={injects} />
       </main>
     </div>
   )

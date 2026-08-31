@@ -50,6 +50,19 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
 - Reply to every review comment with a fix or a reasoned "won't fix."
 - At least one test per behavior change. No dead code, no `console` noise.
 
+## The plan gate
+
+Every PR is planned and approved before it is built. Two standing rules govern it.
+
+- **Read the notes on every open Issue, not just the target one.** Rulings and design constraints
+  get parked downstream, on the Issue they will land in rather than the one being built. A plan
+  written from the target Issue alone will miss them. Note whether each one is a **ruling** or an
+  **assumption** — and say which when parking a note of your own.
+- **Mid-build, judge a deviation by what it touches.** One that changes neither the approved design
+  nor the ~400-line budget: flag it and keep going. One that changes either: **stop and re-gate** —
+  report the conflict, the proposed change, and the revised estimate, and wait. A discovery that
+  reshapes the design is a plan-gate event, not a disclosure to be saved for the PR description.
+
 ## Architecture notes
 
 - The **ADS-B capture script**, the **inject generator**, and the **scorer** are pure modules —
