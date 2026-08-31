@@ -3,8 +3,10 @@ import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
+import { IdentityLegend } from './IdentityDot'
 import type { AreaOfOperations } from '../config/ao'
 import { circlePolygon } from '../lib/geo'
+import { IDENTITY_COLOR } from '../lib/identity'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const SITES_SOURCE = 'protected-sites'
@@ -24,17 +26,17 @@ const ADSB_COLOR = '#8fa3bf'
 /**
  * Injects are prominent by size, brightness, and a halo — never by warmth. Their stroke carries
  * the *observed* identity, so a Remote ID track that goes quiet visibly changes state on the map
- * (§5.2). Every one of these is cool or neutral: the warm end still belongs to a score PR 04 has
- * not yet computed (Principle 3).
+ * (§5.2). The palette is the one the Queue rows and the legend draw from, so the three states
+ * read the same everywhere on screen.
  */
-const IDENTITY_COLOR: ExpressionSpecification = [
+const IDENTITY_STROKE: ExpressionSpecification = [
   'match',
   ['get', 'identity'],
   'cooperative',
-  RING_COLOR,
+  IDENTITY_COLOR.cooperative,
   'unknown',
-  '#c9d4e3',
-  '#a78bfa',
+  IDENTITY_COLOR.unknown,
+  IDENTITY_COLOR['non-cooperative'],
 ]
 
 function trackFeatures(tracks: AdsbTrack[]) {
@@ -140,7 +142,7 @@ export function MapView({
         source: INJECT_SOURCE,
         paint: {
           'circle-radius': 11,
-          'circle-color': IDENTITY_COLOR,
+          'circle-color': IDENTITY_STROKE,
           'circle-opacity': 0.14,
           'circle-blur': 0.6,
         },
@@ -154,7 +156,7 @@ export function MapView({
           'circle-color': '#f2f6fc',
           'circle-opacity': 0.95,
           'circle-stroke-width': 2,
-          'circle-stroke-color': IDENTITY_COLOR,
+          'circle-stroke-color': IDENTITY_STROKE,
         },
       })
 
@@ -181,11 +183,14 @@ export function MapView({
   }, [injects, styleReady])
 
   return (
-    <div
-      className="map"
-      ref={container}
-      role="application"
-      aria-label={`Airspace map centered on ${ao.name}`}
-    />
+    <div className="map-frame">
+      <div
+        className="map"
+        ref={container}
+        role="application"
+        aria-label={`Airspace map centered on ${ao.name}`}
+      />
+      <IdentityLegend />
+    </div>
   )
 }

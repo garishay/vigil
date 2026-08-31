@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
@@ -13,16 +13,16 @@ vi.mock('./components/MapView', () => ({
   ),
 }))
 
-const { useCapture, generateScenario } = vi.hoisted(() => ({
+const { useCapture, planScenario } = vi.hoisted(() => ({
   useCapture: vi.fn(),
-  generateScenario: vi.fn(),
+  planScenario: vi.fn(),
 }))
 
 // The generator runs for real; the spy is only here to check what timeline App hands it.
 vi.mock('./lib/injects', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./lib/injects')>()
-  generateScenario.mockImplementation(actual.generateScenario)
-  return { ...actual, generateScenario }
+  planScenario.mockImplementation(actual.planScenario)
+  return { ...actual, planScenario }
 })
 vi.mock('./data/useCapture', () => ({ useCapture }))
 
@@ -90,13 +90,39 @@ describe('App shell', () => {
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
   })
 
-  it("generates the injects on the recording's own frame grid", () => {
-    // The two layers share one timeline, which is what lets PR 06 advance a single clock.
+  it("plans the injects on the recording's own frame grid", () => {
+    // The two layers share one timeline, which is what lets PR 06 advance a single clock. App
+    // holds the plan and samples it, so that clock will drive `injectTracksAt` with no rewiring.
     render(<App />)
-    expect(generateScenario).toHaveBeenCalledWith({
+    expect(planScenario).toHaveBeenCalledWith({
       frameCount: READY.status === 'ready' ? READY.capture.frames.length : 0,
       intervalMs: 15000,
     })
+  })
+
+  it('ranks both layers into one queue on the Queue surface', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    const rows = within(queue).getAllByRole('listitem')
+    const injectCount = Number(screen.getByTestId('map').getAttribute('data-injects'))
+    expect(rows).toHaveLength(2 + injectCount)
+    expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent(String(2 + injectCount))
+    // Identity leads: every non-cooperative inject sits above every ADS-B track.
+    const badges = rows.map((row) => within(row).getByText(/^(INJECT|ADS-B)$/).textContent)
+    const lastNonCoop = rows.findLastIndex((row) => row.textContent?.includes('Non-cooperative'))
+    expect(lastNonCoop).toBeGreaterThan(0)
+    expect(badges.slice(0, lastNonCoop + 1).every((badge) => badge === 'INJECT')).toBe(true)
+    expect(within(rows[0]).getByText(/^TRK-\d\d$/)).toBeInTheDocument()
+  })
+
+  it('shows the Queue only on the Queue surface', () => {
+    render(<App />)
+    expect(screen.queryByRole('list', { name: 'Ranked queue' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    expect(screen.queryByRole('list', { name: 'Ranked queue' })).not.toBeInTheDocument()
   })
 
   it('holds the count back while the recording is still loading', () => {

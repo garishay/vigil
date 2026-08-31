@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
 import './App.css'
 import { MapView } from './components/MapView'
+import { Queue } from './components/Queue'
 import { AO } from './config/ao'
 import { SCENARIO } from './config/scenario'
 import { frameTracks } from './data/capture'
 import { useCapture } from './data/useCapture'
-import { generateScenario } from './lib/injects'
+import { injectTracksAt, planScenario } from './lib/injects'
+import { rankTracks } from './lib/ranking'
+import type { Track } from './lib/tracks'
 
 type SurfaceId = 'home' | 'queue' | 'review'
 
@@ -14,13 +17,13 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'home',
     label: 'Home',
     title: 'Picture summary',
-    body: 'Both layers are counted in the strip above. The scenario clock and time-of-day arrive with playback (PR 06).',
+    body: 'Both layers are counted in the strip above and ranked in the Queue. The scenario clock and time-of-day arrive with playback (PR 06).',
   },
   {
     id: 'queue',
     label: 'Queue',
     title: 'Ranked queue',
-    body: 'The ranked track list arrives in PR 02c and gains its scores in PR 04.',
+    body: 'Placeholder ranking: identity, then range to the protected site. Scores arrive in PR 04.',
   },
   {
     id: 'review',
@@ -36,27 +39,33 @@ export default function App() {
   const capture = useCapture()
 
   // The replay clock lands in PR 06; until then the picture holds the recording's first frame.
-  const tracks = useMemo(
+  const adsb = useMemo(
     () => (capture.status === 'ready' ? frameTracks(capture.capture.frames[0]) : []),
     [capture],
   )
 
   /**
-   * The injects share the recording's frame grid rather than inventing one, so PR 06 advances a
-   * single clock across both layers. The generator is pure and synchronous — it takes the
-   * timeline as an argument and never reads the capture itself.
+   * The app holds the inject *plan* — every random decision, made once — and samples it at the
+   * instant it needs. The plan is drawn on the recording's own frame grid rather than one of its
+   * own, so PR 06 drives a single clock through `injectTracksAt` and the ADS-B interpolator with
+   * no rewiring. The generator is pure and synchronous; it never reads the capture itself.
    */
-  const injects = useMemo(() => {
-    if (capture.status !== 'ready') return []
+  const plan = useMemo(() => {
+    if (capture.status !== 'ready') return null
     const { frames, intervalMs } = capture.capture
-    return generateScenario({ frameCount: frames.length, intervalMs }).frames[0].tracks
+    return planScenario({ frameCount: frames.length, intervalMs })
   }, [capture])
+  const injects = useMemo(() => (plan ? injectTracksAt(plan, 0) : []), [plan])
+
+  // One list for the Queue and, later, the scorer: neither knows which layer a track came from.
+  const tracks = useMemo<Track[]>(() => [...adsb, ...injects], [adsb, injects])
+  const ranked = useMemo(() => rankTracks(tracks, AO.protectedSites), [tracks])
 
   const pending = capture.status === 'loading' ? '…' : '—'
   const count = (n: number) => (capture.status === 'ready' ? String(n) : pending)
 
   const statusFields = [
-    { label: 'Cooperative', value: count(tracks.length) },
+    { label: 'Cooperative', value: count(adsb.length) },
     { label: 'Injects', value: count(injects.length) },
     { label: 'Seed', value: SCENARIO.seed },
     { label: 'Sim clock', value: '—' },
@@ -97,9 +106,16 @@ export default function App() {
 
       <main className="shell__body">
         <section className="rail" aria-labelledby="rail-title">
-          <h2 className="rail__title" id="rail-title">
-            {surface.title}
-          </h2>
+          <div className="rail__head">
+            <h2 className="rail__title" id="rail-title">
+              {surface.title}
+            </h2>
+            {surfaceId === 'queue' && (
+              <span className="rail__count" aria-label="Tracks in queue">
+                {count(ranked.length)}
+              </span>
+            )}
+          </div>
           <p className="rail__body">{surface.body}</p>
           {/* A picture that cannot load its traffic says so, rather than showing an empty map. */}
           {capture.status === 'error' && (
@@ -107,8 +123,9 @@ export default function App() {
               {capture.message}
             </p>
           )}
+          {surfaceId === 'queue' && <Queue ranked={ranked} />}
         </section>
-        <MapView ao={AO} tracks={tracks} injects={injects} />
+        <MapView ao={AO} tracks={adsb} injects={injects} />
       </main>
     </div>
   )

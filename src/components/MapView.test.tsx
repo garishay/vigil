@@ -1,7 +1,8 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MapView } from './MapView'
 import { AO } from '../config/ao'
+import { IDENTITY_COLOR } from '../lib/identity'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const TRACKS: AdsbTrack[] = [
@@ -160,6 +161,28 @@ describe('MapView', () => {
     expect(injectRadius).toBeGreaterThan(Math.max(adsbRadius[2], adsbRadius[3]))
     expect(layers['inject-tracks-dot'].paint['circle-stroke-color'][1]).toEqual(['get', 'identity'])
     expect(layers['inject-tracks-halo'].paint['circle-radius']).toBeGreaterThan(injectRadius)
+  })
+
+  it('strokes identity from the same palette the Queue and the legend use', () => {
+    render(<MapView ao={AO} />)
+    const [layer] = mapInstance.addLayer.mock.calls.find(([l]) => l.id === 'inject-tracks-dot')!
+    const stroke = layer.paint['circle-stroke-color'] as unknown[]
+    // ['match', input, 'cooperative', colour, 'unknown', colour, fallback] — the fallback is the
+    // third state, so an unexpected identity value cannot paint as cooperative.
+    expect(stroke.slice(2)).toEqual([
+      'cooperative',
+      IDENTITY_COLOR.cooperative,
+      'unknown',
+      IDENTITY_COLOR.unknown,
+      IDENTITY_COLOR['non-cooperative'],
+    ])
+  })
+
+  it('carries the identity legend in a map corner, so Home can read the three states', () => {
+    render(<MapView ao={AO} />)
+    const legend = screen.getByRole('list', { name: 'Identity legend' })
+    expect(legend).toBeInTheDocument()
+    expect(screen.getByRole('application').parentElement).toContainElement(legend)
   })
 
   it('feeds injects to their own layer, carrying observed identity and behavior', () => {
