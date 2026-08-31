@@ -1,12 +1,23 @@
-import { describe, expect, it } from 'vitest'
-import { parseArgs } from './capture-adsb.ts'
+import { describe, expect, it, vi } from 'vitest'
 import { CAPTURE_ETIQUETTE } from '../src/lib/adsb.ts'
 
 /**
- * Importing the script must not run it — the main() call is guarded on direct invocation, and a
- * capture started by a test would hammer a free service. If these tests hang or hit the network,
- * that guard is what broke.
+ * The fetch stub is installed before the script is imported, and the import is dynamic for
+ * exactly that reason: `main()` is guarded on `import.meta.main`, and the assertion below is
+ * what proves the guard holds — a broken guard would otherwise fail quietly (parseArgs throws on
+ * vitest's argv and the script's own `.catch` swallows it), not hang or hit the network.
  */
+const fetchSpy = vi.fn()
+vi.stubGlobal('fetch', fetchSpy)
+const { parseArgs } = await import('./capture-adsb.ts')
+
+describe('importing the script', () => {
+  it('starts nothing — the entry guard holds and no request is ever made', () => {
+    expect(import.meta.main).toBeFalsy()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+})
+
 describe('parseArgs', () => {
   it('defaults to an interval the etiquette floor accepts (#27)', () => {
     // The old default of 5 s sat below the 10 s floor, so the bare `npm run capture:adsb`
