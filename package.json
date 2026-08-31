@@ -12,7 +12,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "capture:adsb": "node scripts/capture-adsb.ts"
+    "capture:adsb": "node scripts/capture-adsb.ts",
+    "fixture:injects": "node scripts/generate-inject-golden.ts"
   },
   "dependencies": {
     "maplibre-gl": "^6.6.0",

@@ -2,7 +2,7 @@ import { render } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MapView } from './MapView'
 import { AO } from '../config/ao'
-import type { AdsbTrack } from '../lib/tracks'
+import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const TRACKS: AdsbTrack[] = [
   {
@@ -35,6 +35,39 @@ const TRACKS: AdsbTrack[] = [
   },
 ]
 
+const INJECTS: InjectTrack[] = [
+  {
+    id: 'inject-01',
+    source: 'inject',
+    behavior: 'loiter',
+    remoteId: 'silent',
+    identity: 'non-cooperative',
+    callsign: null,
+    position: [-75.2, 39.9],
+    altitudeFt: 210,
+    onGround: false,
+    groundSpeedKt: 4.2,
+    headingDeg: 118.4,
+    verticalRateFpm: 0,
+    lastSeenSec: 0,
+  },
+  {
+    id: 'inject-02',
+    source: 'inject',
+    behavior: 'transit',
+    remoteId: 'intermittent',
+    identity: 'unknown',
+    callsign: null,
+    position: [-75.3, 39.95],
+    altitudeFt: 180,
+    onGround: false,
+    groundSpeedKt: 24.5,
+    headingDeg: 238.6,
+    verticalRateFpm: 87,
+    lastSeenSec: 0,
+  },
+]
+
 // jsdom has no WebGL, so MapLibre is mocked. These tests guard the config wiring — that the map
 // is built from src/config/ao.ts and nowhere else — not MapLibre's own behavior.
 const { mapInstance, setData, MapConstructor, NavigationControl } = vi.hoisted(() => {
@@ -43,7 +76,8 @@ const { mapInstance, setData, MapConstructor, NavigationControl } = vi.hoisted((
     addControl: vi.fn(),
     addSource: vi.fn(),
     addLayer: vi.fn(),
-    getSource: vi.fn(() => ({ setData: setDataFn })),
+    // The source id travels with the data, so a test can say *which* layer it is asserting on.
+    getSource: vi.fn((id: string) => ({ setData: (data: unknown) => setDataFn(id, data) })),
     remove: vi.fn(),
     on: vi.fn((event: string, handler: () => void) => {
       if (event === 'load') handler()
@@ -64,6 +98,12 @@ vi.mock('maplibre-gl', () => ({ Map: MapConstructor, NavigationControl, setWorke
 beforeEach(() => {
   vi.clearAllMocks()
 })
+
+/** The most recent GeoJSON handed to one source. */
+const dataFor = (sourceId: string) =>
+  setData.mock.calls.filter((call) => call[0] === sourceId).at(-1)?.[1] as {
+    features: { geometry: unknown; properties: Record<string, unknown> }[]
+  }
 
 describe('MapView', () => {
   it('builds the map from the AO config rather than its own coordinates', () => {
@@ -90,17 +130,57 @@ describe('MapView', () => {
     expect(source.data.features[0].properties).toMatchObject({ id: AO.protectedSites[0].id })
   })
 
-  it('adds the ADS-B layer empty, so track updates never rebuild it', () => {
+  it('adds the track layers empty, so updates never rebuild them', () => {
     render(<MapView ao={AO} />)
-    const [sourceId, source] = mapInstance.addSource.mock.calls[1]
-    expect(sourceId).toBe('adsb-tracks')
-    expect(source.data.features).toEqual([])
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(3)
+    const [adsbId, adsbSource] = mapInstance.addSource.mock.calls[1]
+    expect(adsbId).toBe('adsb-tracks')
+    expect(adsbSource.data.features).toEqual([])
+    const [injectId, injectSource] = mapInstance.addSource.mock.calls[2]
+    expect(injectId).toBe('inject-tracks')
+    expect(injectSource.data.features).toEqual([])
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(5)
+  })
+
+  it('draws injects above cooperative traffic rather than under it', () => {
+    render(<MapView ao={AO} />)
+    const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
+    expect(order.indexOf('inject-tracks-dot')).toBeGreaterThan(order.indexOf('adsb-tracks-dot'))
+    expect(order.indexOf('inject-tracks-halo')).toBeLessThan(order.indexOf('inject-tracks-dot'))
+  })
+
+  it('renders injects prominently, and by identity rather than by alarm', () => {
+    // Principle 3: alarm color is earned by a score, and PR 04 has not computed one yet. Injects
+    // stand out by size and a halo; their stroke carries the observed identity.
+    render(<MapView ao={AO} />)
+    const layers = Object.fromEntries(
+      mapInstance.addLayer.mock.calls.map(([layer]) => [layer.id, layer]),
+    )
+    const injectRadius = layers['inject-tracks-dot'].paint['circle-radius']
+    const adsbRadius = layers['adsb-tracks-dot'].paint['circle-radius']
+    expect(injectRadius).toBeGreaterThan(Math.max(adsbRadius[2], adsbRadius[3]))
+    expect(layers['inject-tracks-dot'].paint['circle-stroke-color'][1]).toEqual(['get', 'identity'])
+    expect(layers['inject-tracks-halo'].paint['circle-radius']).toBeGreaterThan(injectRadius)
+  })
+
+  it('feeds injects to their own layer, carrying observed identity and behavior', () => {
+    render(<MapView ao={AO} injects={INJECTS} />)
+    const collection = dataFor('inject-tracks')
+    expect(collection.features).toHaveLength(2)
+    expect(collection.features[0]).toMatchObject({
+      geometry: { type: 'Point', coordinates: INJECTS[0].position },
+      properties: { id: 'inject-01', identity: 'non-cooperative', behavior: 'loiter' },
+    })
+    // The Remote ID ground truth travels with the feature, but the map paints the observation.
+    expect(collection.features[1].properties).toMatchObject({
+      identity: 'unknown',
+      remoteId: 'intermittent',
+      callsign: '',
+    })
   })
 
   it('feeds tracks to the layer as points, carrying id and ground state', () => {
     render(<MapView ao={AO} tracks={TRACKS} />)
-    const collection = setData.mock.calls.at(-1)?.[0]
+    const collection = dataFor('adsb-tracks')
     expect(collection.features).toHaveLength(2)
     expect(collection.features[0]).toMatchObject({
       geometry: { type: 'Point', coordinates: TRACKS[0].position },
@@ -111,7 +191,8 @@ describe('MapView', () => {
 
   it('renders no tracks before the recording has loaded', () => {
     render(<MapView ao={AO} />)
-    expect(setData.mock.calls.at(-1)?.[0].features).toEqual([])
+    expect(dataFor('adsb-tracks').features).toEqual([])
+    expect(dataFor('inject-tracks').features).toEqual([])
   })
 
   it('tears the map down on unmount', () => {

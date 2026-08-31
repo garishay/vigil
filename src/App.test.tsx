@@ -2,17 +2,28 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
+import { SCENARIO } from './config/scenario'
 import type { CaptureState } from './data/useCapture'
 
 // The map itself is covered by MapView.test.tsx; here it is stubbed so these tests stay about
 // layout, navigation, and what the picture status strip reports.
 vi.mock('./components/MapView', () => ({
-  MapView: ({ tracks }: { tracks?: unknown[] }) => (
-    <div data-testid="map" data-tracks={tracks?.length ?? 0} />
+  MapView: ({ tracks, injects }: { tracks?: unknown[]; injects?: unknown[] }) => (
+    <div data-testid="map" data-tracks={tracks?.length ?? 0} data-injects={injects?.length ?? 0} />
   ),
 }))
 
-const { useCapture } = vi.hoisted(() => ({ useCapture: vi.fn() }))
+const { useCapture, generateScenario } = vi.hoisted(() => ({
+  useCapture: vi.fn(),
+  generateScenario: vi.fn(),
+}))
+
+// The generator runs for real; the spy is only here to check what timeline App hands it.
+vi.mock('./lib/injects', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./lib/injects')>()
+  generateScenario.mockImplementation(actual.generateScenario)
+  return { ...actual, generateScenario }
+})
 vi.mock('./data/useCapture', () => ({ useCapture }))
 
 const READY: CaptureState = {
@@ -63,6 +74,29 @@ describe('App shell', () => {
     render(<App />)
     await waitFor(() => expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2'))
     expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '2')
+  })
+
+  it('puts injects on the map alongside the cooperative layer', async () => {
+    render(<App />)
+    const map = screen.getByTestId('map')
+    await waitFor(() => expect(Number(map.getAttribute('data-injects'))).toBeGreaterThan(0))
+    expect(screen.getByText('Injects').nextSibling).toHaveTextContent(
+      map.getAttribute('data-injects') as string,
+    )
+  })
+
+  it('names the seed, so the picture on screen can be reproduced', () => {
+    render(<App />)
+    expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
+  })
+
+  it("generates the injects on the recording's own frame grid", () => {
+    // The two layers share one timeline, which is what lets PR 06 advance a single clock.
+    render(<App />)
+    expect(generateScenario).toHaveBeenCalledWith({
+      frameCount: READY.status === 'ready' ? READY.capture.frames.length : 0,
+      intervalMs: 15000,
+    })
   })
 
   it('holds the count back while the recording is still loading', () => {

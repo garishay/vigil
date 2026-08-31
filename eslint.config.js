@@ -35,5 +35,31 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
     rules: { 'no-console': 'off' },
   },
+  {
+    // The scoring path's determinism guarantee, enforced rather than remembered. Same seed →
+    // identical picture is an acceptance criterion (docs/mvp-scope.md §11), and it survives only
+    // as long as nobody reaches for an unseeded source of variation inside the generator.
+    files: ['src/lib/rng.ts', 'src/lib/injects.ts', 'src/config/scenario.ts'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        { name: 'Date', message: 'The inject generator has no clock — take time as a parameter.' },
+        { name: 'performance', message: 'The inject generator has no clock.' },
+      ],
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'Math',
+          property: 'random',
+          message: 'Unseedable. Use makeRng(seed) from src/lib/rng.ts.',
+        },
+        {
+          object: 'crypto',
+          property: 'getRandomValues',
+          message: 'Nondeterministic by design. Use makeRng(seed) from src/lib/rng.ts.',
+        },
+      ],
+    },
+  },
   prettier,
 )

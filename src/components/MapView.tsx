@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
-import type { GeoJSONSource } from 'maplibre-gl'
+import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
 import type { AreaOfOperations } from '../config/ao'
 import { circlePolygon } from '../lib/geo'
-import type { AdsbTrack } from '../lib/tracks'
+import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const SITES_SOURCE = 'protected-sites'
 const ADSB_SOURCE = 'adsb-tracks'
+const INJECT_SOURCE = 'inject-tracks'
 
 /** Mirrors --accent in the theme; MapLibre paint properties take literals, not CSS variables. */
 const RING_COLOR = '#4c9aff'
@@ -19,6 +20,22 @@ const RING_COLOR = '#4c9aff'
  * remains something a score has to earn.
  */
 const ADSB_COLOR = '#8fa3bf'
+
+/**
+ * Injects are prominent by size, brightness, and a halo — never by warmth. Their stroke carries
+ * the *observed* identity, so a Remote ID track that goes quiet visibly changes state on the map
+ * (§5.2). Every one of these is cool or neutral: the warm end still belongs to a score PR 04 has
+ * not yet computed (Principle 3).
+ */
+const IDENTITY_COLOR: ExpressionSpecification = [
+  'match',
+  ['get', 'identity'],
+  'cooperative',
+  RING_COLOR,
+  'unknown',
+  '#c9d4e3',
+  '#a78bfa',
+]
 
 function trackFeatures(tracks: AdsbTrack[]) {
   return {
@@ -31,11 +48,36 @@ function trackFeatures(tracks: AdsbTrack[]) {
   }
 }
 
+function injectFeatures(tracks: InjectTrack[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: tracks.map((track) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: track.position },
+      properties: {
+        id: track.id,
+        callsign: track.callsign ?? '',
+        identity: track.identity,
+        behavior: track.behavior,
+        remoteId: track.remoteId,
+      },
+    })),
+  }
+}
+
 /**
  * The persistent map canvas. Mounted once for the life of the app — switching surfaces must not
  * remount it, because rebuilding a MapLibre map is expensive and throws away the operator's view.
  */
-export function MapView({ ao, tracks = [] }: { ao: AreaOfOperations; tracks?: AdsbTrack[] }) {
+export function MapView({
+  ao,
+  tracks = [],
+  injects = [],
+}: {
+  ao: AreaOfOperations
+  tracks?: AdsbTrack[]
+  injects?: InjectTrack[]
+}) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const [styleReady, setStyleReady] = useState(false)
@@ -90,6 +132,32 @@ export function MapView({ ao, tracks = [] }: { ao: AreaOfOperations; tracks?: Ad
           'circle-stroke-opacity': 0.35,
         },
       })
+      // Added last, so injects draw above cooperative traffic rather than under it.
+      map.addSource(INJECT_SOURCE, { type: 'geojson', data: injectFeatures([]) })
+      map.addLayer({
+        id: `${INJECT_SOURCE}-halo`,
+        type: 'circle',
+        source: INJECT_SOURCE,
+        paint: {
+          'circle-radius': 11,
+          'circle-color': IDENTITY_COLOR,
+          'circle-opacity': 0.14,
+          'circle-blur': 0.6,
+        },
+      })
+      map.addLayer({
+        id: `${INJECT_SOURCE}-dot`,
+        type: 'circle',
+        source: INJECT_SOURCE,
+        paint: {
+          'circle-radius': 4.5,
+          'circle-color': '#f2f6fc',
+          'circle-opacity': 0.95,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': IDENTITY_COLOR,
+        },
+      })
+
       setStyleReady(true)
     })
 
@@ -105,6 +173,12 @@ export function MapView({ ao, tracks = [] }: { ao: AreaOfOperations; tracks?: Ad
     if (!map || !styleReady) return
     map.getSource<GeoJSONSource>(ADSB_SOURCE)?.setData(trackFeatures(tracks))
   }, [tracks, styleReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    map.getSource<GeoJSONSource>(INJECT_SOURCE)?.setData(injectFeatures(injects))
+  }, [injects, styleReady])
 
   return (
     <div
