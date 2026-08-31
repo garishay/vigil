@@ -16,13 +16,16 @@ Every score decomposes into visible factors. A ranked list nobody can interrogat
 
 Two layers converge on one track model; pure modules do the work and the UI only consumes them.
 The two scripts under `scripts/` run offline, once, and are the only boxes that do I/O without
-a test seam. The app calls the modules; nothing calls back. Dashed boxes are later PRs.
+a test seam. The app calls the modules; nothing calls back. The diagram draws the **data path,
+not the import graph**: helper modules (`geo`, `rng`, `identity`) and type-only edges are
+deliberately omitted. Dashed boxes are later PRs; dashed edges are supporting relationships —
+a startup fetch, a regeneration — rather than the runtime data path.
 
 ```mermaid
 flowchart LR
   subgraph offline["Offline, run once — network and filesystem, not a runtime module"]
     direction LR
-    cap["scripts/capture-adsb.ts<br/>rate-limit etiquette"] --> fx[("public/adsb-phl.json<br/>committed fixture<br/>80 frames @ 15 s")]
+    cap["scripts/capture-adsb.ts"] --> fx[("public/adsb-phl.json<br/>committed fixture<br/>80 frames @ 15 s")]
     fx --> goldgen["scripts/generate-inject-golden.ts<br/>npm run fixture:injects<br/>samples the plan on the recording's frame grid"]
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
@@ -36,8 +39,6 @@ flowchart LR
       cfg["config/scenario.ts<br/>seed · envelope · launch points"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 behaviors · 3 Remote ID states"]
       gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
-    gen --> goldgen
-    goldgen -. pins .-> gold
     ao["config/ao.ts<br/>AO: center · bbox · protected sites"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     rank["lib/ranking.ts<br/>placeholder rank: identity → range"]
@@ -50,8 +51,10 @@ flowchart LR
     model -.-> score
   end
   fx -. fetched at startup .-> load
-  ao -- bbox · capture radius --> cap
-  norm -. normalizeResponse, at capture time .-> cap
+  gen --> goldgen
+  goldgen -. pins .-> gold
+  ao -- bbox --> cap
+  norm -. normalize + rate-limit etiquette, at capture time .-> cap
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
     app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0"]
