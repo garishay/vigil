@@ -235,6 +235,13 @@ describe('toTrack', () => {
     })
   })
 
+  it('holds the no-category rule for records it did not normalize itself', () => {
+    // A record can reach toTrack without passing through normalizeAircraft — a hand-built
+    // fixture, or Phase 2's live feed — so the sentinel filter holds at both boundaries.
+    const foreign = { ...normalizeAircraft(AIRBORNE)!, category: 'A0' }
+    expect(toTrack(foreign).category).toBeNull()
+  })
+
   it('carries the enrichment through as nullable display fields', () => {
     const bare = toTrack(normalizeAircraft(AIRBORNE)!)
     expect(bare.category).toBeNull()

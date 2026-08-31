@@ -167,10 +167,15 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
   // none, which is the same thing as the field being absent.
   const rawCategory = text(raw.category)
   const category = rawCategory && !NO_CATEGORY.has(rawCategory) ? rawCategory : undefined
+  // Each bound once: a guard and a value that are separate expressions are two places to keep
+  // in step, and the one that drifts stores the thing the other just rejected.
+  const typeCode = text(raw.t)
+  const typeDesc = text(raw.desc)
+  const registration = text(raw.r)
   const registry: AircraftRegistry = {
-    ...(text(raw.t) ? { typeCode: text(raw.t) } : {}),
-    ...(text(raw.desc) ? { typeDesc: text(raw.desc) } : {}),
-    ...(text(raw.r) ? { registration: text(raw.r) } : {}),
+    ...(typeCode ? { typeCode } : {}),
+    ...(typeDesc ? { typeDesc } : {}),
+    ...(registration ? { registration } : {}),
   }
 
   return {
@@ -235,7 +240,10 @@ export function toTrack(record: CaptureRecord): AdsbTrack {
     headingDeg: record.headingDeg ?? null,
     verticalRateFpm: record.verticalRateFpm ?? null,
     lastSeenSec: record.lastSeenSec ?? 0,
-    category: record.category ?? null,
+    // The no-category sentinels are filtered at capture time too, but this record may not have
+    // come from our capture script — a hand-built fixture, or Phase 2's live feed. The invariant
+    // holds here so it holds wherever the record came from.
+    category: record.category && !NO_CATEGORY.has(record.category) ? record.category : null,
     registry: record.registry ?? null,
   }
 }
