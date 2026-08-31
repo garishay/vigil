@@ -33,6 +33,8 @@ function adsb(hex: string, rangeM: number, extra: Partial<AdsbTrack> = {}): Adsb
     headingDeg: 90,
     verticalRateFpm: 0,
     lastSeenSec: 0,
+    category: null,
+    registry: null,
     ...extra,
   }
 }
@@ -161,23 +163,46 @@ describe('determinism', () => {
       'inject-05',
       'inject-03',
       'inject-06',
-      'adsb-a46ab9',
-      'adsb-a43b59',
+      'adsb-c00b80',
       'inject-01',
       'inject-04',
+      'adsb-a28904',
     ])
   })
 
-  it('ends the default picture with its two parked aircraft, dimmed rather than dropped', () => {
+  it('ends the default picture with its parked aircraft, dimmed rather than dropped', () => {
     const ranked = rankTracks(frame0, SITES)
-    const tail = ranked.slice(-2)
+    const tail = ranked.slice(-3)
     expect(tail.every((r) => r.track.onGround)).toBe(true)
-    expect(tail.map((r) => r.track.id)).toEqual(['adsb-a66ea3', 'adsb-a3303d'])
-    expect(ranked.slice(0, -2).some((r) => r.track.onGround)).toBe(false)
+    expect(tail.map((r) => r.track.id)).toEqual(['adsb-a8f5ba', 'adsb-abf0ca', 'adsb-a1bc1f'])
+    expect(ranked.slice(0, -3).some((r) => r.track.onGround)).toBe(false)
   })
+})
 
+describe('arrival order', () => {
+  // Synthetic on purpose: the capture is data, not a test oracle, so a recapture re-pins the
+  // frame-0 tests above and nothing else.
   it('produces the same order whatever order the tracks arrive in', () => {
-    const reversed = [...frame0].reverse()
-    expect(order(reversed)).toEqual(order(frame0))
+    const tracks: Track[] = [
+      adsb('a00003', 9000),
+      inject(2, 'cooperative', 4000),
+      adsb('a00001', 100, { onGround: true, altitudeFt: 0 }),
+      inject(1, 'non-cooperative', 30_000),
+      adsb('a00002', 2000),
+      inject(3, 'unknown', 12_000),
+    ]
+    const expected = order(tracks)
+    expect(expected).toEqual([
+      'inject-01',
+      'inject-03',
+      'adsb-a00002',
+      'inject-02',
+      'adsb-a00003',
+      'adsb-a00001',
+    ])
+    expect(order([...tracks].reverse())).toEqual(expected)
+    expect(order([tracks[3], tracks[0], tracks[5], tracks[1], tracks[4], tracks[2]])).toEqual(
+      expected,
+    )
   })
 })

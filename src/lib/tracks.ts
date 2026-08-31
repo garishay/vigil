@@ -8,6 +8,8 @@
  * Making it unrepresentable is the point; making it merely unlikely would not be.
  */
 
+import type { AircraftRegistry } from './adsb.ts'
+
 /** Plain English (principle 3). Vigil ships no military identification symbology — scope §9. */
 export type Identity = 'cooperative' | 'non-cooperative' | 'unknown'
 
@@ -56,6 +58,13 @@ export interface AdsbTrack extends TrackBase {
   source: 'adsb'
   icaoHex: string
   identity: 'cooperative'
+  /**
+   * Display enrichment, never scored (§5.1). `category` is the broadcast emitter category — an
+   * observation. `registry` is what the aggregator's database says the airframe is registered as
+   * — a lookup, shown labelled as one. Null when the recording carries neither.
+   */
+  category: string | null
+  registry: AircraftRegistry | null
 }
 
 /** A simulated small UAS. The only kind of track that can score as a threat. */

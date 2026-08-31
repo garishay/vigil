@@ -51,6 +51,8 @@ const AIRLINER: AdsbTrack = {
   headingDeg: 270,
   verticalRateFpm: -500,
   lastSeenSec: 0,
+  category: null,
+  registry: null,
 }
 
 const PARKED: AdsbTrack = {

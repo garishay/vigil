@@ -17,8 +17,10 @@ import type { AreaOfOperations } from '../config/ao.ts'
  * a given airframe does not broadcast — this is the untrusted outside edge, and the normalizer's
  * job is to turn it into something the rest of Vigil can rely on.
  *
- * Deliberately absent: `r` (registration) and `t` (airframe type). Vigil scores what a track does,
- * not what it claims to be, and neither field appears in the §5.1 model.
+ * The enrichment fields are kept for display only (§5.1). `category` is broadcast by the aircraft
+ * — an observation. `t`, `desc`, `r`, and `ownOp` are the aggregator's registry lookups — what
+ * the airframe is registered as, not anything it transmitted. Vigil scores what a track does, not
+ * what it claims to be: nothing in the scoring path reads any of them.
  */
 export interface AdsbLolAircraft {
   hex?: string
@@ -32,6 +34,28 @@ export interface AdsbLolAircraft {
   baro_rate?: number
   geom_rate?: number
   seen?: number
+  /** ADS-B emitter category, e.g. `A3` — broadcast, so observed. */
+  category?: string
+  /** ICAO type designator from the registry, e.g. `B738`. */
+  t?: string
+  /** Registry type description, e.g. `BOEING 737-800`. */
+  desc?: string
+  /** Registration, from the registry. */
+  r?: string
+  /** Registered operator, from the registry. */
+  ownOp?: string
+}
+
+/**
+ * What the registry says about an airframe, as opposed to what the airframe broadcast. Kept apart
+ * from the observed fields so a display can label it as a lookup, and so the scoring path has
+ * nothing to reach for by accident.
+ */
+export interface AircraftRegistry {
+  typeCode?: string
+  typeDesc?: string
+  registration?: string
+  operator?: string
 }
 
 export interface AdsbLolResponse {
@@ -62,6 +86,10 @@ export interface CaptureRecord {
   verticalRateFpm?: number
   /** Omitted when the track updated within the last second. */
   lastSeenSec?: number
+  /** Broadcast emitter category. Omitted when the aircraft sent none. Display only. */
+  category?: string
+  /** Registry lookups, omitted when the aggregator had none. Display only, labelled as lookups. */
+  registry?: AircraftRegistry
 }
 
 /** One instant of the real picture. */
@@ -128,6 +156,14 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
   // Barometric rate is the primary; geometric is the fallback the feed offers when it is absent.
   const verticalRate = raw.baro_rate ?? raw.geom_rate
   const lastSeenSec = round(raw.seen ?? 0, 1)
+  const text = (value: string | undefined) => value?.trim() || undefined
+  const category = text(raw.category)
+  const registry: AircraftRegistry = {
+    ...(text(raw.t) ? { typeCode: text(raw.t) } : {}),
+    ...(text(raw.desc) ? { typeDesc: text(raw.desc) } : {}),
+    ...(text(raw.r) ? { registration: text(raw.r) } : {}),
+    ...(text(raw.ownOp) ? { operator: text(raw.ownOp) } : {}),
+  }
 
   return {
     hex,
@@ -141,6 +177,8 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
     ...(typeof raw.track === 'number' ? { headingDeg: round(raw.track, 1) } : {}),
     ...(typeof verticalRate === 'number' ? { verticalRateFpm: Math.round(verticalRate) } : {}),
     ...(lastSeenSec > 0 ? { lastSeenSec } : {}),
+    ...(category ? { category } : {}),
+    ...(Object.keys(registry).length > 0 ? { registry } : {}),
   }
 }
 
@@ -189,6 +227,8 @@ export function toTrack(record: CaptureRecord): AdsbTrack {
     headingDeg: record.headingDeg ?? null,
     verticalRateFpm: record.verticalRateFpm ?? null,
     lastSeenSec: record.lastSeenSec ?? 0,
+    category: record.category ?? null,
+    registry: record.registry ?? null,
   }
 }
 

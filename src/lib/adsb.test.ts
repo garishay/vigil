@@ -48,6 +48,43 @@ describe('normalizeAircraft', () => {
     })
   })
 
+  // Display enrichment (§5.1): the broadcast category and the registry lookups are kept apart,
+  // so a display can label the lookup as one and the scoring path has nothing to read by accident.
+  it('keeps the enrichment fields, split by provenance: broadcast category vs registry lookups', () => {
+    const enriched = {
+      ...AIRBORNE,
+      category: 'A3',
+      t: 'B738',
+      desc: 'BOEING 737-800',
+      r: 'XA-TEST',
+      ownOp: 'Example Air',
+    }
+    expect(normalizeAircraft(enriched)).toMatchObject({
+      category: 'A3',
+      registry: {
+        typeCode: 'B738',
+        typeDesc: 'BOEING 737-800',
+        registration: 'XA-TEST',
+        operator: 'Example Air',
+      },
+    })
+  })
+
+  it('omits the enrichment entirely when the feed carried none, and blanks are none', () => {
+    expect(normalizeAircraft(AIRBORNE)).not.toHaveProperty('category')
+    expect(normalizeAircraft(AIRBORNE)).not.toHaveProperty('registry')
+    const blank = normalizeAircraft({ ...AIRBORNE, category: ' ', t: '', r: '  ' })
+    expect(blank).not.toHaveProperty('category')
+    expect(blank).not.toHaveProperty('registry')
+    // A partial lookup keeps only what it has, rather than padding the rest with empties.
+    expect(normalizeAircraft({ ...AIRBORNE, t: 'C172' })).toMatchObject({
+      registry: { typeCode: 'C172' },
+    })
+    expect(normalizeAircraft({ ...AIRBORNE, t: 'C172' })!.registry).not.toHaveProperty(
+      'registration',
+    )
+  })
+
   it('flags a parked aircraft rather than storing "ground" as an altitude', () => {
     const record = normalizeAircraft(PARKED)
     expect(record).toMatchObject({ altitudeFt: 0, onGround: true, lastSeenSec: 1.6 })
@@ -170,6 +207,15 @@ describe('toTrack', () => {
       onGround: false,
       lastSeenSec: 0,
     })
+  })
+
+  it('carries the enrichment through as nullable display fields', () => {
+    const bare = toTrack(normalizeAircraft(AIRBORNE)!)
+    expect(bare.category).toBeNull()
+    expect(bare.registry).toBeNull()
+    const enriched = toTrack(normalizeAircraft({ ...AIRBORNE, category: 'A1', t: 'C172' })!)
+    expect(enriched.category).toBe('A1')
+    expect(enriched.registry).toEqual({ typeCode: 'C172' })
   })
 
   it('prefixes the id by source so a real hex can never collide with an inject', () => {
