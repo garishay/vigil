@@ -89,15 +89,16 @@ implementation lines — pre-approved by those Issues, which are jointly the PR'
 Issue and its scope, so the plan gate is satisfied by reference. Growth past the cap is a
 budget change: stop and re-gate.
 
-**Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with options
-and a recommendation; batch — the queued item itself stops and waits; only unrelated work
-continues): any discretionary change to what a user sees beyond the approved mockup (the
+**Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with
+options and a recommendation; batch — the queued item itself stops and waits; only unrelated
+work continues): any discretionary change to what a user sees beyond the approved mockup (the
 mockup in the plan comment on the PR's Issue; a PR with no approved mockup has approved no
-user-visible change), including on-screen wording; scope adds or cuts; data provenance, privacy, licensing, new dependencies, any new network call; design or
-budget changes mid-build (the existing re-gate rule); conflicts between doc rules; changes
-to the review tooling — the AI model or the workflows; anything where two rulings could
-plausibly apply. The owner answers the queue in batches via notifications. An on-screen factual error is never a queue item: within
-the approved design and budget, it is fixed regardless of surface.
+user-visible change), including on-screen wording; scope adds or cuts; data provenance,
+privacy, licensing, new dependencies, any new network call; design or budget changes mid-build
+(the existing re-gate rule); conflicts between doc rules; changes to the review tooling — the
+AI model or the workflows; anything where two rulings could plausibly apply. The owner answers
+the queue in batches via notifications. An on-screen factual error is never a queue item:
+within the approved design and budget, it is fixed regardless of surface.
 
 ### Lanes
 
