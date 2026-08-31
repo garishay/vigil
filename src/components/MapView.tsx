@@ -12,6 +12,23 @@ import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 const SITES_SOURCE = 'protected-sites'
 const ADSB_SOURCE = 'adsb-tracks'
 const INJECT_SOURCE = 'inject-tracks'
+const SELECT_SOURCE = 'selected-track'
+
+/** Zero or one point: the selected track's position, or an empty collection. */
+function selectionFeature(position: [number, number] | null) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: position
+      ? [
+          {
+            type: 'Feature' as const,
+            geometry: { type: 'Point' as const, coordinates: position },
+            properties: {},
+          },
+        ]
+      : [],
+  }
+}
 
 /** Mirrors --accent in the theme; MapLibre paint properties take literals, not CSS variables. */
 const RING_COLOR = '#4c9aff'
@@ -75,14 +92,26 @@ export function MapView({
   ao,
   tracks = [],
   injects = [],
+  selectedId = null,
+  onSelect,
 }: {
   ao: AreaOfOperations
   tracks?: AdsbTrack[]
   injects?: InjectTrack[]
+  selectedId?: string | null
+  onSelect?: (id: string) => void
 }) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const [styleReady, setStyleReady] = useState(false)
+  // The click handlers are registered once, inside the load effect; the ref keeps them reading
+  // the current callback instead of the one that existed when the map was built.
+  const onSelectRef = useRef(onSelect)
+  useEffect(() => {
+    onSelectRef.current = onSelect
+  }, [onSelect])
+  // Ease only when the selection itself changes — not when the same track's data refreshes.
+  const easedIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!container.current) return
@@ -121,6 +150,20 @@ export function MapView({
 
       // Added empty and fed by the effect below, so track updates never rebuild the layer.
       map.addSource(ADSB_SOURCE, { type: 'geojson', data: trackFeatures([]) })
+      // Invisible hit area, deliberately *below* the visible dot: the ADS-B dot is ~3 px of
+      // visible radius, close to unclickable on a dense frame, so this widens the click target
+      // without changing the picture — and because click dispatch prefers the topmost feature,
+      // a visible parked dot under the cursor beats an overlapping invisible airborne ring.
+      map.addLayer({
+        id: `${ADSB_SOURCE}-hit`,
+        type: 'circle',
+        source: ADSB_SOURCE,
+        // Airborne only: a parked aircraft draws at 1.8 px, and giving it an invisible 16 px
+        // target would blanket the apron with clicks on traffic the operator cannot see. Ground
+        // dots stay clickable at exactly their visible size through the dot layer above.
+        filter: ['!', ['get', 'onGround']],
+        paint: { 'circle-radius': 8, 'circle-opacity': 0 },
+      })
       map.addLayer({
         id: `${ADSB_SOURCE}-dot`,
         type: 'circle',
@@ -160,11 +203,42 @@ export function MapView({
         },
       })
 
+      // The selection ring rides its own source, above everything, and holds zero or one point.
+      map.addSource(SELECT_SOURCE, { type: 'geojson', data: selectionFeature(null) })
+      map.addLayer({
+        id: `${SELECT_SOURCE}-ring`,
+        type: 'circle',
+        source: SELECT_SOURCE,
+        paint: {
+          'circle-radius': 13,
+          'circle-opacity': 0,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': RING_COLOR,
+        },
+      })
+
+      // Selection flows both ways (§7): a click selects the track, exactly as a row click does.
+      // One registration, one dispatch, one selection: every clickable layer shares a single
+      // array-form listener, so an overlap cannot fire two handlers and let the later one
+      // overwrite the first — features[0] under a single dispatch is the top-rendered feature,
+      // the one under the cursor visually. The dot layer is in the array for the ground traffic
+      // the filtered hit layer excludes; for airborne, dot and hit are the same dispatch. Empty
+      // basemap clicks select nothing.
+      map.on(
+        'click',
+        [`${ADSB_SOURCE}-hit`, `${ADSB_SOURCE}-dot`, `${INJECT_SOURCE}-halo`],
+        (event) => {
+          const id = event.features?.[0]?.properties?.id as unknown
+          if (typeof id === 'string') onSelectRef.current?.(id)
+        },
+      )
+
       setStyleReady(true)
     })
 
     return () => {
       mapRef.current = null
+      easedIdRef.current = null
       setStyleReady(false)
       map.remove()
     }
@@ -181,6 +255,25 @@ export function MapView({
     if (!map || !styleReady) return
     map.getSource<GeoJSONSource>(INJECT_SOURCE)?.setData(injectFeatures(injects))
   }, [injects, styleReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    const selected =
+      (selectedId && [...tracks, ...injects].find((track) => track.id === selectedId)) || null
+    map
+      .getSource<GeoJSONSource>(SELECT_SOURCE)
+      ?.setData(selectionFeature(selected?.position ?? null))
+    // Stamped only when the camera actually flew: a selection whose track has not arrived yet
+    // must still get its ease when the track appears. A cleared selection resets the stamp, so
+    // deselecting and reselecting the same track flies again.
+    if (!selectedId) {
+      easedIdRef.current = null
+    } else if (selected && selectedId !== easedIdRef.current) {
+      map.easeTo({ center: selected.position, duration: 600 })
+      easedIdRef.current = selectedId
+    }
+  }, [selectedId, tracks, injects, styleReady])
 
   return (
     <div className="map-frame">
