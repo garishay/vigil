@@ -177,7 +177,7 @@ describe('launch points', () => {
   })
 
   it('are relative to the AO, so relocating Vigil relocates them', () => {
-    const elsewhere = { ...AO, center: [-97.0379, 32.8998] as [number, number], protectedSites: [] }
+    const elsewhere = { ...AO, center: [-100.0, 40.0] as [number, number], protectedSites: [] }
     const moved = planScenario(TIMELINE, SCENARIO, elsewhere)
     for (const spec of moved.specs) {
       expect(distanceMeters(elsewhere.center, spec.origin)).toBeLessThan(11_000)

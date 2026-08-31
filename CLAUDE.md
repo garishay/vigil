@@ -52,6 +52,8 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
   run whose workflow file differs from `main`, so a workflow PR is first exercised by the PR after
   it — anything riding along lands unproven (the lesson of #18, paid for in #20).
 - At least one test per behavior change. No dead code, no `console` noise.
+- **Update the README architecture diagram** when a PR adds or removes a module (a stage on the
+  data path) or an edge — including un-dashing a box the diagram already reserves for that PR.
 
 ## The plan gate
 
