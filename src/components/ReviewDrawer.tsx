@@ -37,7 +37,10 @@ export function ReviewDrawer({
       label: 'Altitude',
       value: dash(track.altitudeFt === null ? null : `${track.altitudeFt} ft`),
     },
-    { label: 'Ground speed', value: `${track.groundSpeedKt} kt` },
+    {
+      label: 'Ground speed',
+      value: dash(track.groundSpeedKt === null ? null : `${track.groundSpeedKt} kt`),
+    },
     {
       label: 'Heading',
       value: dash(track.headingDeg === null ? null : `${track.headingDeg}°`),
