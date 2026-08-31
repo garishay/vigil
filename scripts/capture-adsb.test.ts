@@ -41,16 +41,17 @@ describe('importing the script', () => {
 
 describe('invoking the script directly', () => {
   it('reaches main — the entry guard is not stuck false', () => {
-    // The other half of the guard, pinned without a network: a real invocation with a
-    // below-floor interval must die on parseArgs's etiquette check, which happens before any
-    // fetch. A guard stuck false would exit 0 printing nothing — a silent no-op strictly worse
-    // than the throw #27 fixed — and fail both assertions here.
-    const result = spawnSync(process.execPath, [scriptPath, '--interval', '5'], {
+    // The other half of the guard, pinned structurally network-free: an unknown flag can never
+    // become a legal capture, so parseArgs rejects before any fetch on every possible future of
+    // the config — unlike a below-floor interval, which is offline only while the floor stands.
+    // A guard stuck false would exit 0 printing nothing — a silent no-op strictly worse than
+    // the throw #27 fixed — and fail both assertions here.
+    const result = spawnSync(process.execPath, [scriptPath, '--no-such-flag', 'x'], {
       encoding: 'utf8',
       timeout: 20_000,
     })
     expect(result.status).toBe(1)
-    expect(result.stderr + result.stdout).toMatch(/at least 10/)
+    expect(result.stderr + result.stdout).toMatch(/Unknown argument --no-such-flag/)
   })
 })
 

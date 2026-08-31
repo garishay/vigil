@@ -16,6 +16,7 @@
 import { realpathSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AO } from '../src/config/ao.ts'
 import {
@@ -242,8 +243,18 @@ export function entryPathsMatch(
  * realpath comparison decides, so neither an old runtime nor a symlinked checkout can silently
  * no-op the script.
  */
+/**
+ * This module's own on-disk path, from the richest source the runtime offers:
+ * `import.meta.filename` (Node 20.11+), else the URL when it is genuinely file-scheme, else
+ * undefined — a non-file scheme means a bundler or test harness, which is never the entry.
+ */
+function entryScriptPath(): string | undefined {
+  if (import.meta.filename) return import.meta.filename
+  return import.meta.url?.startsWith('file:') ? fileURLToPath(import.meta.url) : undefined
+}
+
 function isEntry(): boolean {
-  return import.meta.main ?? entryPathsMatch(import.meta.filename, process.argv[1])
+  return import.meta.main ?? entryPathsMatch(entryScriptPath(), process.argv[1])
 }
 
 if (isEntry()) {
