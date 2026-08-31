@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { readFileSync } from 'node:fs'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { CAPTURE_ETIQUETTE } from '../src/lib/adsb.ts'
@@ -14,7 +15,7 @@ const fetchSpy = vi.fn()
 vi.stubGlobal('fetch', fetchSpy)
 const logSpy = vi.spyOn(console, 'log')
 const errorSpy = vi.spyOn(console, 'error')
-const { parseArgs } = await import('./capture-adsb.ts')
+const { entryPathsMatch, parseArgs } = await import('./capture-adsb.ts')
 
 afterAll(() => {
   logSpy.mockRestore()
@@ -29,6 +30,35 @@ describe('importing the script', () => {
   })
 })
 
+describe('entryPathsMatch', () => {
+  // Vitest sets `import.meta.main` to false, so `isEntry()` never reaches this fallback in the
+  // suite — it is exported and pinned by name because the runtimes it exists for (Node
+  // 23.6–23.11, 24.0/24.1) are exactly the ones CI does not run.
+  const script = 'scripts/capture-adsb.ts'
+
+  it('matches the same file however the two paths spell it', () => {
+    expect(entryPathsMatch(script, script)).toBe(true)
+    expect(entryPathsMatch(script, './scripts/../scripts/capture-adsb.ts')).toBe(true)
+  })
+
+  it('rejects a different file', () => {
+    expect(entryPathsMatch(script, 'vite.config.ts')).toBe(false)
+  })
+
+  it('is false — never a throw — when either side has no on-disk path', () => {
+    // A bystander importing parseArgs from a context without a file path must not be crashed
+    // by the guard; an entry always has both paths.
+    expect(entryPathsMatch(undefined, script)).toBe(false)
+    expect(entryPathsMatch(script, undefined)).toBe(false)
+  })
+
+  it('fails loudly when both paths exist but cannot be resolved', () => {
+    expect(() => entryPathsMatch(script, 'scripts/no-such-file.ts')).toThrow(
+      /cannot determine whether capture-adsb\.ts is the entry/,
+    )
+  })
+})
+
 describe('parseArgs', () => {
   it('defaults to an interval the etiquette floor accepts (#27)', () => {
     // The old default of 5 s sat below the 10 s floor, so the bare `npm run capture:adsb` threw
@@ -40,11 +70,11 @@ describe('parseArgs', () => {
   })
 
   it('accepts the usage example actually written in the header', () => {
-    // Read from the file, not hardcoded: reverting the header to a below-floor example is the
-    // documentation half of #27, and this is the test that guards it.
-    // By repo-relative path: under vitest on Windows, import.meta.url is not a file: URL.
+    // Read from the file and anchored to the header block's ` *   ` prefix, so this matches the
+    // usage example and never a prose mention elsewhere — reverting the doc to a below-floor
+    // example is the documentation half of #27, and this is the test that guards it.
     const source = readFileSync('scripts/capture-adsb.ts', 'utf8')
-    const example = /npm run capture:adsb -- (.+)$/m.exec(source)
+    const example = /^ \*\s+npm run capture:adsb -- (.+)$/m.exec(source)
     expect(example).not.toBeNull()
     expect(() => parseArgs(example![1].trim().split(/\s+/))).not.toThrow()
   })

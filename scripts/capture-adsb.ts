@@ -16,7 +16,6 @@
 import { realpathSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AO } from '../src/config/ao.ts'
 import {
@@ -206,28 +205,45 @@ async function main(): Promise<void> {
 }
 
 /**
- * Run only when invoked directly. Importing this module — which the parseArgs test does — must
- * never start a capture against a free service.
+ * The fallback entry comparison, both sides realpathed so a symlinked checkout still matches.
+ * Exported so the test can pin it directly — under Vitest `import.meta.main` is `false`, not
+ * undefined, so `isEntry()` never reaches this path in the suite and it must be tested by name.
  *
- * `import.meta.main` where the runtime provides it (Node 22.18+/24.2+; Vitest leaves it
- * undefined, so a test import is inert). Where it does not — Node 23.6–23.11 and 24.0/24.1,
- * inside the `engines` warning npm only advises about — fall back to comparing entry paths with
- * both sides realpathed, so neither an old runtime nor a symlinked checkout can silently no-op
- * the script.
+ * Loud, not false, on a realpath failure: a fallback that swallows its own failure is the silent
+ * no-op it exists to prevent, and it only runs at all on runtimes without `import.meta.main`.
  */
-function isEntry(): boolean {
-  if (import.meta.main !== undefined) return import.meta.main
-  if (!process.argv[1]) return false
+export function entryPathsMatch(
+  scriptPath: string | undefined,
+  argvPath: string | undefined,
+): boolean {
+  // An importer without an on-disk path cannot be running us as the entry — false is the
+  // truthful answer there, not a swallowed failure, and a bystander import can never be
+  // crashed by this guard. import.meta.filename (not a URL parse) sidesteps non-file schemes.
+  if (!scriptPath || !argvPath) return false
   try {
-    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
+    return realpathSync(scriptPath) === realpathSync(argvPath)
   } catch (error) {
-    // Loud, not false: a fallback that swallows its own failure is the silent no-op this
-    // function exists to prevent. Only reachable on runtimes without import.meta.main.
+    // Both paths were supplied and one failed to resolve — undiagnosable, so loud: a fallback
+    // that swallows its own failure is the silent no-op it exists to prevent.
     throw new Error(
       `cannot determine whether capture-adsb.ts is the entry: ${(error as Error).message}`,
       { cause: error },
     )
   }
+}
+
+/**
+ * Run only when invoked directly. Importing this module — which the parseArgs test does — must
+ * never start a capture against a free service.
+ *
+ * `import.meta.main` where the runtime provides it: `true` for the entry, `false` for an import
+ * (Vitest sets `false` too, so a test import is inert). Where the property does not exist —
+ * Node 23.6–23.11 and 24.0/24.1, inside the `engines` warning npm only advises about — the
+ * realpath comparison decides, so neither an old runtime nor a symlinked checkout can silently
+ * no-op the script.
+ */
+function isEntry(): boolean {
+  return import.meta.main ?? entryPathsMatch(import.meta.filename, process.argv[1])
 }
 
 if (isEntry()) {
