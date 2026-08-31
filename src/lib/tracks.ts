@@ -45,7 +45,12 @@ interface TrackBase {
    */
   altitudeFt: number | null
   onGround: boolean
-  groundSpeedKt: number
+  /**
+   * Knots over ground, or null when the aircraft broadcast none. The old coerced zero asserted
+   * a stationary aircraft — indistinguishable from a real hover — where the truth was *not
+   * reported*; same rationale as `altitudeFt` above (#35).
+   */
+  groundSpeedKt: number | null
   /** Degrees true, 0–360. Null when the aircraft reports no track angle. */
   headingDeg: number | null
   /** Feet per minute, positive climbing. Null when unreported. */

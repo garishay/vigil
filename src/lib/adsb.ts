@@ -84,7 +84,8 @@ export interface CaptureRecord {
   altitudeFt?: number
   /** Omitted, rather than false, for an airborne aircraft. */
   onGround?: true
-  groundSpeedKt: number
+  /** Omitted when the aircraft broadcast no ground speed — never coerced to zero (#35). */
+  groundSpeedKt?: number
   headingDeg?: number
   verticalRateFpm?: number
   /** Omitted when the track updated within the last second. */
@@ -192,7 +193,7 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
     position: [round(lon, 5), round(lat, 5)],
     ...(altitudeFt !== undefined ? { altitudeFt } : {}),
     ...(onGround ? { onGround: true as const } : {}),
-    groundSpeedKt: round(raw.gs ?? 0, 1),
+    ...(typeof raw.gs === 'number' ? { groundSpeedKt: round(raw.gs, 1) } : {}),
     ...(typeof raw.track === 'number' ? { headingDeg: round(raw.track, 1) } : {}),
     ...(typeof verticalRate === 'number' ? { verticalRateFpm: Math.round(verticalRate) } : {}),
     ...(lastSeenSec > 0 ? { lastSeenSec } : {}),
@@ -242,7 +243,7 @@ export function toTrack(record: CaptureRecord): AdsbTrack {
     position: record.position,
     altitudeFt: record.altitudeFt ?? null,
     onGround: record.onGround ?? false,
-    groundSpeedKt: record.groundSpeedKt,
+    groundSpeedKt: record.groundSpeedKt ?? null,
     headingDeg: record.headingDeg ?? null,
     verticalRateFpm: record.verticalRateFpm ?? null,
     lastSeenSec: record.lastSeenSec ?? 0,

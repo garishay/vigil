@@ -131,6 +131,17 @@ describe('normalizeAircraft', () => {
     expect(normalizeAircraft({ ...AIRBORNE, alt_baro: 0 })).not.toHaveProperty('onGround')
   })
 
+  // The same rule for ground speed (#35): the committed recording's 15 airborne zeros are
+  // unverifiable precisely because the old normalizer coerced an absent broadcast to 0 — behind
+  // a non-nullable field, a real hover and a missing broadcast were indistinguishable.
+  it('omits ground speed entirely when the aircraft broadcast none (#35)', () => {
+    const record = normalizeAircraft({ ...AIRBORNE, gs: undefined })
+    expect(record).not.toBeNull()
+    expect(record).not.toHaveProperty('groundSpeedKt')
+    // A broadcast zero is a reading, not a gap — it stays.
+    expect(normalizeAircraft({ ...AIRBORNE, gs: 0 })).toMatchObject({ groundSpeedKt: 0 })
+  })
+
   it('omits fields the aircraft did not broadcast instead of storing nulls', () => {
     const record = normalizeAircraft({ hex: 'abc123', flight: '        ', lat: 39.9, lon: -75.2 })
     expect(record).not.toHaveProperty('callsign')
@@ -282,6 +293,14 @@ describe('toTrack', () => {
     const enriched = toTrack(normalizeAircraft({ ...AIRBORNE, category: 'A1', t: 'C172' })!)
     expect(enriched.category).toBe('A1')
     expect(enriched.registry).toEqual({ typeCode: 'C172' })
+  })
+
+  it('carries a missing ground speed through as null, never zero (#35)', () => {
+    const base = normalizeAircraft(AIRBORNE)!
+    const silent = { ...base }
+    delete silent.groundSpeedKt
+    expect(toTrack(silent).groundSpeedKt).toBeNull()
+    expect(toTrack(base).groundSpeedKt).toBe(395)
   })
 
   it('prefixes the id by source so a real hex can never collide with an inject', () => {
