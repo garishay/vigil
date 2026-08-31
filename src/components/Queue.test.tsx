@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { Queue } from './Queue'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { RankedTrack } from '../lib/ranking'
@@ -152,6 +152,61 @@ describe('Queue', () => {
   it('renders an empty list before the picture has loaded', () => {
     render(<Queue ranked={[]} />)
     expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeEmptyDOMElement()
+  })
+
+  it('returns focus to the anchoring row when the selection clears (03a)', () => {
+    const { rerender } = render(<Queue ranked={RANKED} selectedId="inject-01" onSelect={vi.fn()} />)
+    rerender(<Queue ranked={RANKED} selectedId={null} onSelect={vi.fn()} />)
+    const [, unheard] = rows()
+    expect(document.activeElement).toBe(within(unheard).getByRole('button'))
+  })
+
+  it('falls back to the list when the anchoring row is filtered out (03a)', () => {
+    const injectsOnly = RANKED.filter((entry) => entry.track.source === 'inject')
+    const { rerender } = render(
+      <Queue ranked={injectsOnly} selectedId="adsb-a3303d" onSelect={vi.fn()} />,
+    )
+    rerender(<Queue ranked={injectsOnly} selectedId={null} onSelect={vi.fn()} />)
+    expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
+  })
+
+  it('selects a track through its row button (03a)', () => {
+    const onSelect = vi.fn()
+    render(<Queue ranked={RANKED} selectedId={null} onSelect={onSelect} />)
+    const [silent] = rows()
+    fireEvent.click(within(silent).getByRole('button'))
+    expect(onSelect).toHaveBeenCalledWith('inject-03')
+  })
+
+  it('marks the selected row, in class and in aria (03a)', () => {
+    render(<Queue ranked={RANKED} selectedId="inject-01" onSelect={vi.fn()} />)
+    const [silent, unheard] = rows()
+    expect(unheard).toHaveClass('queue__row--selected')
+    expect(within(unheard).getByRole('button')).toHaveAttribute('aria-current', 'true')
+    expect(silent).not.toHaveClass('queue__row--selected')
+    expect(within(silent).getByRole('button')).not.toHaveAttribute('aria-current')
+  })
+
+  it('scrolls the selected row into view, including a row that arrives after the selection (03a)', () => {
+    // Patched and restored: jsdom has no scrollIntoView — which is why the component's call is
+    // optional — so the stub must not outlive this test.
+    const original = Element.prototype.scrollIntoView
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    try {
+      const filtered = RANKED.filter((entry) => entry.track.source === 'inject')
+      const { rerender } = render(<Queue ranked={filtered} selectedId={null} onSelect={vi.fn()} />)
+      expect(scroll).not.toHaveBeenCalled()
+      // Selection lands while the row is filtered out: nothing to scroll to yet.
+      rerender(<Queue ranked={filtered} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
+      expect(scroll).not.toHaveBeenCalled()
+      // The filter clears and the selected row renders on this later commit — it still scrolls.
+      rerender(<Queue ranked={RANKED} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
+      expect(scroll).toHaveBeenCalledWith({ block: 'nearest' })
+    } finally {
+      if (original) Element.prototype.scrollIntoView = original
+      else delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    }
   })
 })
 

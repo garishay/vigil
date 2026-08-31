@@ -18,8 +18,10 @@ Two layers converge on one track model; pure modules do the work and the UI only
 The two scripts under `scripts/` run offline, once, and are the only boxes that do I/O without
 a test seam. The app calls the modules; nothing calls back. The diagram draws the **data path,
 not the import graph**: helper modules (`geo`, `rng`, `identity`) and type-only edges are
-deliberately omitted. Dashed boxes are later PRs; dashed edges are supporting relationships —
-a startup fetch, a regeneration — rather than the runtime data path.
+deliberately omitted. The shared track model is drawn as the hub on purpose — every stage meets
+its contract there — and pure helpers (`display` included) fold into their consumers. Dashed
+boxes are later PRs; dashed edges are supporting relationships — a startup fetch, a
+regeneration — rather than the runtime data path.
 
 ```mermaid
 flowchart LR
@@ -60,11 +62,11 @@ flowchart LR
     app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context"]
-    review["Review drawer — PR 03"]
+    review["components/ReviewDrawer.tsx<br/>one track — observed or derived<br/>selection synced with the map"]
     clock["Playback clock — PR 06"]
     app --> queue
     app --> map
-    app -.-> review
+    app -- selected track: drawer --> review
     clock -.-> app
   end
   model -- adsb + injects: map, strip --> app
@@ -73,7 +75,7 @@ flowchart LR
   rank -- ranked: queue --> app
   score -.-> app
   classDef planned stroke-dasharray: 6 4,fill:none;
-  class score,review,clock planned;
+  class score,clock planned;
 ```
 
 ---
