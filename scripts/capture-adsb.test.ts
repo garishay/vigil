@@ -129,6 +129,14 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--minutes'])).toThrow(/Missing value/)
   })
 
+  it('refuses a window that is not a finite number of minutes', () => {
+    // Infinity is > 0, so it passed the positivity check and made `frameCount` Infinity — an
+    // unbounded loop against adsb.lol, which is the failure the whole etiquette section exists
+    // to prevent. NaN was already caught; this is the other end of the same check.
+    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/finite/)
+    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/finite/)
+  })
+
   it('names the flag, not a missing value, for an unrecognised trailing flag', () => {
     // `--help` is the flag a person reaches for first and the one this script does not have.
     // It used to be met with `Missing value for --help`, which describes neither problem (#30).

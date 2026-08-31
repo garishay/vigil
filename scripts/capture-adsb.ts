@@ -81,8 +81,11 @@ export function parseArgs(argv: string[]): Options {
         break
     }
   }
-  if (!(options.minutes > 0) || !(options.intervalS > 0)) {
-    throw new Error('--minutes and --interval must be positive numbers')
+  // Finite, not merely positive: `--minutes 1e400` parses to Infinity, which is > 0. It made
+  // `frameCount` Infinity, sailed past the one-frame guard below, and turned the capture loop
+  // into an unbounded poll of a free service — the one thing this script exists not to do.
+  if (![options.minutes, options.intervalS].every((n) => Number.isFinite(n) && n > 0)) {
+    throw new Error('--minutes and --interval must be positive, finite numbers')
   }
   if (options.intervalS < CAPTURE_ETIQUETTE.minIntervalS) {
     throw new Error(
