@@ -15,7 +15,6 @@
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AO } from '../src/config/ao.ts'
 import {
@@ -205,8 +204,10 @@ async function main(): Promise<void> {
 }
 
 // Run only when invoked directly. Importing this module — which the parseArgs test does — must
-// never start a capture against a free service.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// never start a capture against a free service. import.meta.main rather than comparing
+// import.meta.url with process.argv[1]: Node realpaths the entry but not argv, so the comparison
+// silently no-ops on a symlinked checkout.
+if (import.meta.main) {
   main().catch((error: Error) => {
     console.error(error.message)
     process.exitCode = 1
