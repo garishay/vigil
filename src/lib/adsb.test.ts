@@ -9,8 +9,9 @@ import {
   retryAfterSeconds,
   toTrack,
 } from './adsb'
-import type { AdsbLolAircraft, CaptureFailure } from './adsb'
+import type { AdsbCapture, AdsbLolAircraft, AircraftRegistry, CaptureFailure } from './adsb'
 import { PHL } from '../config/ao'
+import captureRaw from '../../public/adsb-phl.json?raw'
 
 /** Shapes recorded from adsb.lol v2 over the AO, trimmed to the fields the normalizer reads. */
 const AIRBORNE: AdsbLolAircraft = {
@@ -48,13 +49,76 @@ describe('normalizeAircraft', () => {
     })
   })
 
+  // Display enrichment (§5.1): the broadcast category and the registry lookups are kept apart,
+  // so a display can label the lookup as one and the scoring path has nothing to read by accident.
+  it('keeps the enrichment fields, split by provenance: broadcast category vs registry lookups', () => {
+    const enriched = {
+      ...AIRBORNE,
+      category: 'A3',
+      t: 'B738',
+      desc: 'BOEING 737-800',
+      r: 'XA-TEST',
+    }
+    expect(normalizeAircraft(enriched)).toMatchObject({
+      category: 'A3',
+      registry: {
+        typeCode: 'B738',
+        typeDesc: 'BOEING 737-800',
+        registration: 'XA-TEST',
+      },
+    })
+  })
+
+  it('never maps the registered owner — a tail number is never resolved to a person', () => {
+    // §2: the feed may send `ownOp`, and for GA traffic it is often a natural person's name.
+    // Enforced by CI rather than by whatever the aggregator happens to serve that day.
+    const raw = { ...AIRBORNE, t: 'C172', ownOp: 'Jane Example' } as AdsbLolAircraft
+    const record = normalizeAircraft(raw)
+    expect(record).not.toBeNull()
+    expect(record!.registry).toEqual({ typeCode: 'C172' })
+    expect(JSON.stringify(record)).not.toContain('Jane')
+  })
+
+  it('treats the "no emitter category information" codes as no category', () => {
+    // A0/B0/C0/D0 are the aircraft declaring it has none — the same as the field being absent,
+    // so a display falls back to the type-code lookup rather than showing an empty category.
+    for (const code of ['A0', 'B0', 'C0', 'D0']) {
+      const record = normalizeAircraft({ ...AIRBORNE, category: code })
+      expect(record).not.toBeNull()
+      expect(record).not.toHaveProperty('category')
+    }
+    expect(normalizeAircraft({ ...AIRBORNE, category: 'A7' })).toMatchObject({ category: 'A7' })
+  })
+
+  it('omits the enrichment entirely when the feed carried none, and blanks are none', () => {
+    // Non-null first: `expect(null).not.toHaveProperty()` passes, so without it these could not
+    // tell "kept the record, omitted the field" from "rejected the record".
+    const bare = normalizeAircraft(AIRBORNE)
+    expect(bare).not.toBeNull()
+    expect(bare).not.toHaveProperty('category')
+    expect(bare).not.toHaveProperty('registry')
+    const blank = normalizeAircraft({ ...AIRBORNE, category: ' ', t: '', r: '  ' })
+    expect(blank).not.toBeNull()
+    expect(blank).not.toHaveProperty('category')
+    expect(blank).not.toHaveProperty('registry')
+    // A partial lookup keeps only what it has, rather than padding the rest with empties.
+    expect(normalizeAircraft({ ...AIRBORNE, t: 'C172' })).toMatchObject({
+      registry: { typeCode: 'C172' },
+    })
+    expect(normalizeAircraft({ ...AIRBORNE, t: 'C172' })!.registry).not.toHaveProperty(
+      'registration',
+    )
+  })
+
   it('flags a parked aircraft rather than storing "ground" as an altitude', () => {
     const record = normalizeAircraft(PARKED)
     expect(record).toMatchObject({ altitudeFt: 0, onGround: true, lastSeenSec: 1.6 })
   })
 
-  // 1.6% of the recorded traffic broadcasts no altitude. Flattening that to zero would drag a
-  // real aircraft toward the low-and-slow envelope the kinematic factor reads as small-UAS (§6).
+  // Some traffic broadcasts no altitude (61 of 3,859 records in the first recording; none in the
+  // current one). Flattening that to zero would drag a real aircraft toward the low-and-slow
+  // envelope the kinematic factor reads as small-UAS (§6) — so the path is pinned here, not by
+  // whichever recording happens to be committed.
   it('omits altitude entirely when the aircraft broadcast none', () => {
     const record = normalizeAircraft({ ...AIRBORNE, alt_baro: undefined })
     expect(record).not.toHaveProperty('altitudeFt')
@@ -172,6 +236,54 @@ describe('toTrack', () => {
     })
   })
 
+  it('holds the no-category rule for records it did not normalize itself', () => {
+    // A record can reach toTrack without passing through normalizeAircraft — a hand-built
+    // fixture, or Phase 2's live feed — so the sentinel filter holds at both boundaries.
+    const foreign = { ...normalizeAircraft(AIRBORNE)!, category: 'A0' }
+    expect(toTrack(foreign).category).toBeNull()
+  })
+
+  it('treats an empty registry object from a foreign record as no registry', () => {
+    const foreign = { ...normalizeAircraft(AIRBORNE)!, registry: {} }
+    expect(toTrack(foreign).registry).toBeNull()
+  })
+
+  it('applies the blank/trim rule to foreign records, as the normalizer would have', () => {
+    // The read path is what the UI consumes; its guards must be as strong as capture-time's.
+    const base = normalizeAircraft(AIRBORNE)!
+    expect(toTrack({ ...base, category: '  ' }).category).toBeNull()
+    expect(toTrack({ ...base, category: ' A3 ' }).category).toBe('A3')
+    expect(toTrack({ ...base, registry: { typeCode: '' } }).registry).toBeNull()
+    expect(toTrack({ ...base, registry: { typeCode: ' B738 ', typeDesc: '  ' } }).registry).toEqual(
+      { typeCode: 'B738' },
+    )
+  })
+
+  it('drops registry fields the model does not name — a foreign key cannot ride through', () => {
+    // cleanRegistry builds by field name, never by copying keys: a hand-built fixture or a
+    // Phase 2 feed carrying an owner name inside `registry` loses it at the read path.
+    const base = normalizeAircraft(AIRBORNE)!
+    const smuggled = { typeCode: 'C172', ownOp: 'Jane Example' } as AircraftRegistry
+    expect(toTrack({ ...base, registry: smuggled }).registry).toEqual({ typeCode: 'C172' })
+  })
+
+  it('degrades softly on non-string enrichment from the unchecked cast, instead of throwing', () => {
+    const base = normalizeAircraft(AIRBORNE)!
+    const numeric = { ...base, category: 3 as unknown as string }
+    expect(toTrack(numeric).category).toBeNull()
+    const numericRegistry = { ...base, registry: { typeCode: 172 as unknown as string } }
+    expect(toTrack(numericRegistry).registry).toBeNull()
+  })
+
+  it('carries the enrichment through as nullable display fields', () => {
+    const bare = toTrack(normalizeAircraft(AIRBORNE)!)
+    expect(bare.category).toBeNull()
+    expect(bare.registry).toBeNull()
+    const enriched = toTrack(normalizeAircraft({ ...AIRBORNE, category: 'A1', t: 'C172' })!)
+    expect(enriched.category).toBe('A1')
+    expect(enriched.registry).toEqual({ typeCode: 'C172' })
+  })
+
   it('prefixes the id by source so a real hex can never collide with an inject', () => {
     expect(toTrack(normalizeAircraft(AIRBORNE)!).id).toBe('adsb-0d0afe')
   })
@@ -182,6 +294,43 @@ describe('toTrack', () => {
     const tampered = { ...normalizeAircraft(AIRBORNE)!, identity: 'non-cooperative' }
     expect(toTrack(tampered).identity).toBe('cooperative')
     expect(toTrack(tampered).source).toBe('adsb')
+  })
+})
+
+describe('the shipped recording (§2)', () => {
+  // The function tests above pin the mapping rules; this pins the artifact the browser actually
+  // downloads. A recapture from an edited script — or a hand-edit — that lands owner data or an
+  // unknown field in the committed recording fails here, whatever the code says.
+  const capture = JSON.parse(captureRaw) as AdsbCapture
+  const RECORD_KEYS = new Set([
+    'hex',
+    'callsign',
+    'position',
+    'altitudeFt',
+    'onGround',
+    'groundSpeedKt',
+    'headingDeg',
+    'verticalRateFpm',
+    'lastSeenSec',
+    'category',
+    'registry',
+  ])
+  const REGISTRY_KEYS = new Set(['typeCode', 'typeDesc', 'registration'])
+
+  it('carries only the fields the model names — no owner, no operator, anywhere', () => {
+    const badRecordKeys = new Set<string>()
+    const badRegistryKeys = new Set<string>()
+    for (const frame of capture.frames) {
+      for (const record of frame.records) {
+        for (const key of Object.keys(record)) if (!RECORD_KEYS.has(key)) badRecordKeys.add(key)
+        if (record.registry)
+          for (const key of Object.keys(record.registry))
+            if (!REGISTRY_KEYS.has(key)) badRegistryKeys.add(key)
+      }
+    }
+    expect([...badRecordKeys]).toEqual([])
+    expect([...badRegistryKeys]).toEqual([])
+    expect(captureRaw).not.toMatch(/ownOp|operator/)
   })
 })
 

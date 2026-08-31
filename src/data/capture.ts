@@ -4,8 +4,9 @@
  * The recording is a static asset fetched at startup rather than a module bundled into the app.
  * Two reasons, in order of importance: Phase 2 replaces this function with a WebSocket feed, and
  * an already-async seam makes that swap a change to one module instead of a change to every
- * component that consumes it. Second, six hundred kilobytes of JSON inlined into the bundle
- * crosses Vite's chunk-size warning and is re-downloaded on every deploy rather than cached.
+ * component that consumes it. Second, 1.3 MB of JSON (the recording, with its display enrichment)
+ * inlined into the bundle crosses Vite's chunk-size warning and is re-downloaded on every deploy
+ * rather than cached.
  */
 
 import { AO } from '../config/ao'
