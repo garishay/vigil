@@ -42,7 +42,8 @@ describe('parseArgs', () => {
   it('accepts the usage example actually written in the header', () => {
     // Read from the file, not hardcoded: reverting the header to a below-floor example is the
     // documentation half of #27, and this is the test that guards it.
-    const source = readFileSync(new URL('./capture-adsb.ts', import.meta.url), 'utf8')
+    // By repo-relative path: under vitest on Windows, import.meta.url is not a file: URL.
+    const source = readFileSync('scripts/capture-adsb.ts', 'utf8')
     const example = /npm run capture:adsb -- (.+)$/m.exec(source)
     expect(example).not.toBeNull()
     expect(() => parseArgs(example![1].trim().split(/\s+/))).not.toThrow()
