@@ -27,7 +27,7 @@ regeneration — rather than the runtime data path.
 flowchart LR
   subgraph offline["Offline, run once — network and filesystem, not a runtime module"]
     direction LR
-    cap["scripts/capture-adsb.ts"] --> fx[("public/adsb-phl.json<br/>committed fixture<br/>80 frames @ 15 s")]
+    cap["scripts/capture-adsb.ts"] --> fx[("public/adsb-phl.json<br/>the committed recording")]
     fx --> goldgen["scripts/generate-inject-golden.ts<br/>npm run fixture:injects<br/>samples the plan on the recording's frame grid"]
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]

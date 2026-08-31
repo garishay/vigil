@@ -24,6 +24,7 @@ import {
   captureRadiusNm,
   decideAfterFailure,
   normalizeResponse,
+  scheduleNextFrame,
 } from '../src/lib/adsb.ts'
 import type { AdsbCapture, AdsbLolResponse, CaptureFailure, CaptureFrame } from '../src/lib/adsb.ts'
 
@@ -47,6 +48,13 @@ interface Options {
   out: string
 }
 
+const FLAGS = ['--minutes', '--interval', '--out'] as const
+type Flag = (typeof FLAGS)[number]
+
+function isKnownFlag(arg: string): arg is Flag {
+  return (FLAGS as readonly string[]).includes(arg)
+}
+
 export function parseArgs(argv: string[]): Options {
   const options: Options = {
     minutes: DEFAULT_MINUTES,
@@ -54,9 +62,14 @@ export function parseArgs(argv: string[]): Options {
     out: DEFAULT_OUT,
   }
   for (let i = 0; i < argv.length; i += 2) {
+    const flag = argv[i]
+    // The flag is judged before its value, so a trailing unrecognised one — `--help` being the
+    // one a person actually types — is told what is wrong with the flag rather than accused of
+    // omitting a value it was never going to take (#30).
+    if (!isKnownFlag(flag)) throw new Error(`Unknown argument ${flag}`)
     const value = argv[i + 1]
-    if (value === undefined) throw new Error(`Missing value for ${argv[i]}`)
-    switch (argv[i]) {
+    if (value === undefined) throw new Error(`Missing value for ${flag}`)
+    switch (flag) {
       case '--minutes':
         options.minutes = Number(value)
         break
@@ -66,12 +79,17 @@ export function parseArgs(argv: string[]): Options {
       case '--out':
         options.out = value
         break
-      default:
-        throw new Error(`Unknown argument ${argv[i]}`)
     }
   }
-  if (!(options.minutes > 0) || !(options.intervalS > 0)) {
-    throw new Error('--minutes and --interval must be positive numbers')
+  // Finite, not merely positive, and checked on the derived count rather than only its inputs.
+  // `--minutes 1e400` parses to Infinity outright; `--minutes 1e308` is finite and passes, then
+  // overflows to Infinity when multiplied by 60. Either way `frameCount` came out Infinity, sailed
+  // past the one-frame guard, and turned the capture loop into an unbounded poll of a free
+  // service — the one thing this script exists not to do. The overflow is why the product is on
+  // this list: a guard on the arguments alone cannot see it.
+  const frames = (options.minutes * 60) / options.intervalS
+  if (![options.minutes, options.intervalS, frames].every((n) => Number.isFinite(n) && n > 0)) {
+    throw new Error('--minutes and --interval must be positive, finite numbers')
   }
   if (options.intervalS < CAPTURE_ETIQUETTE.minIntervalS) {
     throw new Error(
@@ -136,6 +154,10 @@ async function main(): Promise<void> {
   const { minutes, intervalS, out } = parseArgs(process.argv.slice(2))
   const intervalMs = intervalS * 1000
   const frameCount = Math.round((minutes * 60) / intervalS)
+  // Before anything reaches the network: `missing / 0` is NaN and `NaN > rate` is false, so a
+  // zero-frame run would sail straight past the gappiness guard below and overwrite the committed
+  // recording with nothing at all.
+  if (frameCount < 1) throw new Error(`${minutes} minutes at ${intervalS}s is not one frame`)
   const radiusNm = captureRadiusNm(AO)
   const [lon, lat] = AO.center
   const url = `${API_ROOT}/lat/${lat}/lon/${lon}/dist/${radiusNm}`
@@ -149,8 +171,10 @@ async function main(): Promise<void> {
   let rateLimits = 0
   let consecutiveFailures = 0
 
-  for (let i = 0; i < frameCount; i++) {
-    const dueAt = startedAt + i * intervalMs
+  // Not a `for` step: a backoff can run the clock past whole slots, and the next frame is then
+  // the next one still ahead of us rather than the one after this (#29).
+  let i = 0
+  while (i < frameCount) {
     const snapshot = await fetchSnapshot(url)
 
     if (snapshot.ok) {
@@ -176,12 +200,18 @@ async function main(): Promise<void> {
       }
     }
 
-    const remaining = dueAt + intervalMs - Date.now()
-    if (i < frameCount - 1 && remaining > 0) await sleep(remaining)
+    const next = scheduleNextFrame({ attempted: i, startedAt, intervalMs })
+    if (next.index >= frameCount) break
+    await sleep(next.waitMs)
+    i = next.index
   }
 
-  if (failures / frameCount > MAX_FAILURE_RATE) {
-    throw new Error(`${failures}/${frameCount} frames failed — not writing a fixture this gappy`)
+  // Measured as gaps rather than as failures: a slot skipped to hold the etiquette floor after a
+  // backoff (#29) leaves the same hole in the recording as a frame that failed outright, and this
+  // guard exists for the hole, not for its cause.
+  const missing = frameCount - frames.length
+  if (missing / frameCount > MAX_FAILURE_RATE) {
+    throw new Error(`${missing}/${frameCount} frames missing — not writing a fixture this gappy`)
   }
 
   const capture: AdsbCapture = {
@@ -198,7 +228,7 @@ async function main(): Promise<void> {
   const counts = frames.map((frame) => frame.records.length)
   const total = counts.reduce((sum, n) => sum + n, 0)
   console.log(`\nWrote ${out}`)
-  console.log(`  ${frames.length} frames, ${failures} dropped`)
+  console.log(`  ${frames.length} frames, ${missing} missing (${failures} of them failed)`)
   console.log(
     `  tracks per frame: min ${Math.min(...counts)}, ` +
       `max ${Math.max(...counts)}, mean ${(total / counts.length).toFixed(1)}`,
