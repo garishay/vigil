@@ -61,7 +61,8 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
 ## The plan gate
 
 Every PR is planned and approved before it is built — for a cleanup PR bundling owner-filed
-follow-ups, that approval lives in the bundled Issues (see Decision rights). Two standing
+follow-ups at ≤50 implementation lines, that approval lives in the bundled Issues (see
+Decision rights). Two standing
 rules govern it.
 
 - **Read the notes on every open Issue, not just the target one.** Rulings and design constraints
@@ -83,8 +84,8 @@ review round. Plan gates, closure declarations, and merges remain the owner's al
 changes what a finding becomes (follow-up Issue vs blocking factual error), never whether triage
 proceeds; thread reconciliation with dispositions; filing follow-up Issues; branch updates and
 changelog conflicts in the known ordering; retriggering CI; fixes to factual errors within the
-approved design and budget; cleanup PRs that only bundle filed follow-ups, ≤50 implementation
-lines — pre-approved by those Issues, which are jointly the PR's originating Issue and its
+approved design and budget; cleanup PRs that only bundle owner-filed follow-ups, ≤50
+implementation lines — pre-approved by those Issues, which are jointly the PR's originating Issue and its
 scope, so the plan gate is satisfied by reference.
 
 **Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with options
@@ -103,7 +104,8 @@ Work runs in parallel lanes, one session and one git worktree per lane — sessi
 working tree.
 
 - **Max one open PR per lane.**
-- **Lanes own disjoint files — the two shared docs excepted.** Feature surfaces belong to
+- **Lanes own disjoint files — the two shared docs excepted —
+  `README.md`'s diagram and `docs/mvp-scope.md`'s changelog.** Feature surfaces belong to
   Lane A; scripts and docs belong to Lane B — but each lane owns the doc edits its own rules
   require of its PRs (diagram updates, changelog entries); Lane B owns doc-only PRs. Files
   outside both surfaces follow the routed Issue: the lane holding the Issue owns every file
