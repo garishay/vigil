@@ -60,10 +60,10 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
 
 ## The plan gate
 
-Every PR is planned and approved before it is built — for a cleanup PR bundling owner-filed
-follow-ups at ≤50 implementation lines, that approval lives in the bundled Issues (see
-Decision rights). Two standing
-rules govern it.
+Every PR is planned and approved before it is built — for a cleanup PR bundling owner-filed or
+owner-routed follow-ups at ≤50 implementation lines, that approval lives in the bundled Issues
+(see Decision rights). A plan gate for user-visible work carries a mockup — the referent the
+user-visible trigger under Decision rights tests against. Two standing rules govern it.
 
 - **Read the notes on every open Issue, not just the target one.** Rulings and design constraints
   get parked downstream, on the Issue they will land in rather than the one being built. A plan
@@ -84,10 +84,11 @@ review round. Plan gates, closure declarations, and merges remain the owner's al
 changes what a finding becomes (follow-up Issue vs blocking factual error), never whether triage
 proceeds; thread reconciliation with dispositions; filing follow-up Issues; branch updates and
 changelog conflicts in the known ordering; retriggering CI; fixes to factual errors within the
-approved design and budget; cleanup PRs that only bundle owner-filed follow-ups, ≤50
-implementation lines — pre-approved by those Issues, which are jointly the PR's originating
-Issue and its scope, so the plan gate is satisfied by reference. Growth past the cap is a
-budget change: stop and re-gate.
+approved design and budget; cleanup PRs that only bundle owner-filed or owner-routed
+follow-ups, ≤50 implementation lines — pre-approved by those Issues, which are jointly the
+PR's originating Issue and its scope, so the plan gate is satisfied by reference; an
+agent-filed Issue declares its origin in its first line, and the owner's routing comment is
+what makes it bundle-eligible. Growth past the cap is a budget change: stop and re-gate.
 
 **Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with
 options and a recommendation; batch — the queued item itself stops and waits; only unrelated
@@ -110,11 +111,13 @@ working tree.
   `docs/mvp-scope.md`'s changelog.** Feature surfaces belong to Lane A; scripts and docs belong
   to Lane B — but each lane owns the doc edits its own PRs entail: the diagram update the
   conventions require, and the changelog entry and §11 plan row that record the PR; Lane B
-  owns doc-only PRs. Files outside both surfaces follow the routed Issue: the lane holding the
-  Issue owns every file its fix touches, for the duration of that PR — no standing file
-  census. A file no routed Issue names is claimed on the adjudication queue before either lane
-  touches it. A collision in the two shared docs resolves at merge time — whoever merges second
-  reconciles: the changelog in its known ordering, the diagram by redrawing over the merged picture.
+  owns doc-only PRs. Ownership follows the routed Issue: the lane holding the Issue owns every
+  file its fix touches — the other lane's named surface included — for the duration of that
+  PR; no standing file census. A file no routed Issue names is claimed on the adjudication
+  queue before either lane touches it. A collision — in the two shared docs, or in a file two
+  routed Issues both touch — resolves at merge time: the lane whose PR merges second
+  reconciles, the changelog in its known ordering, the diagram by redrawing over the merged
+  picture.
 - **`docs/mvp-scope.md` changelog edits happen only while the PR they record is open — the
   entry belongs to that PR, created at open or at the re-gate that earns it, and amendable
   while its review runs — or at merge-time conflict resolution in the known ordering**
@@ -137,7 +140,8 @@ working tree.
 
 - **Never commit or push directly to `main`.** It is branch-protected; work on a branch and open a
   PR.
-- **Never add a dependency without asking first.** Say what it's for and what it costs.
+- **Never add a dependency without asking first — the ask routes through the adjudication
+  queue (see Decision rights).** Say what it's for and what it costs.
 - **Never generate anything portraying real aircraft as threats** — not in code, fixtures, tests,
   UI copy, or demo data.
 - Never commit real data from a non-public source, secrets, or API keys.
