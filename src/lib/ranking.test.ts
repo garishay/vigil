@@ -33,6 +33,8 @@ function adsb(hex: string, rangeM: number, extra: Partial<AdsbTrack> = {}): Adsb
     headingDeg: 90,
     verticalRateFpm: 0,
     lastSeenSec: 0,
+    category: null,
+    registry: null,
     ...extra,
   }
 }
@@ -161,23 +163,60 @@ describe('determinism', () => {
       'inject-05',
       'inject-03',
       'inject-06',
-      'adsb-a46ab9',
-      'adsb-a43b59',
+      'adsb-c00b80',
       'inject-01',
       'inject-04',
+      'adsb-a28904',
     ])
   })
 
-  it('ends the default picture with its two parked aircraft, dimmed rather than dropped', () => {
-    const ranked = rankTracks(frame0, SITES)
-    const tail = ranked.slice(-2)
-    expect(tail.every((r) => r.track.onGround)).toBe(true)
-    expect(tail.map((r) => r.track.id)).toEqual(['adsb-a66ea3', 'adsb-a3303d'])
-    expect(ranked.slice(0, -2).some((r) => r.track.onGround)).toBe(false)
+  it('ranks identically with the display enrichment stripped — enrichment is never scored', () => {
+    // The §5.1 display-only rule made executable: a sort key reading category or registry would
+    // reorder the stripped picture and fail here.
+    const stripped = frame0.map((track) =>
+      track.source === 'adsb' ? { ...track, category: null, registry: null } : track,
+    )
+    expect(order(stripped)).toEqual(order(frame0))
   })
 
+  it('ends the default picture with its parked aircraft, dimmed rather than dropped', () => {
+    const ranked = rankTracks(frame0, SITES)
+    const tail = ranked.slice(-3)
+    expect(tail.every((r) => r.track.onGround)).toBe(true)
+    expect(tail.map((r) => r.track.id)).toEqual(['adsb-a8f5ba', 'adsb-abf0ca', 'adsb-a1bc1f'])
+    expect(ranked.slice(0, -3).some((r) => r.track.onGround)).toBe(false)
+  })
+})
+
+describe('arrival order', () => {
+  // Synthetic on purpose: the capture is data, not a test oracle, so a recapture re-pins the
+  // frame-0 tests above and nothing else.
   it('produces the same order whatever order the tracks arrive in', () => {
-    const reversed = [...frame0].reverse()
-    expect(order(reversed)).toEqual(order(frame0))
+    // Two tracks share a range on purpose: without a tie the sort key is already a strict total
+    // order and any comparator passes. The tie is what makes the shuffles exercise the id
+    // tie-break, and `a00004` arrives first so a stable sort alone cannot save it.
+    const tracks: Track[] = [
+      adsb('a00004', 9000),
+      adsb('a00003', 9000),
+      inject(2, 'cooperative', 4000),
+      adsb('a00001', 100, { onGround: true, altitudeFt: 0 }),
+      inject(1, 'non-cooperative', 30_000),
+      adsb('a00002', 2000),
+      inject(3, 'unknown', 12_000),
+    ]
+    const expected = [
+      'inject-01',
+      'inject-03',
+      'adsb-a00002',
+      'inject-02',
+      'adsb-a00003',
+      'adsb-a00004',
+      'adsb-a00001',
+    ]
+    expect(order(tracks)).toEqual(expected)
+    expect(order([...tracks].reverse())).toEqual(expected)
+    expect(
+      order([tracks[4], tracks[0], tracks[6], tracks[2], tracks[5], tracks[3], tracks[1]]),
+    ).toEqual(expected)
   })
 })

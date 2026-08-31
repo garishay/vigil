@@ -15,7 +15,7 @@ import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
 
 // Both fixtures are loaded as raw text rather than as JSON module imports: parsing at runtime
-// keeps TypeScript from inferring a literal type for a 600 KB recording, which it does not enjoy.
+// keeps TypeScript from inferring a literal type for a 1.3 MB recording, which it does not enjoy.
 const capture = JSON.parse(captureRaw) as AdsbCapture
 const golden = JSON.parse(goldenRaw) as InjectScenario
 

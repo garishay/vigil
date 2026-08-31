@@ -17,8 +17,16 @@ import type { AreaOfOperations } from '../config/ao.ts'
  * a given airframe does not broadcast — this is the untrusted outside edge, and the normalizer's
  * job is to turn it into something the rest of Vigil can rely on.
  *
- * Deliberately absent: `r` (registration) and `t` (airframe type). Vigil scores what a track does,
- * not what it claims to be, and neither field appears in the §5.1 model.
+ * The enrichment fields are kept for display only (§5.1). `category` is broadcast by the aircraft
+ * — an observation. `t`, `desc`, and `r` are the aggregator's registry lookups — what the
+ * airframe is registered as, not anything it transmitted. Vigil scores what a track does, not
+ * what it claims to be: nothing in the scoring path reads any of them.
+ *
+ * The feed's `ownOp` (registered owner/operator) is deliberately not typed and never mapped: for
+ * GA traffic it is often a natural person's name, and Vigil displays what is broadcast or what a
+ * public type registry says about the airframe — it never resolves a tail number to a person
+ * (§2, §5.1). An airline operator, if ever wanted, comes from a callsign-prefix table, which can
+ * only name a company. A test pins the refusal.
  */
 export interface AdsbLolAircraft {
   hex?: string
@@ -32,6 +40,25 @@ export interface AdsbLolAircraft {
   baro_rate?: number
   geom_rate?: number
   seen?: number
+  /** ADS-B emitter category, e.g. `A3` — broadcast, so observed. */
+  category?: string
+  /** ICAO type designator from the registry, e.g. `B738`. */
+  t?: string
+  /** Registry type description, e.g. `BOEING 737-800`. */
+  desc?: string
+  /** Registration, from the registry. */
+  r?: string
+}
+
+/**
+ * What the registry says about an airframe, as opposed to what the airframe broadcast. Kept apart
+ * from the observed fields so a display can label it as a lookup, and so the scoring path has
+ * nothing to reach for by accident.
+ */
+export interface AircraftRegistry {
+  typeCode?: string
+  typeDesc?: string
+  registration?: string
 }
 
 export interface AdsbLolResponse {
@@ -62,6 +89,10 @@ export interface CaptureRecord {
   verticalRateFpm?: number
   /** Omitted when the track updated within the last second. */
   lastSeenSec?: number
+  /** Broadcast emitter category. Omitted when the aircraft sent none. Display only. */
+  category?: string
+  /** Registry lookups, omitted when the aggregator had none. Display only, labelled as lookups. */
+  registry?: AircraftRegistry
 }
 
 /** One instant of the real picture. */
@@ -111,6 +142,16 @@ export function captureRadiusNm(ao: AreaOfOperations): number {
   return Math.ceil(farthestM / 1852)
 }
 
+/** The emitter-category codes that mean "no category information" in each ADS-B category set. */
+const NO_CATEGORY: ReadonlySet<string> = new Set(['A0', 'B0', 'C0', 'D0'])
+
+/**
+ * A trimmed string, or undefined for absent, blank, and non-string values. The typeof guard is
+ * load-bearing: the recording is parsed with an unchecked cast, so a malformed field must degrade
+ * softly like every other field on the read path, not throw inside the app's render.
+ */
+const text = (value: unknown) => (typeof value === 'string' && value.trim()) || undefined
+
 /** One raw record to one storable record, or null when it carries no usable position. */
 export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
   const { hex, lat, lon } = raw
@@ -128,6 +169,20 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
   // Barometric rate is the primary; geometric is the fallback the feed offers when it is absent.
   const verticalRate = raw.baro_rate ?? raw.geom_rate
   const lastSeenSec = round(raw.seen ?? 0, 1)
+  // `A0`/`B0`/`C0`/`D0` encode "no emitter category information" — the aircraft saying it has
+  // none, which is the same thing as the field being absent.
+  const rawCategory = text(raw.category)
+  const category = rawCategory && !NO_CATEGORY.has(rawCategory) ? rawCategory : undefined
+  // Each bound once: a guard and a value that are separate expressions are two places to keep
+  // in step, and the one that drifts stores the thing the other just rejected.
+  const typeCode = text(raw.t)
+  const typeDesc = text(raw.desc)
+  const registration = text(raw.r)
+  const registry: AircraftRegistry = {
+    ...(typeCode ? { typeCode } : {}),
+    ...(typeDesc ? { typeDesc } : {}),
+    ...(registration ? { registration } : {}),
+  }
 
   return {
     hex,
@@ -141,6 +196,8 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
     ...(typeof raw.track === 'number' ? { headingDeg: round(raw.track, 1) } : {}),
     ...(typeof verticalRate === 'number' ? { verticalRateFpm: Math.round(verticalRate) } : {}),
     ...(lastSeenSec > 0 ? { lastSeenSec } : {}),
+    ...(category ? { category } : {}),
+    ...(Object.keys(registry).length > 0 ? { registry } : {}),
   }
 }
 
@@ -189,6 +246,36 @@ export function toTrack(record: CaptureRecord): AdsbTrack {
     headingDeg: record.headingDeg ?? null,
     verticalRateFpm: record.verticalRateFpm ?? null,
     lastSeenSec: record.lastSeenSec ?? 0,
+    // Blank/trim and the no-category sentinels are enforced at capture time too, but this record
+    // may not have come from our capture script — a hand-built fixture, or Phase 2's live feed.
+    // The read path applies the same rules, so the invariants hold wherever the record came from.
+    category: cleanCategory(record.category),
+    registry: cleanRegistry(record.registry),
+  }
+}
+
+/** The category as the display may use it: trimmed, and null for blanks and the sentinels. */
+function cleanCategory(category: string | undefined): string | null {
+  const trimmed = text(category)
+  return trimmed && !NO_CATEGORY.has(trimmed) ? trimmed : null
+}
+
+/**
+ * The registry with blank values dropped, or null when nothing usable remains — an empty lookup
+ * is the same as no lookup, and the `AdsbTrack.registry` contract says null.
+ */
+function cleanRegistry(registry: AircraftRegistry | undefined): AircraftRegistry | null {
+  if (!registry) return null
+  // Built field-by-name, never by copying keys: a foreign record's registry could carry fields
+  // the model refuses (an owner name, say), and a whitelist is what keeps them off the track.
+  const typeCode = text(registry.typeCode)
+  const typeDesc = text(registry.typeDesc)
+  const registration = text(registry.registration)
+  if (!typeCode && !typeDesc && !registration) return null
+  return {
+    ...(typeCode ? { typeCode } : {}),
+    ...(typeDesc ? { typeDesc } : {}),
+    ...(registration ? { registration } : {}),
   }
 }
 

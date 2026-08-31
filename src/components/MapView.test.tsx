@@ -19,6 +19,8 @@ const TRACKS: AdsbTrack[] = [
     headingDeg: 45.9,
     verticalRateFpm: -768,
     lastSeenSec: 0,
+    category: null,
+    registry: null,
   },
   {
     id: 'adsb-a3303d',
@@ -33,6 +35,8 @@ const TRACKS: AdsbTrack[] = [
     headingDeg: null,
     verticalRateFpm: null,
     lastSeenSec: 38,
+    category: null,
+    registry: null,
   },
 ]
 
