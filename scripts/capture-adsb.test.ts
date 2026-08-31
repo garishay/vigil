@@ -1,7 +1,16 @@
 // @vitest-environment node
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { CAPTURE_ETIQUETTE } from '../src/lib/adsb.ts'
+
+// Anchored to this file's URL, never the CWD: the suite must not depend on where vitest was
+// started from, and the false-case comparison below must compare against a file that is
+// guaranteed to exist whatever else gets renamed.
+const scriptPath = fileURLToPath(new URL('./capture-adsb.ts', import.meta.url))
+const testPath = fileURLToPath(new URL('./capture-adsb.test.ts', import.meta.url))
 
 /**
  * The spies are installed before the script is imported, and the import is dynamic for exactly
@@ -30,30 +39,45 @@ describe('importing the script', () => {
   })
 })
 
+describe('invoking the script directly', () => {
+  it('reaches main — the entry guard is not stuck false', () => {
+    // The other half of the guard, pinned without a network: a real invocation with a
+    // below-floor interval must die on parseArgs's etiquette check, which happens before any
+    // fetch. A guard stuck false would exit 0 printing nothing — a silent no-op strictly worse
+    // than the throw #27 fixed — and fail both assertions here.
+    const result = spawnSync(process.execPath, [scriptPath, '--interval', '5'], {
+      encoding: 'utf8',
+      timeout: 20_000,
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr + result.stdout).toMatch(/at least 10/)
+  })
+})
+
 describe('entryPathsMatch', () => {
   // Vitest sets `import.meta.main` to false, so `isEntry()` never reaches this fallback in the
   // suite — it is exported and pinned by name because the runtimes it exists for (Node
   // 23.6–23.11, 24.0/24.1) are exactly the ones CI does not run.
-  const script = 'scripts/capture-adsb.ts'
-
   it('matches the same file however the two paths spell it', () => {
-    expect(entryPathsMatch(script, script)).toBe(true)
-    expect(entryPathsMatch(script, './scripts/../scripts/capture-adsb.ts')).toBe(true)
+    expect(entryPathsMatch(scriptPath, scriptPath)).toBe(true)
+    expect(
+      entryPathsMatch(scriptPath, join(dirname(scriptPath), '..', 'scripts', 'capture-adsb.ts')),
+    ).toBe(true)
   })
 
   it('rejects a different file', () => {
-    expect(entryPathsMatch(script, 'vite.config.ts')).toBe(false)
+    expect(entryPathsMatch(scriptPath, testPath)).toBe(false)
   })
 
   it('is false — never a throw — when either side has no on-disk path', () => {
     // A bystander importing parseArgs from a context without a file path must not be crashed
     // by the guard; an entry always has both paths.
-    expect(entryPathsMatch(undefined, script)).toBe(false)
-    expect(entryPathsMatch(script, undefined)).toBe(false)
+    expect(entryPathsMatch(undefined, scriptPath)).toBe(false)
+    expect(entryPathsMatch(scriptPath, undefined)).toBe(false)
   })
 
   it('fails loudly when both paths exist but cannot be resolved', () => {
-    expect(() => entryPathsMatch(script, 'scripts/no-such-file.ts')).toThrow(
+    expect(() => entryPathsMatch(scriptPath, join(dirname(scriptPath), 'no-such-file.ts'))).toThrow(
       /cannot determine whether capture-adsb\.ts is the entry/,
     )
   })
@@ -73,7 +97,7 @@ describe('parseArgs', () => {
     // Read from the file and anchored to the header block's ` *   ` prefix, so this matches the
     // usage example and never a prose mention elsewhere — reverting the doc to a below-floor
     // example is the documentation half of #27, and this is the test that guards it.
-    const source = readFileSync('scripts/capture-adsb.ts', 'utf8')
+    const source = readFileSync(scriptPath, 'utf8')
     const example = /^ \*\s+npm run capture:adsb -- (.+)$/m.exec(source)
     expect(example).not.toBeNull()
     expect(() => parseArgs(example![1].trim().split(/\s+/))).not.toThrow()
