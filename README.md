@@ -15,14 +15,15 @@ Every score decomposes into visible factors. A ranked list nobody can interrogat
 ## How it fits together
 
 Two layers converge on one track model; pure modules do the work and the UI only consumes them.
-The capture script runs offline, once, and is the only box that does I/O without a test seam.
-The app calls the modules; nothing calls back. Dashed boxes are later PRs.
+The two scripts under `scripts/` run offline, once, and are the only boxes that do I/O without
+a test seam. The app calls the modules; nothing calls back. Dashed boxes are later PRs.
 
 ```mermaid
 flowchart LR
   subgraph offline["Offline, run once — network and filesystem, not a runtime module"]
     direction LR
     cap["scripts/capture-adsb.ts<br/>rate-limit etiquette"] --> fx[("public/adsb-phl.json<br/>committed fixture<br/>80 frames @ 15 s")]
+    fx --> goldgen["scripts/generate-inject-golden.ts<br/>npm run fixture:injects<br/>samples the plan on the recording's frame grid"]
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
     direction LR
@@ -33,8 +34,10 @@ flowchart LR
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
       cfg["config/scenario.ts<br/>seed · envelope · launch points"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 behaviors · 3 Remote ID states"]
-      gen -. pins .-> gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
+      gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
+    gen --> goldgen
+    goldgen -. pins .-> gold
     ao["config/ao.ts<br/>AO: center · bbox · protected sites"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     rank["lib/ranking.ts<br/>placeholder rank: identity → range"]
@@ -60,6 +63,8 @@ flowchart LR
     clock -.-> app
   end
   model -- adsb + injects: map, strip --> app
+  ao -- center · zoom · basemap · sites: map, strip --> app
+  cfg -- seed: strip --> app
   rank -- ranked: queue --> app
   score -.-> app
   classDef planned stroke-dasharray: 6 4,fill:none;
