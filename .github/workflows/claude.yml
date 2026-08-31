@@ -48,4 +48,5 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           # The four gates, so a reviewer asked to run them can (issue #17). Added to the base tool
           # set, not replacing it.
-          claude_args: '--allowedTools "Bash(npm ci),Bash(npm run lint),Bash(npm run typecheck),Bash(npm run test),Bash(npm run format:check)"'
+          # Opus 5, for the same reason as the on-open review: the strongest model that is not the author.
+          claude_args: '--model claude-opus-5 --allowedTools "Bash(npm ci),Bash(npm run lint),Bash(npm run typecheck),Bash(npm run test),Bash(npm run format:check)"'
