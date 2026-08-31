@@ -15,7 +15,7 @@ import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
 
 // Both fixtures are loaded as raw text rather than as JSON module imports: parsing at runtime
-// keeps TypeScript from inferring a literal type for a 600 KB recording, which it does not enjoy.
+// keeps TypeScript from inferring a literal type for a 1.3 MB recording, which it does not enjoy.
 const capture = JSON.parse(captureRaw) as AdsbCapture
 const golden = JSON.parse(goldenRaw) as InjectScenario
 
@@ -177,7 +177,7 @@ describe('launch points', () => {
   })
 
   it('are relative to the AO, so relocating Vigil relocates them', () => {
-    const elsewhere = { ...AO, center: [-97.0379, 32.8998] as [number, number], protectedSites: [] }
+    const elsewhere = { ...AO, center: [-100.0, 40.0] as [number, number], protectedSites: [] }
     const moved = planScenario(TIMELINE, SCENARIO, elsewhere)
     for (const spec of moved.specs) {
       expect(distanceMeters(elsewhere.center, spec.origin)).toBeLessThan(11_000)

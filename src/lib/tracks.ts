@@ -8,6 +8,8 @@
  * Making it unrepresentable is the point; making it merely unlikely would not be.
  */
 
+import type { AircraftRegistry } from './adsb.ts'
+
 /** Plain English (principle 3). Vigil ships no military identification symbology — scope §9. */
 export type Identity = 'cooperative' | 'non-cooperative' | 'unknown'
 
@@ -35,10 +37,11 @@ interface TrackBase {
    * Barometric altitude in feet, or null when the aircraft broadcast none. Zero only when
    * `onGround`, where ground level is a real reading rather than a missing one.
    *
-   * Nullable on purpose: 1.6% of the recorded traffic broadcasts no altitude, and scoring an
-   * unknown altitude as zero would drag a real aircraft toward the low-and-slow envelope that
-   * the kinematic factor reads as small-UAS behavior (§6). The null forces PR 04 to say what it
-   * means to do about an unknown.
+   * Nullable on purpose: some traffic broadcasts no altitude (61 of 3,859 records in the first
+   * recording; none in the current one — the feed varies by day), and scoring an unknown altitude
+   * as zero would drag a real aircraft toward the low-and-slow envelope that the kinematic factor
+   * reads as small-UAS behavior (§6). The null forces PR 04 to say what it means to do about an
+   * unknown, whether or not the committed recording happens to contain one.
    */
   altitudeFt: number | null
   onGround: boolean
@@ -56,6 +59,14 @@ export interface AdsbTrack extends TrackBase {
   source: 'adsb'
   icaoHex: string
   identity: 'cooperative'
+  /**
+   * Display enrichment, never scored (§5.1). `category` is the broadcast emitter category — an
+   * observation. `registry` is what the aggregator's database says the airframe is registered as
+   * — a lookup, shown labelled as one. Each is null when the recording carries none for this
+   * track; the two null independently.
+   */
+  category: string | null
+  registry: AircraftRegistry | null
 }
 
 /** A simulated small UAS. The only kind of track that can score as a threat. */

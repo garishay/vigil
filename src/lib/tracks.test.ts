@@ -27,6 +27,8 @@ describe('the ADS-B cooperativity guardrail', () => {
       id: 'adsb-0d0afe',
       source: 'adsb',
       icaoHex: '0d0afe',
+      category: null,
+      registry: null,
       // @ts-expect-error §2: an ADS-B-sourced track cannot be anything but cooperative.
       identity: 'non-cooperative',
     }
@@ -40,6 +42,8 @@ describe('the ADS-B cooperativity guardrail', () => {
       source: 'adsb',
       icaoHex: '0d0afe',
       identity: 'cooperative',
+      category: null,
+      registry: null,
     }
     expect(track.identity).toBe('cooperative')
   })
@@ -48,7 +52,15 @@ describe('the ADS-B cooperativity guardrail', () => {
 describe('the shared track model', () => {
   it('discriminates the two layers on source alone', () => {
     const tracks: Track[] = [
-      { ...BASE, id: 'adsb-0d0afe', source: 'adsb', icaoHex: '0d0afe', identity: 'cooperative' },
+      {
+        ...BASE,
+        id: 'adsb-0d0afe',
+        source: 'adsb',
+        icaoHex: '0d0afe',
+        identity: 'cooperative',
+        category: null,
+        registry: null,
+      },
       {
         ...BASE,
         id: 'inject-01',
