@@ -88,6 +88,19 @@ licensing, new dependencies, any new network call; design or budget changes mid-
 existing re-gate rule); conflicts between doc rules; model or workflow changes; anything where
 two rulings could plausibly apply. The owner answers the queue in batches via notifications.
 
+### Lanes
+
+Work runs in parallel lanes, one session and one git worktree per lane — sessions never share a
+working tree.
+
+- **Max one open PR per lane.**
+- **Lanes own disjoint files.** Feature surfaces belong to Lane A; scripts and docs belong to
+  Lane B.
+- **`docs/mvp-scope.md` changelog edits happen only at PR open or at merge-time conflict
+  resolution in the known ordering** (current-AO statement first, newest entries lead, then the
+  record).
+- **The adjudication queue serves both lanes.**
+
 ## Architecture notes
 
 - The **ADS-B capture script**, the **inject generator**, and the **scorer** are pure modules —
