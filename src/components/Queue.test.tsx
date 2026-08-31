@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { Queue } from './Queue'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { RankedTrack } from '../lib/ranking'
@@ -152,6 +152,32 @@ describe('Queue', () => {
   it('renders an empty list before the picture has loaded', () => {
     render(<Queue ranked={[]} />)
     expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeEmptyDOMElement()
+  })
+
+  it('selects a track through its row button (03a)', () => {
+    const onSelect = vi.fn()
+    render(<Queue ranked={RANKED} selectedId={null} onSelect={onSelect} />)
+    const [silent] = rows()
+    fireEvent.click(within(silent).getByRole('button'))
+    expect(onSelect).toHaveBeenCalledWith('inject-03')
+  })
+
+  it('marks the selected row, in class and in aria (03a)', () => {
+    render(<Queue ranked={RANKED} selectedId="inject-01" onSelect={vi.fn()} />)
+    const [silent, unheard] = rows()
+    expect(unheard).toHaveClass('queue__row--selected')
+    expect(within(unheard).getByRole('button')).toHaveAttribute('aria-current', 'true')
+    expect(silent).not.toHaveClass('queue__row--selected')
+    expect(within(silent).getByRole('button')).not.toHaveAttribute('aria-current')
+  })
+
+  it('scrolls the selected row into view when the selection arrives from outside (03a)', () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    const { rerender } = render(<Queue ranked={RANKED} selectedId={null} onSelect={vi.fn()} />)
+    expect(scroll).not.toHaveBeenCalled()
+    rerender(<Queue ranked={RANKED} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
+    expect(scroll).toHaveBeenCalledWith({ block: 'nearest' })
   })
 })
 

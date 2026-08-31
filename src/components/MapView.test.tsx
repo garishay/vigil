@@ -75,28 +75,36 @@ const INJECTS: InjectTrack[] = [
 
 // jsdom has no WebGL, so MapLibre is mocked. These tests guard the config wiring — that the map
 // is built from src/config/ao.ts and nowhere else — not MapLibre's own behavior.
-const { mapInstance, setData, MapConstructor, NavigationControl } = vi.hoisted(() => {
-  const setDataFn = vi.fn()
-  const instance = {
-    addControl: vi.fn(),
-    addSource: vi.fn(),
-    addLayer: vi.fn(),
-    // The source id travels with the data, so a test can say *which* layer it is asserting on.
-    getSource: vi.fn((id: string) => ({ setData: (data: unknown) => setDataFn(id, data) })),
-    remove: vi.fn(),
-    on: vi.fn((event: string, handler: () => void) => {
-      if (event === 'load') handler()
-    }),
-  }
-  return {
-    mapInstance: instance,
-    setData: setDataFn,
-    MapConstructor: vi.fn<(options: Record<string, unknown>) => typeof instance>(function () {
-      return instance
-    }),
-    NavigationControl: vi.fn(),
-  }
-})
+const { mapInstance, setData, clickHandlers, MapConstructor, NavigationControl } = vi.hoisted(
+  () => {
+    const setDataFn = vi.fn()
+    // Layer-scoped click handlers, captured so a test can simulate a dot click (03a).
+    const clicks: Record<string, (event: unknown) => void> = {}
+    const instance = {
+      addControl: vi.fn(),
+      addSource: vi.fn(),
+      addLayer: vi.fn(),
+      easeTo: vi.fn(),
+      // The source id travels with the data, so a test can say *which* layer it is asserting on.
+      getSource: vi.fn((id: string) => ({ setData: (data: unknown) => setDataFn(id, data) })),
+      remove: vi.fn(),
+      on: vi.fn((event: string, arg2: unknown, arg3?: unknown) => {
+        if (event === 'load') (arg2 as () => void)()
+        if (event === 'click' && typeof arg2 === 'string')
+          clicks[arg2] = arg3 as (event: unknown) => void
+      }),
+    }
+    return {
+      mapInstance: instance,
+      setData: setDataFn,
+      clickHandlers: clicks,
+      MapConstructor: vi.fn<(options: Record<string, unknown>) => typeof instance>(function () {
+        return instance
+      }),
+      NavigationControl: vi.fn(),
+    }
+  },
+)
 
 vi.mock('maplibre-gl', () => ({ Map: MapConstructor, NavigationControl, setWorkerUrl: vi.fn() }))
 
@@ -143,7 +151,42 @@ describe('MapView', () => {
     const [injectId, injectSource] = mapInstance.addSource.mock.calls[2]
     expect(injectId).toBe('inject-tracks')
     expect(injectSource.data.features).toEqual([])
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(5)
+    // 03a adds the selection ring: its own source, empty, layered above everything.
+    const [selectId, selectSource] = mapInstance.addSource.mock.calls[3]
+    expect(selectId).toBe('selected-track')
+    expect(selectSource.data.features).toEqual([])
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(6)
+    const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
+    expect(order.at(-1)).toBe('selected-track-ring')
+  })
+
+  it('selects the track under a dot click, on either layer (03a)', () => {
+    const onSelect = vi.fn()
+    render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} onSelect={onSelect} />)
+    clickHandlers['adsb-tracks-dot']({ features: [{ properties: { id: 'adsb-a06461' } }] })
+    clickHandlers['inject-tracks-dot']({ features: [{ properties: { id: 'inject-01' } }] })
+    expect(onSelect).toHaveBeenNthCalledWith(1, 'adsb-a06461')
+    expect(onSelect).toHaveBeenNthCalledWith(2, 'inject-01')
+    // An empty basemap click registers no handler at all, so it can select nothing.
+    expect(clickHandlers['selected-track-ring']).toBeUndefined()
+  })
+
+  it('rings and eases to the selected track, and clears when nothing is selected (03a)', () => {
+    const { rerender } = render(
+      <MapView ao={AO} tracks={TRACKS} injects={INJECTS} selectedId="inject-01" />,
+    )
+    expect(dataFor('selected-track').features[0].geometry).toMatchObject({
+      coordinates: INJECTS[0].position,
+    })
+    expect(mapInstance.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({ center: INJECTS[0].position }),
+    )
+    const eased = mapInstance.easeTo.mock.calls.length
+    rerender(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} selectedId="inject-01" />)
+    // Same selection re-rendered: the ring stays, the camera does not re-fly.
+    expect(mapInstance.easeTo.mock.calls.length).toBe(eased)
+    rerender(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} selectedId={null} />)
+    expect(dataFor('selected-track').features).toEqual([])
   })
 
   it('draws injects above cooperative traffic rather than under it', () => {

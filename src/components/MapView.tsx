@@ -12,6 +12,23 @@ import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 const SITES_SOURCE = 'protected-sites'
 const ADSB_SOURCE = 'adsb-tracks'
 const INJECT_SOURCE = 'inject-tracks'
+const SELECT_SOURCE = 'selected-track'
+
+/** Zero or one point: the selected track's position, or an empty collection. */
+function selectionFeature(position: [number, number] | null) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: position
+      ? [
+          {
+            type: 'Feature' as const,
+            geometry: { type: 'Point' as const, coordinates: position },
+            properties: {},
+          },
+        ]
+      : [],
+  }
+}
 
 /** Mirrors --accent in the theme; MapLibre paint properties take literals, not CSS variables. */
 const RING_COLOR = '#4c9aff'
@@ -75,14 +92,26 @@ export function MapView({
   ao,
   tracks = [],
   injects = [],
+  selectedId = null,
+  onSelect,
 }: {
   ao: AreaOfOperations
   tracks?: AdsbTrack[]
   injects?: InjectTrack[]
+  selectedId?: string | null
+  onSelect?: (id: string) => void
 }) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const [styleReady, setStyleReady] = useState(false)
+  // The click handlers are registered once, inside the load effect; the ref keeps them reading
+  // the current callback instead of the one that existed when the map was built.
+  const onSelectRef = useRef(onSelect)
+  useEffect(() => {
+    onSelectRef.current = onSelect
+  }, [onSelect])
+  // Ease only when the selection itself changes — not when the same track's data refreshes.
+  const easedIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!container.current) return
@@ -160,6 +189,29 @@ export function MapView({
         },
       })
 
+      // The selection ring rides its own source, above everything, and holds zero or one point.
+      map.addSource(SELECT_SOURCE, { type: 'geojson', data: selectionFeature(null) })
+      map.addLayer({
+        id: `${SELECT_SOURCE}-ring`,
+        type: 'circle',
+        source: SELECT_SOURCE,
+        paint: {
+          'circle-radius': 13,
+          'circle-opacity': 0,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': RING_COLOR,
+        },
+      })
+
+      // Selection flows both ways (§7): a dot click selects the track, exactly as a row click
+      // does. Registered per dot layer, so empty basemap clicks select nothing.
+      for (const layerId of [`${ADSB_SOURCE}-dot`, `${INJECT_SOURCE}-dot`]) {
+        map.on('click', layerId, (event) => {
+          const id = event.features?.[0]?.properties?.id as unknown
+          if (typeof id === 'string') onSelectRef.current?.(id)
+        })
+      }
+
       setStyleReady(true)
     })
 
@@ -181,6 +233,20 @@ export function MapView({
     if (!map || !styleReady) return
     map.getSource<GeoJSONSource>(INJECT_SOURCE)?.setData(injectFeatures(injects))
   }, [injects, styleReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    const selected =
+      (selectedId && [...tracks, ...injects].find((track) => track.id === selectedId)) || null
+    map
+      .getSource<GeoJSONSource>(SELECT_SOURCE)
+      ?.setData(selectionFeature(selected?.position ?? null))
+    if (selected && selectedId !== easedIdRef.current) {
+      map.easeTo({ center: selected.position, duration: 600 })
+    }
+    easedIdRef.current = selectedId
+  }, [selectedId, tracks, injects, styleReady])
 
   return (
     <div className="map-frame">

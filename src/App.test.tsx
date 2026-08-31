@@ -8,8 +8,30 @@ import type { CaptureState } from './data/useCapture'
 // The map itself is covered by MapView.test.tsx; here it is stubbed so these tests stay about
 // layout, navigation, and what the picture status strip reports.
 vi.mock('./components/MapView', () => ({
-  MapView: ({ tracks, injects }: { tracks?: unknown[]; injects?: unknown[] }) => (
-    <div data-testid="map" data-tracks={tracks?.length ?? 0} data-injects={injects?.length ?? 0} />
+  MapView: ({
+    tracks,
+    injects,
+    selectedId,
+    onSelect,
+  }: {
+    tracks?: { id: string }[]
+    injects?: { id: string }[]
+    selectedId?: string | null
+    onSelect?: (id: string) => void
+  }) => (
+    <div
+      data-testid="map"
+      data-tracks={tracks?.length ?? 0}
+      data-injects={injects?.length ?? 0}
+      data-selected={selectedId ?? ''}
+    >
+      {/* Stands in for a dot click: selects the first inject, like the real map would. */}
+      <button
+        type="button"
+        data-testid="map-select"
+        onClick={() => injects?.[0] && onSelect?.(injects[0].id)}
+      />
+    </div>
   ),
 }))
 
@@ -138,6 +160,72 @@ describe('App shell', () => {
     render(<App />)
     expect(screen.getByRole('alert')).toHaveTextContent('could not load the ADS-B recording')
     expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('—')
+  })
+
+  it('opens the drawer beside the list from a row click, and closes it (03a)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    const firstRow = within(queue).getAllByRole('listitem')[0]
+    fireEvent.click(within(firstRow).getByRole('button'))
+
+    const drawer = screen.getByLabelText(/^Track review: /)
+    expect(drawer).toBeInTheDocument()
+    // The list stays on screen while reviewing (§4.2) — three columns, not a swap.
+    expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeInTheDocument()
+    expect(document.querySelector('.shell__body--drawer')).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close review' }))
+    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
+    expect(document.querySelector('.shell__body--drawer')).toBeNull()
+  })
+
+  it('shows the drawer alone on Review, and an empty state without a selection (03a)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    expect(screen.getByText('Select a track from the Queue.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
+    expect(screen.queryByText('Select a track from the Queue.')).not.toBeInTheDocument()
+    // Selection persisted across the surface switch — client state only.
+    expect(screen.queryByRole('list', { name: 'Ranked queue' })).not.toBeInTheDocument()
+  })
+
+  it('selects from the map side and syncs the row (03a)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByTestId('map-select'))
+    expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
+    const selected = document.querySelector('.queue__row--selected')
+    expect(selected).not.toBeNull()
+    expect(screen.getByTestId('map').getAttribute('data-selected')).toBe(
+      selected?.getAttribute('data-id'),
+    )
+  })
+
+  it('filters by layer without renumbering the ranks (03a)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const injectCount = Number(screen.getByTestId('map').getAttribute('data-injects'))
+
+    // On this picture every inject outranks the two distant ADS-B tracks, so the ADS-B filter is
+    // the one that exposes renumbering: global ranks read 7 and 8, renumbered ones would read 1
+    // and 2.
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    let rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+    expect(rows).toHaveLength(2)
+    expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent('2')
+    for (const row of rows) expect(within(row).queryByText('INJECT')).not.toBeInTheDocument()
+    const ranks = rows.map((row) => Number(row.querySelector('.queue__rank')?.textContent))
+    expect(ranks.every((rank) => rank > injectCount)).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+    rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+    expect(rows).toHaveLength(2 + injectCount)
   })
 
   it('switches surfaces without unmounting the map', () => {

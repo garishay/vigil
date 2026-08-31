@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { IdentityDot } from './IdentityDot'
 import { IDENTITY_LABEL } from '../lib/identity'
 import type { RankedTrack } from '../lib/ranking'
@@ -27,34 +28,64 @@ const formatRange = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
  * observed or derived — behavior and Remote ID status are ground truth, and stay in the fixtures
  * until PR 05 earns the right to display a *detected* pattern.
  *
- * Rows are not yet clickable; click-through to Review is PR 03's.
+ * Rows are buttons (03a): clicking selects the track, in sync with the map — the selected row is
+ * marked and scrolled into view when the selection came from the map side. Ranks are global,
+ * never renumbered by a filter: a filtered list that reads 2, 5, 9 tells the operator what it
+ * hid.
  */
-export function Queue({ ranked }: { ranked: RankedTrack[] }) {
+export function Queue({
+  ranked,
+  selectedId = null,
+  onSelect,
+}: {
+  ranked: RankedTrack[]
+  selectedId?: string | null
+  onSelect?: (id: string) => void
+}) {
+  const listRef = useRef<HTMLOListElement>(null)
+
+  useEffect(() => {
+    if (!selectedId) return
+    // Optional call: jsdom implements querySelector but not scrollIntoView.
+    listRef.current
+      ?.querySelector(`[data-id="${CSS.escape(selectedId)}"]`)
+      ?.scrollIntoView?.({ block: 'nearest' })
+  }, [selectedId])
+
   return (
-    <ol className="queue" aria-label="Ranked queue">
-      {ranked.map(({ track, rank, rangeM }) => (
-        <li
-          key={track.id}
-          className={track.onGround ? 'queue__row queue__row--ground' : 'queue__row'}
-        >
-          <span className="queue__rank">{rank}</span>
-          <span className="queue__identity">
-            <IdentityDot identity={track.identity} />
-            {IDENTITY_LABEL[track.identity]}
-          </span>
-          <span className="queue__score" title="Score arrives with the scoring engine (PR 04)">
-            —
-          </span>
-          <span className="queue__detail">
-            <span className="queue__badge" data-layer={track.source}>
-              {LAYER_BADGE[track.source]}
-            </span>
-            <span className="queue__ident">{ident(track)}</span>
-            {track.onGround && <span className="queue__ground">on ground</span>}
-            <span className="queue__range">{formatRange(rangeM)}</span>
-          </span>
-        </li>
-      ))}
+    <ol className="queue" aria-label="Ranked queue" ref={listRef}>
+      {ranked.map(({ track, rank, rangeM }) => {
+        const classes = ['queue__row']
+        if (track.onGround) classes.push('queue__row--ground')
+        if (track.id === selectedId) classes.push('queue__row--selected')
+        return (
+          <li key={track.id} className={classes.join(' ')} data-id={track.id}>
+            <button
+              type="button"
+              className="queue__rowbutton"
+              aria-current={track.id === selectedId ? 'true' : undefined}
+              onClick={() => onSelect?.(track.id)}
+            >
+              <span className="queue__rank">{rank}</span>
+              <span className="queue__identity">
+                <IdentityDot identity={track.identity} />
+                {IDENTITY_LABEL[track.identity]}
+              </span>
+              <span className="queue__score" title="Score arrives with the scoring engine (PR 04)">
+                —
+              </span>
+              <span className="queue__detail">
+                <span className="queue__badge" data-layer={track.source}>
+                  {LAYER_BADGE[track.source]}
+                </span>
+                <span className="queue__ident">{ident(track)}</span>
+                {track.onGround && <span className="queue__ground">on ground</span>}
+                <span className="queue__range">{formatRange(rangeM)}</span>
+              </span>
+            </button>
+          </li>
+        )
+      })}
     </ol>
   )
 }
