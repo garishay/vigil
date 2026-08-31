@@ -129,15 +129,33 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--minutes'])).toThrow(/Missing value/)
   })
 
-  it('refuses a window that is not a finite number of minutes', () => {
-    // Infinity is > 0, so it passed the positivity check and made `frameCount` Infinity — an
-    // unbounded loop against adsb.lol, which is the failure the whole etiquette section exists
-    // to prevent. NaN was already caught; this is the other end of the same check.
-    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/finite/)
-    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/finite/)
-    // Finite on its own, but `1e308 * 60` overflows: the check has to sit on the derived count,
-    // because a guard reading only the arguments cannot see the multiplication that follows.
-    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/finite/)
+  it('refuses every window that does not describe at least one whole frame', () => {
+    // One condition now covers what two used to, and this is the half that `main()` held and the
+    // suite could not reach: `--minutes 0.1` is positive, rounds to zero frames, and a zero-frame
+    // run made `missing / 0` NaN, walked past the gappiness guard, and overwrote the committed
+    // recording with an empty capture.
+    expect(() => parseArgs(['--minutes', '0.1'])).toThrow(/one whole frame/)
+    // The unbounded-poll half: Infinity is > 0 and used to pass a positivity check, and `1e308`
+    // is finite until multiplied by 60 — both make the frame count non-finite.
+    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/one whole frame/)
+    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/one whole frame/)
+    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/one whole frame/)
+    // Still accepts the windows it should, including a sub-minute one that does round to a frame.
+    expect(parseArgs(['--minutes', '0.5']).minutes).toBe(0.5)
+  })
+
+  it('keeps every FLAGS entry wired to a case in the switch', () => {
+    // The compile-time half is the `never` assertion in the default branch, which no test can
+    // observe. This is the runtime half: every flag the parser admits must actually change an
+    // option, so a flag added to FLAGS without a case cannot pass silently.
+    const defaults = parseArgs([])
+    const changed: Record<string, unknown> = {
+      '--minutes': parseArgs(['--minutes', '30']).minutes,
+      '--interval': parseArgs(['--interval', '20']).intervalS,
+      '--out': parseArgs(['--out', 'other.json']).out,
+    }
+    expect(Object.values(changed)).toEqual([30, 20, 'other.json'])
+    expect(defaults).toMatchObject({ minutes: 20, out: 'public/adsb-phl.json' })
   })
 
   it('names the flag, not a missing value, for an unrecognised trailing flag', () => {

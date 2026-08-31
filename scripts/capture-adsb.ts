@@ -79,17 +79,27 @@ export function parseArgs(argv: string[]): Options {
       case '--out':
         options.out = value
         break
+      default: {
+        // Unreachable while every FLAGS entry has a case above — which is the point. TypeScript
+        // does not check a string switch for exhaustiveness, so a flag added to FLAGS without a
+        // case would otherwise parse, do nothing, and leave the operator with a default they
+        // thought they had overridden. This line is the compile error that says so instead.
+        const unhandled: never = flag
+        throw new Error(`Unhandled flag ${String(unhandled)}`)
+      }
     }
   }
-  // Finite, not merely positive, and checked on the derived count rather than only its inputs.
-  // `--minutes 1e400` parses to Infinity outright; `--minutes 1e308` is finite and passes, then
-  // overflows to Infinity when multiplied by 60. Either way `frameCount` came out Infinity, sailed
-  // past the one-frame guard, and turned the capture loop into an unbounded poll of a free
-  // service — the one thing this script exists not to do. The overflow is why the product is on
-  // this list: a guard on the arguments alone cannot see it.
-  const frames = (options.minutes * 60) / options.intervalS
-  if (![options.minutes, options.intervalS, frames].every((n) => Number.isFinite(n) && n > 0)) {
-    throw new Error('--minutes and --interval must be positive, finite numbers')
+  // One check, on the rounded frame count, because every bad argument arrives here: Infinity and
+  // NaN both fail `isFinite`, and zero, negative, or too-short windows all round below one frame.
+  // It has to be the derived value — `--minutes 1e308` is finite until multiplied by 60, and the
+  // Infinity that produced turned the capture loop into an unbounded poll of a free service. And
+  // rounded, because `--minutes 0.1 --interval 15` is a positive 0.4 that becomes zero frames, and
+  // a zero-frame run made `missing / 0` NaN, sailed past the gappiness guard, and overwrote the
+  // committed recording with nothing. Both used to be caught here and in `main()` respectively;
+  // one condition covers them, and unlike `main()` this one is reachable from the suite.
+  const frames = Math.round((options.minutes * 60) / options.intervalS)
+  if (!Number.isFinite(frames) || frames < 1) {
+    throw new Error(`${options.minutes} minutes at ${options.intervalS}s is not one whole frame`)
   }
   if (options.intervalS < CAPTURE_ETIQUETTE.minIntervalS) {
     throw new Error(
@@ -153,11 +163,8 @@ function serialize(capture: AdsbCapture): string {
 async function main(): Promise<void> {
   const { minutes, intervalS, out } = parseArgs(process.argv.slice(2))
   const intervalMs = intervalS * 1000
+  // At least one, and finite: `parseArgs` refuses anything else, and is tested for it.
   const frameCount = Math.round((minutes * 60) / intervalS)
-  // Before anything reaches the network: `missing / 0` is NaN and `NaN > rate` is false, so a
-  // zero-frame run would sail straight past the gappiness guard below and overwrite the committed
-  // recording with nothing at all.
-  if (frameCount < 1) throw new Error(`${minutes} minutes at ${intervalS}s is not one frame`)
   const radiusNm = captureRadiusNm(AO)
   const [lon, lat] = AO.center
   const url = `${API_ROOT}/lat/${lat}/lon/${lon}/dist/${radiusNm}`
@@ -181,7 +188,10 @@ async function main(): Promise<void> {
       const records = normalizeResponse(snapshot.response, AO.bbox)
       frames.push({ tMs: i * intervalMs, records })
       consecutiveFailures = 0
-      if (i % 12 === 0 || i === frameCount - 1) {
+      // Every twelfth frame only: `i === frameCount - 1` was written when this was a `for` loop
+      // visiting every index, and after #29 the run can skip past that slot and never print it.
+      // The summary block below reports the end of the run, and does it whatever the loop skipped.
+      if (i % 12 === 0) {
         const elapsed = Math.round((Date.now() - startedAt) / 1000)
         console.log(`  frame ${i + 1}/${frameCount}  ${records.length} tracks  ${elapsed}s elapsed`)
       }
