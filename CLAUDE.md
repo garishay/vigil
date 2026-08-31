@@ -86,17 +86,18 @@ proceeds; thread reconciliation with dispositions; filing follow-up Issues; bran
 changelog conflicts in the known ordering; retriggering CI; fixes to factual errors within the
 approved design and budget; cleanup PRs that only bundle owner-filed follow-ups, ≤50
 implementation lines — pre-approved by those Issues, which are jointly the PR's originating
-Issue and its scope, so the plan gate is satisfied by reference.
+Issue and its scope, so the plan gate is satisfied by reference. Growth past the cap is a
+budget change: stop and re-gate.
 
 **Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with options
 and a recommendation; batch — the queued item itself stops and waits; only unrelated work
 continues): any discretionary change to what a user sees beyond the approved mockup (the
-mockup in the plan comment on the PR's Issue), including on-screen wording; scope adds or
-cuts; data provenance, privacy, licensing, new dependencies, any new network call; design or
-budget changes mid-build (the existing re-gate rule); conflicts between doc rules; model or
-workflow changes; anything where two rulings could plausibly apply. The owner answers the
-queue in batches via notifications. An on-screen factual error is never a queue item: it is
-fixed regardless of surface.
+mockup in the plan comment on the PR's Issue; a PR with no approved mockup has approved no
+user-visible change), including on-screen wording; scope adds or cuts; data provenance, privacy, licensing, new dependencies, any new network call; design or
+budget changes mid-build (the existing re-gate rule); conflicts between doc rules; changes
+to the review tooling — the AI model or the workflows; anything where two rulings could
+plausibly apply. The owner answers the queue in batches via notifications. An on-screen factual error is never a queue item: within
+the approved design and budget, it is fixed regardless of surface.
 
 ### Lanes
 
@@ -109,7 +110,8 @@ working tree.
   Lane A; scripts and docs belong to Lane B — but each lane owns the doc edits its own rules
   require of its PRs (diagram updates, changelog entries); Lane B owns doc-only PRs. Files
   outside both surfaces follow the routed Issue: the lane holding the Issue owns every file
-  its fix touches, for the duration of that PR — no standing file census. A collision in the
+  its fix touches, for the duration of that PR — no standing file census. A file no routed
+  Issue names is claimed on the adjudication queue before either lane touches it. A collision in the
   two shared docs resolves at merge time — whoever merges second reconciles: the changelog in
   its known ordering, the diagram by redrawing over the merged picture.
 - **`docs/mvp-scope.md` changelog edits happen only at PR open — the entry belongs to that PR
