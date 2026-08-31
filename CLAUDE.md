@@ -60,7 +60,9 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
 
 ## The plan gate
 
-Every PR is planned and approved before it is built. Two standing rules govern it.
+Every PR is planned and approved before it is built — for a cleanup PR bundling owner-filed
+follow-ups, that approval lives in the bundled Issues (see Decision rights). Two standing
+rules govern it.
 
 - **Read the notes on every open Issue, not just the target one.** Rulings and design constraints
   get parked downstream, on the Issue they will land in rather than the one being built. A plan
@@ -68,7 +70,9 @@ Every PR is planned and approved before it is built. Two standing rules govern i
   **assumption** — and say which when parking a note of your own.
 - **Mid-build, judge a deviation by what it touches.** One that changes neither the approved design
   nor the ~400-line budget: flag it and keep going. One that changes either: **stop and re-gate** —
-  report the conflict, the proposed change, and the revised estimate, and wait. A discovery that
+  append the conflict, the
+  proposed change, and the revised estimate to the adjudication queue — the one intake — and
+  wait. A discovery that
   reshapes the design is a plan-gate event, not a disclosure to be saved for the PR description.
 
 ## Decision rights and adjudication
@@ -76,7 +80,7 @@ Every PR is planned and approved before it is built. Two standing rules govern i
 This replaces per-round check-ins — the prior practice of pausing for the owner after every
 review round. Plan gates, closure declarations, and merges remain the owner's alone.
 
-**Proceed without asking (log, don't ask):** review-round triage — closure changes what a
+**Proceed without asking (log on the PR thread, don't ask):** review-round triage — closure changes what a
 finding becomes (follow-up Issue vs blocking factual error), never whether triage proceeds;
 thread reconciliation with dispositions; filing follow-up Issues; branch updates and changelog
 conflicts in the known ordering; retriggering CI; fixes to factual errors within the approved
@@ -100,7 +104,7 @@ Work runs in parallel lanes, one session and one git worktree per lane — sessi
 working tree.
 
 - **Max one open PR per lane.**
-- **Lanes own disjoint files.** Feature surfaces belong to Lane A; scripts and docs belong to
+- **Lanes own disjoint files — the two shared docs excepted.** Feature surfaces belong to Lane A; scripts and docs belong to
   Lane B — but each lane owns the doc edits its own rules require of its PRs (diagram updates,
   changelog entries); Lane B owns doc-only PRs. Files outside both surfaces follow the routed
   Issue: the lane holding the Issue owns every file its fix touches, for the duration of that
