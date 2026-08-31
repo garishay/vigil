@@ -161,6 +161,15 @@ describe('Queue', () => {
     expect(document.activeElement).toBe(within(unheard).getByRole('button'))
   })
 
+  it('falls back to the list when the anchoring row is filtered out (03a)', () => {
+    const injectsOnly = RANKED.filter((entry) => entry.track.source === 'inject')
+    const { rerender } = render(
+      <Queue ranked={injectsOnly} selectedId="adsb-a3303d" onSelect={vi.fn()} />,
+    )
+    rerender(<Queue ranked={injectsOnly} selectedId={null} onSelect={vi.fn()} />)
+    expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
+  })
+
   it('selects a track through its row button (03a)', () => {
     const onSelect = vi.fn()
     render(<Queue ranked={RANKED} selectedId={null} onSelect={onSelect} />)

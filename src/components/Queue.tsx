@@ -37,19 +37,22 @@ export function Queue({
   }, [selectedId, ranked])
 
   // A keyboard operator who closes the drawer must not be dropped on document.body: focus
-  // returns to the row that anchored the selection, when it is still on screen.
+  // returns to the row that anchored the selection, or to the list itself when that row is
+  // filtered out. (Closing from the Review surface, where this list is unmounted, still falls
+  // to body — that rides with 03b's selection-state revisit, noted on #3.)
   const previousSelectedRef = useRef<string | null>(null)
   useEffect(() => {
     const previous = previousSelectedRef.current
     previousSelectedRef.current = selectedId
     if (selectedId || !previous) return
-    listRef.current
-      ?.querySelector<HTMLButtonElement>(`[data-id="${CSS.escape(previous)}"] button`)
-      ?.focus?.()
+    const row = listRef.current?.querySelector<HTMLButtonElement>(
+      `[data-id="${CSS.escape(previous)}"] button`,
+    )
+    ;(row ?? listRef.current)?.focus?.()
   }, [selectedId])
 
   return (
-    <ol className="queue" aria-label="Ranked queue" ref={listRef}>
+    <ol className="queue" aria-label="Ranked queue" ref={listRef} tabIndex={-1}>
       {ranked.map(({ track, rank, rangeM }) => {
         const classes = ['queue__row']
         if (track.onGround) classes.push('queue__row--ground')

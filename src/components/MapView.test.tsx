@@ -168,6 +168,9 @@ describe('MapView', () => {
     expect(hit.paint['circle-opacity']).toBe(0)
     expect(hit.paint['circle-radius']).toBeGreaterThan(5)
     expect(hit.filter).toEqual(['!', ['get', 'onGround']])
+    // The hit layer sits below the visible dot: click dispatch prefers the topmost feature, so
+    // a visible parked dot under the cursor beats an overlapping invisible airborne ring.
+    expect(order.indexOf('adsb-tracks-hit')).toBeLessThan(order.indexOf('adsb-tracks-dot'))
   })
 
   it('selects through one registration and one dispatch: hit area and halo together (03a)', () => {

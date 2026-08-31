@@ -150,6 +150,20 @@ export function MapView({
 
       // Added empty and fed by the effect below, so track updates never rebuild the layer.
       map.addSource(ADSB_SOURCE, { type: 'geojson', data: trackFeatures([]) })
+      // Invisible hit area, deliberately *below* the visible dot: the ADS-B dot is ~3 px of
+      // visible radius, close to unclickable on a dense frame, so this widens the click target
+      // without changing the picture — and because click dispatch prefers the topmost feature,
+      // a visible parked dot under the cursor beats an overlapping invisible airborne ring.
+      map.addLayer({
+        id: `${ADSB_SOURCE}-hit`,
+        type: 'circle',
+        source: ADSB_SOURCE,
+        // Airborne only: a parked aircraft draws at 1.8 px, and giving it an invisible 16 px
+        // target would blanket the apron with clicks on traffic the operator cannot see. Ground
+        // dots stay clickable at exactly their visible size through the dot layer above.
+        filter: ['!', ['get', 'onGround']],
+        paint: { 'circle-radius': 8, 'circle-opacity': 0 },
+      })
       map.addLayer({
         id: `${ADSB_SOURCE}-dot`,
         type: 'circle',
@@ -162,18 +176,6 @@ export function MapView({
           'circle-stroke-color': ADSB_COLOR,
           'circle-stroke-opacity': 0.35,
         },
-      })
-      // Invisible hit area: the ADS-B dot is ~3 px of visible radius, close to unclickable on a
-      // dense frame. This layer widens the click target without changing the picture.
-      map.addLayer({
-        id: `${ADSB_SOURCE}-hit`,
-        type: 'circle',
-        source: ADSB_SOURCE,
-        // Airborne only: a parked aircraft draws at 1.8 px, and giving it an invisible 16 px
-        // target would blanket the apron with clicks on traffic the operator cannot see. Ground
-        // dots stay clickable at exactly their visible size through the dot layer below.
-        filter: ['!', ['get', 'onGround']],
-        paint: { 'circle-radius': 8, 'circle-opacity': 0 },
       })
       // Added last, so injects draw above cooperative traffic rather than under it.
       map.addSource(INJECT_SOURCE, { type: 'geojson', data: injectFeatures([]) })
