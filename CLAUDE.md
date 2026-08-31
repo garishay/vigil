@@ -48,10 +48,15 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
   a PR swells, split it rather than grow it.
 - Conventional-ish commit subjects, imperative mood.
 - Reply to every review comment with a fix or a reasoned "won't fix."
+- **The review loop on a PR ends when the owner declares closure.** After closure, new findings
+  become follow-up Issues unless they are factual errors — a broken requirement or wrong
+  behavior — which still block the merge.
 - **A change that cannot test itself carries only the fix, no cleanup.** The review action skips any
   run whose workflow file differs from `main`, so a workflow PR is first exercised by the PR after
   it — anything riding along lands unproven (the lesson of #18, paid for in #20).
 - At least one test per behavior change. No dead code, no `console` noise.
+- **Update the README architecture diagram** when a PR adds or removes a module (a stage on the
+  data path) or an edge — including un-dashing a box the diagram already reserves for that PR.
 
 ## The plan gate
 

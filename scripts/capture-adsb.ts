@@ -3,7 +3,7 @@
  *
  * Run by hand, never at runtime:
  *
- *   npm run capture:adsb -- --minutes 20 --interval 5
+ *   npm run capture:adsb -- --minutes 20 --interval 15
  *
  * Vigil replays a recording rather than polling a live feed, which is what keeps tests
  * deterministic, demos reproducible, and the MVP clear of rate limits, CORS, and outage risk.
@@ -13,8 +13,10 @@
  * `src/lib/adsb.ts`, where it is unit-tested without a network.
  */
 
+import { realpathSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AO } from '../src/config/ao.ts'
 import {
@@ -29,7 +31,11 @@ import type { AdsbCapture, AdsbLolResponse, CaptureFailure, CaptureFrame } from 
 const API_ROOT = 'https://api.adsb.lol/v2'
 const USER_AGENT = 'vigil-capture (educational demo; github.com/garishay/vigil)'
 const DEFAULT_MINUTES = 20
-const DEFAULT_INTERVAL_S = 5
+/**
+ * 15, not the etiquette floor of 10: both real captures used 15 s, and a default below the floor
+ * made the bare `npm run capture:adsb` throw on the script's own etiquette check (#27).
+ */
+const DEFAULT_INTERVAL_S = 15
 const DEFAULT_OUT = 'public/adsb-phl.json'
 const REQUEST_TIMEOUT_MS = 15_000
 /** Abandon the capture rather than commit a fixture riddled with gaps. */
@@ -41,7 +47,7 @@ interface Options {
   out: string
 }
 
-function parseArgs(argv: string[]): Options {
+export function parseArgs(argv: string[]): Options {
   const options: Options = {
     minutes: DEFAULT_MINUTES,
     intervalS: DEFAULT_INTERVAL_S,
@@ -199,7 +205,70 @@ async function main(): Promise<void> {
   )
 }
 
-main().catch((error: Error) => {
-  console.error(error.message)
-  process.exitCode = 1
-})
+/**
+ * The fallback entry comparison, both sides realpathed so a symlinked checkout still matches.
+ * Exported so the test can pin it directly — under Vitest `import.meta.main` is `false`, not
+ * undefined, so `isEntry()` never reaches this path in the suite and it must be tested by name.
+ *
+ * Loud, not false, on a realpath failure: a fallback that swallows its own failure is the silent
+ * no-op it exists to prevent, and it only runs at all on runtimes without `import.meta.main`.
+ */
+export function entryPathsMatch(
+  scriptPath: string | undefined,
+  argvPath: string | undefined,
+): boolean {
+  // An importer without an on-disk path cannot be running us as the entry — false is the
+  // truthful answer there, not a swallowed failure, and a bystander import can never be
+  // crashed by this guard. import.meta.filename (not a URL parse) sidesteps non-file schemes.
+  if (!scriptPath || !argvPath) return false
+  let self: string
+  try {
+    self = realpathSync(scriptPath)
+  } catch (error) {
+    // Our own path failing to resolve is undiagnosable — loud: a fallback that swallows its own
+    // failure is the silent no-op it exists to prevent.
+    throw new Error(
+      `cannot determine whether capture-adsb.ts is the entry: ${(error as Error).message}`,
+      { cause: error },
+    )
+  }
+  try {
+    return self === realpathSync(argvPath)
+  } catch {
+    // argv naming something that is not on disk means that process's entry is not us — an
+    // entry's argv[1] always resolves, node just loaded it — so a bystander import (say,
+    // `node --eval` with a stray trailing argument) is answered false, never crashed.
+    return false
+  }
+}
+
+/**
+ * This module's own on-disk path, from the richest source the runtime offers:
+ * `import.meta.filename` (Node 20.11+), else the URL when it is genuinely file-scheme, else
+ * undefined — a non-file scheme means a bundler or test harness, which is never the entry.
+ */
+function entryScriptPath(): string | undefined {
+  if (import.meta.filename) return import.meta.filename
+  return import.meta.url?.startsWith('file:') ? fileURLToPath(import.meta.url) : undefined
+}
+
+/**
+ * Run only when invoked directly. Importing this module — which the parseArgs test does — must
+ * never start a capture against a free service.
+ *
+ * `import.meta.main` where the runtime provides it: `true` for the entry, `false` for an import
+ * (Vitest sets `false` too, verified empirically, so a test import is inert). Where the property
+ * does not exist — Node 23.6–23.11 and 24.0/24.1, inside the `engines` warning npm only advises
+ * about — the realpath comparison decides, so neither an old runtime nor a symlinked checkout
+ * can silently no-op the script.
+ */
+function isEntry(): boolean {
+  return import.meta.main ?? entryPathsMatch(entryScriptPath(), process.argv[1])
+}
+
+if (isEntry()) {
+  main().catch((error: Error) => {
+    console.error(error.message)
+    process.exitCode = 1
+  })
+}
