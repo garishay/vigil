@@ -144,7 +144,7 @@ charged against the budget.
 
 **Mechanics:** every PR starts as a GitHub Issue containing a mini-PRD (user story + acceptance criteria). Branch naming `feat/pr-02-scenario-data`. `CLAUDE.md` carries stack, commands, conventions, and the §2 guardrails so the agent enforces them too.
 
-**Self-review checklist:** read the full diff cold; run the app and exercise the change; check every acceptance criterion; at least one test per behavior change; no dead code or console noise; README diagram updated if this PR adds or removes a module or an edge.
+**Self-review checklist:** read the full diff cold; run the app and exercise the change; check every acceptance criterion; at least one test per behavior change; no dead code or console noise; README diagram updated if this PR adds or removes a module or an edge, or lands a module the diagram already reserves as dashed.
 
 **Deliberate conflict drill (while PR 05 is open):** open a tiny copy-edit PR touching the same file, merge the small one first, resolve the conflict in PR 05 properly. Merge conflicts should be a drill before they're an emergency.
 

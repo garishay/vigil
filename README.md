@@ -29,7 +29,7 @@ flowchart LR
     direction LR
     subgraph real["Real layer — public ADS-B, cooperative by construction"]
       direction LR
-      load["data/capture.ts<br/>loadCapture: fetch once at startup, AO guard<br/>frameTracks"] --> norm["lib/adsb.ts<br/>normalize → AdsbTrack<br/>identity is the literal 'cooperative'"]
+      load["data/capture.ts<br/>loadCapture: fetch once at startup, AO guard<br/>frameTracks"] --> norm["lib/adsb.ts<br/>toTrack: record → AdsbTrack<br/>identity is the literal 'cooperative'<br/>(normalizers run at capture time)"]
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
@@ -50,6 +50,8 @@ flowchart LR
     model -.-> score
   end
   fx -. fetched at startup .-> load
+  ao -- bbox · capture radius --> cap
+  norm -. normalizeResponse, at capture time .-> cap
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
     app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0"]
