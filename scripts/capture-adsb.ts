@@ -221,15 +221,24 @@ export function entryPathsMatch(
   // truthful answer there, not a swallowed failure, and a bystander import can never be
   // crashed by this guard. import.meta.filename (not a URL parse) sidesteps non-file schemes.
   if (!scriptPath || !argvPath) return false
+  let self: string
   try {
-    return realpathSync(scriptPath) === realpathSync(argvPath)
+    self = realpathSync(scriptPath)
   } catch (error) {
-    // Both paths were supplied and one failed to resolve — undiagnosable, so loud: a fallback
-    // that swallows its own failure is the silent no-op it exists to prevent.
+    // Our own path failing to resolve is undiagnosable — loud: a fallback that swallows its own
+    // failure is the silent no-op it exists to prevent.
     throw new Error(
       `cannot determine whether capture-adsb.ts is the entry: ${(error as Error).message}`,
       { cause: error },
     )
+  }
+  try {
+    return self === realpathSync(argvPath)
+  } catch {
+    // argv naming something that is not on disk means that process's entry is not us — an
+    // entry's argv[1] always resolves, node just loaded it — so a bystander import (say,
+    // `node --eval` with a stray trailing argument) is answered false, never crashed.
+    return false
   }
 }
 

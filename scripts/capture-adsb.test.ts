@@ -78,8 +78,15 @@ describe('entryPathsMatch', () => {
     expect(entryPathsMatch(scriptPath, undefined)).toBe(false)
   })
 
-  it('fails loudly when both paths exist but cannot be resolved', () => {
-    expect(() => entryPathsMatch(scriptPath, join(dirname(scriptPath), 'no-such-file.ts'))).toThrow(
+  it('answers false when argv names something not on disk — that process is not our entry', () => {
+    // An entry's argv[1] always resolves (node just loaded it), so an unresolvable argv means a
+    // bystander context — `node --eval` with a stray trailing argument, a dangling symlink —
+    // and the import must be answered, never crashed.
+    expect(entryPathsMatch(scriptPath, join(dirname(scriptPath), 'no-such-file.ts'))).toBe(false)
+  })
+
+  it('fails loudly only when its own path cannot be resolved', () => {
+    expect(() => entryPathsMatch(join(dirname(scriptPath), 'no-such-file.ts'), scriptPath)).toThrow(
       /cannot determine whether capture-adsb\.ts is the entry/,
     )
   })
