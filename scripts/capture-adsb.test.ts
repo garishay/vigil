@@ -15,10 +15,11 @@ const testPath = fileURLToPath(new URL('./capture-adsb.test.ts', import.meta.url
 /**
  * The spies are installed before the script is imported, and the import is dynamic for exactly
  * that reason: `main()` runs only for the true entry, and these three spies are what prove the
- * import stayed inert on every pool. A broken guard surfaces here whatever path it takes —
- * console.log if main starts (its first act is a log line, before any fetch), console.error if
- * parseArgs throws on vitest's argv and the script's own catch swallows it, fetch if a request
- * is ever attempted.
+ * import stayed inert on every pool. A broken guard surfaces here whatever path it takes. On
+ * vitest's argv the realistic one is console.error — main's first act is `parseArgs`, which
+ * throws on unrecognized arguments and lands in the script's own catch; console.log covers an
+ * argv that happens to parse (main's first act *then* is a log line, before any fetch), and the
+ * fetch spy is the backstop if a request is ever attempted.
  */
 const fetchSpy = vi.fn()
 vi.stubGlobal('fetch', fetchSpy)

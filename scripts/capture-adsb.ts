@@ -234,16 +234,6 @@ export function entryPathsMatch(
 }
 
 /**
- * Run only when invoked directly. Importing this module — which the parseArgs test does — must
- * never start a capture against a free service.
- *
- * `import.meta.main` where the runtime provides it: `true` for the entry, `false` for an import
- * (Vitest sets `false` too, so a test import is inert). Where the property does not exist —
- * Node 23.6–23.11 and 24.0/24.1, inside the `engines` warning npm only advises about — the
- * realpath comparison decides, so neither an old runtime nor a symlinked checkout can silently
- * no-op the script.
- */
-/**
  * This module's own on-disk path, from the richest source the runtime offers:
  * `import.meta.filename` (Node 20.11+), else the URL when it is genuinely file-scheme, else
  * undefined — a non-file scheme means a bundler or test harness, which is never the entry.
@@ -253,6 +243,16 @@ function entryScriptPath(): string | undefined {
   return import.meta.url?.startsWith('file:') ? fileURLToPath(import.meta.url) : undefined
 }
 
+/**
+ * Run only when invoked directly. Importing this module — which the parseArgs test does — must
+ * never start a capture against a free service.
+ *
+ * `import.meta.main` where the runtime provides it: `true` for the entry, `false` for an import
+ * (Vitest sets `false` too, verified empirically, so a test import is inert). Where the property
+ * does not exist — Node 23.6–23.11 and 24.0/24.1, inside the `engines` warning npm only advises
+ * about — the realpath comparison decides, so neither an old runtime nor a symlinked checkout
+ * can silently no-op the script.
+ */
 function isEntry(): boolean {
   return import.meta.main ?? entryPathsMatch(entryScriptPath(), process.argv[1])
 }
