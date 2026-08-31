@@ -85,8 +85,26 @@ describe('ReviewDrawer', () => {
     // A real zero stays a zero: the parked aircraft's ground level is a reading, not a gap.
     const alt = screen.getByText('Altitude').parentElement as HTMLElement
     expect(within(alt).getByText('0 ft')).toBeInTheDocument()
+    // Same for ground speed: the parked aircraft's broadcast 0 kt is a reading, not a gap (#35).
+    const gs = screen.getByText('Ground speed').parentElement as HTMLElement
+    expect(within(gs).getByText('0 kt')).toBeInTheDocument()
     expect(screen.getByText('on ground')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'a3303d' })).toBeInTheDocument()
+  })
+
+  it('dashes an unreported ground speed instead of asserting a hover (#35)', () => {
+    // The shape from the recording that motivated #35: positive altitude, no speed broadcast.
+    const positionOnly: AdsbTrack = {
+      ...PARKED,
+      id: 'adsb-ae2683',
+      icaoHex: 'ae2683',
+      altitudeFt: 525,
+      onGround: false,
+      groundSpeedKt: null,
+    }
+    render(<ReviewDrawer entry={entry(positionOnly, 3, 4100.0)} sites={SITES} onClose={vi.fn()} />)
+    const gs = screen.getByText('Ground speed').parentElement as HTMLElement
+    expect(within(gs).getByText('—')).toBeInTheDocument()
   })
 
   it('reserves the Track Visuals slot and the score, and says what fills them', () => {
