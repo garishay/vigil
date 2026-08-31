@@ -259,6 +259,22 @@ describe('toTrack', () => {
     )
   })
 
+  it('drops registry fields the model does not name — a foreign key cannot ride through', () => {
+    // cleanRegistry builds by field name, never by copying keys: a hand-built fixture or a
+    // Phase 2 feed carrying an owner name inside `registry` loses it at the read path.
+    const base = normalizeAircraft(AIRBORNE)!
+    const smuggled = { typeCode: 'C172', ownOp: 'Jane Example' } as AircraftRegistry
+    expect(toTrack({ ...base, registry: smuggled }).registry).toEqual({ typeCode: 'C172' })
+  })
+
+  it('degrades softly on non-string enrichment from the unchecked cast, instead of throwing', () => {
+    const base = normalizeAircraft(AIRBORNE)!
+    const numeric = { ...base, category: 3 as unknown as string }
+    expect(toTrack(numeric).category).toBeNull()
+    const numericRegistry = { ...base, registry: { typeCode: 172 as unknown as string } }
+    expect(toTrack(numericRegistry).registry).toBeNull()
+  })
+
   it('carries the enrichment through as nullable display fields', () => {
     const bare = toTrack(normalizeAircraft(AIRBORNE)!)
     expect(bare.category).toBeNull()

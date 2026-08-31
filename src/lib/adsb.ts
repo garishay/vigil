@@ -145,8 +145,12 @@ export function captureRadiusNm(ao: AreaOfOperations): number {
 /** The emitter-category codes that mean "no category information" in each ADS-B category set. */
 const NO_CATEGORY: ReadonlySet<string> = new Set(['A0', 'B0', 'C0', 'D0'])
 
-/** A trimmed string, or undefined for absent, empty, and whitespace-only — blanks are absence. */
-const text = (value: string | undefined) => value?.trim() || undefined
+/**
+ * A trimmed string, or undefined for absent, blank, and non-string values. The typeof guard is
+ * load-bearing: the recording is parsed with an unchecked cast, so a malformed field must degrade
+ * softly like every other field on the read path, not throw inside the app's render.
+ */
+const text = (value: unknown) => (typeof value === 'string' && value.trim()) || undefined
 
 /** One raw record to one storable record, or null when it carries no usable position. */
 export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
@@ -262,10 +266,17 @@ function cleanCategory(category: string | undefined): string | null {
  */
 function cleanRegistry(registry: AircraftRegistry | undefined): AircraftRegistry | null {
   if (!registry) return null
-  const entries = Object.entries(registry)
-    .map(([key, value]) => [key, text(value)] as const)
-    .filter((entry): entry is readonly [string, string] => entry[1] !== undefined)
-  return entries.length > 0 ? Object.fromEntries(entries) : null
+  // Built field-by-name, never by copying keys: a foreign record's registry could carry fields
+  // the model refuses (an owner name, say), and a whitelist is what keeps them off the track.
+  const typeCode = text(registry.typeCode)
+  const typeDesc = text(registry.typeDesc)
+  const registration = text(registry.registration)
+  if (!typeCode && !typeDesc && !registration) return null
+  return {
+    ...(typeCode ? { typeCode } : {}),
+    ...(typeDesc ? { typeDesc } : {}),
+    ...(registration ? { registration } : {}),
+  }
 }
 
 /**
