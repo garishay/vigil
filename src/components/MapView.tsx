@@ -211,15 +211,13 @@ export function MapView({
         },
       })
 
-      // Selection flows both ways (§7): a click on a dot, the widened ADS-B hit area, or the
-      // inject halo — the visually dominant part of the marker — selects the track, exactly as a
-      // row click does. Registered per layer, so empty basemap clicks select nothing.
-      for (const layerId of [
-        `${ADSB_SOURCE}-dot`,
-        `${ADSB_SOURCE}-hit`,
-        `${INJECT_SOURCE}-halo`,
-        `${INJECT_SOURCE}-dot`,
-      ]) {
+      // Selection flows both ways (§7): a click selects the track, exactly as a row click does.
+      // One handler per pixel: only the containing layer of each pair is registered — the ADS-B
+      // hit area strictly contains its dot, the inject halo its own — because two handlers on
+      // one source both fire for a shared click, and the second, fuzzier one would overwrite a
+      // precise dot selection with whichever feature tile order returns first. Empty basemap
+      // clicks select nothing.
+      for (const layerId of [`${ADSB_SOURCE}-hit`, `${INJECT_SOURCE}-halo`]) {
         map.on('click', layerId, (event) => {
           const id = event.features?.[0]?.properties?.id as unknown
           if (typeof id === 'string') onSelectRef.current?.(id)

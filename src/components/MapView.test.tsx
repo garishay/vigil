@@ -166,19 +166,16 @@ describe('MapView', () => {
     expect(hit.paint['circle-radius']).toBeGreaterThan(5)
   })
 
-  it('selects the track under a click on a dot, the hit area, or the halo (03a)', () => {
+  it('selects through exactly one handler per pixel: the hit area and the halo (03a)', () => {
     const onSelect = vi.fn()
     render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} onSelect={onSelect} />)
-    clickHandlers['adsb-tracks-dot']({ features: [{ properties: { id: 'adsb-a06461' } }] })
     clickHandlers['adsb-tracks-hit']({ features: [{ properties: { id: 'adsb-a3303d' } }] })
     clickHandlers['inject-tracks-halo']({ features: [{ properties: { id: 'inject-02' } }] })
-    clickHandlers['inject-tracks-dot']({ features: [{ properties: { id: 'inject-01' } }] })
-    expect(onSelect.mock.calls.map(([id]) => id)).toEqual([
-      'adsb-a06461',
-      'adsb-a3303d',
-      'inject-02',
-      'inject-01',
-    ])
+    expect(onSelect.mock.calls.map(([id]) => id)).toEqual(['adsb-a3303d', 'inject-02'])
+    // The dot layers carry no handler: a second handler on the same source would fire for the
+    // same click and overwrite a precise dot selection with tile-order's first feature.
+    expect(clickHandlers['adsb-tracks-dot']).toBeUndefined()
+    expect(clickHandlers['inject-tracks-dot']).toBeUndefined()
     // An empty basemap click registers no handler at all, so it can select nothing.
     expect(clickHandlers['selected-track-ring']).toBeUndefined()
   })
