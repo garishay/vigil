@@ -37,10 +37,11 @@ interface TrackBase {
    * Barometric altitude in feet, or null when the aircraft broadcast none. Zero only when
    * `onGround`, where ground level is a real reading rather than a missing one.
    *
-   * Nullable on purpose: 1.6% of the recorded traffic broadcasts no altitude, and scoring an
-   * unknown altitude as zero would drag a real aircraft toward the low-and-slow envelope that
-   * the kinematic factor reads as small-UAS behavior (§6). The null forces PR 04 to say what it
-   * means to do about an unknown.
+   * Nullable on purpose: some traffic broadcasts no altitude (61 of 3,859 records in the first
+   * recording; none in the current one — the feed varies by day), and scoring an unknown altitude
+   * as zero would drag a real aircraft toward the low-and-slow envelope that the kinematic factor
+   * reads as small-UAS behavior (§6). The null forces PR 04 to say what it means to do about an
+   * unknown, whether or not the committed recording happens to contain one.
    */
   altitudeFt: number | null
   onGround: boolean

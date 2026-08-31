@@ -71,9 +71,14 @@ describe('normalizeAircraft', () => {
   })
 
   it('omits the enrichment entirely when the feed carried none, and blanks are none', () => {
-    expect(normalizeAircraft(AIRBORNE)).not.toHaveProperty('category')
-    expect(normalizeAircraft(AIRBORNE)).not.toHaveProperty('registry')
+    // Non-null first: `expect(null).not.toHaveProperty()` passes, so without it these could not
+    // tell "kept the record, omitted the field" from "rejected the record".
+    const bare = normalizeAircraft(AIRBORNE)
+    expect(bare).not.toBeNull()
+    expect(bare).not.toHaveProperty('category')
+    expect(bare).not.toHaveProperty('registry')
     const blank = normalizeAircraft({ ...AIRBORNE, category: ' ', t: '', r: '  ' })
+    expect(blank).not.toBeNull()
     expect(blank).not.toHaveProperty('category')
     expect(blank).not.toHaveProperty('registry')
     // A partial lookup keeps only what it has, rather than padding the rest with empties.
@@ -90,8 +95,10 @@ describe('normalizeAircraft', () => {
     expect(record).toMatchObject({ altitudeFt: 0, onGround: true, lastSeenSec: 1.6 })
   })
 
-  // 1.6% of the recorded traffic broadcasts no altitude. Flattening that to zero would drag a
-  // real aircraft toward the low-and-slow envelope the kinematic factor reads as small-UAS (§6).
+  // Some traffic broadcasts no altitude (61 of 3,859 records in the first recording; none in the
+  // current one). Flattening that to zero would drag a real aircraft toward the low-and-slow
+  // envelope the kinematic factor reads as small-UAS (§6) — so the path is pinned here, not by
+  // whichever recording happens to be committed.
   it('omits altitude entirely when the aircraft broadcast none', () => {
     const record = normalizeAircraft({ ...AIRBORNE, alt_baro: undefined })
     expect(record).not.toHaveProperty('altitudeFt')
