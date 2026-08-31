@@ -9,7 +9,7 @@
  */
 
 import { distanceMeters, round } from './geo.ts'
-import type { AdsbTrack } from './tracks.ts'
+import type { AdsbTrack, AircraftRegistry } from './tracks.ts'
 import type { AreaOfOperations } from '../config/ao.ts'
 
 /**
@@ -50,23 +50,15 @@ export interface AdsbLolAircraft {
   r?: string
 }
 
-/**
- * What the registry says about an airframe, as opposed to what the airframe broadcast. Kept apart
- * from the observed fields so a display can label it as a lookup, and so the scoring path has
- * nothing to reach for by accident.
- */
-export interface AircraftRegistry {
-  typeCode?: string
-  typeDesc?: string
-  registration?: string
-}
-
 export interface AdsbLolResponse {
   ac?: AdsbLolAircraft[]
 }
 
 /**
- * One aircraft as the fixture stores it: what the aircraft broadcast, and nothing else.
+ * One aircraft as the fixture stores it: the fields the aircraft broadcast, plus the registry
+ * lookups the aggregator returned alongside them. The two halves are kept apart and labelled by
+ * provenance (§5.1) — `registry` is display-only and never scored, and that split is the point:
+ * what a track *did* is observed, what it is *registered as* is somebody's database.
  *
  * `source` and `identity` are absent by design. A track's cooperativity is not data to be read
  * from a file that anyone could hand-edit — it is stamped in code by `toTrack`, which means the
@@ -370,4 +362,51 @@ export function decideAfterFailure(
       ? retryAfterSeconds(failure.retryAfter, nowMs, etiquette.rateLimitBackoffS)
       : 0,
   }
+}
+
+/** Where the run stands after a frame — everything the next-frame decision reads. */
+export interface FrameSchedule {
+  /** The frame just attempted. Slot `i` is due at `startedAt + i * intervalMs`. */
+  attempted: number
+  startedAt: number
+  intervalMs: number
+}
+
+/** Which frame to capture next, and how long to wait first. */
+export interface NextFrame {
+  index: number
+  waitMs: number
+}
+
+/**
+ * When the next frame is due, against a schedule fixed when the run began.
+ *
+ * The naive answer — sleep until `dueAt + intervalMs` — goes negative for every slot a backoff
+ * ran past, so the loop fired the whole backlog with no delay at all: back-to-back requests
+ * breaking the same floor the script enforces on its own arguments, in the moments right after
+ * the service asked us to slow down. That is the failure this exists to make impossible.
+ *
+ * Every request is issued **on a slot**, and the answer is always the first slot still ahead of
+ * us. Slots the run has fallen past are skipped rather than crowded in, which is what keeps
+ * `tMs` honest — a gap in the recording is by design (a dropped frame already leaves one), a
+ * frame stamped with a time it was not taken is not. Because the wait always lands on the slot
+ * the index names, those two can never disagree.
+ *
+ * Etiquette then falls out of the grid instead of being clamped on top of it. An earlier version
+ * clamped the wait at the floor and kept the index it had already chosen, which reintroduced the
+ * restamping this is here to prevent: at `--interval 10` the clamp won every iteration by the
+ * sleep overshoot, the schedule never re-synced, and the error grew without bound. `minSlots`
+ * puts the same guarantee on the grid, where it cannot drift — it is 1 for every interval
+ * `parseArgs` accepts, and larger only if a caller ever schedules below the floor.
+ */
+export function scheduleNextFrame(
+  schedule: FrameSchedule,
+  nowMs: number = Date.now(),
+  etiquette: typeof CAPTURE_ETIQUETTE = CAPTURE_ETIQUETTE,
+): NextFrame {
+  const { attempted, startedAt, intervalMs } = schedule
+  const minSlots = Math.max(1, Math.ceil((etiquette.minIntervalS * 1000) / intervalMs))
+  const firstAhead = Math.ceil((nowMs - startedAt) / intervalMs)
+  const index = Math.max(attempted + minSlots, firstAhead)
+  return { index, waitMs: Math.max(startedAt + index * intervalMs - nowMs, 0) }
 }
