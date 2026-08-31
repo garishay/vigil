@@ -12,6 +12,56 @@ Every score decomposes into visible factors. A ranked list nobody can interrogat
 
 ---
 
+## How it fits together
+
+Two layers converge on one track model; pure modules do the work and the UI only consumes them.
+Dashed boxes are later PRs.
+
+```mermaid
+flowchart LR
+  subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
+    direction LR
+    subgraph real["Real layer — public ADS-B, cooperative by construction"]
+      direction LR
+      cap["scripts/capture-adsb.ts<br/>run once, offline<br/>rate-limit etiquette"] --> fx[("public/adsb-phl.json<br/>committed fixture<br/>80 frames @ 15 s")]
+      fx --> norm["lib/adsb.ts<br/>normalize → AdsbTrack<br/>identity is the literal 'cooperative'"]
+    end
+    subgraph syn["Synthetic layer — 100% generated"]
+      direction LR
+      cfg["config/scenario.ts<br/>seed · envelope · launch points"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 behaviors · 3 Remote ID states"]
+      gen -. pins .-> gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
+    end
+    ao["config/ao.ts<br/>AO: center · bbox · protected sites"]
+    model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
+    rank["lib/ranking.ts<br/>placeholder rank: identity → range"]
+    score["scoring engine — PR 04<br/>per-factor breakdown retained"]
+    norm --> model
+    gen --> model
+    ao --> gen
+    ao --> rank
+    model --> rank
+    model -.-> score
+  end
+  subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
+    direction TB
+    app["App.tsx<br/>holds the inject plan · samples t = 0"]
+    queue["Queue<br/>ranked list, the product"]
+    map["MapView + IdentityLegend<br/>context"]
+    review["Review drawer — PR 03"]
+    clock["Playback clock — PR 06"]
+    app --> queue
+    app --> map
+    app -.-> review
+    clock -.-> app
+  end
+  rank --> app
+  score -.-> app
+  classDef planned stroke-dasharray: 6 4,fill:none;
+  class score,review,clock planned;
+```
+
+---
+
 ## ⚠️ Guardrails (non-negotiable)
 
 These are the rules this project is built under. They are not aspirational — they constrain every
