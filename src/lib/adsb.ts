@@ -244,7 +244,9 @@ export function toTrack(record: CaptureRecord): AdsbTrack {
     // come from our capture script — a hand-built fixture, or Phase 2's live feed. The invariant
     // holds here so it holds wherever the record came from.
     category: record.category && !NO_CATEGORY.has(record.category) ? record.category : null,
-    registry: record.registry ?? null,
+    // An empty registry object is the same as no registry — the doc contract says null, and a
+    // truthy `{}` from a foreign record would render an empty lookup panel behind a guard.
+    registry: record.registry && Object.keys(record.registry).length > 0 ? record.registry : null,
   }
 }
 

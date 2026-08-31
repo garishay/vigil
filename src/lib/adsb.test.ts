@@ -242,6 +242,11 @@ describe('toTrack', () => {
     expect(toTrack(foreign).category).toBeNull()
   })
 
+  it('treats an empty registry object from a foreign record as no registry', () => {
+    const foreign = { ...normalizeAircraft(AIRBORNE)!, registry: {} }
+    expect(toTrack(foreign).registry).toBeNull()
+  })
+
   it('carries the enrichment through as nullable display fields', () => {
     const bare = toTrack(normalizeAircraft(AIRBORNE)!)
     expect(bare.category).toBeNull()
