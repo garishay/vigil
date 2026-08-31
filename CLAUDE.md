@@ -108,17 +108,19 @@ working tree.
 - **Max one open PR per lane.**
 - **Lanes own disjoint files — the two shared docs excepted —
   `README.md`'s diagram and `docs/mvp-scope.md`'s changelog.** Feature surfaces belong to
-  Lane A; scripts and docs belong to Lane B — but each lane owns the doc edits its own rules
-  require of its PRs (diagram updates, changelog entries); Lane B owns doc-only PRs. Files
+  Lane A; scripts and docs belong to Lane B — but each lane owns the doc edits its own PRs
+  entail: the diagram update the conventions require, and the changelog entry and §11 plan
+  row that record the PR; Lane B owns doc-only PRs. Files
   outside both surfaces follow the routed Issue: the lane holding the Issue owns every file
   its fix touches, for the duration of that PR — no standing file census. A file no routed
   Issue names is claimed on the adjudication queue before either lane touches it. A collision in the
   two shared docs resolves at merge time — whoever merges second reconciles: the changelog in
   its known ordering, the diagram by redrawing over the merged picture.
-- **`docs/mvp-scope.md` changelog edits happen only at PR open — the entry belongs to that PR
-  and stays amendable while its review runs — or at merge-time conflict resolution in the
-  known ordering** (current-AO statement first, newest entries lead, then the
-  record; whoever prepends an entry maintains the lead sentence's wording as part of the edit).
+- **`docs/mvp-scope.md` changelog edits happen only while the PR they record is open — the
+  entry belongs to that PR, created at open or at the re-gate that earns it, and amendable
+  while its review runs — or at merge-time conflict resolution in the known ordering**
+  (current-AO statement first, newest entries lead, then the record; whoever prepends an
+  entry maintains the lead sentence's wording as part of the edit).
 - **The adjudication queue serves both lanes.**
 
 ## Architecture notes
