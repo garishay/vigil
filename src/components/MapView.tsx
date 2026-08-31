@@ -169,6 +169,10 @@ export function MapView({
         id: `${ADSB_SOURCE}-hit`,
         type: 'circle',
         source: ADSB_SOURCE,
+        // Airborne only: a parked aircraft draws at 1.8 px, and giving it an invisible 16 px
+        // target would blanket the apron with clicks on traffic the operator cannot see. Ground
+        // dots stay clickable at exactly their visible size through the dot layer below.
+        filter: ['!', ['get', 'onGround']],
         paint: { 'circle-radius': 8, 'circle-opacity': 0 },
       })
       // Added last, so injects draw above cooperative traffic rather than under it.
@@ -212,15 +216,20 @@ export function MapView({
       })
 
       // Selection flows both ways (§7): a click selects the track, exactly as a row click does.
-      // One registration, one dispatch, one selection: the two containing layers (the ADS-B hit
-      // area strictly contains its dot, the inject halo its own) share a single array-form
-      // listener, so an overlap cannot fire two handlers and let the later one overwrite the
-      // first — and features[0] under a single dispatch is the top-rendered feature, the one
-      // under the cursor visually. Empty basemap clicks select nothing.
-      map.on('click', [`${ADSB_SOURCE}-hit`, `${INJECT_SOURCE}-halo`], (event) => {
-        const id = event.features?.[0]?.properties?.id as unknown
-        if (typeof id === 'string') onSelectRef.current?.(id)
-      })
+      // One registration, one dispatch, one selection: every clickable layer shares a single
+      // array-form listener, so an overlap cannot fire two handlers and let the later one
+      // overwrite the first — features[0] under a single dispatch is the top-rendered feature,
+      // the one under the cursor visually. The dot layer is in the array for the ground traffic
+      // the filtered hit layer excludes; for airborne, dot and hit are the same dispatch. Empty
+      // basemap clicks select nothing.
+      map.on(
+        'click',
+        [`${ADSB_SOURCE}-hit`, `${ADSB_SOURCE}-dot`, `${INJECT_SOURCE}-halo`],
+        (event) => {
+          const id = event.features?.[0]?.properties?.id as unknown
+          if (typeof id === 'string') onSelectRef.current?.(id)
+        },
+      )
 
       setStyleReady(true)
     })

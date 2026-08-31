@@ -27,14 +27,26 @@ export function Queue({
   const listRef = useRef<HTMLOListElement>(null)
 
   useEffect(() => {
-    if (!selectedId) return
-    // `ranked` is a dependency on purpose: the selected row can render on a *later* commit than
-    // the selection — a cleared filter, or a re-rank — and that arriving row still gets scrolled
-    // to. Optional call: jsdom implements querySelector but not scrollIntoView.
+    // Membership is checked against `ranked`, not just the DOM, so the selected row can render
+    // on a *later* commit than the selection — a cleared filter, or a re-rank — and that
+    // arriving row still gets scrolled to. Optional call: jsdom has no scrollIntoView.
+    if (!selectedId || !ranked.some((entry) => entry.track.id === selectedId)) return
     listRef.current
       ?.querySelector(`[data-id="${CSS.escape(selectedId)}"]`)
       ?.scrollIntoView?.({ block: 'nearest' })
   }, [selectedId, ranked])
+
+  // A keyboard operator who closes the drawer must not be dropped on document.body: focus
+  // returns to the row that anchored the selection, when it is still on screen.
+  const previousSelectedRef = useRef<string | null>(null)
+  useEffect(() => {
+    const previous = previousSelectedRef.current
+    previousSelectedRef.current = selectedId
+    if (selectedId || !previous) return
+    listRef.current
+      ?.querySelector<HTMLButtonElement>(`[data-id="${CSS.escape(previous)}"] button`)
+      ?.focus?.()
+  }, [selectedId])
 
   return (
     <ol className="queue" aria-label="Ranked queue" ref={listRef}>

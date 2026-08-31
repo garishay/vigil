@@ -231,6 +231,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Styled in its own right: inside .queue__detail it inherits the same values, but the drawer
+ * header renders it too, where the bare body default would make it the largest text there. */
+.queue__ground {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
 .queue__range {
   margin-left: auto;
   font-variant-numeric: tabular-nums;

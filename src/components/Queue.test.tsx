@@ -154,6 +154,13 @@ describe('Queue', () => {
     expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeEmptyDOMElement()
   })
 
+  it('returns focus to the anchoring row when the selection clears (03a)', () => {
+    const { rerender } = render(<Queue ranked={RANKED} selectedId="inject-01" onSelect={vi.fn()} />)
+    rerender(<Queue ranked={RANKED} selectedId={null} onSelect={vi.fn()} />)
+    const [, unheard] = rows()
+    expect(document.activeElement).toBe(within(unheard).getByRole('button'))
+  })
+
   it('selects a track through its row button (03a)', () => {
     const onSelect = vi.fn()
     render(<Queue ranked={RANKED} selectedId={null} onSelect={onSelect} />)

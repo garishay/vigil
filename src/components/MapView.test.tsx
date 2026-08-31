@@ -160,12 +160,14 @@ describe('MapView', () => {
     expect(mapInstance.addLayer).toHaveBeenCalledTimes(7)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.at(-1)).toBe('selected-track-ring')
-    // The ADS-B hit layer widens the click target and paints nothing.
+    // The ADS-B hit layer widens the click target for airborne traffic only, and paints
+    // nothing — a parked 1.8 px dot must not carry an invisible 16 px blanket over the apron.
     const hit = mapInstance.addLayer.mock.calls.find(
       ([layer]) => layer.id === 'adsb-tracks-hit',
     )![0]
     expect(hit.paint['circle-opacity']).toBe(0)
     expect(hit.paint['circle-radius']).toBeGreaterThan(5)
+    expect(hit.filter).toEqual(['!', ['get', 'onGround']])
   })
 
   it('selects through one registration and one dispatch: hit area and halo together (03a)', () => {
@@ -175,12 +177,18 @@ describe('MapView', () => {
     // with the top-rendered feature first — never two handlers overwriting each other.
     const clickRegistrations = mapInstance.on.mock.calls.filter(([event]) => event === 'click')
     expect(clickRegistrations).toHaveLength(1)
-    expect(clickRegistrations[0][1]).toEqual(['adsb-tracks-hit', 'inject-tracks-halo'])
+    // The dot layer rides in the array for the ground traffic the filtered hit layer excludes.
+    expect(clickRegistrations[0][1]).toEqual([
+      'adsb-tracks-hit',
+      'adsb-tracks-dot',
+      'inject-tracks-halo',
+    ])
     clickHandlers['adsb-tracks-hit']({ features: [{ properties: { id: 'adsb-a3303d' } }] })
     clickHandlers['inject-tracks-halo']({ features: [{ properties: { id: 'inject-02' } }] })
     expect(onSelect.mock.calls.map(([id]) => id)).toEqual(['adsb-a3303d', 'inject-02'])
-    // The dot layers carry no handler of their own, and the basemap none at all.
-    expect(clickHandlers['adsb-tracks-dot']).toBeUndefined()
+    // The inject dot rides under its halo and carries no handler of its own; the basemap and
+    // the ring carry none at all. (The ADS-B dot shares the single registration deliberately —
+    // it is the only clickable surface for the ground traffic the hit layer excludes.)
     expect(clickHandlers['inject-tracks-dot']).toBeUndefined()
     expect(clickHandlers['selected-track-ring']).toBeUndefined()
   })
