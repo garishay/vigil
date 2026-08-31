@@ -84,8 +84,8 @@ changes what a finding becomes (follow-up Issue vs blocking factual error), neve
 proceeds; thread reconciliation with dispositions; filing follow-up Issues; branch updates and
 changelog conflicts in the known ordering; retriggering CI; fixes to factual errors within the
 approved design and budget; cleanup PRs that only bundle filed follow-ups, ≤50 implementation
-lines — pre-approved by those Issues, which are jointly the PR's originating Issue and its scope, so
-the plan gate is satisfied by reference.
+lines — pre-approved by those Issues, which are jointly the PR's originating Issue and its
+scope, so the plan gate is satisfied by reference.
 
 **Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with options
 and a recommendation; batch — the queued item itself stops and waits; only unrelated work
@@ -103,13 +103,13 @@ Work runs in parallel lanes, one session and one git worktree per lane — sessi
 working tree.
 
 - **Max one open PR per lane.**
-- **Lanes own disjoint files — the two shared docs excepted.** Feature surfaces belong to Lane
-A; scripts and docs belong to Lane B — but each lane owns the doc edits its own rules require of
-its PRs (diagram updates, changelog entries); Lane B owns doc-only PRs. Files outside both
-surfaces follow the routed Issue: the lane holding the Issue owns every file its fix touches,
-for the duration of that PR — no standing file census. A collision in the two shared docs
-resolves at merge time — whoever merges second reconciles: the changelog in its known ordering,
-the diagram by redrawing over the merged picture.
+- **Lanes own disjoint files — the two shared docs excepted.** Feature surfaces belong to
+  Lane A; scripts and docs belong to Lane B — but each lane owns the doc edits its own rules
+  require of its PRs (diagram updates, changelog entries); Lane B owns doc-only PRs. Files
+  outside both surfaces follow the routed Issue: the lane holding the Issue owns every file
+  its fix touches, for the duration of that PR — no standing file census. A collision in the
+  two shared docs resolves at merge time — whoever merges second reconciles: the changelog in
+  its known ordering, the diagram by redrawing over the merged picture.
 - **`docs/mvp-scope.md` changelog edits happen only at PR open — the entry belongs to that PR
   and stays amendable while its review runs — or at merge-time conflict resolution in the
   known ordering** (current-AO statement first, newest entries lead, then the
