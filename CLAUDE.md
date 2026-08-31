@@ -99,8 +99,11 @@ working tree.
 - **Max one open PR per lane.**
 - **Lanes own disjoint files.** Feature surfaces belong to Lane A; scripts and docs belong to
   Lane B — but each lane owns the doc edits its own rules require of its PRs (diagram updates,
-  changelog entries); Lane B owns doc-only PRs.
-- **`docs/mvp-scope.md` changelog edits happen only at PR open or at merge-time conflict
+  changelog entries); Lane B owns doc-only PRs. Files outside both surfaces follow the routed
+  Issue: the lane holding the Issue owns every file its fix touches, for the duration of that
+  PR — no standing file census.
+- **`docs/mvp-scope.md` changelog edits happen only at PR open — the entry belongs to that PR
+  and stays amendable while its review runs — or at merge-time conflict
   resolution in the known ordering** (current-AO statement first, newest entries lead, then the
   record; whoever prepends an entry maintains the lead sentence's wording as part of the edit).
 - **The adjudication queue serves both lanes.**
