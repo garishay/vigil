@@ -143,6 +143,16 @@ describe('normalizeResponse', () => {
     expect(forward).toEqual(reversed)
   })
 
+  it('orders by codepoint, so a ~-prefixed TIS-B address sorts the same on every machine', () => {
+    // ICU collation puts `~` before the digits; codepoint order puts it after the letters. The
+    // recording contains three such addresses, and their position must not depend on the locale
+    // of whoever recaptures.
+    const tisb = { ...AIRBORNE, hex: '~2ac753' }
+    const hexes = normalizeResponse({ ac: [tisb, AIRBORNE, PARKED] }, PHL.bbox).map((r) => r.hex)
+    expect(hexes.at(-1)).toBe('~2ac753')
+    expect(hexes).toEqual([...hexes].sort())
+  })
+
   it('survives an empty or absent aircraft list', () => {
     expect(normalizeResponse({ ac: [] }, PHL.bbox)).toEqual([])
     expect(normalizeResponse({}, PHL.bbox)).toEqual([])
@@ -191,9 +201,12 @@ describe('retryAfterSeconds', () => {
     expect(retryAfterSeconds('Sat, 29 Aug 2026 20:58:00 GMT', NOW)).toBe(0)
   })
 
-  it('falls back rather than retrying hot when the header is absent or junk', () => {
+  it('falls back rather than retrying hot when the header is absent, empty, or junk', () => {
     expect(retryAfterSeconds(null, NOW)).toBe(CAPTURE_ETIQUETTE.rateLimitBackoffS)
     expect(retryAfterSeconds('soon', NOW)).toBe(CAPTURE_ETIQUETTE.rateLimitBackoffS)
+    // `Number('')` is 0, which would have been a zero-second backoff — a hot retry.
+    expect(retryAfterSeconds('', NOW)).toBe(CAPTURE_ETIQUETTE.rateLimitBackoffS)
+    expect(retryAfterSeconds('   ', NOW)).toBe(CAPTURE_ETIQUETTE.rateLimitBackoffS)
   })
 })
 

@@ -14,7 +14,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'home',
     label: 'Home',
     title: 'Picture summary',
-    body: 'Layer counts and the scenario clock fill in once the picture has tracks to report (PR 02).',
+    body: 'Both layers are counted in the strip above. The scenario clock and time-of-day arrive with playback (PR 06).',
   },
   {
     id: 'queue',

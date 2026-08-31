@@ -93,6 +93,19 @@ export function bearingDegrees(a: [number, number], b: [number, number]): number
   return (Math.atan2(y, x) / toRad + 360) % 360
 }
 
+/**
+ * Trim to `places` decimals without dragging float noise into a fixture.
+ *
+ * The `+ 0` folds `-0` into `0`. `JSON.stringify(-0)` is `"0"` and Vitest's `toEqual` tells the
+ * two apart, so a generator that emitted a negative zero would fail against a golden fixture that
+ * cannot store one. Addition rather than `|| 0`, so that a `NaN` still comes through as `NaN` and
+ * fails the golden instead of quietly becoming a zero.
+ */
+export function round(value: number, places: number): number {
+  const factor = 10 ** places
+  return Math.round(value * factor) / factor + 0
+}
+
 /** `origin` displaced by a local east/north offset in meters. Either component may be negative. */
 export function offsetPoint(
   origin: [number, number],

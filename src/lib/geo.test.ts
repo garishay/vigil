@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { bearingDegrees, circlePolygon, destinationPoint, distanceMeters, offsetPoint } from './geo'
+import {
+  bearingDegrees,
+  circlePolygon,
+  destinationPoint,
+  distanceMeters,
+  offsetPoint,
+  round,
+} from './geo'
 
 const PHL_CENTER: [number, number] = [-75.2411, 39.8721]
 
@@ -118,5 +125,25 @@ describe('offsetPoint', () => {
 
   it('returns the origin for a zero offset', () => {
     expect(offsetPoint(phl, 0, 0)).toEqual(phl)
+  })
+})
+
+describe('round', () => {
+  it('trims to the requested decimals', () => {
+    expect(round(-75.241123456, 5)).toBe(-75.24112)
+    expect(round(272.26, 1)).toBe(272.3)
+    expect(round(3.5, 0)).toBe(4)
+  })
+
+  it('never emits a negative zero, which a JSON golden cannot store', () => {
+    // JSON.stringify(-0) is "0", and Vitest's toEqual tells -0 from 0 — so a generator that
+    // produced one could never match its own committed fixture.
+    expect(Object.is(round(-0.3, 0), -0)).toBe(false)
+    expect(Object.is(round(-0.00001, 3), -0)).toBe(false)
+    expect(round(-0.3, 0)).toBe(0)
+  })
+
+  it('lets NaN through rather than laundering it into a zero', () => {
+    expect(round(NaN, 2)).toBeNaN()
   })
 })

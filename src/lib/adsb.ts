@@ -8,7 +8,7 @@
  * the relative imports below carry their extensions. Vite and both tsconfig projects accept them.
  */
 
-import { distanceMeters } from './geo.ts'
+import { distanceMeters, round } from './geo.ts'
 import type { AdsbTrack } from './tracks.ts'
 import type { AreaOfOperations } from '../config/ao.ts'
 
@@ -83,12 +83,6 @@ export interface AdsbCapture {
   frames: CaptureFrame[]
 }
 
-/** Trim to `places` decimals without dragging float noise into the fixture. */
-function round(value: number, places: number): number {
-  const factor = 10 ** places
-  return Math.round(value * factor) / factor
-}
-
 export function isWithinBbox(
   bbox: [number, number, number, number],
   [lon, lat]: [number, number],
@@ -156,6 +150,11 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
  * The sort is not cosmetic: the feed returns aircraft in arrival order, so without it the same
  * traffic would produce a different byte sequence every frame and the fixture's diffs would be
  * noise.
+ *
+ * Codepoint order, not `localeCompare`: the feed prefixes non-ICAO (TIS-B, MLAT) addresses with
+ * `~`, and where a tilde sorts under ICU collation depends on the locale and the ICU build. A
+ * recapture on a differently configured machine would then diff as reordering — which is the
+ * very thing the sort exists to prevent.
  */
 export function normalizeResponse(
   response: AdsbLolResponse,
@@ -166,7 +165,7 @@ export function normalizeResponse(
     .filter(
       (record): record is CaptureRecord => record !== null && isWithinBbox(bbox, record.position),
     )
-    .sort((a, b) => a.hex.localeCompare(b.hex))
+    .sort((a, b) => (a.hex < b.hex ? -1 : a.hex > b.hex ? 1 : 0))
 }
 
 /**
@@ -235,7 +234,7 @@ export type CaptureDecision =
 
 /**
  * `Retry-After` in seconds. The header is legally either a delay in seconds or an HTTP date, and
- * it may be absent or malformed — every one of those falls back to the configured backoff rather
+ * it may be absent, empty, or malformed — every one of those falls back to the configured backoff rather
  * than retrying hot.
  */
 export function retryAfterSeconds(
@@ -243,7 +242,8 @@ export function retryAfterSeconds(
   nowMs: number = Date.now(),
   fallbackS: number = CAPTURE_ETIQUETTE.rateLimitBackoffS,
 ): number {
-  if (header === null) return fallbackS
+  // Empty is checked explicitly: `Number("")` is a perfectly finite zero, and zero is a hot retry.
+  if (header === null || header.trim() === '') return fallbackS
   const seconds = Number(header.trim())
   if (Number.isFinite(seconds)) return seconds > 0 ? seconds : 0
   const dateMs = Date.parse(header)

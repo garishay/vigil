@@ -148,7 +148,7 @@ describe('MapView', () => {
     expect(order.indexOf('inject-tracks-halo')).toBeLessThan(order.indexOf('inject-tracks-dot'))
   })
 
-  it('renders injects prominently, and by identity rather than by alarm', () => {
+  it('renders injects larger than cooperative traffic, stroked by identity, under a halo', () => {
     // Principle 3: alarm color is earned by a score, and PR 04 has not computed one yet. Injects
     // stand out by size and a halo; their stroke carries the observed identity.
     render(<MapView ao={AO} />)

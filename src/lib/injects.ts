@@ -21,7 +21,7 @@ import { AO } from '../config/ao.ts'
 import type { AreaOfOperations } from '../config/ao.ts'
 import { SCENARIO } from '../config/scenario.ts'
 import type { ScenarioConfig } from '../config/scenario.ts'
-import { bearingDegrees, destinationPoint, distanceMeters, offsetPoint } from './geo.ts'
+import { bearingDegrees, destinationPoint, distanceMeters, offsetPoint, round } from './geo.ts'
 import { makeRng } from './rng.ts'
 import type { Rng } from './rng.ts'
 import type { Behavior, Identity, InjectTrack, RemoteIdStatus } from './tracks.ts'
@@ -115,8 +115,8 @@ export interface InjectScenario {
   frames: InjectFrame[]
 }
 
-/**
- * Quantize before emitting.
+/*
+ * Every emitted number is quantized — `round` from geo.ts, or `Math.round` with the same `+ 0`.
  *
  * `Math.sin` and friends are not specified to agree bit-for-bit across engines, so the generator
  * rounds at its boundary: five decimals of longitude is about a meter, matching the ADS-B
@@ -124,17 +124,14 @@ export interface InjectScenario {
  * is what lets the golden-fixture test be an exact deep-equal instead of a tolerance compare —
  * and a tolerance compare is the one that quietly stops catching regressions.
  */
-function round(value: number, places: number): number {
-  const factor = 10 ** places
-  return Math.round(value * factor) / factor
-}
 
 /**
- * `count` values in which every one of `values` appears at least once, room permitting.
+ * `count` values in which every one of `values` appears at least once.
  *
  * The default scenario is simultaneously the demo and the golden fixture, so it has to exercise
  * the whole model — all five behaviors, all three Remote ID states. Guaranteeing that by
- * construction beats hunting for a seed that happens to do it.
+ * construction beats hunting for a seed that happens to do it, and "room permitting" is not left
+ * to configuration either: `planScenario` refuses a floor below the behavior count.
  */
 function coverThenFill<T>(rng: Rng, values: readonly T[], count: number): T[] {
   const out = rng.shuffle(values).slice(0, count)
@@ -214,7 +211,7 @@ function positionAt(spec: InjectSpec, tSec: number): [number, number] {
 
 /** Altitude at `tSec`: a climb from the launch height onto a cruise height, then level. */
 function altitudeAt(spec: InjectSpec, tSec: number): number {
-  const fraction = spec.climbS <= 0 ? 1 : Math.min(1, Math.max(0, tSec) / spec.climbS)
+  const fraction = Math.min(1, Math.max(0, tSec) / spec.climbS)
   return spec.baseAltitudeFt + spec.climbFt * fraction
 }
 
@@ -261,14 +258,13 @@ function trackAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTrack
     identity,
     callsign: heard ? spec.label : null,
     position: [round(position[0], 5), round(position[1], 5)],
-    altitudeFt: Math.round(altitudeAt(spec, t)),
+    altitudeFt: Math.round(altitudeAt(spec, t)) + 0,
     onGround: false,
     groundSpeedKt: round(travelM / KINEMATIC_WINDOW_S / KT_TO_MS, 1),
     // A hovering drone has no meaningful course, and the model already allows for that.
     headingDeg: travelM < 1 ? null : round(bearingDegrees(a, b), 1),
-    verticalRateFpm: Math.round(
-      ((altitudeAt(spec, to) - altitudeAt(spec, from)) / KINEMATIC_WINDOW_S) * 60,
-    ),
+    verticalRateFpm:
+      Math.round(((altitudeAt(spec, to) - altitudeAt(spec, from)) / KINEMATIC_WINDOW_S) * 60) + 0,
     // Injects are freshly observed every frame; staleness accrual belongs to the replay clock.
     lastSeenSec: 0,
   }
@@ -277,14 +273,23 @@ function trackAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTrack
 /**
  * Every random decision in the scenario, made once, in a fixed order.
  *
- * Draws happen unconditionally even where a behavior ignores the result, so the stream stays
- * aligned across injects and a change to one behavior cannot silently reshuffle the others.
+ * **A scenario is a function of seed and config alone; the timeline samples it and never
+ * reshapes it** (§5.2). That holds because the main stream draws the same number of values for
+ * every inject whatever its behavior — every parameter is drawn even where the behavior ignores
+ * it — and because the one timeline-length-dependent draw, the intermittent dropout chain, comes
+ * from a stream derived per inject rather than from the main one. Lengthening the recording adds
+ * frames to that chain; it cannot reshuffle the injects that come after it.
  */
 export function planScenario(
   timeline: Timeline,
   config: ScenarioConfig = SCENARIO,
   ao: AreaOfOperations = AO,
 ): InjectPlan {
+  if (config.minInjects < BEHAVIORS.length) {
+    throw new Error(
+      `minInjects is ${config.minInjects}; it must be at least ${BEHAVIORS.length} so every behavior appears in every scenario`,
+    )
+  }
   const rng = makeRng(config.seed)
   const intervalS = timeline.intervalMs / 1000
   const site = ao.protectedSites[0]?.center ?? ao.center
@@ -323,20 +328,24 @@ export function planScenario(
     // Courses point at the protected site, off by a few degrees so the picture is not a starburst.
     const courseDeg = (bearingDegrees(origin, site) + rng.range(-12, 12) + 360) % 360
     const label = `UAS-${rng.int(0x10000).toString(16).toUpperCase().padStart(4, '0')}`
+    const id = `inject-${String(index + 1).padStart(2, '0')}`
 
+    // The dropout chain is the only draw whose length depends on the timeline, so it gets its own
+    // stream, seeded by the scenario and the inject — never the shared one above.
     const heard: boolean[] = []
     if (remoteId === 'intermittent') {
+      const chain = makeRng(`${config.seed}:${id}:remote-id`)
       let on = true
       for (let frame = 0; frame < timeline.frameCount; frame++) {
         if (frame > 0) {
-          on = rng.bool(on ? config.remoteId.pStayHeard : 1 - config.remoteId.pStaySilent)
+          on = chain.bool(on ? config.remoteId.pStayHeard : 1 - config.remoteId.pStaySilent)
         }
         heard.push(on)
       }
     }
 
     specs.push({
-      id: `inject-${String(index + 1).padStart(2, '0')}`,
+      id,
       label,
       behavior,
       remoteId,
