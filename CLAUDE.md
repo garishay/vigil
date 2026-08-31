@@ -71,6 +71,23 @@ Every PR is planned and approved before it is built. Two standing rules govern i
   report the conflict, the proposed change, and the revised estimate, and wait. A discovery that
   reshapes the design is a plan-gate event, not a disclosure to be saved for the PR description.
 
+## Decision rights and adjudication
+
+This replaces per-round check-ins. Plan gates, closure declarations, and merges remain the
+owner's alone.
+
+**Proceed without asking (log, don't ask):** review-round triage under a declared closure;
+thread reconciliation with dispositions; filing follow-up Issues; branch updates and changelog
+conflicts in the known ordering; retriggering CI; fixes to factual errors within the approved
+design and budget; cleanup PRs that only bundle filed follow-ups, ≤50 implementation lines.
+
+**Stop and queue** (append to the pinned **Adjudication queue** Issue with options and a
+recommendation; batch, never block unrelated work): anything a user sees that isn't in the
+approved mockup, including on-screen wording; scope adds or cuts; data provenance, privacy,
+licensing, new dependencies, any new network call; design or budget changes mid-build (the
+existing re-gate rule); conflicts between doc rules; model or workflow changes; anything where
+two rulings could plausibly apply. The owner answers the queue in batches via notifications.
+
 ## Architecture notes
 
 - The **ADS-B capture script**, the **inject generator**, and the **scorer** are pure modules —
