@@ -83,8 +83,8 @@ design and budget; cleanup PRs that only bundle filed follow-ups, ≤50 implemen
 pre-approved by those Issues, so the plan gate is satisfied by reference.
 
 **Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with options
-and a recommendation; batch — the queued item itself stops and waits, and "never block"
-covers only unrelated work): any discretionary change to what a user sees beyond the approved
+and a recommendation; batch — the queued item itself stops and waits; only unrelated work
+continues): any discretionary change to what a user sees beyond the approved
 mockup (the mockup in the plan comment on the PR's Issue), including on-screen wording — an
 on-screen factual error is fixed regardless of surface; scope adds or cuts; data provenance, privacy,
 licensing, new dependencies, any new network call; design or budget changes mid-build (the

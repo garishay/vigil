@@ -147,7 +147,6 @@ charged against the budget.
 
 **Self-review checklist:** read the full diff cold; run the app and exercise the change; check every acceptance criterion; at least one test per behavior change; no dead code or console noise; README diagram updated if this PR adds or removes a module (a stage on the data path) or an edge, or lands a module the diagram already reserves as dashed.
 
-
 ## 13. Definition of done + demo script
 
 MVP is done when PRs 00–06 are merged through the full five-step path, CI is green, the README carries the §2 statement and a demo GIF, and this **90-second demo** runs cold:
