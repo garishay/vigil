@@ -95,11 +95,7 @@ export default function App() {
   ]
 
   const drawer = selected && (
-    <ReviewDrawer
-      entry={selected}
-      siteName={AO.protectedSites[0].name}
-      onClose={() => setSelectedId(null)}
-    />
+    <ReviewDrawer entry={selected} sites={AO.protectedSites} onClose={() => setSelectedId(null)} />
   )
   // The drawer is its own column beside the Queue (§4.2 — the operator keeps the list while
   // reviewing); the Review surface shows the same drawer alone in the rail.

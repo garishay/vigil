@@ -1,4 +1,5 @@
 import { IdentityDot } from './IdentityDot'
+import type { ProtectedSite } from '../config/ao'
 import { IDENTITY_LABEL } from '../lib/identity'
 import type { RankedTrack } from '../lib/ranking'
 import type { Track } from '../lib/tracks'
@@ -30,14 +31,18 @@ const dash = (value: string | null) => value ?? '—'
  */
 export function ReviewDrawer({
   entry,
-  siteName,
+  sites,
   onClose,
 }: {
   entry: RankedTrack
-  siteName: string
+  sites: ProtectedSite[]
   onClose: () => void
 }) {
   const { track, rank, rangeM } = entry
+  // Named from the site the range was actually measured to — `rangeM` is to the *nearest* site,
+  // so with two sites configured, indexing `[0]` would caption one site's distance with the
+  // other's name.
+  const siteName = sites.find((site) => site.id === entry.siteId)?.name ?? entry.siteId
   const rows: { label: string; value: string }[] = [
     { label: 'Rank', value: `${rank}` },
     { label: 'Range', value: `${(rangeM / 1000).toFixed(1)} km to ${siteName}` },

@@ -182,8 +182,9 @@ describe('MapView', () => {
       expect.objectContaining({ center: INJECTS[0].position }),
     )
     const eased = mapInstance.easeTo.mock.calls.length
-    rerender(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} selectedId="inject-01" />)
-    // Same selection re-rendered: the ring stays, the camera does not re-fly.
+    // A fresh array with the same contents forces the selection effect to re-run, so this pins
+    // the eased-once guard itself — identical props would skip the effect and prove nothing.
+    rerender(<MapView ao={AO} tracks={[...TRACKS]} injects={[...INJECTS]} selectedId="inject-01" />)
     expect(mapInstance.easeTo.mock.calls.length).toBe(eased)
     rerender(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} selectedId={null} />)
     expect(dataFor('selected-track').features).toEqual([])

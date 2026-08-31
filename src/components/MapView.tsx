@@ -217,6 +217,7 @@ export function MapView({
 
     return () => {
       mapRef.current = null
+      easedIdRef.current = null
       setStyleReady(false)
       map.remove()
     }
@@ -242,10 +243,15 @@ export function MapView({
     map
       .getSource<GeoJSONSource>(SELECT_SOURCE)
       ?.setData(selectionFeature(selected?.position ?? null))
-    if (selected && selectedId !== easedIdRef.current) {
+    // Stamped only when the camera actually flew: a selection whose track has not arrived yet
+    // must still get its ease when the track appears. A cleared selection resets the stamp, so
+    // deselecting and reselecting the same track flies again.
+    if (!selectedId) {
+      easedIdRef.current = null
+    } else if (selected && selectedId !== easedIdRef.current) {
       map.easeTo({ center: selected.position, duration: 600 })
+      easedIdRef.current = selectedId
     }
-    easedIdRef.current = selectedId
   }, [selectedId, tracks, injects, styleReady])
 
   return (
