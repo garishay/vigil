@@ -147,6 +147,10 @@ async function main(): Promise<void> {
   const { minutes, intervalS, out } = parseArgs(process.argv.slice(2))
   const intervalMs = intervalS * 1000
   const frameCount = Math.round((minutes * 60) / intervalS)
+  // Before anything reaches the network: `missing / 0` is NaN and `NaN > rate` is false, so a
+  // zero-frame run would sail straight past the gappiness guard below and overwrite the committed
+  // recording with nothing at all.
+  if (frameCount < 1) throw new Error(`${minutes} minutes at ${intervalS}s is not one frame`)
   const radiusNm = captureRadiusNm(AO)
   const [lon, lat] = AO.center
   const url = `${API_ROOT}/lat/${lat}/lon/${lon}/dist/${radiusNm}`

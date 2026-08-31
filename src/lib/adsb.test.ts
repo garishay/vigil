@@ -439,7 +439,9 @@ describe('scheduleNextFrame', () => {
     // a gap in the recording is by design, a frame stamped with a time it was not taken is not.
     const next = after(4, slot(30) - 1, slot(4))
     expect(next.index).toBe(30)
-    expect(STARTED + next.index * INTERVAL).toBe(slot(30))
+    // The wait has to land the request in the slot the index claims, or the index is a label on
+    // a frame taken somewhere else — which is the restamping this is here to rule out.
+    expect(slot(30) - 1 + next.waitMs).toBe(slot(next.index))
   })
 
   it('never returns a wait below the etiquette floor, however the slots fall', () => {
