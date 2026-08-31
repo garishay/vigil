@@ -9,7 +9,7 @@ import {
   retryAfterSeconds,
   toTrack,
 } from './adsb'
-import type { AdsbCapture, AdsbLolAircraft, CaptureFailure } from './adsb'
+import type { AdsbCapture, AdsbLolAircraft, AircraftRegistry, CaptureFailure } from './adsb'
 import { PHL } from '../config/ao'
 import captureRaw from '../../public/adsb-phl.json?raw'
 
