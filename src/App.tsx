@@ -182,8 +182,11 @@ export default function App() {
           selectedId={selectedId}
           onSelect={(id) => {
             setSelectedId(id)
-            // A selection is an intent to review; Home has no drawer and no way to clear one,
-            // so a map selection made there lands the operator on the Queue.
+            // A selection is an intent to review, so one *made* on Home lands the operator on
+            // the Queue, where the drawer and its close button are. The other path — selecting
+            // elsewhere and then navigating to Home — deliberately keeps the ring: selection
+            // persists across surface switches by ruling, and whether Home wants its own
+            // affordance is parked on #3 for the 03b plan gate.
             setSurfaceId((current) => (current === 'home' ? 'queue' : current))
           }}
         />

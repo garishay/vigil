@@ -170,8 +170,12 @@
   font-size: 0.8125rem;
 }
 
-/* Ordered beneath airborne traffic, and dimmed like the map's ground dots — never hidden. */
-.queue__row--ground {
+/*
+ * Ordered beneath airborne traffic, and dimmed like the map's ground dots — never hidden. The
+ * dim sits on the row's content, not the row element: an element-level opacity would multiply
+ * the selection background down to invisible, and on-ground rows are most of the ADS-B layer.
+ */
+.queue__row--ground .queue__rowbutton {
   opacity: 0.55;
 }
 
