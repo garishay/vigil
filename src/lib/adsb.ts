@@ -18,9 +18,15 @@ import type { AreaOfOperations } from '../config/ao.ts'
  * job is to turn it into something the rest of Vigil can rely on.
  *
  * The enrichment fields are kept for display only (§5.1). `category` is broadcast by the aircraft
- * — an observation. `t`, `desc`, `r`, and `ownOp` are the aggregator's registry lookups — what
- * the airframe is registered as, not anything it transmitted. Vigil scores what a track does, not
+ * — an observation. `t`, `desc`, and `r` are the aggregator's registry lookups — what the
+ * airframe is registered as, not anything it transmitted. Vigil scores what a track does, not
  * what it claims to be: nothing in the scoring path reads any of them.
+ *
+ * The feed's `ownOp` (registered owner/operator) is deliberately not typed and never mapped: for
+ * GA traffic it is often a natural person's name, and Vigil displays what is broadcast or what a
+ * public type registry says about the airframe — it never resolves a tail number to a person
+ * (§2, §5.1). An airline operator, if ever wanted, comes from a callsign-prefix table, which can
+ * only name a company. A test pins the refusal.
  */
 export interface AdsbLolAircraft {
   hex?: string
@@ -42,8 +48,6 @@ export interface AdsbLolAircraft {
   desc?: string
   /** Registration, from the registry. */
   r?: string
-  /** Registered operator, from the registry. */
-  ownOp?: string
 }
 
 /**
@@ -55,7 +59,6 @@ export interface AircraftRegistry {
   typeCode?: string
   typeDesc?: string
   registration?: string
-  operator?: string
 }
 
 export interface AdsbLolResponse {
@@ -168,7 +171,6 @@ export function normalizeAircraft(raw: AdsbLolAircraft): CaptureRecord | null {
     ...(text(raw.t) ? { typeCode: text(raw.t) } : {}),
     ...(text(raw.desc) ? { typeDesc: text(raw.desc) } : {}),
     ...(text(raw.r) ? { registration: text(raw.r) } : {}),
-    ...(text(raw.ownOp) ? { operator: text(raw.ownOp) } : {}),
   }
 
   return {

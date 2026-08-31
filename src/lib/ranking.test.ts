@@ -170,6 +170,15 @@ describe('determinism', () => {
     ])
   })
 
+  it('ranks identically with the display enrichment stripped — enrichment is never scored', () => {
+    // The §5.1 display-only rule made executable: a sort key reading category or registry would
+    // reorder the stripped picture and fail here.
+    const stripped = frame0.map((track) =>
+      track.source === 'adsb' ? { ...track, category: null, registry: null } : track,
+    )
+    expect(order(stripped)).toEqual(order(frame0))
+  })
+
   it('ends the default picture with its parked aircraft, dimmed rather than dropped', () => {
     const ranked = rankTracks(frame0, SITES)
     const tail = ranked.slice(-3)

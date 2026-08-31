@@ -57,7 +57,6 @@ describe('normalizeAircraft', () => {
       t: 'B738',
       desc: 'BOEING 737-800',
       r: 'XA-TEST',
-      ownOp: 'Example Air',
     }
     expect(normalizeAircraft(enriched)).toMatchObject({
       category: 'A3',
@@ -65,9 +64,18 @@ describe('normalizeAircraft', () => {
         typeCode: 'B738',
         typeDesc: 'BOEING 737-800',
         registration: 'XA-TEST',
-        operator: 'Example Air',
       },
     })
+  })
+
+  it('never maps the registered owner — a tail number is never resolved to a person', () => {
+    // §2: the feed may send `ownOp`, and for GA traffic it is often a natural person's name.
+    // Enforced by CI rather than by whatever the aggregator happens to serve that day.
+    const raw = { ...AIRBORNE, t: 'C172', ownOp: 'Jane Example' } as AdsbLolAircraft
+    const record = normalizeAircraft(raw)
+    expect(record).not.toBeNull()
+    expect(record!.registry).toEqual({ typeCode: 'C172' })
+    expect(JSON.stringify(record)).not.toContain('Jane')
   })
 
   it('treats the "no emitter category information" codes as no category', () => {

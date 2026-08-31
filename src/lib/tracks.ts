@@ -62,7 +62,8 @@ export interface AdsbTrack extends TrackBase {
   /**
    * Display enrichment, never scored (§5.1). `category` is the broadcast emitter category — an
    * observation. `registry` is what the aggregator's database says the airframe is registered as
-   * — a lookup, shown labelled as one. Null when the recording carries neither.
+   * — a lookup, shown labelled as one. Each is null when the recording carries none for this
+   * track; the two null independently.
    */
   category: string | null
   registry: AircraftRegistry | null
