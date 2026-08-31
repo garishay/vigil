@@ -85,7 +85,8 @@ changes what a finding becomes (follow-up Issue vs blocking factual error), neve
 proceeds; thread reconciliation with dispositions; filing follow-up Issues; branch updates and
 changelog conflicts in the known ordering; retriggering CI; fixes to factual errors within the
 approved design and budget; cleanup PRs that only bundle owner-filed follow-ups, ≤50
-implementation lines — pre-approved by those Issues, which are jointly the PR's originating Issue and its
+implementation lines — pre-approved by those Issues, which are jointly the PR's originating
+Issue and its
 scope, so the plan gate is satisfied by reference.
 
 **Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with options
