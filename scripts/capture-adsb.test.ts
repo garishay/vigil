@@ -135,6 +135,9 @@ describe('parseArgs', () => {
     // to prevent. NaN was already caught; this is the other end of the same check.
     expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/finite/)
     expect(() => parseArgs(['--interval', 'abc'])).toThrow(/finite/)
+    // Finite on its own, but `1e308 * 60` overflows: the check has to sit on the derived count,
+    // because a guard reading only the arguments cannot see the multiplication that follows.
+    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/finite/)
   })
 
   it('names the flag, not a missing value, for an unrecognised trailing flag', () => {

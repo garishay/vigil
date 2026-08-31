@@ -81,10 +81,14 @@ export function parseArgs(argv: string[]): Options {
         break
     }
   }
-  // Finite, not merely positive: `--minutes 1e400` parses to Infinity, which is > 0. It made
-  // `frameCount` Infinity, sailed past the one-frame guard below, and turned the capture loop
-  // into an unbounded poll of a free service — the one thing this script exists not to do.
-  if (![options.minutes, options.intervalS].every((n) => Number.isFinite(n) && n > 0)) {
+  // Finite, not merely positive, and checked on the derived count rather than only its inputs.
+  // `--minutes 1e400` parses to Infinity outright; `--minutes 1e308` is finite and passes, then
+  // overflows to Infinity when multiplied by 60. Either way `frameCount` came out Infinity, sailed
+  // past the one-frame guard, and turned the capture loop into an unbounded poll of a free
+  // service — the one thing this script exists not to do. The overflow is why the product is on
+  // this list: a guard on the arguments alone cannot see it.
+  const frames = (options.minutes * 60) / options.intervalS
+  if (![options.minutes, options.intervalS, frames].every((n) => Number.isFinite(n) && n > 0)) {
     throw new Error('--minutes and --interval must be positive, finite numbers')
   }
   if (options.intervalS < CAPTURE_ETIQUETTE.minIntervalS) {
