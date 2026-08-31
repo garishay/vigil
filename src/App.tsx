@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import './App.css'
 import { MapView } from './components/MapView'
 import { Queue } from './components/Queue'
+import { ReviewDrawer } from './components/ReviewDrawer'
 import { AO } from './config/ao'
 import { SCENARIO } from './config/scenario'
 import { frameTracks } from './data/capture'
@@ -11,6 +12,7 @@ import { rankTracks } from './lib/ranking'
 import type { Track } from './lib/tracks'
 
 type SurfaceId = 'home' | 'queue' | 'review'
+type LayerFilter = 'all' | 'adsb' | 'inject'
 
 const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] = [
   {
@@ -29,14 +31,24 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'review',
     label: 'Review',
     title: 'Track review',
-    body: 'Selecting a track opens its factor breakdown, history, and workflow actions here (PR 03).',
+    body: 'Everything known about the selected track. Lifecycle, event log, and handoff arrive in 03b.',
   },
+]
+
+const FILTERS: { id: LayerFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'adsb', label: 'ADS-B' },
+  { id: 'inject', label: 'INJECT' },
 ]
 
 export default function App() {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
   const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
   const capture = useCapture()
+
+  // Selection and filter persist across surface switches — client state only (§7.1 comes in 03b).
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [layerFilter, setLayerFilter] = useState<LayerFilter>('all')
 
   // The replay clock lands in PR 06; until then the picture holds the recording's first frame.
   const adsb = useMemo(
@@ -61,6 +73,17 @@ export default function App() {
   const tracks = useMemo<Track[]>(() => [...adsb, ...injects], [adsb, injects])
   const ranked = useMemo(() => rankTracks(tracks, AO.protectedSites), [tracks])
 
+  // Filtered for display; ranks stay global, so a filtered list shows what it hid. The selection
+  // is independent of the filter — a selected track keeps its drawer even when filtered out.
+  const visible = useMemo(
+    () =>
+      layerFilter === 'all' ? ranked : ranked.filter((entry) => entry.track.source === layerFilter),
+    [ranked, layerFilter],
+  )
+  const selected = selectedId
+    ? (ranked.find((entry) => entry.track.id === selectedId) ?? null)
+    : null
+
   const pending = capture.status === 'loading' ? '…' : '—'
   const count = (n: number) => (capture.status === 'ready' ? String(n) : pending)
 
@@ -70,6 +93,13 @@ export default function App() {
     { label: 'Seed', value: SCENARIO.seed },
     { label: 'Sim clock', value: '—' },
   ]
+
+  const drawer = selected && (
+    <ReviewDrawer entry={selected} sites={AO.protectedSites} onClose={() => setSelectedId(null)} />
+  )
+  // The drawer is its own column beside the Queue (§4.2 — the operator keeps the list while
+  // reviewing); the Review surface shows the same drawer alone in the rail.
+  const drawerColumn = surfaceId === 'queue' && drawer
 
   return (
     <div className="shell">
@@ -104,7 +134,7 @@ export default function App() {
         </div>
       </dl>
 
-      <main className="shell__body">
+      <main className={drawerColumn ? 'shell__body shell__body--drawer' : 'shell__body'}>
         <section className="rail" aria-labelledby="rail-title">
           <div className="rail__head">
             <h2 className="rail__title" id="rail-title">
@@ -112,7 +142,7 @@ export default function App() {
             </h2>
             {surfaceId === 'queue' && (
               <span className="rail__count" aria-label="Tracks in queue">
-                {count(ranked.length)}
+                {count(visible.length)}
               </span>
             )}
           </div>
@@ -123,9 +153,43 @@ export default function App() {
               {capture.message}
             </p>
           )}
-          {surfaceId === 'queue' && <Queue ranked={ranked} />}
+          {surfaceId === 'queue' && (
+            <>
+              <div className="chips" role="group" aria-label="Filter by layer">
+                {FILTERS.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    className="chip"
+                    aria-pressed={layerFilter === filter.id}
+                    onClick={() => setLayerFilter(filter.id)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              <Queue ranked={visible} selectedId={selectedId} onSelect={setSelectedId} />
+            </>
+          )}
+          {surfaceId === 'review' &&
+            (drawer ?? <p className="rail__empty">Select a track from the Queue.</p>)}
         </section>
-        <MapView ao={AO} tracks={adsb} injects={injects} />
+        {drawerColumn}
+        <MapView
+          ao={AO}
+          tracks={adsb}
+          injects={injects}
+          selectedId={selectedId}
+          onSelect={(id) => {
+            setSelectedId(id)
+            // A selection is an intent to review, so one *made* on Home lands the operator on
+            // the Queue, where the drawer and its close button are. The other path — selecting
+            // elsewhere and then navigating to Home — deliberately keeps the ring: selection
+            // persists across surface switches by ruling, and whether Home wants its own
+            // affordance is parked on #3 for the 03b plan gate.
+            setSurfaceId((current) => (current === 'home' ? 'queue' : current))
+          }}
+        />
       </main>
     </div>
   )

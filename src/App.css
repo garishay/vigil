@@ -161,17 +161,16 @@
 }
 
 .queue__row {
-  display: grid;
-  grid-template-columns: 1.5rem 1fr auto;
-  column-gap: 0.5rem;
-  row-gap: 0.15rem;
   border-top: 1px solid var(--line);
-  padding: 0.45rem 0;
   font-size: 0.8125rem;
 }
 
-/* Ordered beneath airborne traffic, and dimmed like the map's ground dots — never hidden. */
-.queue__row--ground {
+/*
+ * Ordered beneath airborne traffic, and dimmed like the map's ground dots — never hidden. The
+ * dim sits on the row's content, not the row element: an element-level opacity would multiply
+ * the selection background down to invisible, and on-ground rows are most of the ADS-B layer.
+ */
+.queue__row--ground .queue__rowbutton {
   opacity: 0.55;
 }
 
@@ -227,6 +226,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Styled in its own right: inside .queue__detail it inherits the same values, but the drawer
+ * header renders it too, where the bare body default would make it the largest text there. */
+.queue__ground {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
 .queue__range {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
@@ -267,4 +273,156 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+/* 03a: the drawer joins as its own column; the rail keeps its 22 rem (§4.2). */
+.shell__body--drawer {
+  grid-template-columns: 22rem 26rem 1fr;
+}
+
+.chips {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+
+.chip {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: none;
+  padding: 0.15rem 0.6rem;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* The whole visual row is the button: the padding lives here, so no dead strip is unclickable. */
+.queue__rowbutton {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  column-gap: 0.5rem;
+  row-gap: 0.15rem;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0.45rem 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.queue__row--selected {
+  background: var(--accent-soft);
+}
+
+.rail__empty {
+  margin: 0.75rem 0 0;
+  color: var(--faint);
+  font-size: 0.875rem;
+}
+
+.drawer {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+/* On the Review surface the drawer nests inside the rail: no second border, no doubled padding. */
+.rail .drawer {
+  border-right: none;
+  padding: 0.75rem 0 0;
+  overflow-y: visible;
+}
+
+.drawer__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.drawer__ident {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.drawer__close {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  padding: 0 0.5rem;
+  color: var(--muted);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.drawer__close:hover {
+  color: var(--text);
+}
+
+/* Reserved space stays visible, so the layout does not jump when 03c and PR 04 fill it. */
+.drawer__slot {
+  margin-top: 0.75rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  color: var(--faint);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.drawer__pending {
+  color: var(--faint);
+}
+
+.drawer__kinematics {
+  margin: 0.75rem 0 0;
+}
+
+.drawer__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid var(--line);
+  padding: 0.35rem 0;
+  font-size: 0.8125rem;
+}
+
+.drawer__row dt {
+  color: var(--faint);
+}
+
+.drawer__row dd {
+  margin: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer__history {
+  margin: 0.75rem 0 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
