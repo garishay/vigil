@@ -39,7 +39,9 @@ describe('assertCaptureMatchesAo', () => {
   // Relocating the AO is one config edit away (§5), and replaying PHL traffic against a different
   // centre would silently make every proximity score meaningless.
   it('rejects a recording made over a different AO', () => {
-    expect(() => assertCaptureMatchesAo({ ...CAPTURE, ao: 'dfw' }, PHL)).toThrow(/dfw.*phl/)
+    expect(() => assertCaptureMatchesAo({ ...CAPTURE, ao: 'elsewhere' }, PHL)).toThrow(
+      /elsewhere.*phl/,
+    )
   })
 
   it('rejects a recording with no frames', () => {
@@ -60,8 +62,8 @@ describe('loadCapture', () => {
   })
 
   it('refuses a recording from the wrong AO even when the fetch succeeds', async () => {
-    const fetcher = respondWith({ ...CAPTURE, ao: 'dfw' })
-    await expect(loadCapture('/adsb-phl.json', fetcher, PHL)).rejects.toThrow(/dfw/)
+    const fetcher = respondWith({ ...CAPTURE, ao: 'elsewhere' })
+    await expect(loadCapture('/adsb-phl.json', fetcher, PHL)).rejects.toThrow(/elsewhere/)
   })
 })
 

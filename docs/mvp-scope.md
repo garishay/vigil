@@ -29,7 +29,7 @@ The project has two jobs, in this order:
 
 ## 3. User and job
 
-**The watch officer for PHL-area airspace security** (the *job* is inspired by a real conference conversation about DFW-area safety; the person and their systems stay out of this project, and the geography moved home). They monitor a workstation covering the region. Job statement: *"When something is flying near a protected site that shouldn't be, I need to know first, with a reason I can act on and defend."* The interesting traffic is exactly what ADS-B doesn't show — so Vigil's premise is: render the cooperative picture as calm background, and make the non-cooperative injects impossible to miss.
+**The watch officer for PHL-area airspace security** (the *job* is inspired by a real conference conversation about airport-area safety in another region; the person and their systems stay out of this project, and the geography moved home). They monitor a workstation covering the region. Job statement: *"When something is flying near a protected site that shouldn't be, I need to know first, with a reason I can act on and defend."* The interesting traffic is exactly what ADS-B doesn't show — so Vigil's premise is: render the cooperative picture as calm background, and make the non-cooperative injects impossible to miss.
 
 ## 4. Product principles
 
@@ -40,7 +40,7 @@ The project has two jobs, in this order:
 
 ## 5. The picture
 
-The AO is pure configuration — center point, capture bounding box, protected sites. PHL by default; relocating Vigil to DFW or anywhere else is a config change, not a rewrite.
+The AO is pure configuration — center point, capture bounding box, protected sites. PHL by default; relocating Vigil to any other region is a config change, not a rewrite.
 
 ### 5.1 Real layer — recorded ADS-B, replayed
 
