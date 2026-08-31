@@ -13,8 +13,10 @@
  * `src/lib/adsb.ts`, where it is unit-tested without a network.
  */
 
+import { realpathSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AO } from '../src/config/ao.ts'
 import {
@@ -203,11 +205,27 @@ async function main(): Promise<void> {
   )
 }
 
-// Run only when invoked directly. Importing this module — which the parseArgs test does — must
-// never start a capture against a free service. import.meta.main rather than comparing
-// import.meta.url with process.argv[1]: Node realpaths the entry but not argv, so the comparison
-// silently no-ops on a symlinked checkout.
-if (import.meta.main) {
+/**
+ * Run only when invoked directly. Importing this module — which the parseArgs test does — must
+ * never start a capture against a free service.
+ *
+ * `import.meta.main` where the runtime provides it (Node 22.18+/24.2+; Vitest leaves it
+ * undefined, so a test import is inert). Where it does not — Node 23.6–23.11 and 24.0/24.1,
+ * inside the `engines` warning npm only advises about — fall back to comparing entry paths with
+ * both sides realpathed, so neither an old runtime nor a symlinked checkout can silently no-op
+ * the script.
+ */
+function isEntry(): boolean {
+  if (import.meta.main !== undefined) return import.meta.main
+  if (!process.argv[1]) return false
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
+  } catch {
+    return false
+  }
+}
+
+if (isEntry()) {
   main().catch((error: Error) => {
     console.error(error.message)
     process.exitCode = 1

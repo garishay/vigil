@@ -1,19 +1,29 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { CAPTURE_ETIQUETTE } from '../src/lib/adsb.ts'
 
 /**
- * The fetch stub is installed before the script is imported, and the import is dynamic for
- * exactly that reason: `main()` is guarded on `import.meta.main`, and the assertion below is
- * what proves the guard holds — a broken guard would otherwise fail quietly (parseArgs throws on
- * vitest's argv and the script's own `.catch` swallows it), not hang or hit the network.
+ * The spies are installed before the script is imported, and the import is dynamic for exactly
+ * that reason: `main()` runs only for the true entry, and these three spies are what prove the
+ * import stayed inert on every pool. A broken guard surfaces here whatever path it takes —
+ * console.log if main starts (its first act is a log line, before any fetch), console.error if
+ * parseArgs throws on vitest's argv and the script's own catch swallows it, fetch if a request
+ * is ever attempted.
  */
 const fetchSpy = vi.fn()
 vi.stubGlobal('fetch', fetchSpy)
+const logSpy = vi.spyOn(console, 'log')
+const errorSpy = vi.spyOn(console, 'error')
 const { parseArgs } = await import('./capture-adsb.ts')
 
+afterAll(() => {
+  logSpy.mockRestore()
+  errorSpy.mockRestore()
+})
+
 describe('importing the script', () => {
-  it('starts nothing — the entry guard holds and no request is ever made', () => {
-    expect(import.meta.main).toBeFalsy()
+  it('starts nothing — no log line, no swallowed error, no request, on any pool', () => {
+    expect(logSpy).not.toHaveBeenCalled()
+    expect(errorSpy).not.toHaveBeenCalled()
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
