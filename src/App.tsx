@@ -163,7 +163,10 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
   // On Review the Queue is unmounted, so its row-focus return has nothing to land on: the close
   // button a keyboard operator just pressed unmounts under them and focus falls to document.body.
   // Land it on the surface's own nav item instead — named, visible, and the anchor of where they
-  // already are (#46). Queue-surface closes keep 03a's row return; this never runs there.
+  // already are (#46). Keyboard activations only, the drawer's own modality gate: a keyboard
+  // click carries detail 0, a mouse click a positive count, and a mouse user parked on the nav
+  // button would have Space activate it instead of scrolling (#53 review, after 03b round 6).
+  // Queue-surface closes keep 03a's row return; this never runs there.
   const reviewNavRef = useRef<HTMLButtonElement>(null)
   const drawer = selected && (
     <ReviewDrawer
@@ -175,9 +178,9 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
       contacts={CONTACTS}
       dispositions={DISPOSITIONS}
       onAction={act}
-      onClose={() => {
+      onClose={(event) => {
         setSelectedId(null)
-        if (surfaceId === 'review') reviewNavRef.current?.focus()
+        if (surfaceId === 'review' && event.detail === 0) reviewNavRef.current?.focus()
       }}
     />
   )

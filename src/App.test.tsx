@@ -215,6 +215,19 @@ describe('App shell', () => {
     expect(document.activeElement).not.toBe(document.body)
   })
 
+  it('leaves a mouse-driven close on Review alone — no focus jump to the header (#53 review)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    // A mouse click carries a positive detail; the drawer's own recovery skips it for the same
+    // reason (03b round 6) — a pointer user parked on the nav button would Space-activate it.
+    fireEvent.click(screen.getByRole('button', { name: 'Close review' }), { detail: 1 })
+    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Review' }))
+  })
+
   it('keeps the Queue-surface close returning focus to the row, as 03a built it (#46)', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
