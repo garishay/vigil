@@ -122,9 +122,9 @@ working tree.
   the routed Issue: the lane holding the Issue owns every file its fix touches — the other
   lane's named surface included — for the duration of that PR; no standing file census. New
   files belong to the lane whose PR creates them, under that PR's routed Issue. A file both
-  lanes need — new or existing — is claimed on the adjudication queue. Overlap reconciles at merge: the lane
-  whose PR merges second reconciles — the changelog in its known ordering, the diagram by
-  redrawing over the merged picture, §11 rows ordered by PR number.
+  lanes need — new or existing — is claimed on the adjudication queue. Overlap reconciles at
+  merge: the lane whose PR merges second reconciles — the changelog in its known ordering, the
+  diagram by redrawing over the merged picture, §11 rows ordered by PR number.
 - **`docs/mvp-scope.md` changelog edits happen only while the PR they record is open — the
   entry belongs to that PR, created at open or at the re-gate that earns it, and amendable
   while its review runs — or at merge-time conflict resolution in the known ordering**
