@@ -120,17 +120,23 @@ export function ReviewDrawer({
   // A keyboard operator must not be dropped on document.body mid-walk: the activated action
   // re-renders disabled (browsers blur it), and Confirm/Cancel unmount under the finger. When
   // focus has fallen to body, land it on the next legal action — or Close, when the state is
-  // terminal. The same guard Queue.tsx keeps for its rows (#47 review). Recovery fires only on
-  // an actual transition of the values it watches — never on mount, and never on StrictMode's
-  // dev remount, whose second setup re-runs with the ref intact and the values unchanged (#47
-  // round 5): engines that don't focus a clicked button (Safari) leave focus on body during
-  // plain mouse use, and opening a track must not yank it into the drawer.
+  // terminal. The same guard Queue.tsx keeps for its rows (#47 review). Three gates, one per
+  // false-positive found in review:
+  //   - only on an actual transition of the watched values — never on mount, never on
+  //     StrictMode's dev remount, whose second setup re-runs with refs intact (round 5);
+  //   - only for keyboard-driven interactions — a keyboard-activated click carries detail 0,
+  //     a mouse click a positive count, and a mouse user whose focus was parked on a button
+  //     would have Space activate it instead of scrolling (round 6). Transitions that arrive
+  //     without any click (the parent re-rendering the log) keep the keyboard-safe default;
+  //   - only when focus actually fell to body.
   const prevFocusKeyRef = useRef<string | null>(null)
+  const keyboardIntentRef = useRef(true)
   useEffect(() => {
     const key = `${status}:${pending ?? ''}`
     const prev = prevFocusKeyRef.current
     prevFocusKeyRef.current = key
     if (prev === null || prev === key) return
+    if (!keyboardIntentRef.current) return
     if (document.activeElement !== document.body) return
     const aside = asideRef.current
     const target =
@@ -202,7 +208,15 @@ export function ReviewDrawer({
   }
 
   return (
-    <aside className="drawer" aria-label={`Track review: ${trackIdent(track)}`} ref={asideRef}>
+    // The capture-phase handler only sniffs input modality; the aside handles no interaction.
+    <aside
+      className="drawer"
+      aria-label={`Track review: ${trackIdent(track)}`}
+      ref={asideRef}
+      onClickCapture={(event) => {
+        keyboardIntentRef.current = event.detail === 0
+      }}
+    >
       <header className="drawer__header">
         <h3 className="drawer__ident">{trackIdent(track)}</h3>
         <span className="drawer__identity">

@@ -119,12 +119,16 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
     ? (ranked.find((entry) => entry.track.id === selectedId) ?? null)
     : null
 
-  // Every track's log opens with a synthetic first-seen entry, stamped once at startup. Lazy
-  // useState, not useMemo: the default `now` prop is a fresh function each render, so a memo
-  // keyed on it would re-stamp first sight with every render (review finding on #47).
-  const [openedAt] = useState(now)
+  // Every track's log opens with a synthetic first-seen entry, stamped once — when the picture
+  // actually arrives, not at mount, so first sight cannot predate the data it describes by the
+  // fetch latency (#47 round 6). Guarded set-during-render is the documented derived-state
+  // pattern; a memo keyed on `now` would re-stamp every render, since the default prop is a
+  // fresh function each time (#47 round 1).
+  const [openedAt, setOpenedAt] = useState<string | null>(null)
+  if (capture.status === 'ready' && openedAt === null) setOpenedAt(now())
   const logFor = (entry: RankedTrack): TrackEvent[] =>
-    eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), openedAt)
+    eventLogs[entry.track.id] ??
+    firstSeen(entry.track.id, observedSnapshot(entry), openedAt ?? now())
 
   // tSec stays 0 until PR 06 runs the replay clock; `now` is the seam it takes over through.
   const act = (
@@ -139,7 +143,7 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
       // batched into one commit must chain, not overwrite each other (#47 review).
       [selected.track.id]: appendEvent(
         logs[selected.track.id] ??
-          firstSeen(selected.track.id, observedSnapshot(selected), openedAt),
+          firstSeen(selected.track.id, observedSnapshot(selected), openedAt ?? at),
         action,
         { at, tSec: 0, observed: observedSnapshot(selected), ...detail },
       ),

@@ -281,6 +281,27 @@ describe('ReviewDrawer', () => {
     expect(document.activeElement).toBe(document.body)
   })
 
+  it('skips focus recovery after a mouse-driven action (03b round 6)', () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    const { rerender } = renderDrawer(ranked)
+    // A real mouse click carries a positive detail; recovery must stand down, or Space would
+    // activate the parked button instead of scrolling. (Keyboard activation dispatches detail
+    // 0 — the shape every other test's fireEvent.click uses, keeping recovery covered there.)
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }), { detail: 1 })
+    rerender(
+      <ReviewDrawer
+        entry={ranked}
+        sites={SITES}
+        log={walk(ranked, 'dismiss')}
+        contacts={CONTACTS}
+        dispositions={DISPOSITIONS}
+        onAction={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(document.activeElement).toBe(document.body)
+  })
+
   it('catches the focus a disabled action drops, landing on the next legal one (03b)', () => {
     const ranked = entry(SILENT, 1, 7200.2)
     const { rerender } = renderDrawer(ranked, { log: walk(ranked, 'assess') })
