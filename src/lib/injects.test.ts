@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   BEHAVIORS,
   REMOTE_ID_STATES,
+  UA_TYPES,
   generateScenario,
   injectTracksAt,
   planScenario,
@@ -346,6 +347,37 @@ describe('Remote ID', () => {
         expect(track.callsign).toBe(spec.heard[index] ? spec.label : null)
       })
     }
+  })
+
+  it('carries the UA type with the ident — heard together, lost together (03c)', () => {
+    for (const spec of plan.specs) {
+      expect(UA_TYPES).toContain(spec.uaType)
+      framesFor(spec.id).forEach((track, index) => {
+        const heard =
+          spec.remoteId === 'broadcasting' ||
+          (spec.remoteId === 'intermittent' && spec.heard[index])
+        expect(track.uaType).toBe(heard ? spec.uaType : null)
+        expect(track.uaType === null).toBe(track.callsign === null)
+      })
+    }
+    // The golden exercises the fallback: the intermittent inject is unheard on some frames.
+    const intermittent = plan.specs.find((spec) => spec.remoteId === 'intermittent')!
+    expect(framesFor(intermittent.id).some((track) => track.uaType === null)).toBe(true)
+    expect(framesFor(intermittent.id).some((track) => track.uaType !== null)).toBe(true)
+  })
+
+  it('draws the UA type from its own stream, so it moved no previously pinned value (03c)', () => {
+    // Re-weighting the draw changes UA types and nothing else — every other spec field is
+    // dealt by the shared stream, which the UA-type draw never touches (the a2 pattern, #16).
+    const reweighted = planScenario(TIMELINE, {
+      ...SCENARIO,
+      uaTypes: { multirotor: 0, aeroplane: 0, 'hybrid-lift': 1 },
+    })
+    const levelled = (specs: typeof plan.specs) =>
+      specs.map((spec) => ({ ...spec, uaType: 'multirotor' as const }))
+    expect(levelled(reweighted.specs)).toEqual(levelled(plan.specs))
+    expect(reweighted.specs.every((spec) => spec.uaType === 'hybrid-lift')).toBe(true)
+    expect(plan.specs.some((spec) => spec.uaType !== 'hybrid-lift')).toBe(true)
   })
 
   it('holds the heard state between frames instead of interpolating it', () => {

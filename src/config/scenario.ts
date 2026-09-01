@@ -7,6 +7,8 @@
  * the generator.
  */
 
+import type { UaType } from '../lib/tracks.ts'
+
 /** Where an inject starts, expressed relative to the AO center rather than as a fixed point. */
 export interface LaunchPoint {
   id: string
@@ -56,6 +58,12 @@ export interface ScenarioConfig {
     /** P(not heard on this frame | not heard on the last). */
     pStaySilent: number
   }
+  /**
+   * Draw weights for the Remote ID UA type each inject broadcasts (#22). Multirotors dominate
+   * the hobby and Part 107 fleet, so they dominate the draw — an assumption a reviewer can
+   * change here without touching the generator.
+   */
+  uaTypes: Record<UaType, number>
 }
 
 export const SCENARIO: ScenarioConfig = {
@@ -79,4 +87,5 @@ export const SCENARIO: ScenarioConfig = {
     maxVerticalRateFpm: 500,
   },
   remoteId: { pStayHeard: 0.8, pStaySilent: 0.6 },
+  uaTypes: { multirotor: 4, aeroplane: 1, 'hybrid-lift': 1 },
 }

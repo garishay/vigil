@@ -45,6 +45,7 @@ function inject(n: number, identity: Identity, rangeM: number): InjectTrack {
     source: 'inject',
     behavior: 'transit',
     remoteId: identity === 'non-cooperative' ? 'silent' : 'intermittent',
+    uaType: null,
     identity,
     callsign: identity === 'cooperative' ? `UAS-${n}` : null,
     position: at(rangeM),
@@ -174,7 +175,9 @@ describe('determinism', () => {
     // The §5.1 display-only rule made executable: a sort key reading category or registry would
     // reorder the stripped picture and fail here.
     const stripped = frame0.map((track) =>
-      track.source === 'adsb' ? { ...track, category: null, registry: null } : track,
+      track.source === 'adsb'
+        ? { ...track, category: null, registry: null }
+        : { ...track, uaType: null },
     )
     expect(order(stripped)).toEqual(order(frame0))
   })
