@@ -9,6 +9,10 @@ describe('tool-guard', () => {
       'git push origin feat/x:refs/heads/main',
       'git push -u origin main',
       'npm run test && git push origin main',
+      'git push origin "main"',
+      "git push origin 'HEAD:main'",
+      'git push --all origin',
+      'git push --branches origin',
     ]) {
       expect(judge(command, 'feat/x'), command).toMatch(/push to main/)
     }
@@ -24,13 +28,30 @@ describe('tool-guard', () => {
   it('blocks a force push in every form', () => {
     for (const command of [
       'git push -f origin feat/x',
+      'git push -fu origin feat/x',
+      'git push -uf origin feat/x',
       'git push --force origin feat/x',
       'git push --force-with-lease',
       'git push --force-with-lease=feat/x:abc origin feat/x',
       'git push origin +feat/x',
+      'git push --mirror origin',
     ]) {
       expect(judge(command, 'feat/x'), command).toMatch(/force push/)
     }
+  })
+
+  it("sees past git's global options and into command substitution", () => {
+    for (const command of [
+      'git -C ../vigil push origin main',
+      'git -c push.default=current push origin main',
+      'git --no-pager push origin main',
+      'git --git-dir=.git push origin main',
+      'echo $(git push origin main)',
+      'echo `git push -f origin feat/x`',
+    ]) {
+      expect(judge(command, 'feat/x'), command).toMatch(/push/)
+    }
+    expect(judge('git -C ../vigil push -u origin feat/x', 'main')).toBeNull()
   })
 
   it('blocks a dependency add and allows an install from the lockfile', () => {
@@ -56,7 +77,7 @@ describe('tool-guard', () => {
     }
   })
 
-  it('reads through quoted strings and heredoc bodies — a mention is not a push', () => {
+  it('reads through quoted prose and heredoc bodies — a mention is not a push', () => {
     expect(judge('gh pr comment 1 --body "never git push origin main"', 'feat/x')).toBeNull()
     expect(judge("echo 'npm install lodash'", 'feat/x')).toBeNull()
     const heredoc = ["gh pr create --body-file - <<'EOF'", 'Run: git push origin main', 'EOF'].join(
@@ -64,6 +85,19 @@ describe('tool-guard', () => {
     )
     expect(judge(heredoc, 'feat/x')).toBeNull()
     expect(judge(`${heredoc} && git push origin main`, 'feat/x')).toMatch(/push to main/)
+    const indented = ["cat <<-'EOF'", '\tnever npm install lodash', '\tEOF'].join('\n')
+    expect(judge(indented, 'feat/x')).toBeNull()
+  })
+
+  it('never throws on words that are properties of every object', () => {
+    for (const command of [
+      'grep -rn constructor src',
+      'rg toString src && git push origin main',
+      'echo __proto__ hasOwnProperty valueOf',
+    ]) {
+      expect(() => judge(command, 'feat/x'), command).not.toThrow()
+    }
+    expect(judge('rg toString src && git push origin main', 'feat/x')).toMatch(/push to main/)
   })
 
   it('lets everything else through', () => {

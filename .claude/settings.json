@@ -3,7 +3,9 @@
     "PreToolUse": [
       {
         "matcher": "Bash|PowerShell",
-        "hooks": [{ "type": "command", "command": "node scripts/tool-guard.ts" }]
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/tool-guard.ts\"" }
+        ]
       }
     ]
   }
