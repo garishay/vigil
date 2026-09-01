@@ -170,13 +170,14 @@ describe('Queue', () => {
     expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
   })
 
-  it('leaves focus alone when the caller says the close was pointer-driven (#54)', () => {
+  it('takes the list, not the row, when the caller says the close was pointer-driven (#54)', () => {
     const { rerender } = render(<Queue ranked={RANKED} selectedId="inject-01" onSelect={vi.fn()} />)
     rerender(<Queue ranked={RANKED} selectedId={null} restoreFocus={false} onSelect={vi.fn()} />)
-    // A mouse user parked on the row would have Space re-select it instead of scrolling.
+    // A mouse user parked on the row would have Space re-select it instead of scrolling; the
+    // list has no activation to misfire and keeps their place — not body (#56 review).
     const [, unheard] = rows()
     expect(document.activeElement).not.toBe(within(unheard).getByRole('button'))
-    expect(document.activeElement).not.toBe(screen.getByRole('list', { name: 'Ranked queue' }))
+    expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
   })
 
   it('selects a track through its row button (03a)', () => {

@@ -228,7 +228,7 @@ describe('App shell', () => {
     expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Review' }))
   })
 
-  it('leaves a mouse-driven close on the Queue surface alone — no focus parked on the row (#54)', () => {
+  it('sends a mouse-driven close on the Queue surface to the list, not the row (#54)', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
@@ -236,10 +236,11 @@ describe('App shell', () => {
     fireEvent.click(row, { detail: 1 })
     // Same gate as Review and the drawer: a positive detail is a pointer, and a pointer user
     // parked on the row would have Space re-select the track instead of scrolling the list.
+    // The list itself is safe to land on, and keeps the operator's place (#56 review).
     fireEvent.click(screen.getByRole('button', { name: 'Close review' }), { detail: 1 })
     expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
     expect(document.activeElement).not.toBe(row)
-    expect(document.activeElement).not.toBe(queue)
+    expect(document.activeElement).toBe(queue)
   })
 
   it('keeps the Queue-surface close returning focus to the row, as 03a built it (#46)', () => {
