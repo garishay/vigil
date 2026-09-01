@@ -39,7 +39,8 @@ export function Queue({
   // A keyboard operator who closes the drawer must not be dropped on document.body: focus
   // returns to the row that anchored the selection, or to the list itself when that row is
   // filtered out. (Closing from the Review surface, where this list is unmounted, is App's to
-  // catch — it lands focus on the Review nav item, #46.)
+  // catch for keyboard closes — it lands focus on the Review nav item, #46; a mouse close is
+  // left alone, the drawer's own modality gate from 03b round 6.)
   const previousSelectedRef = useRef<string | null>(null)
   useEffect(() => {
     const previous = previousSelectedRef.current
