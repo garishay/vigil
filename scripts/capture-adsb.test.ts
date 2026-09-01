@@ -129,15 +129,38 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--minutes'])).toThrow(/Missing value/)
   })
 
-  it('refuses a window that is not a finite number of minutes', () => {
-    // Infinity is > 0, so it passed the positivity check and made `frameCount` Infinity — an
-    // unbounded loop against adsb.lol, which is the failure the whole etiquette section exists
-    // to prevent. NaN was already caught; this is the other end of the same check.
-    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/finite/)
-    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/finite/)
-    // Finite on its own, but `1e308 * 60` overflows: the check has to sit on the derived count,
-    // because a guard reading only the arguments cannot see the multiplication that follows.
-    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/finite/)
+  it('refuses every window that does not describe at least one whole frame', () => {
+    // One condition now covers what two used to, and this is the half that `main()` held and the
+    // suite could not reach: `--minutes 0.1` is positive, rounds to zero frames, and a zero-frame
+    // run made `missing / 0` NaN, walked past the gappiness guard, and overwrote the committed
+    // recording with an empty capture.
+    expect(() => parseArgs(['--minutes', '0.1'])).toThrow(/gives 0 frames/)
+    // The unbounded-poll half: Infinity is > 0 and used to pass a positivity check, and `1e308`
+    // is finite until multiplied by 60 — both make the frame count non-finite.
+    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/gives Infinity frames/)
+    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/gives Infinity frames/)
+    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/gives NaN frames/)
+    // Still accepts the windows it should, including a sub-minute one that does round to a frame.
+    expect(parseArgs(['--minutes', '0.5']).minutes).toBe(0.5)
+  })
+
+  it('wires each known flag to the option it names', () => {
+    // The compile-time half — that no FLAGS entry lacks a case — is the `never` assertion in the
+    // default branch, which no test can observe. This is the runtime half: a flag the parser
+    // admits has to actually change its option.
+    //
+    // Every argument is derived from the default it must differ from, so no row can pass by
+    // coincidence. `--interval` is the row that could: the sibling test deliberately leaves
+    // `intervalS` out of its `toMatchObject`, so a hardcoded 20 would have held from the default
+    // alone if `DEFAULT_INTERVAL_S` were ever raised to 20 — a legal change.
+    const defaults = parseArgs([])
+    expect(parseArgs(['--minutes', String(defaults.minutes + 5)]).minutes).toBe(
+      defaults.minutes + 5,
+    )
+    expect(parseArgs(['--interval', String(defaults.intervalS + 5)]).intervalS).toBe(
+      defaults.intervalS + 5,
+    )
+    expect(parseArgs(['--out', `${defaults.out}.other`]).out).toBe(`${defaults.out}.other`)
   })
 
   it('names the flag, not a missing value, for an unrecognised trailing flag', () => {
