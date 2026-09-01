@@ -3,7 +3,14 @@ import { IdentityDot } from './IdentityDot'
 import type { ProtectedSite } from '../config/ao'
 import type { ContactId } from '../config/contacts'
 import type { DispositionId } from '../config/dispositions'
-import { LAYER_BADGE, describeEvent, eventClock, formatRangeKm, trackIdent } from '../lib/display'
+import {
+  LAYER_BADGE,
+  describeEvent,
+  eventClock,
+  formatRangeKm,
+  roundHeading,
+  trackIdent,
+} from '../lib/display'
 import { handoffText } from '../lib/handoff'
 import { IDENTITY_LABEL } from '../lib/identity'
 import {
@@ -163,8 +170,7 @@ export function ReviewDrawer({
     },
     {
       label: 'Heading',
-      // Integer degrees, as the handoff prints it — one observation, one number on both (#49).
-      value: dash(track.headingDeg === null ? null : `${Math.round(track.headingDeg)}°`),
+      value: dash(track.headingDeg === null ? null : `${roundHeading(track.headingDeg)}°`),
     },
     {
       label: 'Vertical rate',

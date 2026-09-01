@@ -328,32 +328,32 @@ describe('App shell', () => {
   it('says when no track matches the filters, but not while the picture is loading (#49)', () => {
     const { rerender } = render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
-    const empty = () => screen.queryByText('No tracks match the filters.')
-    expect(empty()).not.toBeInTheDocument()
+    // The live region is there from the moment the Queue is, empty: a region that appears in the
+    // same commit as its text is one some screen readers never announce (#51 review).
+    const region = () => screen.getByRole('status')
+    expect(region()).toBeEmptyDOMElement()
 
     // Nothing is escalated on a fresh picture, so the Escalated chip is the first legitimately
-    // empty list: the count reads 0, and the line says why.
+    // empty list: the count reads 0, and the line says why — to the operator who pressed it.
     const stateChips = screen.getByRole('group', { name: 'Filter by state' })
     fireEvent.click(within(stateChips).getByRole('button', { name: 'Escalated' }))
     expect(
       within(screen.getByRole('list', { name: 'Ranked queue' })).queryAllByRole('listitem'),
     ).toHaveLength(0)
     expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent('0')
-    expect(empty()).toBeInTheDocument()
-    // Announced, not just shown: the operator who pressed the chip hears why the count fell.
-    expect(screen.getByRole('status')).toHaveTextContent('No tracks match the filters.')
+    expect(region()).toHaveTextContent('No tracks match the filters.')
     fireEvent.click(within(stateChips).getByRole('button', { name: 'All' }))
-    expect(empty()).not.toBeInTheDocument()
+    expect(region()).toBeEmptyDOMElement()
 
-    // An empty list with no recording behind it is not a filter result: no line while loading,
-    // none on a load failure — the error already says what happened.
+    // An empty list with no recording behind it is not a filter result: nothing while loading,
+    // nothing on a load failure — the error already says what happened.
     useCapture.mockReturnValue({ status: 'loading' })
     rerender(<App />)
-    expect(empty()).not.toBeInTheDocument()
+    expect(region()).toBeEmptyDOMElement()
     useCapture.mockReturnValue({ status: 'error', message: 'Could not load the recording.' })
     rerender(<App />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    expect(empty()).not.toBeInTheDocument()
+    expect(region()).toBeEmptyDOMElement()
   })
 
   it('keeps the selection but not the ring on Home (03b, ruled A2 on #3)', () => {

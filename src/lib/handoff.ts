@@ -14,7 +14,7 @@
 
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
-import { describeEvent, eventClock, formatRangeKm, trackIdent } from './display.ts'
+import { describeEvent, eventClock, formatRangeKm, roundHeading, trackIdent } from './display.ts'
 import { IDENTITY_LABEL } from './identity.ts'
 import type { TrackEvent } from './lifecycle.ts'
 import type { RankedTrack } from './ranking.ts'
@@ -49,7 +49,7 @@ export function handoffText({
   const kinematics = [
     dash(track.altitudeFt, (v) => `${v} ft`),
     dash(track.groundSpeedKt, (v) => `${v} kt`),
-    `hdg ${dash(track.headingDeg, (v) => `${Math.round(v)}`)}`,
+    `hdg ${dash(track.headingDeg, (v) => `${roundHeading(v)}`)}`,
   ].join(' · ')
   return [
     'VIGIL HANDOFF',

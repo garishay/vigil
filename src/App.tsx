@@ -264,13 +264,15 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
               {/* A zero count over blank space reads as a broken picture; say the filters did it.
                   Only once the recording is in — a loading or errored picture is empty for its
                   own reason, and already says so (#36 [7], ruled A). A polite live region, so
-                  the operator who just pressed the chip hears why the count fell to 0 (#51
-                  review) — the rail__error line above is its assertive sibling. */}
-              {capture.status === 'ready' && visible.length === 0 && (
-                <p className="rail__empty" role="status">
-                  No tracks match the filters.
-                </p>
-              )}
+                  the operator who just pressed the chip hears why the count fell to 0 — the
+                  rail__error line above is its assertive sibling. Mounted whenever the Queue is,
+                  with only the text toggling: a region inserted in the same commit as its text
+                  is one some screen readers never announce (#51 review). */}
+              <p className="rail__empty" role="status">
+                {capture.status === 'ready' && visible.length === 0
+                  ? 'No tracks match the filters.'
+                  : null}
+              </p>
             </>
           )}
           {surfaceId === 'review' &&

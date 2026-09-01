@@ -135,6 +135,10 @@ describe('handoffText', () => {
     expect(text(silentKinematics)).toContain('\n  — · — · hdg —\n')
   })
 
+  it('wraps a heading that rounds up to north, never printing hdg 360 (#51 review)', () => {
+    expect(text(entry({ ...INJECT, headingDeg: 359.7 }))).toContain('· hdg 0\n')
+  })
+
   it('discloses a recorded track as ADS-B, by ident rather than inject naming', () => {
     const adsb: AdsbTrack = {
       id: 'adsb-a06461',

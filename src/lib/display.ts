@@ -30,6 +30,13 @@ export const LAYER_BADGE: Record<Track['source'], string> = { adsb: 'ADS-B', inj
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
 
 /**
+ * A heading as the whole degree the drawer and the handoff both print — one observation, one
+ * number on both (#49). The model's headings live in [0, 360), so the round wraps: 359.7 reads 0,
+ * as 0.3 already does, never an off-the-compass 360 (#51 review).
+ */
+export const roundHeading = (headingDeg: number) => Math.round(headingDeg) % 360
+
+/**
  * An event's wall clock as HH:MM:SSZ — normalized to UTC before the label, not sliced blind: a
  * caller supplying an offset form (`…+02:00`, a shape the PR 06 clock seam permits) must not see
  * local time labelled Zulu (#47 review). The mark itself is the point — an unlabelled 12:07
