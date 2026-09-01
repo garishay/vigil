@@ -18,10 +18,17 @@ import type { RankedTrack } from '../lib/ranking'
 export function Queue({
   ranked,
   selectedId = null,
+  restoreFocus = true,
   onSelect,
 }: {
   ranked: RankedTrack[]
   selectedId?: string | null
+  /**
+   * Whether a cleared selection returns focus to its row. The caller passes `false` for a
+   * pointer-driven close — the effect below cannot see the click, and a mouse user parked on a
+   * row would have Space re-select it instead of scrolling (03b round 6, #54).
+   */
+  restoreFocus?: boolean
   onSelect?: (id: string) => void
 }) {
   const listRef = useRef<HTMLOListElement>(null)
@@ -38,19 +45,19 @@ export function Queue({
 
   // A keyboard operator who closes the drawer must not be dropped on document.body: focus
   // returns to the row that anchored the selection, or to the list itself when that row is
-  // filtered out. (Closing from the Review surface, where this list is unmounted, is App's to
-  // catch for keyboard closes — it lands focus on the Review nav item, #46; a mouse close is
-  // left alone, the drawer's own modality gate from 03b round 6.)
+  // filtered out. A pointer-driven close is left alone — `restoreFocus` carries the modality
+  // gate the drawer and Review already apply (#54). (Closing from the Review surface, where
+  // this list is unmounted, is App's to catch — it lands focus on the Review nav item, #46.)
   const previousSelectedRef = useRef<string | null>(null)
   useEffect(() => {
     const previous = previousSelectedRef.current
     previousSelectedRef.current = selectedId
-    if (selectedId || !previous) return
+    if (selectedId || !previous || !restoreFocus) return
     const row = listRef.current?.querySelector<HTMLButtonElement>(
       `[data-id="${CSS.escape(previous)}"] button`,
     )
     ;(row ?? listRef.current)?.focus?.()
-  }, [selectedId])
+  }, [selectedId, restoreFocus])
 
   return (
     <ol className="queue" aria-label="Ranked queue" ref={listRef} tabIndex={-1}>
