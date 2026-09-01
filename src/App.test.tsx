@@ -342,7 +342,20 @@ describe('App shell', () => {
     ).toHaveLength(0)
     expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent('0')
     expect(region()).toHaveTextContent('No tracks match the filters.')
-    fireEvent.click(within(stateChips).getByRole('button', { name: 'All' }))
+
+    // The filters persist across surfaces, so a round trip through Home must land back on the
+    // *same* region, refilled — not a fresh one born with its text (#51 review, round 3).
+    const node = region()
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    expect(region()).toBe(node)
+    expect(region()).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    expect(region()).toBe(node)
+    expect(region()).toHaveTextContent('No tracks match the filters.')
+
+    // The chip row did remount on that trip; the region is the only thing that must not have.
+    const chipsAgain = screen.getByRole('group', { name: 'Filter by state' })
+    fireEvent.click(within(chipsAgain).getByRole('button', { name: 'All' }))
     expect(region()).toBeEmptyDOMElement()
 
     // An empty list with no recording behind it is not a filter result: nothing while loading,
