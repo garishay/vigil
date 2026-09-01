@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
@@ -12,11 +12,13 @@ vi.mock('./components/MapView', () => ({
     tracks,
     injects,
     selectedId,
+    selectionShown = true,
     onSelect,
   }: {
     tracks?: { id: string }[]
     injects?: { id: string }[]
     selectedId?: string | null
+    selectionShown?: boolean
     onSelect?: (id: string) => void
   }) => (
     <div
@@ -24,6 +26,7 @@ vi.mock('./components/MapView', () => ({
       data-tracks={tracks?.length ?? 0}
       data-injects={injects?.length ?? 0}
       data-selected={selectedId ?? ''}
+      data-selection-shown={String(selectionShown)}
     >
       {/* Stands in for a dot click: selects the first inject, like the real map would. */}
       <button
@@ -233,9 +236,141 @@ describe('App shell', () => {
     const ranks = rows.map((row) => Number(row.querySelector('.queue__rank')?.textContent))
     expect(ranks.every((rank) => rank > injectCount)).toBe(true)
 
-    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+    // Two chip rows both carry an "All" — scope to the layer group (03b added the state row).
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Filter by layer' })).getByRole('button', {
+        name: 'All',
+      }),
+    )
     rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
     expect(rows).toHaveLength(2 + injectCount)
+  })
+
+  it('walks the full lifecycle New → Assessing → Escalated → Resolved in the drawer (03b)', () => {
+    render(<App now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
+    const drawer = () => screen.getByLabelText(/^Track review: /)
+    const status = () => within(drawer()).getByText('Status').parentElement as HTMLElement
+
+    // Every track opened its log as New, with the injected clock in the first-seen entry.
+    expect(within(status()).getByText('New')).toBeInTheDocument()
+    expect(within(drawer()).getByText('New — first seen')).toBeInTheDocument()
+    expect(within(drawer()).getByText('12:04:31Z')).toBeInTheDocument()
+
+    fireEvent.click(within(drawer()).getByRole('button', { name: 'Assess' }))
+    expect(within(status()).getByText('Assessing')).toBeInTheDocument()
+
+    fireEvent.click(within(drawer()).getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(within(drawer()).getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(within(drawer()).getByRole('button', { name: 'Confirm escalation' }))
+    expect(within(status()).getByText('Escalated')).toBeInTheDocument()
+    const handoff = within(drawer()).getByLabelText('Handoff text') as HTMLTextAreaElement
+    expect(handoff.value).toContain('To: PHL Tower')
+
+    fireEvent.click(within(drawer()).getByRole('button', { name: 'Resolve' }))
+    fireEvent.click(within(drawer()).getByRole('radio', { name: 'Benign' }))
+    fireEvent.click(within(drawer()).getByRole('button', { name: 'Confirm resolution' }))
+    expect(within(status()).getByText('Resolved')).toBeInTheDocument()
+    // Terminal: the vocabulary stays visible, nothing stays legal.
+    for (const name of ['Assess', 'Escalate', 'Dismiss', 'Resolve'])
+      expect(within(drawer()).getByRole('button', { name })).toBeDisabled()
+    // The record kept every step, oldest first.
+    const lines = within(within(drawer()).getByLabelText('Event log')).getAllByRole('listitem')
+    expect(lines.map((line) => line.textContent?.slice(9))).toEqual([
+      'New — first seen',
+      'Assessing — claimed',
+      'Escalated — to PHL Tower',
+      'Resolved — Benign',
+    ])
+  })
+
+  it('stamps first sight once, not per render (03b review fix)', () => {
+    // The default `now` prop is a fresh function identity each render, so first-seen must not
+    // ride a memo keyed on it: even a *replaced* clock may not restamp the opening entry.
+    const { rerender } = render(<App now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    rerender(<App now={() => '2026-09-01T13:00:00.000Z'} />)
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
+    const drawer = screen.getByLabelText(/^Track review: /)
+    expect(within(drawer).getByText('12:04:31Z')).toBeInTheDocument()
+    expect(within(drawer).queryByText('13:00:00Z')).not.toBeInTheDocument()
+  })
+
+  it('filters by state with global ranks kept, composing with the layer filter (03b)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = () => screen.getByRole('list', { name: 'Ranked queue' })
+    const total = within(queue()).getAllByRole('listitem').length
+
+    // Dismiss the top-ranked track, then filter to Dismissed: one row, still wearing rank 1.
+    fireEvent.click(within(within(queue()).getAllByRole('listitem')[0]).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    const stateChips = screen.getByRole('group', { name: 'Filter by state' })
+    fireEvent.click(within(stateChips).getByRole('button', { name: 'Dismissed' }))
+    let rows = within(queue()).getAllByRole('listitem')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].querySelector('.queue__rank')?.textContent).toBe('1')
+    expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent('1')
+
+    // The rest read New; the two rows compose — New ∧ ADS-B leaves only the recorded layer.
+    fireEvent.click(within(stateChips).getByRole('button', { name: 'New' }))
+    expect(within(queue()).getAllByRole('listitem')).toHaveLength(total - 1)
+    const layerChips = screen.getByRole('group', { name: 'Filter by layer' })
+    fireEvent.click(within(layerChips).getByRole('button', { name: 'ADS-B' }))
+    rows = within(queue()).getAllByRole('listitem')
+    expect(rows).toHaveLength(2)
+    for (const row of rows) expect(within(row).queryByText('INJECT')).not.toBeInTheDocument()
+  })
+
+  it('keeps the selection but not the ring on Home (03b, ruled A2 on #3)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByTestId('map-select'))
+    const selected = screen.getByTestId('map').getAttribute('data-selected')
+    expect(selected).not.toBe('')
+    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('true')
+
+    // Home: the ring is suppressed as presentation, but the selection itself still reaches the
+    // map — nulling it instead would reset the ease stamp and re-fly the camera (#47 review).
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    expect(screen.getByTestId('map').getAttribute('data-selected')).toBe(selected)
+    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('false')
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('true')
+    expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
+  })
+
+  it('chains actions batched into one commit instead of overwriting (03b review fix)', () => {
+    render(<App now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
+    const drawer = screen.getByLabelText(/^Track review: /)
+    const assess = within(drawer).getByRole('button', { name: 'Assess' })
+    const dismiss = within(drawer).getByRole('button', { name: 'Dismiss' })
+    // Both clicks land in one React commit: the second updater must see the first's event, so
+    // the log chains New → Assessing → Dismissed rather than losing the claim (#47 review).
+    act(() => {
+      assess.click()
+      dismiss.click()
+    })
+    const lines = within(within(drawer).getByLabelText('Event log')).getAllByRole('listitem')
+    expect(lines.map((line) => line.textContent?.slice(9))).toEqual([
+      'New — first seen',
+      'Assessing — claimed',
+      'Dismissed',
+    ])
+  })
+
+  it('renders the Review surface at the drawer column width (03b, ruled B1 on #3)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    expect(document.querySelector('.shell__body--review')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    expect(document.querySelector('.shell__body--review')).toBeNull()
   })
 
   it('switches surfaces without unmounting the map', () => {

@@ -93,12 +93,19 @@ export function MapView({
   tracks = [],
   injects = [],
   selectedId = null,
+  selectionShown = true,
   onSelect,
 }: {
   ao: AreaOfOperations
   tracks?: AdsbTrack[]
   injects?: InjectTrack[]
   selectedId?: string | null
+  /**
+   * Whether the selection ring is drawn — presentation only (A2 on #3: Home suppresses the
+   * ring). The selection itself, and the once-per-selection ease stamp, ride `selectedId`:
+   * hiding the ring must not reset them, or a Home round trip re-flies the camera (#47).
+   */
+  selectionShown?: boolean
   onSelect?: (id: string) => void
 }) {
   const container = useRef<HTMLDivElement>(null)
@@ -263,7 +270,7 @@ export function MapView({
       (selectedId && [...tracks, ...injects].find((track) => track.id === selectedId)) || null
     map
       .getSource<GeoJSONSource>(SELECT_SOURCE)
-      ?.setData(selectionFeature(selected?.position ?? null))
+      ?.setData(selectionFeature(selectionShown ? (selected?.position ?? null) : null))
     // Stamped only when the camera actually flew: a selection whose track has not arrived yet
     // must still get its ease when the track appears. A cleared selection resets the stamp, so
     // deselecting and reselecting the same track flies again.
@@ -273,7 +280,7 @@ export function MapView({
       map.easeTo({ center: selected.position, duration: 600 })
       easedIdRef.current = selectedId
     }
-  }, [selectedId, tracks, injects, styleReady])
+  }, [selectedId, selectionShown, tracks, injects, styleReady])
 
   return (
     <div className="map-frame">

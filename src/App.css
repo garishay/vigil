@@ -280,8 +280,17 @@
   grid-template-columns: 22rem 26rem 1fr;
 }
 
+/* 03b, ruled B1 on #3: Review shows the drawer alone at the drawer column's own 26 rem — one
+   component, one width on either surface. */
+.shell__body--review {
+  grid-template-columns: 26rem 1fr;
+}
+
 .chips {
   display: flex;
+  /* Wraps, as the approved mockup draws it: six state chips outrun the 22 rem rail, and an
+     unwrapped row hides the last of them behind a horizontal scrollbar (#47 review). */
+  flex-wrap: wrap;
   gap: 0.375rem;
   margin-top: 0.75rem;
 }
@@ -425,4 +434,123 @@
   color: var(--faint);
   font-size: 0.75rem;
   line-height: 1.5;
+}
+
+/* 03b: the §7.1 lifecycle — status, actions, escalate/resolve pickers, handoff, event log. */
+.drawer__status {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+
+.drawer__action {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  padding: 0.25rem 0.7rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.drawer__action:not(:disabled):hover {
+  border-color: var(--accent);
+}
+
+/* Disabled, never hidden: the whole action vocabulary stays visible (§7.1). */
+.drawer__action:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.drawer__picker {
+  margin: 0.75rem 0 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.drawer__picker legend {
+  padding: 0 0.25rem;
+  color: var(--muted);
+}
+
+.drawer__option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0;
+  cursor: pointer;
+}
+
+.drawer__confirm {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.drawer__handoff {
+  margin-top: 0.75rem;
+}
+
+.drawer__subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.drawer__subtitle {
+  margin: 0.75rem 0 0.375rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.drawer__subhead .drawer__subtitle {
+  margin: 0;
+}
+
+/* The copyable record itself. `pre` rather than wrap: the fit at 26 rem is a ruled requirement
+   (B1, #3) and a wrap should be seen, not silently absorbed. */
+.drawer__handofftext {
+  width: 100%;
+  margin-top: 0.375rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: 0.5rem;
+  color: var(--text);
+  font-family: ui-monospace, Consolas, Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre;
+  resize: vertical;
+}
+
+.drawer__log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drawer__event {
+  display: flex;
+  gap: 0.6rem;
+  border-top: 1px solid var(--line);
+  padding: 0.3rem 0;
+  font-size: 0.75rem;
+}
+
+.drawer__eventclock {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
 }
