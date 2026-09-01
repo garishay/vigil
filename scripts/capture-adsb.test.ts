@@ -134,28 +134,33 @@ describe('parseArgs', () => {
     // suite could not reach: `--minutes 0.1` is positive, rounds to zero frames, and a zero-frame
     // run made `missing / 0` NaN, walked past the gappiness guard, and overwrote the committed
     // recording with an empty capture.
-    expect(() => parseArgs(['--minutes', '0.1'])).toThrow(/one whole frame/)
+    expect(() => parseArgs(['--minutes', '0.1'])).toThrow(/describes no whole frame/)
     // The unbounded-poll half: Infinity is > 0 and used to pass a positivity check, and `1e308`
     // is finite until multiplied by 60 — both make the frame count non-finite.
-    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/one whole frame/)
-    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/one whole frame/)
-    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/one whole frame/)
+    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/describes no whole frame/)
+    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/describes no whole frame/)
+    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/describes no whole frame/)
     // Still accepts the windows it should, including a sub-minute one that does round to a frame.
     expect(parseArgs(['--minutes', '0.5']).minutes).toBe(0.5)
   })
 
-  it('keeps every FLAGS entry wired to a case in the switch', () => {
-    // The compile-time half is the `never` assertion in the default branch, which no test can
-    // observe. This is the runtime half: every flag the parser admits must actually change an
-    // option, so a flag added to FLAGS without a case cannot pass silently.
+  it('wires each known flag to the option it names', () => {
+    // The compile-time half — that no FLAGS entry lacks a case — is the `never` assertion in the
+    // default branch, which no test can observe. This is the runtime half: a flag the parser
+    // admits has to actually change its option.
+    //
+    // Every argument is derived from the default it must differ from, so no row can pass by
+    // coincidence. `--interval` is the row that could: the sibling test deliberately leaves
+    // `intervalS` out of its `toMatchObject`, so a hardcoded 20 would have held from the default
+    // alone if `DEFAULT_INTERVAL_S` were ever raised to 20 — a legal change.
     const defaults = parseArgs([])
-    const changed: Record<string, unknown> = {
-      '--minutes': parseArgs(['--minutes', '30']).minutes,
-      '--interval': parseArgs(['--interval', '20']).intervalS,
-      '--out': parseArgs(['--out', 'other.json']).out,
-    }
-    expect(Object.values(changed)).toEqual([30, 20, 'other.json'])
-    expect(defaults).toMatchObject({ minutes: 20, out: 'public/adsb-phl.json' })
+    expect(parseArgs(['--minutes', String(defaults.minutes + 5)]).minutes).toBe(
+      defaults.minutes + 5,
+    )
+    expect(parseArgs(['--interval', String(defaults.intervalS + 5)]).intervalS).toBe(
+      defaults.intervalS + 5,
+    )
+    expect(parseArgs(['--out', `${defaults.out}.other`]).out).toBe(`${defaults.out}.other`)
   })
 
   it('names the flag, not a missing value, for an unrecognised trailing flag', () => {

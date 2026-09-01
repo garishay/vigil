@@ -99,7 +99,12 @@ export function parseArgs(argv: string[]): Options {
   // one condition covers them, and unlike `main()` this one is reachable from the suite.
   const frames = Math.round((options.minutes * 60) / options.intervalS)
   if (!Number.isFinite(frames) || frames < 1) {
-    throw new Error(`${options.minutes} minutes at ${options.intervalS}s is not one whole frame`)
+    // Both flags named, with what each actually parsed to: one condition covers several
+    // mistakes, so the message has to say which argument produced the bad count rather than
+    // leading with a value the operator never typed. `--interval abc` said "20 minutes at NaNs".
+    throw new Error(
+      `--minutes ${options.minutes} at --interval ${options.intervalS} describes no whole frame`,
+    )
   }
   if (options.intervalS < CAPTURE_ETIQUETTE.minIntervalS) {
     throw new Error(
