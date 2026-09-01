@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IdentityDot } from './IdentityDot'
 import type { ProtectedSite } from '../config/ao'
 import type { ContactId } from '../config/contacts'
@@ -115,6 +115,20 @@ export function ReviewDrawer({
   // handoff, and the button honestly reverts to "Copy".
   const [copiedText, setCopiedText] = useState<string | null>(null)
   const handoffRef = useRef<HTMLTextAreaElement>(null)
+  const asideRef = useRef<HTMLElement>(null)
+
+  // A keyboard operator must not be dropped on document.body mid-walk: the activated action
+  // re-renders disabled (browsers blur it), and Confirm/Cancel unmount under the finger. When
+  // focus has fallen to body, land it on the next legal action — or Close, when the state is
+  // terminal. The same guard Queue.tsx keeps for its rows (#47 review).
+  useEffect(() => {
+    if (document.activeElement !== document.body) return
+    const aside = asideRef.current
+    const target =
+      aside?.querySelector<HTMLButtonElement>('.drawer__actions button:not(:disabled)') ??
+      aside?.querySelector<HTMLButtonElement>('.drawer__close')
+    target?.focus?.()
+  }, [status, pending])
 
   // Named from the site the range was actually measured to — `rangeM` is to the *nearest* site,
   // so with two sites configured, indexing `[0]` would caption one site's distance with the
@@ -173,7 +187,7 @@ export function ReviewDrawer({
   }
 
   return (
-    <aside className="drawer" aria-label={`Track review: ${trackIdent(track)}`}>
+    <aside className="drawer" aria-label={`Track review: ${trackIdent(track)}`} ref={asideRef}>
       <header className="drawer__header">
         <h3 className="drawer__ident">{trackIdent(track)}</h3>
         <span className="drawer__identity">

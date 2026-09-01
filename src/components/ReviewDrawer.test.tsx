@@ -261,6 +261,28 @@ describe('ReviewDrawer', () => {
     expect(onAction).toHaveBeenCalledWith('resolve', { disposition: 'departed-ao' })
   })
 
+  it('catches the focus a disabled action drops, landing on the next legal one (03b)', () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    const { rerender } = renderDrawer(ranked, { log: walk(ranked, 'assess') })
+    const props = {
+      entry: ranked,
+      sites: SITES,
+      contacts: CONTACTS,
+      dispositions: DISPOSITIONS,
+      onAction: vi.fn(),
+      onClose: vi.fn(),
+    }
+    // Browsers blur a button the moment it re-renders disabled; jsdom does not, so the drop to
+    // body is simulated between steps. The guard must land on the next legal action.
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    rerender(<ReviewDrawer {...props} log={walk(ranked, 'assess', 'escalate')} />)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Resolve' }))
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    rerender(<ReviewDrawer {...props} log={walk(ranked, 'assess', 'escalate', 'resolve')} />)
+    // Terminal: every action is disabled, so Close is the one legal landing.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close review' }))
+  })
+
   it('renders the event log oldest-first, ids resolved to display names (03b)', () => {
     const ranked = entry(SILENT, 1, 7200.2)
     renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
