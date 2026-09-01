@@ -168,6 +168,10 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
   // button would have Space activate it instead of scrolling (#53 review, after 03b round 6).
   // Queue-surface closes keep 03a's row return; this never runs there.
   const reviewNavRef = useRef<HTMLButtonElement>(null)
+  // The Queue's row return is an effect on the cleared selection and cannot see the click, so
+  // the close handler records the modality beside the clear — state, so it commits with it —
+  // and the Queue skips the return for a pointer-driven close (#54).
+  const [keyboardClose, setKeyboardClose] = useState(true)
   const drawer = selected && (
     <ReviewDrawer
       // Keyed by track, so picker and copied state never leak from one track to the next.
@@ -179,8 +183,10 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
       dispositions={DISPOSITIONS}
       onAction={act}
       onClose={(event) => {
+        const keyboard = event.detail === 0
+        setKeyboardClose(keyboard)
         setSelectedId(null)
-        if (surfaceId === 'review' && event.detail === 0) reviewNavRef.current?.focus()
+        if (surfaceId === 'review' && keyboard) reviewNavRef.current?.focus()
       }}
     />
   )
@@ -272,7 +278,12 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
                   </button>
                 ))}
               </div>
-              <Queue ranked={visible} selectedId={selectedId} onSelect={setSelectedId} />
+              <Queue
+                ranked={visible}
+                selectedId={selectedId}
+                restoreFocus={keyboardClose}
+                onSelect={setSelectedId}
+              />
             </>
           )}
           {/* A zero count over blank space reads as a broken picture; say the filters did it.
