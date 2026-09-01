@@ -39,7 +39,7 @@ export function Queue({
   // A keyboard operator who closes the drawer must not be dropped on document.body: focus
   // returns to the row that anchored the selection, or to the list itself when that row is
   // filtered out. (Closing from the Review surface, where this list is unmounted, still falls
-  // to body — that rides with 03b's selection-state revisit, noted on #3.)
+  // to body — 03b's selection ruling changed no mounting, so that gap is #46's.)
   const previousSelectedRef = useRef<string | null>(null)
   useEffect(() => {
     const previous = previousSelectedRef.current

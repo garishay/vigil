@@ -4,11 +4,24 @@ import { MapView } from './components/MapView'
 import { Queue } from './components/Queue'
 import { ReviewDrawer } from './components/ReviewDrawer'
 import { AO } from './config/ao'
+import { CONTACTS, type ContactId } from './config/contacts'
+import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { SCENARIO } from './config/scenario'
 import { frameTracks } from './data/capture'
 import { useCapture } from './data/useCapture'
 import { injectTracksAt, planScenario } from './lib/injects'
-import { rankTracks } from './lib/ranking'
+import {
+  STATUSES,
+  STATUS_LABEL,
+  appendEvent,
+  firstSeen,
+  observedSnapshot,
+  statusOf,
+  type LifecycleAction,
+  type Status,
+  type TrackEvent,
+} from './lib/lifecycle'
+import { rankTracks, type RankedTrack } from './lib/ranking'
 import type { Track } from './lib/tracks'
 
 type SurfaceId = 'home' | 'queue' | 'review'
@@ -31,7 +44,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'review',
     label: 'Review',
     title: 'Track review',
-    body: 'Everything known about the selected track. Lifecycle, event log, and handoff arrive in 03b.',
+    body: 'Everything known about the selected track. Every lifecycle action lands in its event log.',
   },
 ]
 
@@ -41,14 +54,30 @@ const FILTERS: { id: LayerFilter; label: string }[] = [
   { id: 'inject', label: 'INJECT' },
 ]
 
-export default function App() {
+type StateFilter = Status | 'all'
+const STATE_FILTERS: { id: StateFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  ...STATUSES.map((status) => ({ id: status, label: STATUS_LABEL[status] })),
+]
+
+/**
+ * `now` is the clock seam: lifecycle events take `at` and `tSec` as inputs, App supplies them,
+ * and tests fix them. PR 06 swaps this wall-clock supplier for playback time with no rewiring.
+ */
+export default function App({ now = () => new Date().toISOString() }: { now?: () => string } = {}) {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
   const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
   const capture = useCapture()
 
-  // Selection and filter persist across surface switches — client state only (§7.1 comes in 03b).
+  // Selection and filters persist across surface switches — client state only (§7.1 ruling, #3).
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [layerFilter, setLayerFilter] = useState<LayerFilter>('all')
+  const [stateFilter, setStateFilter] = useState<StateFilter>('all')
+
+  // The §7.1 record: one event log per track, client-side only, never persisted or transmitted.
+  // Only acted-on tracks are stored; an untouched track's log is derived on demand by `logFor`,
+  // so every track reads New with a first-seen entry from the moment the picture loads.
+  const [eventLogs, setEventLogs] = useState<Record<string, TrackEvent[]>>({})
 
   // The replay clock lands in PR 06; until then the picture holds the recording's first frame.
   const adsb = useMemo(
@@ -73,16 +102,44 @@ export default function App() {
   const tracks = useMemo<Track[]>(() => [...adsb, ...injects], [adsb, injects])
   const ranked = useMemo(() => rankTracks(tracks, AO.protectedSites), [tracks])
 
-  // Filtered for display; ranks stay global, so a filtered list shows what it hid. The selection
-  // is independent of the filter — a selected track keeps its drawer even when filtered out.
+  // Filtered for display; ranks stay global, so a filtered list shows what it hid. The two chip
+  // rows compose: a row must pass both. An unstored log is an untouched track — statusOf reads
+  // it as New. The selection is independent of the filters — a selected track keeps its drawer
+  // even when filtered out.
   const visible = useMemo(
     () =>
-      layerFilter === 'all' ? ranked : ranked.filter((entry) => entry.track.source === layerFilter),
-    [ranked, layerFilter],
+      ranked.filter(
+        (entry) =>
+          (layerFilter === 'all' || entry.track.source === layerFilter) &&
+          (stateFilter === 'all' || statusOf(eventLogs[entry.track.id]) === stateFilter),
+      ),
+    [ranked, layerFilter, stateFilter, eventLogs],
   )
   const selected = selectedId
     ? (ranked.find((entry) => entry.track.id === selectedId) ?? null)
     : null
+
+  // Every track's log opens with a synthetic first-seen entry, stamped once at startup.
+  const openedAt = useMemo(() => now(), [now])
+  const logFor = (entry: RankedTrack): TrackEvent[] =>
+    eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), openedAt)
+
+  // tSec stays 0 until PR 06 runs the replay clock; `now` is the seam it takes over through.
+  const act = (
+    action: LifecycleAction,
+    detail?: { recipient?: ContactId; disposition?: DispositionId },
+  ) => {
+    if (!selected) return
+    setEventLogs((logs) => ({
+      ...logs,
+      [selected.track.id]: appendEvent(logFor(selected), action, {
+        at: now(),
+        tSec: 0,
+        observed: observedSnapshot(selected),
+        ...detail,
+      }),
+    }))
+  }
 
   const pending = capture.status === 'loading' ? '…' : '—'
   const count = (n: number) => (capture.status === 'ready' ? String(n) : pending)
@@ -95,11 +152,24 @@ export default function App() {
   ]
 
   const drawer = selected && (
-    <ReviewDrawer entry={selected} sites={AO.protectedSites} onClose={() => setSelectedId(null)} />
+    <ReviewDrawer
+      // Keyed by track, so picker and copied state never leak from one track to the next.
+      key={selected.track.id}
+      entry={selected}
+      sites={AO.protectedSites}
+      log={logFor(selected)}
+      contacts={CONTACTS}
+      dispositions={DISPOSITIONS}
+      onAction={act}
+      onClose={() => setSelectedId(null)}
+    />
   )
   // The drawer is its own column beside the Queue (§4.2 — the operator keeps the list while
-  // reviewing); the Review surface shows the same drawer alone in the rail.
+  // reviewing); the Review surface shows the same drawer alone, at the same 26 rem (ruled B1, #3).
   const drawerColumn = surfaceId === 'queue' && drawer
+  const bodyClasses = ['shell__body']
+  if (drawerColumn) bodyClasses.push('shell__body--drawer')
+  if (surfaceId === 'review') bodyClasses.push('shell__body--review')
 
   return (
     <div className="shell">
@@ -134,7 +204,7 @@ export default function App() {
         </div>
       </dl>
 
-      <main className={drawerColumn ? 'shell__body shell__body--drawer' : 'shell__body'}>
+      <main className={bodyClasses.join(' ')}>
         <section className="rail" aria-labelledby="rail-title">
           <div className="rail__head">
             <h2 className="rail__title" id="rail-title">
@@ -168,6 +238,19 @@ export default function App() {
                   </button>
                 ))}
               </div>
+              <div className="chips" role="group" aria-label="Filter by state">
+                {STATE_FILTERS.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    className="chip"
+                    aria-pressed={stateFilter === filter.id}
+                    onClick={() => setStateFilter(filter.id)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
               <Queue ranked={visible} selectedId={selectedId} onSelect={setSelectedId} />
             </>
           )}
@@ -179,14 +262,15 @@ export default function App() {
           ao={AO}
           tracks={adsb}
           injects={injects}
-          selectedId={selectedId}
+          // Ruled A2 on #3: the selection persists across surface switches, but Home's map is
+          // unannotated context — it never shows the ring, so no surface carries selection
+          // state it cannot explain.
+          selectedId={surfaceId === 'home' ? null : selectedId}
           onSelect={(id) => {
             setSelectedId(id)
-            // A selection is an intent to review, so one *made* on Home lands the operator on
-            // the Queue, where the drawer and its close button are. The other path — selecting
-            // elsewhere and then navigating to Home — deliberately keeps the ring: selection
-            // persists across surface switches by ruling, and whether Home wants its own
-            // affordance is parked on #3 for the 03b plan gate.
+            // The other direction of the same ruling: a selection is an intent to review, so one
+            // *made* on Home lands the operator on the Queue, where the drawer and its close
+            // button are.
             setSurfaceId((current) => (current === 'home' ? 'queue' : current))
           }}
         />

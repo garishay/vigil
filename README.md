@@ -45,12 +45,16 @@ flowchart LR
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     rank["lib/ranking.ts<br/>placeholder rank: identity → range"]
     score["scoring engine — PR 04<br/>per-factor breakdown retained"]
+    life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key"]
+    hand["lib/handoff.ts<br/>escalation summary as copyable text"]
+    workcfg["config/contacts.ts + dispositions.ts<br/>recipients · outcome labels"]
     norm --> model
     gen --> model
     ao --> gen
     ao --> rank
     model --> rank
     model -.-> score
+    workcfg --> hand
   end
   fx -. fetched at startup .-> load
   gen --> goldgen
@@ -62,7 +66,7 @@ flowchart LR
     app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context"]
-    review["components/ReviewDrawer.tsx<br/>one track — observed or derived<br/>selection synced with the map"]
+    review["components/ReviewDrawer.tsx<br/>one track — observed or derived<br/>selection synced with the map<br/>lifecycle actions · event log · handoff"]
     clock["Playback clock — PR 06"]
     app --> queue
     app --> map
@@ -73,6 +77,9 @@ flowchart LR
   ao -- center · zoom · basemap · sites: map, strip --> app
   cfg -- seed: strip --> app
   rank -- ranked: queue --> app
+  life -- log · status: drawer, state filter --> app
+  workcfg -- pickers: drawer --> app
+  hand -- handoff text --> review
   score -.-> app
   classDef planned stroke-dasharray: 6 4,fill:none;
   class score,clock planned;
