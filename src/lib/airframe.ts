@@ -95,11 +95,13 @@ export function classify(track: Track): AirframeClass {
     )
   }
   const { altitudeFt, groundSpeedKt } = track
+  // A null is a gap, not a low number (#35) — and not a high one either: the caption must not
+  // claim the envelope was evaluated when a reading it needs was never observed (#55 review).
+  if (altitudeFt === null || groundSpeedKt === null) {
+    return labelled('unknown', 'none', 'no ident heard; altitude or speed not observed')
+  }
   const lowAndSlow =
-    altitudeFt !== null &&
-    groundSpeedKt !== null &&
-    altitudeFt <= KINEMATIC_CLASS.maxAltitudeFt &&
-    groundSpeedKt <= KINEMATIC_CLASS.maxGroundSpeedKt
+    altitudeFt <= KINEMATIC_CLASS.maxAltitudeFt && groundSpeedKt <= KINEMATIC_CLASS.maxGroundSpeedKt
   if (lowAndSlow) {
     return {
       airframe: 'unknown',

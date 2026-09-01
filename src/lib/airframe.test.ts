@@ -144,9 +144,21 @@ describe('classify — injects', () => {
     })
   })
 
-  it('never lets a null reading qualify — a gap is not a low number (#35)', () => {
-    expect(classify(inject({ groundSpeedKt: null })).basis).toBe('none')
-    expect(classify(inject({ altitudeFt: null })).basis).toBe('none')
+  it('never lets a null reading qualify, and never claims the envelope was checked (#35)', () => {
+    // The drawer dashes the same reading beside this caption, so the caption must not assert
+    // an evaluation that never ran (#55 review).
+    const unobserved = 'no ident heard; altitude or speed not observed'
+    expect(classify(inject({ groundSpeedKt: null }))).toMatchObject({
+      basis: 'none',
+      caption: unobserved,
+    })
+    expect(classify(inject({ altitudeFt: null }))).toMatchObject({
+      basis: 'none',
+      caption: unobserved,
+    })
+    expect(classify(inject({ groundSpeedKt: 200 })).caption).toBe(
+      'no ident heard; outside the small-UAS envelope',
+    )
   })
 
   it('reads unknown outside the envelope, with the envelope from config', () => {
