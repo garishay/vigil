@@ -40,7 +40,8 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
 
 ## Conventions
 
-- **Every PR starts as a GitHub Issue** carrying a mini-PRD (user story + acceptance criteria).
+- **Every PR starts as a GitHub Issue** — feature PRs carry a mini-PRD (user story + acceptance
+  criteria); cleanup PRs bundle owner-routed Issues.
 - **Branch naming:** `feat/pr-02-scenario-data` — kind, PR number, short slug.
 - **Squash-merge only**, delete the branch after merge.
 - **PR size target: under ~400 implementation lines.** Tests, comments, and recorded fixtures sit
@@ -50,8 +51,9 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
 - Reply to every review comment with a fix or a reasoned "won't fix."
 - **The review loop on a PR ends when the owner declares closure.** After closure, new findings
   become follow-up Issues unless they are factual errors — a broken requirement or wrong
-  behavior. A factual error in that PR's files still blocks its merge; one elsewhere is filed
-  per Decision rights as a blocking follow-up — the owning lane takes it before new work.
+  behavior. A factual error is fixed in the PR that finds it when it lies in that PR's files —
+  still blocking its merge; one elsewhere is filed per Decision rights as a blocking follow-up
+  the owning lane takes next.
 - **A change that cannot test itself carries only the fix, no cleanup.** The review action skips any
   run whose workflow file differs from `main`, so a workflow PR is first exercised by the PR after
   it — anything riding along lands unproven (the lesson of #18, paid for in #20).
@@ -81,15 +83,22 @@ user-visible trigger under Decision rights tests against. Two standing rules gov
 This replaces per-round check-ins — the prior practice of pausing for the owner after every
 review round. Plan gates, closure declarations, and merges remain the owner's alone.
 
+**Precedence — when two rules apply:** an owner ruling on the specific item; then the PR's own
+plan-gate approval or closure declaration; then a rule naming the case; then the proceed list;
+then the stop-and-queue list; then the catch-all, which applies only when nothing above
+matches.
+
 **Proceed without asking (log on the PR thread, don't ask):** review-round triage — closure
 changes what a finding becomes (follow-up Issue vs blocking factual error), never whether triage
 proceeds; thread reconciliation with dispositions; filing follow-up Issues; branch updates and
 changelog conflicts in the known ordering; retriggering CI; fixes to factual errors within the
 approved design and budget; cleanup PRs that only bundle owner-filed or owner-routed
-follow-ups, ≤50 implementation lines — pre-approved by those Issues, which are jointly the
-PR's originating Issue and its scope, so the plan gate is satisfied by reference; an
-agent-filed Issue declares its origin in its first line, and the owner's routing comment is
-what makes it bundle-eligible. Growth past the cap is a budget change: stop and re-gate.
+follow-ups, ≤50 implementation lines — pre-approved by the routed Issues that fill them, which
+are jointly the PR's originating Issue and its scope, so the plan gate is satisfied by
+reference; their user-visible edits inherit that approval — the mockup default does not apply
+to a cleanup PR; an agent-filed Issue declares its origin in its first line, and the owner's
+routing comment is what makes it bundle-eligible. Growth past the cap is a budget change: stop
+and re-gate.
 
 **Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with
 options and a recommendation; batch — the queued item itself stops and waits; only unrelated
@@ -100,13 +109,18 @@ referent), including on-screen wording; scope adds or cuts; data provenance,
 privacy, licensing, new dependencies, any new network call; design or budget changes mid-build
 (the existing re-gate rule); conflicts between doc rules; changes to the review tooling — the
 AI model or the workflows; anything where two rulings could plausibly apply. The owner answers
-the queue in batches via notifications. An on-screen factual error is fixed in the PR that
-finds it when the error lies in that PR's files; otherwise it is filed as a blocking follow-up
-that the owning lane takes next.
+the queue in batches via notifications. A factual error — on-screen or not — is fixed in the
+PR that finds it when it lies in that PR's files; otherwise it is filed as a blocking
+follow-up that the owning lane takes next. A lane whose entire open PR is blocked on the queue
+waits; idle is acceptable.
 
 **Thread resolution:** the lane may resolve any review thread whose reply cites an owner
 ruling by ID — a queue entry, a closure declaration, or a ruling recorded on an Issue. The
 owner resolves only threads whose disposition is the lane's own judgment.
+
+**Cadence:** governance text is revised in batches. Review findings against it after a
+governance PR's declared last round file to the standing **Governance revisions** Issue —
+**#45** — and are applied in the next governance PR, never per-round.
 
 ### Lanes
 
@@ -115,12 +129,13 @@ working tree.
 
 - **Max one open PR per lane.**
 - **Lanes own disjoint surfaces by default — the shared surfaces excepted: `README.md`'s
-  diagram, `docs/mvp-scope.md`'s changelog, and its §11 plan-row table.** Feature surfaces
-  belong to Lane A; scripts and docs belong to Lane B — but each lane owns the doc edits its
-  own PRs entail: the diagram update the conventions require, and the changelog entry and §11
-  plan row that record the PR; Lane B owns doc-only PRs. Ownership of specific files follows
-  the routed Issue: the lane holding the Issue owns every file its fix touches — the other
-  lane's named surface included — for the duration of that PR; no standing file census. New
+  diagram, `docs/mvp-scope.md`'s changelog, and its §11 plan-row table.** The surface split —
+  feature surfaces to Lane A, scripts and docs to Lane B, doc-only PRs to Lane B — is a
+  routing default, and each lane owns the doc edits its own PRs entail: the diagram update the
+  conventions require, and the changelog entry and §11 plan row that record the PR. Ownership
+  of specific files follows the routed Issue: the lane holding the Issue owns every file its
+  fix touches — the other lane's named surface included — for the duration of that PR; routing
+  beats default; no standing file census. New
   files belong to the lane whose PR creates them, under that PR's routed Issue. A file both
   lanes need — new or existing — is claimed on the adjudication queue. Overlap reconciles at
   merge: the lane whose PR merges second reconciles — the changelog in its known ordering, the
@@ -128,9 +143,8 @@ working tree.
 - **`docs/mvp-scope.md` changelog edits happen only while the PR they record is open — the
   entry belongs to that PR, created at open or at the re-gate that earns it, and amendable
   while its review runs — or at merge-time conflict resolution in the known ordering**
-  (current-AO statement first, then entries by version number newest first, then the record
-  from v2 ascending; whoever adds an entry maintains the lead sentence's wording as part of
-  the edit).
+  (current-AO statement first, then one list in version order, newest first; whoever adds an
+  entry maintains the lead sentence's wording as part of the edit).
 - **The adjudication queue serves both lanes.**
 
 ## Architecture notes
