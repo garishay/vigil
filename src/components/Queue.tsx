@@ -18,10 +18,18 @@ import type { RankedTrack } from '../lib/ranking'
 export function Queue({
   ranked,
   selectedId = null,
+  restoreFocus = true,
   onSelect,
 }: {
   ranked: RankedTrack[]
   selectedId?: string | null
+  /**
+   * Whether a cleared selection returns focus to its row. The caller passes `false` for a
+   * pointer-driven close — the effect below cannot see the click, and a mouse user parked on a
+   * row would have Space re-select it instead of scrolling (03b round 6, #54). Focus then goes
+   * to the list instead, which has no activation to misfire and keeps the operator's place.
+   */
+  restoreFocus?: boolean
   onSelect?: (id: string) => void
 }) {
   const listRef = useRef<HTMLOListElement>(null)
@@ -38,18 +46,22 @@ export function Queue({
 
   // A keyboard operator who closes the drawer must not be dropped on document.body: focus
   // returns to the row that anchored the selection, or to the list itself when that row is
-  // filtered out. (Closing from the Review surface, where this list is unmounted, still falls
-  // to body — 03b's selection ruling changed no mounting, so that gap is #46's.)
+  // filtered out. A pointer-driven close skips the row and takes the list — `restoreFocus`
+  // carries the modality gate the drawer and Review already apply, and only the row has an
+  // activation for Space to misfire (#54, shape from its review). (Closing from the Review
+  // surface, where this list is unmounted, is App's to catch — the Review nav item, #46.)
   const previousSelectedRef = useRef<string | null>(null)
   useEffect(() => {
     const previous = previousSelectedRef.current
     previousSelectedRef.current = selectedId
     if (selectedId || !previous) return
-    const row = listRef.current?.querySelector<HTMLButtonElement>(
-      `[data-id="${CSS.escape(previous)}"] button`,
-    )
+    const row = restoreFocus
+      ? listRef.current?.querySelector<HTMLButtonElement>(
+          `[data-id="${CSS.escape(previous)}"] button`,
+        )
+      : null
     ;(row ?? listRef.current)?.focus?.()
-  }, [selectedId])
+  }, [selectedId, restoreFocus])
 
   return (
     <ol className="queue" aria-label="Ranked queue" ref={listRef} tabIndex={-1}>

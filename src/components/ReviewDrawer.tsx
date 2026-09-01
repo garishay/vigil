@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { IdentityDot } from './IdentityDot'
 import { TrackVisuals } from './TrackVisuals'
 import type { ProtectedSite } from '../config/ao'
@@ -115,7 +115,8 @@ export function ReviewDrawer({
     action: LifecycleAction,
     detail?: { recipient?: ContactId; disposition?: DispositionId },
   ) => void
-  onClose: () => void
+  /** Receives the click, so the caller can read its modality (`detail`) before moving focus. */
+  onClose: (event: MouseEvent<HTMLButtonElement>) => void
 }) {
   const { track, rank, rangeM } = entry
   const status = statusOf(log)
