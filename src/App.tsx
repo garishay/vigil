@@ -119,8 +119,10 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
     ? (ranked.find((entry) => entry.track.id === selectedId) ?? null)
     : null
 
-  // Every track's log opens with a synthetic first-seen entry, stamped once at startup.
-  const openedAt = useMemo(() => now(), [now])
+  // Every track's log opens with a synthetic first-seen entry, stamped once at startup. Lazy
+  // useState, not useMemo: the default `now` prop is a fresh function each render, so a memo
+  // keyed on it would re-stamp first sight with every render (review finding on #47).
+  const [openedAt] = useState(now)
   const logFor = (entry: RankedTrack): TrackEvent[] =>
     eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), openedAt)
 

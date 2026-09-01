@@ -157,14 +157,19 @@ export function ReviewDrawer({
 
   const copy = async () => {
     if (handoff === null) return
+    let copied: boolean
     try {
       await navigator.clipboard.writeText(handoff)
+      copied = true
     } catch {
       // No clipboard API (or permission refused): select the visible textarea and copy that.
+      // The selection stands either way, so a manual Ctrl+C works when even this path fails.
       handoffRef.current?.select()
-      document.execCommand?.('copy')
+      copied = document.execCommand?.('copy') ?? false
     }
-    setCopiedText(handoff)
+    // "Copied" only when a copy actually happened — a false claim here puts stale clipboard
+    // content into an escalation (review finding on #47).
+    setCopiedText(copied ? handoff : null)
   }
 
   return (

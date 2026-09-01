@@ -254,7 +254,7 @@ describe('App shell', () => {
     // Every track opened its log as New, with the injected clock in the first-seen entry.
     expect(within(status()).getByText('New')).toBeInTheDocument()
     expect(within(drawer()).getByText('New — first seen')).toBeInTheDocument()
-    expect(within(drawer()).getByText('12:04:31')).toBeInTheDocument()
+    expect(within(drawer()).getByText('12:04:31Z')).toBeInTheDocument()
 
     fireEvent.click(within(drawer()).getByRole('button', { name: 'Assess' }))
     expect(within(status()).getByText('Assessing')).toBeInTheDocument()
@@ -275,12 +275,25 @@ describe('App shell', () => {
       expect(within(drawer()).getByRole('button', { name })).toBeDisabled()
     // The record kept every step, oldest first.
     const lines = within(within(drawer()).getByLabelText('Event log')).getAllByRole('listitem')
-    expect(lines.map((line) => line.textContent?.slice(8))).toEqual([
+    expect(lines.map((line) => line.textContent?.slice(9))).toEqual([
       'New — first seen',
       'Assessing — claimed',
       'Escalated — to PHL Tower',
       'Resolved — Benign',
     ])
+  })
+
+  it('stamps first sight once, not per render (03b review fix)', () => {
+    // The default `now` prop is a fresh function identity each render, so first-seen must not
+    // ride a memo keyed on it: even a *replaced* clock may not restamp the opening entry.
+    const { rerender } = render(<App now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    rerender(<App now={() => '2026-09-01T13:00:00.000Z'} />)
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
+    const drawer = screen.getByLabelText(/^Track review: /)
+    expect(within(drawer).getByText('12:04:31Z')).toBeInTheDocument()
+    expect(within(drawer).queryByText('13:00:00Z')).not.toBeInTheDocument()
   })
 
   it('filters by state with global ranks kept, composing with the layer filter (03b)', () => {

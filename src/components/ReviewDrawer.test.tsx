@@ -266,9 +266,9 @@ describe('ReviewDrawer', () => {
       .getAllByRole('listitem')
       .map((item) => item.textContent)
     expect(lines).toEqual([
-      '12:04:31New — first seen',
-      '12:06:02Assessing — claimed',
-      '12:07:45Escalated — to PHL Tower',
+      '12:04:31ZNew — first seen',
+      '12:06:02ZAssessing — claimed',
+      '12:07:45ZEscalated — to PHL Tower',
     ])
   })
 
@@ -301,11 +301,26 @@ describe('ReviewDrawer', () => {
     expect(writeText).toHaveBeenCalledWith(text.value)
   })
 
-  it('confirms the copy even where the clipboard API is unavailable (03b)', async () => {
+  it('confirms through the execCommand fallback where the clipboard API is unavailable (03b)', async () => {
     const ranked = entry(SILENT, 1, 7200.2)
     // jsdom has no navigator.clipboard by default — this is the fallback environment itself.
+    const execCommand = vi.fn().mockReturnValue(true)
+    Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true })
     renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument())
+    expect(execCommand).toHaveBeenCalledWith('copy')
+    Reflect.deleteProperty(document, 'execCommand')
+  })
+
+  it('never claims a copy that failed — the text stays selected for a manual Ctrl+C (03b)', async () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    // Neither clipboard API nor execCommand exists: the button must not read "Copied".
+    renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    const handoff = screen.getByLabelText('Handoff text') as HTMLTextAreaElement
+    await waitFor(() => expect(handoff.selectionEnd).toBe(handoff.value.length))
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeInTheDocument()
   })
 })

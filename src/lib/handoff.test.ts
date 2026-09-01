@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { AO } from '../config/ao'
 import { CONTACTS } from '../config/contacts'
 import { DISPOSITIONS } from '../config/dispositions'
 import { handoffText } from './handoff'
@@ -65,45 +66,48 @@ describe('handoffText', () => {
         '  63 ft · 19.1 kt · hdg 346',
         'Score: — (scoring engine arrives in PR 04)',
         'Timeline:',
-        '  12:04:31  New — first seen',
-        '  12:06:02  Assessing — claimed',
-        '  12:07:45  Escalated — to PHL Tower',
+        '  12:04:31Z  New — first seen',
+        '  12:06:02Z  Assessing — claimed',
+        '  12:07:45Z  Escalated — to PHL Tower',
       ].join('\n'),
     )
   })
 
   it('keeps every line within the measured 26 rem fit, for every configured contact and disposition (#36 [5])', () => {
-    // 52 characters is the measured fit of the drawer's handoff block at 26 rem in 12 px mono.
-    // This pin is what keeps the re-gate closed: a longer contact name, a new disposition, or a
-    // PR 04 factor line that overflows the column fails here, not on screen.
-    const MAX_LINE = 52
-    for (const contact of CONTACTS) {
-      for (const disposition of DISPOSITIONS) {
-        const ranked = entry(INJECT)
-        const observed = observedSnapshot(ranked)
-        let log = firstSeen(ranked.track.id, observed, '2026-09-01T12:04:31.000Z')
-        log = appendEvent(log, 'assess', { at: '2026-09-01T12:06:02.000Z', tSec: 0, observed })
-        log = appendEvent(log, 'escalate', {
-          at: '2026-09-01T12:07:45.000Z',
-          tSec: 0,
-          observed,
-          recipient: contact.id,
-        })
-        log = appendEvent(log, 'resolve', {
-          at: '2026-09-01T12:09:12.000Z',
-          tSec: 0,
-          observed,
-          disposition: disposition.id,
-        })
-        const summary = handoffText({
-          entry: ranked,
-          siteName: 'PHL Airfield',
-          recipient: contact,
-          log,
-          contacts: CONTACTS,
-          dispositions: DISPOSITIONS,
-        })
-        for (const line of summary.split('\n')) expect(line.length).toBeLessThanOrEqual(MAX_LINE)
+    // 53 characters is the measured fit of the drawer's handoff block at 26 rem in 12 px mono
+    // (re-measured with the Z-marked clock). This pin is what keeps the re-gate closed: a longer
+    // contact name, site name, new disposition, or a PR 04 factor line that overflows the column
+    // fails here, not on screen. Sites sweep the AO config too — the range line carries them.
+    const MAX_LINE = 53
+    for (const site of AO.protectedSites) {
+      for (const contact of CONTACTS) {
+        for (const disposition of DISPOSITIONS) {
+          const ranked = entry(INJECT)
+          const observed = observedSnapshot(ranked)
+          let log = firstSeen(ranked.track.id, observed, '2026-09-01T12:04:31.000Z')
+          log = appendEvent(log, 'assess', { at: '2026-09-01T12:06:02.000Z', tSec: 0, observed })
+          log = appendEvent(log, 'escalate', {
+            at: '2026-09-01T12:07:45.000Z',
+            tSec: 0,
+            observed,
+            recipient: contact.id,
+          })
+          log = appendEvent(log, 'resolve', {
+            at: '2026-09-01T12:09:12.000Z',
+            tSec: 0,
+            observed,
+            disposition: disposition.id,
+          })
+          const summary = handoffText({
+            entry: { ...ranked, rangeM: 19700.4 },
+            siteName: site.name,
+            recipient: contact,
+            log,
+            contacts: CONTACTS,
+            dispositions: DISPOSITIONS,
+          })
+          for (const line of summary.split('\n')) expect(line.length).toBeLessThanOrEqual(MAX_LINE)
+        }
       }
     }
   })
@@ -116,7 +120,7 @@ describe('handoffText', () => {
       observed: observedSnapshot(ranked),
       disposition: 'handled-by-target',
     })
-    expect(text(ranked, log)).toContain('  12:09:12  Resolved — Handled by escalation target')
+    expect(text(ranked, log)).toContain('  12:09:12Z  Resolved — Handled by escalation target')
   })
 
   it('dashes an absent kinematic, never a zero (#35)', () => {
