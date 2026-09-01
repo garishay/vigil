@@ -296,7 +296,7 @@
 
 .chips {
   display: flex;
-  /* Wraps, as the approved mockup draws it: six state chips outrun the 22 rem rail, and an
+  /* Wraps, as the approved mockup draws it: seven state chips outrun the 22 rem rail, and an
      unwrapped row hides the last of them behind a horizontal scrollbar (#47 review). */
   flex-wrap: wrap;
   gap: 0.375rem;
