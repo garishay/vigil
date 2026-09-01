@@ -77,7 +77,13 @@ async function fetchPhoto(hex: string, fetcher: typeof fetch): Promise<Photo | n
       throw new Error(`photo lookup answered HTTP ${response.status}`)
     }
     if (!response.ok) return null
-    return firstPhoto(await response.json().catch(() => null))
+    // A body that is not JSON is a definitive answer; an abort or a connection dropped mid-body
+    // says nothing about the hex and stays transient (review round 1).
+    const body: unknown = await response.json().catch((error: unknown) => {
+      if (error instanceof SyntaxError && !controller.signal.aborted) return null
+      throw error
+    })
+    return firstPhoto(body)
   } finally {
     clearTimeout(timer)
   }
@@ -101,8 +107,13 @@ function firstPhoto(body: unknown): Photo | null {
     return null
   }
   if (typeof width !== 'number' || typeof height !== 'number') return null
+  // Both become live URLs on the page — an `href` and an image source. Whatever the body
+  // claims, only an https URL is a photo page or a thumbnail; anything else fails soft.
+  if (!isHttps(link) || !isHttps(src)) return null
   return { src, width, height, link, photographer }
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
+
+const isHttps = (url: string): boolean => /^https:\/\//i.test(url)

@@ -127,6 +127,34 @@ describe('TrackVisuals — the photo tier (03d)', () => {
     expect(silhouette()).not.toBeNull()
   })
 
+  // Review round 1: the hook guards this itself; App's per-track key is a convention, not the rule.
+  it('drops the last track’s photo the moment the track changes, inject or ADS-B', async () => {
+    const lookup = resolved(PHOTO)
+    const { rerender } = render(<TrackVisuals track={DAL989} lookupPhoto={lookup} />)
+    await screen.findByRole('link', { name: '© OMGcat · Planespotters.net' })
+
+    // Same instance, now an inject: no photo may sit above an inject's class line, ever.
+    rerender(<TrackVisuals track={HEARD} lookupPhoto={lookup} />)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(silhouette()).not.toBeNull()
+    expect(screen.getByText('Small multirotor')).toBeInTheDocument()
+    expect(lookup).toHaveBeenCalledTimes(1)
+
+    // Back to an ADS-B track whose lookup is still pending: the silhouette, not the old photo.
+    const pending: PhotoLookup = vi.fn(() => new Promise<Photo | null>(() => {}))
+    rerender(<TrackVisuals track={DAL989} lookupPhoto={lookup} />)
+    await screen.findByRole('link', { name: '© OMGcat · Planespotters.net' })
+    rerender(
+      <TrackVisuals
+        track={{ ...DAL989, id: 'adsb-c00b80', icaoHex: 'c00b80' }}
+        lookupPhoto={pending}
+      />,
+    )
+    expect(pending).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(silhouette()).not.toBeNull()
+  })
+
   it('asks once per mount under StrictMode — the cache, not the hook, de-duplicates', async () => {
     const lookup = resolved(PHOTO)
     render(

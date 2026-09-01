@@ -87,6 +87,19 @@ describe('lookupPhoto', () => {
     ],
     ['an entry with no page to link', { photos: [{ ...HIT.photos[0], link: undefined }] }],
     ['an entry with no thumbnail', { photos: [{ ...HIT.photos[0], thumbnail: null }] }],
+    // Review round 1: the link becomes an `href` and the src an image source — only https.
+    [
+      'a link that is not an https URL',
+      { photos: [{ ...HIT.photos[0], link: 'javascript:alert(document.cookie)' }] },
+    ],
+    [
+      'a thumbnail that is not an https URL',
+      {
+        photos: [
+          { ...HIT.photos[0], thumbnail: { ...HIT.photos[0].thumbnail, src: 'http://x/1.jpg' } },
+        ],
+      },
+    ],
   ])('answers null for %s', async (_case, body) => {
     await expect(lookupPhoto(DAL989, respondWith(body))).resolves.toBeNull()
   })
@@ -195,6 +208,53 @@ describe('lookupPhoto', () => {
       await vi.advanceTimersByTimeAsync(5000)
       await expect(second).resolves.toBeNull()
       expect(stalled).toHaveBeenCalledTimes(2)
+    })
+
+    // Review round 1: headers arrived, then the body stalled past the timer, or the connection
+    // dropped mid-body. Neither says anything about the hex; only a body that is not JSON does.
+    it('does not remember a timeout or a drop during the body read either', async () => {
+      vi.useFakeTimers()
+      const bodyStalls = vi.fn(
+        async (_url: string, init?: RequestInit) =>
+          ({
+            ok: true,
+            status: 200,
+            json: () =>
+              new Promise<never>((_resolve, reject) => {
+                init?.signal?.addEventListener('abort', () =>
+                  reject(new DOMException('', 'AbortError')),
+                )
+              }),
+          }) as unknown as Response,
+      ) as unknown as typeof fetch
+      const first = lookupPhoto(DAL989, bodyStalls)
+      await vi.advanceTimersByTimeAsync(5000)
+      await expect(first).resolves.toBeNull()
+      const second = lookupPhoto(DAL989, bodyStalls)
+      await vi.advanceTimersByTimeAsync(5000)
+      await expect(second).resolves.toBeNull()
+      expect(bodyStalls).toHaveBeenCalledTimes(2)
+
+      clearPhotoCache()
+      const bodyDrops = vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => {
+              throw new TypeError('terminated')
+            },
+          }) as unknown as Response,
+      ) as unknown as typeof fetch
+      await expect(lookupPhoto(DAL989, bodyDrops)).resolves.toBeNull()
+      await lookupPhoto(DAL989, bodyDrops)
+      expect(bodyDrops).toHaveBeenCalledTimes(2)
+
+      clearPhotoCache()
+      const notJson = respondWith(undefined)
+      await lookupPhoto(DAL989, notJson)
+      await lookupPhoto(DAL989, notJson)
+      expect(notJson).toHaveBeenCalledTimes(1)
     })
 
     it('is cleared for tests, and only for tests — nothing is persisted', async () => {
