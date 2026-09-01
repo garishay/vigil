@@ -8,6 +8,7 @@ import { CONTACTS, type ContactId } from './config/contacts'
 import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { SCENARIO } from './config/scenario'
 import { frameTracks } from './data/capture'
+import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useCapture } from './data/useCapture'
 import { injectTracksAt, planScenario } from './lib/injects'
 import {
@@ -63,8 +64,13 @@ const STATE_FILTERS: { id: StateFilter; label: string }[] = [
 /**
  * `now` is the clock seam: lifecycle events take `at` and `tSec` as inputs, App supplies them,
  * and tests fix them. PR 06 swaps this wall-clock supplier for playback time with no rewiring.
+ * `lookupPhoto` is the network seam (03d): the one runtime third-party call, injected the way
+ * the capture's fetcher is, so no test reaches the network.
  */
-export default function App({ now = () => new Date().toISOString() }: { now?: () => string } = {}) {
+export default function App({
+  now = () => new Date().toISOString(),
+  lookupPhoto = defaultLookupPhoto,
+}: { now?: () => string; lookupPhoto?: PhotoLookup } = {}) {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
   const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
   const capture = useCapture()
@@ -182,6 +188,7 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
       contacts={CONTACTS}
       dispositions={DISPOSITIONS}
       onAction={act}
+      lookupPhoto={lookupPhoto}
       onClose={(event) => {
         const keyboard = event.detail === 0
         setKeyboardClose(keyboard)

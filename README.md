@@ -62,7 +62,7 @@ flowchart LR
     model -.-> score
     workcfg --> hand
   end
-  photos["data/photos.ts — 03d<br/>one photo per opened ADS-B track<br/>runtime lookup, fails soft to the silhouette"]
+  photos["data/photos.ts + usePhoto<br/>one photo per opened ADS-B track, by hex<br/>runtime lookup · session cache · fails soft to the silhouette"]
   fx -. fetched at startup .-> load
   gen --> goldgen
   goldgen -. pins .-> gold
@@ -73,7 +73,7 @@ flowchart LR
     app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context"]
-    review["components/ReviewDrawer.tsx + TrackVisuals<br/>one track — observed or derived<br/>silhouette by class · selection synced with the map<br/>lifecycle actions · event log · handoff"]
+    review["components/ReviewDrawer.tsx + TrackVisuals<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>lifecycle actions · event log · handoff"]
     clock["Playback clock — PR 06"]
     app --> queue
     app --> map
@@ -91,7 +91,7 @@ flowchart LR
   photos -. fetched on open .-> review
   score -.-> app
   classDef planned stroke-dasharray: 6 4,fill:none;
-  class score,clock,photos planned;
+  class score,clock planned;
 ```
 
 ---

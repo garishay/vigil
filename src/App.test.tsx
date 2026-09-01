@@ -38,10 +38,15 @@ vi.mock('./components/MapView', () => ({
   ),
 }))
 
-const { useCapture, planScenario } = vi.hoisted(() => ({
+const { useCapture, planScenario, lookupPhoto } = vi.hoisted(() => ({
   useCapture: vi.fn(),
   planScenario: vi.fn(),
+  lookupPhoto: vi.fn(),
 }))
+
+// The photo lookup is the one runtime network call; stubbed at the module App defaults to, so no
+// test here — whichever row it opens — can reach Planespotters. photos.test.ts covers the real one.
+vi.mock('./data/photos', () => ({ lookupPhoto }))
 
 // The generator runs for real; the spy is only here to check what timeline App hands it.
 vi.mock('./lib/injects', async (importOriginal) => {
@@ -73,6 +78,8 @@ const READY: CaptureState = {
 
 beforeEach(() => {
   useCapture.mockReturnValue(READY)
+  lookupPhoto.mockReset()
+  lookupPhoto.mockResolvedValue(null)
 })
 
 describe('App shell', () => {
@@ -487,5 +494,41 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { name: 'Track review' })).toBeInTheDocument()
 
     expect(screen.getByTestId('map')).toBe(map)
+  })
+
+  it('looks up the photo for the opened ADS-B track, and shows it credited in the drawer (03d)', async () => {
+    lookupPhoto.mockResolvedValue({
+      src: 'https://t.plnspttrs.net/1/1_t.jpg',
+      width: 200,
+      height: 133,
+      link: 'https://www.planespotters.net/photo/1/n123?utm_source=api',
+      photographer: 'Tester',
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
+    // The nearer of the two ADS-B tracks ranks first; the lookup gets that track, once.
+    expect(lookupPhoto).toHaveBeenCalledTimes(1)
+    expect(lookupPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'adsb', icaoHex: 'a06461' }),
+    )
+    const link = await screen.findByRole('link', { name: '© Tester · Planespotters.net' })
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.planespotters.net/photo/1/n123?utm_source=api',
+    )
+    // Nowhere else: the Queue row never shows a photo, a credit, or a link (§2).
+    expect(within(queue).queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('never looks up a photo for an inject (03d)', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByTestId('map-select'))
+    expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
+    await act(async () => {})
+    expect(lookupPhoto).not.toHaveBeenCalled()
   })
 })

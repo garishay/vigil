@@ -4,6 +4,7 @@ import { TrackVisuals } from './TrackVisuals'
 import type { ProtectedSite } from '../config/ao'
 import type { ContactId } from '../config/contacts'
 import type { DispositionId } from '../config/dispositions'
+import type { PhotoLookup } from '../data/photos'
 import { describeCategory } from '../lib/airframe'
 import {
   LAYER_BADGE,
@@ -105,6 +106,7 @@ export function ReviewDrawer({
   dispositions,
   onAction,
   onClose,
+  lookupPhoto,
 }: {
   entry: RankedTrack
   sites: ProtectedSite[]
@@ -117,6 +119,8 @@ export function ReviewDrawer({
   ) => void
   /** Receives the click, so the caller can read its modality (`detail`) before moving focus. */
   onClose: (event: MouseEvent<HTMLButtonElement>) => void
+  /** The photo tier's lookup (03d), injected so no test reaches the network. */
+  lookupPhoto: PhotoLookup
 }) {
   const { track, rank, rangeM } = entry
   const status = statusOf(log)
@@ -268,7 +272,7 @@ export function ReviewDrawer({
         </button>
       </header>
 
-      <TrackVisuals track={track} />
+      <TrackVisuals track={track} lookupPhoto={lookupPhoto} />
 
       <dl className="drawer__kinematics">
         {rows.map((row) => (
