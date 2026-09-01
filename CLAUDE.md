@@ -98,8 +98,13 @@ user-visible change), including on-screen wording; scope adds or cuts; data prov
 privacy, licensing, new dependencies, any new network call; design or budget changes mid-build
 (the existing re-gate rule); conflicts between doc rules; changes to the review tooling — the
 AI model or the workflows; anything where two rulings could plausibly apply. The owner answers
-the queue in batches via notifications. An on-screen factual error is never a queue item:
-within the approved design and budget, it is fixed regardless of surface.
+the queue in batches via notifications. An on-screen factual error is fixed in the PR that
+finds it when the error lies in that PR's files; otherwise it is filed as a blocking follow-up
+that the owning lane takes next.
+
+**Thread resolution:** the lane may resolve any review thread whose reply cites an owner
+ruling by ID — a queue entry, a closure declaration, or a ruling recorded on an Issue. The
+owner resolves only threads whose disposition is the lane's own judgment.
 
 ### Lanes
 
@@ -107,17 +112,17 @@ Work runs in parallel lanes, one session and one git worktree per lane — sessi
 working tree.
 
 - **Max one open PR per lane.**
-- **Lanes own disjoint files — the two shared docs excepted: `README.md`'s diagram and
-  `docs/mvp-scope.md`'s changelog.** Feature surfaces belong to Lane A; scripts and docs belong
-  to Lane B — but each lane owns the doc edits its own PRs entail: the diagram update the
-  conventions require, and the changelog entry and §11 plan row that record the PR; Lane B
-  owns doc-only PRs. Ownership follows the routed Issue: the lane holding the Issue owns every
-  file its fix touches — the other lane's named surface included — for the duration of that
-  PR; no standing file census. A file no routed Issue names is claimed on the adjudication
-  queue before either lane touches it. A collision — in the two shared docs, or in a file two
-  routed Issues both touch — resolves at merge time: the lane whose PR merges second
-  reconciles, the changelog in its known ordering, the diagram by redrawing over the merged
-  picture.
+- **Lanes own disjoint surfaces by default — the shared surfaces excepted: `README.md`'s
+  diagram, `docs/mvp-scope.md`'s changelog, and its §11 plan-row table.** Feature surfaces
+  belong to Lane A; scripts and docs belong to Lane B — but each lane owns the doc edits its
+  own PRs entail: the diagram update the conventions require, and the changelog entry and §11
+  plan row that record the PR; Lane B owns doc-only PRs. Ownership of specific files follows
+  the routed Issue: the lane holding the Issue owns every file its fix touches — the other
+  lane's named surface included — for the duration of that PR; no standing file census. New
+  files belong to the lane whose PR creates them, under that PR's routed Issue; only a file
+  both lanes need is claimed on the adjudication queue. Overlap reconciles at merge: the lane
+  whose PR merges second reconciles — the changelog in its known ordering, the diagram by
+  redrawing over the merged picture, §11 rows ordered by PR number.
 - **`docs/mvp-scope.md` changelog edits happen only while the PR they record is open — the
   entry belongs to that PR, created at open or at the re-gate that earns it, and amendable
   while its review runs — or at merge-time conflict resolution in the known ordering**
