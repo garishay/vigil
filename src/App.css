@@ -224,8 +224,14 @@
   color: var(--text);
 }
 
-/* The lifecycle tag (03e): the badge, upper-cased the way the drawer's status row is. */
+/*
+ * The lifecycle tag (03e): the badge, upper-cased the way the drawer's status row is. The raised
+ * fill is what makes a badge read as one — the bare --line border is near-invisible on the row,
+ * which is why INJECT carries the fill too. Neutral for every state (#48 ruling on assumption 2).
+ */
 .queue__badge--state {
+  background: var(--panel-raised);
+  color: var(--text);
   text-transform: uppercase;
 }
 
