@@ -132,14 +132,17 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
     detail?: { recipient?: ContactId; disposition?: DispositionId },
   ) => {
     if (!selected) return
+    const at = now()
     setEventLogs((logs) => ({
       ...logs,
-      [selected.track.id]: appendEvent(logFor(selected), action, {
-        at: now(),
-        tSec: 0,
-        observed: observedSnapshot(selected),
-        ...detail,
-      }),
+      // Read the log from the updater's own argument, never the render closure: two actions
+      // batched into one commit must chain, not overwrite each other (#47 review).
+      [selected.track.id]: appendEvent(
+        logs[selected.track.id] ??
+          firstSeen(selected.track.id, observedSnapshot(selected), openedAt),
+        action,
+        { at, tSec: 0, observed: observedSnapshot(selected), ...detail },
+      ),
     }))
   }
 
@@ -266,8 +269,10 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
           injects={injects}
           // Ruled A2 on #3: the selection persists across surface switches, but Home's map is
           // unannotated context — it never shows the ring, so no surface carries selection
-          // state it cannot explain.
-          selectedId={surfaceId === 'home' ? null : selectedId}
+          // state it cannot explain. The suppression is presentation-only (`selectionShown`),
+          // so a Home round trip cannot reset the ease stamp and re-fly the camera (#47).
+          selectedId={selectedId}
+          selectionShown={surfaceId !== 'home'}
           onSelect={(id) => {
             setSelectedId(id)
             // The other direction of the same ruling: a selection is an intent to review, so one

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
@@ -12,11 +12,13 @@ vi.mock('./components/MapView', () => ({
     tracks,
     injects,
     selectedId,
+    selectionShown = true,
     onSelect,
   }: {
     tracks?: { id: string }[]
     injects?: { id: string }[]
     selectedId?: string | null
+    selectionShown?: boolean
     onSelect?: (id: string) => void
   }) => (
     <div
@@ -24,6 +26,7 @@ vi.mock('./components/MapView', () => ({
       data-tracks={tracks?.length ?? 0}
       data-injects={injects?.length ?? 0}
       data-selected={selectedId ?? ''}
+      data-selection-shown={String(selectionShown)}
     >
       {/* Stands in for a dot click: selects the first inject, like the real map would. */}
       <button
@@ -328,13 +331,38 @@ describe('App shell', () => {
     fireEvent.click(screen.getByTestId('map-select'))
     const selected = screen.getByTestId('map').getAttribute('data-selected')
     expect(selected).not.toBe('')
+    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('true')
 
-    // Home: the map drops its selection annotation; the selection itself survives the visit.
+    // Home: the ring is suppressed as presentation, but the selection itself still reaches the
+    // map — nulling it instead would reset the ease stamp and re-fly the camera (#47 review).
     fireEvent.click(screen.getByRole('button', { name: 'Home' }))
-    expect(screen.getByTestId('map').getAttribute('data-selected')).toBe('')
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     expect(screen.getByTestId('map').getAttribute('data-selected')).toBe(selected)
+    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('false')
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('true')
     expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
+  })
+
+  it('chains actions batched into one commit instead of overwriting (03b review fix)', () => {
+    render(<App now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
+    const drawer = screen.getByLabelText(/^Track review: /)
+    const assess = within(drawer).getByRole('button', { name: 'Assess' })
+    const dismiss = within(drawer).getByRole('button', { name: 'Dismiss' })
+    // Both clicks land in one React commit: the second updater must see the first's event, so
+    // the log chains New → Assessing → Dismissed rather than losing the claim (#47 review).
+    act(() => {
+      assess.click()
+      dismiss.click()
+    })
+    const lines = within(within(drawer).getByLabelText('Event log')).getAllByRole('listitem')
+    expect(lines.map((line) => line.textContent?.slice(9))).toEqual([
+      'New — first seen',
+      'Assessing — claimed',
+      'Dismissed',
+    ])
   })
 
   it('renders the Review surface at the drawer column width (03b, ruled B1 on #3)', () => {

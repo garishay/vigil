@@ -92,6 +92,9 @@ const renderDrawer = (
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  // jsdom ships no execCommand; tests that stub one must not leak it into tests written
+  // against its absence — cleaned here so a mid-test failure cannot cascade (#47 review).
+  Reflect.deleteProperty(document, 'execCommand')
 })
 
 describe('ReviewDrawer', () => {
@@ -310,7 +313,20 @@ describe('ReviewDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument())
     expect(execCommand).toHaveBeenCalledWith('copy')
-    Reflect.deleteProperty(document, 'execCommand')
+  })
+
+  it('falls back when the clipboard API rejects asynchronously, not only when absent (03b)', async () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    // The secure-context denial shape: writeText exists and rejects from a microtask.
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'))
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+    const execCommand = vi.fn().mockReturnValue(true)
+    Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true })
+    renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument())
+    expect(writeText).toHaveBeenCalled()
+    expect(execCommand).toHaveBeenCalledWith('copy')
   })
 
   it('never claims a copy that failed — the text stays selected for a manual Ctrl+C (03b)', async () => {
