@@ -134,12 +134,12 @@ describe('parseArgs', () => {
     // suite could not reach: `--minutes 0.1` is positive, rounds to zero frames, and a zero-frame
     // run made `missing / 0` NaN, walked past the gappiness guard, and overwrote the committed
     // recording with an empty capture.
-    expect(() => parseArgs(['--minutes', '0.1'])).toThrow(/describes no whole frame/)
+    expect(() => parseArgs(['--minutes', '0.1'])).toThrow(/gives 0 frames/)
     // The unbounded-poll half: Infinity is > 0 and used to pass a positivity check, and `1e308`
     // is finite until multiplied by 60 — both make the frame count non-finite.
-    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/describes no whole frame/)
-    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/describes no whole frame/)
-    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/describes no whole frame/)
+    expect(() => parseArgs(['--minutes', '1e400'])).toThrow(/gives Infinity frames/)
+    expect(() => parseArgs(['--minutes', '1e308'])).toThrow(/gives Infinity frames/)
+    expect(() => parseArgs(['--interval', 'abc'])).toThrow(/gives NaN frames/)
     // Still accepts the windows it should, including a sub-minute one that does round to a frame.
     expect(parseArgs(['--minutes', '0.5']).minutes).toBe(0.5)
   })

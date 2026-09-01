@@ -99,11 +99,13 @@ export function parseArgs(argv: string[]): Options {
   // one condition covers them, and unlike `main()` this one is reachable from the suite.
   const frames = Math.round((options.minutes * 60) / options.intervalS)
   if (!Number.isFinite(frames) || frames < 1) {
-    // Both flags named, with what each actually parsed to: one condition covers several
-    // mistakes, so the message has to say which argument produced the bad count rather than
-    // leading with a value the operator never typed. `--interval abc` said "20 minutes at NaNs".
+    // Both flags named with what each parsed to, and the count itself rather than a claim about
+    // which way it went wrong: one condition covers several mistakes, and they do not point the
+    // same direction. `--interval 0` yields Infinity frames, so "describes no whole frame" told
+    // the operator the opposite of what happened, and the etiquette-floor check that would have
+    // named the real fault sits below this one and never runs.
     throw new Error(
-      `--minutes ${options.minutes} at --interval ${options.intervalS} describes no whole frame`,
+      `--minutes ${options.minutes} --interval ${options.intervalS} gives ${frames} frames`,
     )
   }
   if (options.intervalS < CAPTURE_ETIQUETTE.minIntervalS) {
