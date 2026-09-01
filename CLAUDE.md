@@ -50,7 +50,8 @@ CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a sug
 - Reply to every review comment with a fix or a reasoned "won't fix."
 - **The review loop on a PR ends when the owner declares closure.** After closure, new findings
   become follow-up Issues unless they are factual errors — a broken requirement or wrong
-  behavior — which still block the merge.
+  behavior. A factual error in that PR's files still blocks its merge; one elsewhere is filed
+  per Decision rights as a blocking follow-up — the owning lane takes it before new work.
 - **A change that cannot test itself carries only the fix, no cleanup.** The review action skips any
   run whose workflow file differs from `main`, so a workflow PR is first exercised by the PR after
   it — anything riding along lands unproven (the lesson of #18, paid for in #20).
@@ -94,7 +95,8 @@ what makes it bundle-eligible. Growth past the cap is a budget change: stop and 
 options and a recommendation; batch — the queued item itself stops and waits; only unrelated
 work continues): any discretionary change to what a user sees beyond the approved mockup (the
 mockup in the plan comment on the PR's Issue; a PR with no approved mockup has approved no
-user-visible change), including on-screen wording; scope adds or cuts; data provenance,
+user-visible change — a PR whose gate predates this rule keeps its approved design as the
+referent), including on-screen wording; scope adds or cuts; data provenance,
 privacy, licensing, new dependencies, any new network call; design or budget changes mid-build
 (the existing re-gate rule); conflicts between doc rules; changes to the review tooling — the
 AI model or the workflows; anything where two rulings could plausibly apply. The owner answers
@@ -119,15 +121,16 @@ working tree.
   plan row that record the PR; Lane B owns doc-only PRs. Ownership of specific files follows
   the routed Issue: the lane holding the Issue owns every file its fix touches — the other
   lane's named surface included — for the duration of that PR; no standing file census. New
-  files belong to the lane whose PR creates them, under that PR's routed Issue; only a file
-  both lanes need is claimed on the adjudication queue. Overlap reconciles at merge: the lane
+  files belong to the lane whose PR creates them, under that PR's routed Issue. A file both
+  lanes need — new or existing — is claimed on the adjudication queue. Overlap reconciles at merge: the lane
   whose PR merges second reconciles — the changelog in its known ordering, the diagram by
   redrawing over the merged picture, §11 rows ordered by PR number.
 - **`docs/mvp-scope.md` changelog edits happen only while the PR they record is open — the
   entry belongs to that PR, created at open or at the re-gate that earns it, and amendable
   while its review runs — or at merge-time conflict resolution in the known ordering**
-  (current-AO statement first, newest entries lead, then the record; whoever prepends an
-  entry maintains the lead sentence's wording as part of the edit).
+  (current-AO statement first, then entries by version number newest first, then the record
+  from v2 ascending; whoever adds an entry maintains the lead sentence's wording as part of
+  the edit).
 - **The adjudication queue serves both lanes.**
 
 ## Architecture notes
