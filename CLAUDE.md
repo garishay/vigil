@@ -2,170 +2,133 @@
 
 Vigil is an explainable airspace-triage workstation for PHL-area airspace: real ADS-B traffic and
 synthetic small-UAS injects fused into one picture, scored by transparent factors, presented as a
-ranked queue. Full scope: `docs/mvp-scope.md`.
+ranked queue. Full scope: `docs/mvp-scope.md`. The owner's operating model lives in the user-level
+CLAUDE.md; this file holds what is Vigil's.
 
 ## Guardrails (non-negotiable)
 
-- **Public or synthetic data only.** ADS-B is the only real data. The threat layer is 100%
-  generated. Nothing from any work system enters this repo — no proprietary requirements,
-  terminology, code, or documents.
-- **Real aircraft are never the threat.** ADS-B-sourced tracks are cooperative and hold a low
-  baseline priority. Only synthetic injects can score as threats. Never write code, copy, tests,
-  or fixtures that portray a real aircraft as a threat.
+- **Public or synthetic data only.** ADS-B is the only real data; the threat layer is 100% generated.
+  Nothing from any work system enters this repo — no proprietary requirements, terminology, code, or
+  documents. No real data from a non-public source, no secrets, no API keys.
+- **Real aircraft are never the threat.** ADS-B tracks are cooperative and hold a low baseline priority;
+  only synthetic injects can score as threats — in code, fixtures, tests, copy, and demo data.
 - **No VIP tracking.** Vigil never singles out a specific individual's aircraft.
-- **Public first principles only.** CPA/TCPA geometry, published counter-UAS concepts, FAA Remote
-  ID. If a design question can only be answered from work knowledge, pick a different design.
-- **Not an operational system.** Educational demonstration only. No claims about real-world threat
+- **Public first principles only.** CPA/TCPA geometry, published counter-UAS concepts, FAA Remote ID,
+  DO-260B, ICAO 8643, ASTM F3411. If a design question can only be answered from work knowledge,
+  pick a different design.
+- **Not an operational system.** Educational demonstration only; no claims about real-world threat
   assessment.
 - **No simulated engagement.** No jamming, takeover, or kinetic defeat — the act step ends at
   assessment and notification.
-- **Military identification systems (IFF) are out of scope.** Identity is plain English:
-  Cooperative / Non-cooperative / Unknown. No MIL-STD-2525 symbology.
+- **IFF is out of scope.** Identity is plain English — Cooperative / Non-cooperative / Unknown — with
+  no MIL-STD-2525 symbology.
+- **Show what is observed or derived, never what is assigned.** Ground truth — `behavior`, `remoteId`,
+  any generator-assigned field — stays in fixtures and tests; a display and the learner payload read
+  only observed fields. Never resolve an identifier to a person.
 
-## Stack
+## Stack and commands
 
-Vite · React · TypeScript (strict) · MapLibre GL · Vitest · ESLint · Prettier
+Vite · React · TypeScript (strict) · MapLibre GL · Vitest · ESLint · Prettier. Scripts are Node; there
+is no Python on the dev machine.
 
-## Commands
+`npm run dev` · `npm run build` · `npm run lint` · `npm run typecheck` · `npm run test` ·
+`npm run format:check`
 
-| Command             | Purpose             |
-| ------------------- | ------------------- |
-| `npm run dev`       | Dev server          |
-| `npm run build`     | Production build    |
-| `npm run lint`      | ESLint              |
-| `npm run typecheck` | `tsc --noEmit`      |
-| `npm run test`      | Vitest (single run) |
-
-CI runs `lint`, `typecheck`, and `test` on every PR. Red CI is a stop, not a suggestion.
+CI runs lint, typecheck, test, and format:check on every PR push. Red CI is a stop.
 
 ## Conventions
 
-- **Every PR starts as a GitHub Issue** — feature PRs carry a mini-PRD (user story + acceptance
-  criteria); cleanup PRs bundle owner-routed Issues.
-- **Branch naming:** `feat/pr-02-scenario-data` — kind, PR number, short slug.
-- **Squash-merge only**, delete the branch after merge.
-- **PR size target: under ~400 implementation lines.** Tests, comments, and recorded fixtures sit
-  outside the budget; report the split as raw / implementation / tests in the PR description. When
-  a PR swells, split it rather than grow it.
-- Conventional-ish commit subjects, imperative mood.
-- Reply to every review comment with a fix or a reasoned "won't fix."
-- **The review loop on a PR ends when the owner declares closure.** After closure, new findings
-  become follow-up Issues unless they are factual errors — a broken requirement or wrong
-  behavior. A factual error is fixed in the PR that finds it when it lies in that PR's files —
-  still blocking its merge; one elsewhere is filed per Decision rights as a blocking follow-up
-  the owning lane takes next.
-- **A change that cannot test itself carries only the fix, no cleanup.** The review action skips any
-  run whose workflow file differs from `main`, so a workflow PR is first exercised by the PR after
-  it — anything riding along lands unproven (the lesson of #18, paid for in #20).
-- At least one test per behavior change. No dead code, no `console` noise.
-- **Update the README architecture diagram** when a PR adds or removes a module (a stage on the
-  data path) or an edge — including un-dashing a box the diagram already reserves for that PR.
+- Every PR starts as a GitHub Issue: feature PRs carry a mini-PRD (user story, acceptance criteria);
+  cleanup PRs bundle owner-routed Issues. An agent-filed Issue declares its origin in its first line;
+  the owner's routing comment makes it bundle-eligible.
+- Branch `feat/pr-02-scenario-data` — kind, PR number, short slug. Conventional-ish commit subjects,
+  imperative mood. Squash-merge and branch deletion are repo settings.
+- Size: ~400 implementation lines is a gate-time estimate check, not a rule at open. The gate estimate
+  lists App wiring and CSS as their own rows. At open the PR reports raw / implementation / tests, the
+  deltas by file, and a reading order. Growth past the cap mid-build is a budget change: stop and
+  re-gate. Once built and verified, reviewability decides; no post-hoc split.
+- One test per behavior change. No dead code, no `console` noise.
+- Update the README architecture diagram when a PR adds or removes a module or an edge, including
+  un-dashing a box already reserved for it.
+- A change that cannot test itself carries only the fix, no cleanup: the review action skips a run
+  whose workflow file differs from `main`, so a workflow PR is first proven by the PR after it.
+- Never type the mention handle in an Issue or a comment unless a run is wanted; write "the mention
+  workflow."
 
 ## The plan gate
 
-Every PR is planned and approved before it is built — for a cleanup PR bundling owner-filed or
-owner-routed follow-ups at ≤50 implementation lines, that approval lives in the bundled Issues
-(see Decision rights). A plan gate for user-visible work carries a mockup — the referent the
-user-visible trigger under Decision rights tests against. Two standing rules govern it.
+Every PR is planned and approved before it is built. Read the notes on every open Issue, not just the
+target — rulings get parked on the Issue they will land in — and mark each as a **ruling** or an
+**assumption**, saying which when parking a note of your own. User-visible work brings a mockup; the
+mockup in the plan comment on the PR's Issue is the referent for what is approved. A cleanup PR
+bundling owner-routed Issues at ≤50 implementation lines is pre-approved by those Issues, mockup
+included; one that outgrows its cap stops and queues, with the split or a raised cap as the options.
 
-- **Read the notes on every open Issue, not just the target one.** Rulings and design constraints
-  get parked downstream, on the Issue they will land in rather than the one being built. A plan
-  written from the target Issue alone will miss them. Note whether each one is a **ruling** or an
-  **assumption** — and say which when parking a note of your own.
-- **Mid-build, judge a deviation by what it touches.** One that changes neither the approved design
-  nor the ~400-line budget: flag it and keep going. One that changes either: **stop and
-  re-gate** — append the conflict, the proposed change, and the revised estimate to the
-  adjudication queue — the one intake — and wait. A discovery that
-  reshapes the design is a plan-gate event, not a disclosure to be saved for the PR description.
+Mid-build, judge a deviation by what it touches. One that changes neither the approved design nor the
+budget: flag it, keep going, disclose it at open. One that changes either: stop and re-gate on the
+adjudication queue with the conflict, the proposed change, and the revised estimate.
 
-## Decision rights and adjudication
+## Decision rights
 
-This replaces per-round check-ins — the prior practice of pausing for the owner after every
-review round. Plan gates, closure declarations, and merges remain the owner's alone.
+Plan gates, closure declarations, and merges are the owner's alone.
 
-**Precedence — when two rules apply:** an owner ruling on the specific item; then the PR's own
-plan-gate approval or closure declaration; then a rule naming the case; then the proceed list;
-then the stop-and-queue list; then the catch-all, which applies only when nothing above
-matches.
+**Precedence, when two rules apply:** an owner ruling on the item; the PR's own plan-gate approval or
+closure declaration; a rule naming the case; the proceed list; the stop-and-queue list. A case
+nothing above matches is queued.
 
-**Proceed without asking (log on the PR thread, don't ask):** review-round triage — closure
-changes what a finding becomes (follow-up Issue vs blocking factual error), never whether triage
-proceeds; thread reconciliation with dispositions; filing follow-up Issues; branch updates and
-changelog conflicts in the known ordering; retriggering CI; fixes to factual errors within the
-approved design and budget; cleanup PRs that only bundle owner-filed or owner-routed
-follow-ups, ≤50 implementation lines — pre-approved by the routed Issues that fill them, which
-are jointly the PR's originating Issue and its scope, so the plan gate is satisfied by
-reference; their user-visible edits inherit that approval — the mockup default does not apply
-to a cleanup PR; an agent-filed Issue declares its origin in its first line, and the owner's
-routing comment is what makes it bundle-eligible. Growth past the cap is a budget change: stop
-and re-gate.
+**Proceed without asking — log it on the PR thread:** review-round triage; thread reconciliation;
+filing follow-up Issues; branch updates and changelog conflicts in the known ordering; retriggering
+CI; fixes to factual errors within the approved design and budget; cleanup PRs of routed Issues at
+≤50 lines.
 
-**Stop and queue** (append to the pinned **Adjudication queue** Issue — **#36** — with
-options and a recommendation; batch — the queued item itself stops and waits; only unrelated
-work continues): any discretionary change to what a user sees beyond the approved mockup (the
-mockup in the plan comment on the PR's Issue; a PR with no approved mockup has approved no
-user-visible change — a PR whose gate predates this rule keeps its approved design as the
-referent), including on-screen wording; scope adds or cuts; data provenance,
-privacy, licensing, new dependencies, any new network call; design or budget changes mid-build
-(the existing re-gate rule); conflicts between doc rules; changes to the review tooling — the
-AI model or the workflows; anything where two rulings could plausibly apply. The owner answers
-the queue in batches via notifications. A factual error — on-screen or not — is fixed in the
-PR that finds it when it lies in that PR's files; otherwise it is filed as a blocking
-follow-up that the owning lane takes next. A lane whose entire open PR is blocked on the queue
-waits; idle is acceptable.
+**Stop and queue** — append to the pinned Adjudication queue, **#36**, with options and a
+recommendation; the queued item waits, unrelated work continues: any change to what a user sees
+beyond the approved mockup, on-screen wording included; scope adds or cuts; data provenance, privacy,
+licensing, a new dependency, any new network call; design or budget changes mid-build; conflicts
+between doc rules; changes to review tooling; a collision between rulings that precedence does not
+settle. The owner answers the queue in batches. A lane whose open PR is blocked on the queue waits;
+idle is acceptable.
 
-**Thread resolution:** the lane may resolve any review thread whose reply cites an owner
-ruling by ID — a queue entry, a closure declaration, or a ruling recorded on an Issue. The
-owner resolves only threads whose disposition is the lane's own judgment.
+**Closure and factual errors:** the review loop ends when the owner declares closure. After it,
+findings become follow-up Issues — except a factual error (a broken requirement or wrong behavior),
+which is fixed in the PR that finds it when it lies in that PR's files, still blocking its merge, and
+otherwise filed as a blocking follow-up the owning lane takes next.
 
-**Cadence:** governance text is revised in batches. Review findings against it after a
-governance PR's declared last round file to the standing **Governance revisions** Issue —
-**#45** — and are applied in the next governance PR, never per-round.
+**Thread resolution:** the lane resolves a thread it answered with a fix once CI is green, and any
+thread whose reply cites an owner ruling by ID; a later requested review round can reopen. Won't-fix
+and no-code-change judgment threads are the owner's to resolve.
 
-### Lanes
+**Cadence:** governance text is revised in batches. Findings against it that are not factual errors
+file to the standing Governance revisions Issue, **#45**, and land in the next governance PR, never
+per-round; a factual error follows the factual-error rule.
 
-Work runs in parallel lanes, one session and one git worktree per lane — sessions never share a
-working tree.
+## Lanes
 
-- **Max one open PR per lane.**
-- **Lanes own disjoint surfaces by default — the shared surfaces excepted: `README.md`'s
-  diagram, `docs/mvp-scope.md`'s changelog, and its §11 plan-row table.** The surface split —
-  feature surfaces to Lane A, scripts and docs to Lane B, doc-only PRs to Lane B — is a
-  routing default, and each lane owns the doc edits its own PRs entail: the diagram update the
-  conventions require, and the changelog entry and §11 plan row that record the PR. Ownership
-  of specific files follows the routed Issue: the lane holding the Issue owns every file its
-  fix touches — the other lane's named surface included — for the duration of that PR; routing
-  beats default; no standing file census. New
-  files belong to the lane whose PR creates them, under that PR's routed Issue. A file both
-  lanes need — new or existing — is claimed on the adjudication queue. Overlap reconciles at
-  merge: the lane whose PR merges second reconciles — the changelog in its known ordering, the
-  diagram by redrawing over the merged picture, §11 rows ordered by PR number.
-- **`docs/mvp-scope.md` changelog edits happen only while the PR they record is open — the
-  entry belongs to that PR, created at open or at the re-gate that earns it, and amendable
-  while its review runs — or at merge-time conflict resolution in the known ordering**
-  (current-AO statement first, then one list in version order, newest first; whoever adds an
-  entry maintains the lead sentence's wording as part of the edit).
-- **The adjudication queue serves both lanes.**
+One session and one git worktree per lane; one open PR per lane. Surfaces are disjoint by default —
+features to Lane A, scripts and docs to Lane B — but routing beats default: the lane holding an Issue
+owns every file its fix touches for the life of that PR, unless the other lane has an open PR touching
+that file, in which case the file is claimed on the queue. New files belong to the PR that creates
+them. The lane whose PR merges second reconciles: the changelog in its known ordering (current-AO
+statement first, then versions newest first, lead sentence maintained), renumbering its own entry to
+the next free version if both lanes reserved the same one; the diagram redrawn over the merged
+picture; §11 rows by PR number. Changelog entries are written while the PR they record is open, at
+merge-time reconciliation, or as a doc-only fix repairing a merged entry's ordering or a factual
+error.
 
-## Architecture notes
+## Architecture
 
-- The **ADS-B capture script**, the **inject generator**, and the **scorer** are pure modules —
-  no React, no DOM, no I/O in the scoring path. They are unit-tested directly.
-- The **UI consumes them**; it does not reimplement their logic.
-- **Determinism is a requirement, not a nicety.** Same seed → identical picture, proven by test.
-- **Doctrine is configuration, not code.** Factor weights are data. The AO (center, bounding box,
-  protected sites) is config — relocating Vigil is a config change, not a rewrite.
-- Scores retain their **per-factor breakdown** for display. Never collapse a score to a bare
-  number.
+- The ADS-B capture script, the inject generator, the lifecycle, and the scorer are pure modules — no
+  React, no DOM, no I/O — unit-tested directly. The UI consumes them and never reimplements them.
+- Determinism is a requirement: same seed and config, identical picture, proven by test. The photo
+  tier is runtime and sits outside the scoring path behind an injected fetcher.
+- Doctrine is configuration, not code: factor weights, the AO, protected sites, contacts,
+  dispositions, airframe tables.
+- Scores keep their per-factor breakdown for display; never collapse a score to a bare number.
+  Ranking never reads lifecycle status.
 
-## What you should never do
+## Enforced, not written
 
-- **Never commit or push directly to `main`.** It is branch-protected; work on a branch and open a
-  PR.
-- **Never add a dependency without asking first — the ask routes through the adjudication
-  queue (see Decision rights).** Say what it's for and what it costs.
-- **Never generate anything portraying real aircraft as threats** — not in code, fixtures, tests,
-  UI copy, or demo data.
-- Never commit real data from a non-public source, secrets, or API keys.
-- Never model engagement, jamming, or defeat.
-- Never widen a PR's scope past its issue; open a follow-up issue instead.
+`main` is branch-protected: PR required, checks required, no bypass. A PreToolUse hook in
+`.claude/settings.json` blocks pushes to `main`, force pushes, and dependency adds — a dependency is
+asked for on the queue. Secret scanning with push protection is on. If a hook blocks something you
+believe is right, stop and queue it; do not work around it.
