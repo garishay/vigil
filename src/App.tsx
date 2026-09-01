@@ -261,6 +261,12 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
                 ))}
               </div>
               <Queue ranked={visible} selectedId={selectedId} onSelect={setSelectedId} />
+              {/* A zero count over blank space reads as a broken picture; say the filters did it.
+                  Only once the recording is in — a loading or errored picture is empty for its
+                  own reason, and already says so (#36 [7], ruled A). */}
+              {capture.status === 'ready' && visible.length === 0 && (
+                <p className="rail__empty">No tracks match the filters.</p>
+              )}
             </>
           )}
           {surfaceId === 'review' &&

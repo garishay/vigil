@@ -325,6 +325,35 @@ describe('App shell', () => {
     for (const row of rows) expect(within(row).queryByText('INJECT')).not.toBeInTheDocument()
   })
 
+  it('says when no track matches the filters, but not while the picture is loading (#49)', () => {
+    const { rerender } = render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const empty = () => screen.queryByText('No tracks match the filters.')
+    expect(empty()).not.toBeInTheDocument()
+
+    // Nothing is escalated on a fresh picture, so the Escalated chip is the first legitimately
+    // empty list: the count reads 0, and the line says why.
+    const stateChips = screen.getByRole('group', { name: 'Filter by state' })
+    fireEvent.click(within(stateChips).getByRole('button', { name: 'Escalated' }))
+    expect(
+      within(screen.getByRole('list', { name: 'Ranked queue' })).queryAllByRole('listitem'),
+    ).toHaveLength(0)
+    expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent('0')
+    expect(empty()).toBeInTheDocument()
+    fireEvent.click(within(stateChips).getByRole('button', { name: 'All' }))
+    expect(empty()).not.toBeInTheDocument()
+
+    // An empty list with no recording behind it is not a filter result: no line while loading,
+    // none on a load failure — the error already says what happened.
+    useCapture.mockReturnValue({ status: 'loading' })
+    rerender(<App />)
+    expect(empty()).not.toBeInTheDocument()
+    useCapture.mockReturnValue({ status: 'error', message: 'Could not load the recording.' })
+    rerender(<App />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(empty()).not.toBeInTheDocument()
+  })
+
   it('keeps the selection but not the ring on Home (03b, ruled A2 on #3)', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))

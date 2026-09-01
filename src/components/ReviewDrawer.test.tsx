@@ -138,6 +138,17 @@ describe('ReviewDrawer', () => {
     expect(screen.getByRole('heading', { name: 'a3303d' })).toBeInTheDocument()
   })
 
+  it('shows the heading in integer degrees, the same number the handoff prints (#49)', () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
+    const heading = screen.getByText('Heading').parentElement as HTMLElement
+    expect(within(heading).getByText('346°')).toBeInTheDocument()
+    expect(within(heading).queryByText(/345\.6/)).not.toBeInTheDocument()
+    // Same observation, same drawer, same number — the handoff is unchanged by the rounding.
+    const text = screen.getByLabelText('Handoff text') as HTMLTextAreaElement
+    expect(text.value).toContain('hdg 346')
+  })
+
   it('dashes an unreported ground speed instead of asserting a hover (#35)', () => {
     // The shape from the recording that motivated #35: positive altitude, no speed broadcast.
     const positionOnly: AdsbTrack = {

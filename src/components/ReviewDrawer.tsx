@@ -163,7 +163,8 @@ export function ReviewDrawer({
     },
     {
       label: 'Heading',
-      value: dash(track.headingDeg === null ? null : `${track.headingDeg}°`),
+      // Integer degrees, as the handoff prints it — one observation, one number on both (#49).
+      value: dash(track.headingDeg === null ? null : `${Math.round(track.headingDeg)}°`),
     },
     {
       label: 'Vertical rate',
