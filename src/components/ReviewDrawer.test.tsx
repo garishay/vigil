@@ -56,6 +56,9 @@ const entry = (track: InjectTrack | AdsbTrack, rank: number, rangeM: number): Ra
   siteId: 'phl-airfield',
 })
 
+/** The photo tier is 03d's and tested in TrackVisuals.test.tsx; here it answers nothing. */
+const noPhoto = async () => null
+
 const openLog = (ranked: RankedTrack): TrackEvent[] =>
   firstSeen(ranked.track.id, observedSnapshot(ranked), '2026-09-01T12:04:31.000Z')
 
@@ -80,6 +83,7 @@ const renderDrawer = (
 ) =>
   render(
     <ReviewDrawer
+      lookupPhoto={noPhoto}
       entry={ranked}
       sites={SITES}
       log={openLog(ranked)}
@@ -215,6 +219,7 @@ describe('ReviewDrawer', () => {
     const unheard = entry({ ...heard, identity: 'unknown', callsign: null, uaType: null }, 5, 6500)
     rerender(
       <ReviewDrawer
+        lookupPhoto={noPhoto}
         entry={unheard}
         sites={SITES}
         log={openLog(unheard)}
@@ -292,6 +297,7 @@ describe('ReviewDrawer', () => {
 
     rerender(
       <ReviewDrawer
+        lookupPhoto={noPhoto}
         entry={ranked}
         sites={SITES}
         log={walk(ranked, 'assess')}
@@ -307,6 +313,7 @@ describe('ReviewDrawer', () => {
 
     rerender(
       <ReviewDrawer
+        lookupPhoto={noPhoto}
         entry={ranked}
         sites={SITES}
         log={walk(ranked, 'assess', 'escalate', 'resolve')}
@@ -378,6 +385,7 @@ describe('ReviewDrawer', () => {
     render(
       <StrictMode>
         <ReviewDrawer
+          lookupPhoto={noPhoto}
           entry={ranked}
           sites={SITES}
           log={walk(ranked, 'assess')}
@@ -400,6 +408,7 @@ describe('ReviewDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }), { detail: 1 })
     rerender(
       <ReviewDrawer
+        lookupPhoto={noPhoto}
         entry={ranked}
         sites={SITES}
         log={walk(ranked, 'dismiss')}
@@ -422,6 +431,7 @@ describe('ReviewDrawer', () => {
       dispositions: DISPOSITIONS,
       onAction: vi.fn(),
       onClose: vi.fn(),
+      lookupPhoto: noPhoto,
     }
     // Mount steals nothing: engines that don't focus clicked buttons (Safari) leave focus on
     // body during mouse use, and opening a track must not yank it into the drawer (#47 round 4).
@@ -461,6 +471,7 @@ describe('ReviewDrawer', () => {
 
     rerender(
       <ReviewDrawer
+        lookupPhoto={noPhoto}
         entry={ranked}
         sites={SITES}
         log={walk(ranked, 'assess', 'escalate', 'resolve')}

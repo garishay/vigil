@@ -418,6 +418,32 @@
   height: auto;
 }
 
+/* The photo and its credit share the silhouette's fixed area, so a late arrival moves no row. */
+.visuals__photo {
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--faint);
+  text-decoration: none;
+}
+
+.visuals__thumb {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100% - 1.25rem);
+}
+
+.visuals__credit {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.visuals__photo:hover .visuals__credit,
+.visuals__photo:focus-visible .visuals__credit {
+  text-decoration: underline;
+}
+
 .visuals__class {
   margin: 0.5rem 0 0;
   color: var(--text);
