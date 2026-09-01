@@ -1,8 +1,13 @@
 name: Claude Code Review
 
 on:
+  # The reviewer is not the merge authority — the owner is — so it runs once when a pull request
+  # arrives and re-runs only when asked. `synchronize` put a full review on every push, which is
+  # how #33 reached ten rounds and #47 seven, with no stop before owner closure (#50). Re-runs come
+  # from claude.yml, on an `@claude` mention. The CI gates in ci.yml still run on every push: the
+  # gates are per-push, the review is not.
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, reopened, ready_for_review]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
