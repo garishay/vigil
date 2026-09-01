@@ -120,15 +120,17 @@ export function ReviewDrawer({
   // A keyboard operator must not be dropped on document.body mid-walk: the activated action
   // re-renders disabled (browsers blur it), and Confirm/Cancel unmount under the finger. When
   // focus has fallen to body, land it on the next legal action — or Close, when the state is
-  // terminal. The same guard Queue.tsx keeps for its rows (#47 review). Recovery only, never on
-  // mount: engines that don't focus a clicked button (Safari) leave focus on body during plain
-  // mouse use, and opening a track must not yank it into the drawer (#47 round 4).
-  const mountedRef = useRef(false)
+  // terminal. The same guard Queue.tsx keeps for its rows (#47 review). Recovery fires only on
+  // an actual transition of the values it watches — never on mount, and never on StrictMode's
+  // dev remount, whose second setup re-runs with the ref intact and the values unchanged (#47
+  // round 5): engines that don't focus a clicked button (Safari) leave focus on body during
+  // plain mouse use, and opening a track must not yank it into the drawer.
+  const prevFocusKeyRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!mountedRef.current) {
-      mountedRef.current = true
-      return
-    }
+    const key = `${status}:${pending ?? ''}`
+    const prev = prevFocusKeyRef.current
+    prevFocusKeyRef.current = key
+    if (prev === null || prev === key) return
     if (document.activeElement !== document.body) return
     const aside = asideRef.current
     const target =
@@ -184,9 +186,15 @@ export function ReviewDrawer({
       copied = true
     } catch {
       // No clipboard API (or permission refused): select the visible textarea and copy that.
-      // The selection stands either way, so a manual Ctrl+C works when even this path fails.
+      // The selection stands either way, so a manual Ctrl+C works when even this path fails —
+      // including on engines that refuse (or throw from) execCommand outside the original
+      // gesture (#47 round 5).
       handoffRef.current?.select()
-      copied = document.execCommand?.('copy') ?? false
+      try {
+        copied = document.execCommand?.('copy') ?? false
+      } catch {
+        copied = false
+      }
     }
     // "Copied" only when a copy actually happened — a false claim here puts stale clipboard
     // content into an escalation (review finding on #47).

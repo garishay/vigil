@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import type { ComponentProps } from 'react'
+import { StrictMode, type ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ReviewDrawer } from './ReviewDrawer'
 import type { ProtectedSite } from '../config/ao'
@@ -261,6 +261,26 @@ describe('ReviewDrawer', () => {
     expect(onAction).toHaveBeenCalledWith('resolve', { disposition: 'departed-ao' })
   })
 
+  it('steals no focus on mount, StrictMode double-mount included (03b)', () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    // StrictMode's dev remount re-runs the effect with refs intact; the guard must key on an
+    // actual [status, pending] transition, not on "first run" (#47 round 5).
+    render(
+      <StrictMode>
+        <ReviewDrawer
+          entry={ranked}
+          sites={SITES}
+          log={walk(ranked, 'assess')}
+          contacts={CONTACTS}
+          dispositions={DISPOSITIONS}
+          onAction={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </StrictMode>,
+    )
+    expect(document.activeElement).toBe(document.body)
+  })
+
   it('catches the focus a disabled action drops, landing on the next legal one (03b)', () => {
     const ranked = entry(SILENT, 1, 7200.2)
     const { rerender } = renderDrawer(ranked, { log: walk(ranked, 'assess') })
@@ -362,6 +382,25 @@ describe('ReviewDrawer', () => {
     const handoff = screen.getByLabelText('Handoff text') as HTMLTextAreaElement
     await waitFor(() => expect(handoff.selectionEnd).toBe(handoff.value.length))
     expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeInTheDocument()
+  })
+
+  it('treats a throwing execCommand as a failed copy, never as a claim (03b)', async () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    // Engines that refuse execCommand outside the original gesture throw from the microtask the
+    // rejected clipboard call leaves us in (#47 round 5): still no false "Copied".
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'))
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+    Object.defineProperty(document, 'execCommand', {
+      value: vi.fn(() => {
+        throw new Error('gesture expired')
+      }),
+      configurable: true,
+    })
+    renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    const handoff = screen.getByLabelText('Handoff text') as HTMLTextAreaElement
+    await waitFor(() => expect(handoff.selectionEnd).toBe(handoff.value.length))
     expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeInTheDocument()
   })
 })
