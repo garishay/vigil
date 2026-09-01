@@ -79,11 +79,16 @@ const FILLED: Record<Airframe, [number, number][]> = {
     [16, 16], // upper-left rotor disc
   ],
   'fixed-wing-uas': [
-    [38, 22], // wing, inboard — the review's bisected case, now one band (#57)
+    // The first five predate #57 and now all sit on the one wing band; they stay as they were
+    // (#57's requirement 4) and the three after them pin the parts the band does not.
+    [38, 22], // wing, inboard — the #55 review's bisected case, now one band
     [12, 20], // wing, left
     [70, 20], // wing, right
     [70, 23], // wing, right — a boom before #57
     [84, 24], // wing, outboard — the tail before #57
+    [48, 12], // pod — the fuselage guard, succeeded (#57)
+    [48, 30], // boom
+    [40, 36], // tailplane
   ],
   unknown: [
     [10, 20], // the plate
@@ -124,10 +129,8 @@ describe('Silhouette paths', () => {
       ['small-multirotor', [77, 10]],
       ['small-multirotor', [19, 30]],
       ['small-multirotor', [77, 30]],
-      ['fixed-wing-uas', [48, 6]], // nose
-      ['fixed-wing-uas', [48, 30]], // boom
-      ['fixed-wing-uas', [40, 36]], // tailplane, both sides
-      ['fixed-wing-uas', [56, 36]],
+      ['fixed-wing-uas', [48, 6]], // nose, above the pod probe in FILLED
+      ['fixed-wing-uas', [56, 36]], // tailplane, the side FILLED does not probe
       ['light-piston', [5, 25]], // prop blade
       ['light-piston', [30, 10]], // wing band, above the cabin
       ['light-piston', [16.5, 29]], // nose wheel

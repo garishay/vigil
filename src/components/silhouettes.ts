@@ -45,9 +45,10 @@ export const PATHS: Record<Airframe, string> = {
   'small-multirotor':
     'M38 16 L40 14 L45 14 L45 11.5 L51 11.5 L51 14 L56 14 L58 16 L58 24 L56 26 L40 26 L38 24 Z M27.3 11.7 L26 14.8 L38 19.8 L38 16.2 Z M70 14.8 L68.7 11.7 L58 16.2 L58 19.8 Z M26 25.2 L27.3 28.3 L38 23.8 L38 20.2 Z M68.7 28.3 L70 25.2 L58 20.2 L58 23.8 Z M26 14.8 L23.7 17.1 L20.6 18.3 L17.3 18.3 L14.2 17 L11.9 14.7 L10.7 11.6 L10.7 8.3 L12 5.2 L14.3 2.9 L17.4 1.7 L20.7 1.7 L23.8 3 L26.1 5.3 L27.3 8.4 L27.3 11.7 Z M68.7 11.7 L68.7 8.4 L69.9 5.3 L72.2 3 L75.3 1.7 L78.6 1.7 L81.7 2.9 L84 5.2 L85.3 8.3 L85.3 11.6 L84.1 14.7 L81.8 17 L78.7 18.3 L75.4 18.3 L72.3 17.1 L70 14.8 Z M27.3 28.3 L27.3 31.6 L26.1 34.7 L23.8 37 L20.7 38.3 L17.4 38.3 L14.3 37.1 L12 34.8 L10.7 31.7 L10.7 28.4 L11.9 25.3 L14.2 23 L17.3 21.7 L20.6 21.7 L23.7 22.9 L26 25.2 Z M70 25.2 L72.3 22.9 L75.4 21.7 L78.7 21.7 L81.8 23 L84.1 25.3 L85.3 28.4 L85.3 31.7 L84 34.8 L81.7 37.1 L78.6 38.3 L75.3 38.3 L72.2 37 L69.9 34.7 L68.7 31.6 L68.7 28.3 Z',
   // The long-wing drone from above, nose up: a slender pod, one wing spanning the box, a boom
-  // down to the tailplane. One outline.
+  // down to the tailplane. One outline, straight edges only — the nose and the tips are chamfered
+  // rather than curved, so the sweep sees this glyph exactly (the unknown plate is the one curve).
   'fixed-wing-uas':
-    'M44.5 8 Q44.5 3 48 3 Q51.5 3 51.5 8 L51.5 17.5 L91 19.5 Q93 19.5 93 21.5 L93 23 Q93 25 91 25 L49.5 25 L49.5 34 L62 34 L62 37.5 L34 37.5 L34 34 L46.5 34 L46.5 25 L5 25 Q3 25 3 23 L3 21.5 Q3 19.5 5 19.5 L44.5 17.5 Z',
+    'M44.5 8 L45.5 4.5 L48 3 L50.5 4.5 L51.5 8 L51.5 17.5 L91 19.5 L92.5 20 L93 21.5 L93 23 L92.5 24.5 L91 25 L49.5 25 L49.5 34 L62 34 L62 37.5 L34 37.5 L34 34 L46.5 34 L46.5 25 L5 25 L3.5 24.5 L3 23 L3 21.5 L3.5 20 L5 19.5 L44.5 17.5 Z',
   // A rounded plate with a question mark: the honest glyph when nothing earned a shape.
   unknown:
     'M12 6 L84 6 Q92 6 92 14 L92 26 Q92 34 84 34 L12 34 Q4 34 4 26 L4 14 Q4 6 12 6 Z M40 14 Q40 9 48 9 Q56 9 56 14 Q56 18 50 20 L50 24 L46 24 L46 18 Q52 16 52 14 Q52 12 48 12 Q44 12 44 15 L40 15 Z M46 26 L50 26 L50 30 L46 30 Z',
