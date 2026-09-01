@@ -120,8 +120,15 @@ export function ReviewDrawer({
   // A keyboard operator must not be dropped on document.body mid-walk: the activated action
   // re-renders disabled (browsers blur it), and Confirm/Cancel unmount under the finger. When
   // focus has fallen to body, land it on the next legal action — or Close, when the state is
-  // terminal. The same guard Queue.tsx keeps for its rows (#47 review).
+  // terminal. The same guard Queue.tsx keeps for its rows (#47 review). Recovery only, never on
+  // mount: engines that don't focus a clicked button (Safari) leave focus on body during plain
+  // mouse use, and opening a track must not yank it into the drawer (#47 round 4).
+  const mountedRef = useRef(false)
   useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true
+      return
+    }
     if (document.activeElement !== document.body) return
     const aside = asideRef.current
     const target =

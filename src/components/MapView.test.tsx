@@ -215,6 +215,38 @@ describe('MapView', () => {
     expect(dataFor('selected-track').features).toEqual([])
   })
 
+  it('suppresses the ring as presentation only — selection kept, camera not re-flown (03b, A2)', () => {
+    const { rerender } = render(
+      <MapView ao={AO} tracks={TRACKS} injects={INJECTS} selectedId="inject-01" />,
+    )
+    const eased = mapInstance.easeTo.mock.calls.length
+    // Home: the ring source empties while the selection stays put…
+    rerender(
+      <MapView
+        ao={AO}
+        tracks={TRACKS}
+        injects={INJECTS}
+        selectedId="inject-01"
+        selectionShown={false}
+      />,
+    )
+    expect(dataFor('selected-track').features).toEqual([])
+    // …and returns without a second flight: the ease stamp survived the round trip (#47).
+    rerender(
+      <MapView
+        ao={AO}
+        tracks={TRACKS}
+        injects={INJECTS}
+        selectedId="inject-01"
+        selectionShown={true}
+      />,
+    )
+    expect(dataFor('selected-track').features[0].geometry).toMatchObject({
+      coordinates: INJECTS[0].position,
+    })
+    expect(mapInstance.easeTo.mock.calls.length).toBe(eased)
+  })
+
   it('draws injects above cooperative traffic rather than under it', () => {
     render(<MapView ao={AO} />)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)

@@ -272,6 +272,9 @@ describe('ReviewDrawer', () => {
       onAction: vi.fn(),
       onClose: vi.fn(),
     }
+    // Mount steals nothing: engines that don't focus clicked buttons (Safari) leave focus on
+    // body during mouse use, and opening a track must not yank it into the drawer (#47 round 4).
+    expect(document.activeElement).toBe(document.body)
     // Browsers blur a button the moment it re-renders disabled; jsdom does not, so the drop to
     // body is simulated between steps. The guard must land on the next legal action.
     ;(document.activeElement as HTMLElement | null)?.blur?.()

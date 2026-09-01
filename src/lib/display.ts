@@ -30,12 +30,13 @@ export const LAYER_BADGE: Record<Track['source'], string> = { adsb: 'ADS-B', inj
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
 
 /**
- * An event's wall clock as HH:MM:SSZ, sliced from the ISO string — UTC by construction, marked
- * as such: an unlabelled 12:07 reads as local time and makes the defensible record misreadable
- * (review finding on #47, fixed per the [2c] factual-error precedence). Zulu is also what the
+ * An event's wall clock as HH:MM:SSZ — normalized to UTC before the label, not sliced blind: a
+ * caller supplying an offset form (`…+02:00`, a shape the PR 06 clock seam permits) must not see
+ * local time labelled Zulu (#47 review). The mark itself is the point — an unlabelled 12:07
+ * reads as local and makes the defensible record misreadable ([2c]). Zulu is also what the
  * recipient's own logs run on. Deterministic for tests whatever the environment's zone.
  */
-export const eventClock = (at: string) => `${at.slice(11, 19)}Z`
+export const eventClock = (at: string) => `${new Date(at).toISOString().slice(11, 19)}Z`
 
 /**
  * One line of the event record, identical in the drawer's log and the handoff timeline. The
