@@ -263,9 +263,13 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
               <Queue ranked={visible} selectedId={selectedId} onSelect={setSelectedId} />
               {/* A zero count over blank space reads as a broken picture; say the filters did it.
                   Only once the recording is in — a loading or errored picture is empty for its
-                  own reason, and already says so (#36 [7], ruled A). */}
+                  own reason, and already says so (#36 [7], ruled A). A polite live region, so
+                  the operator who just pressed the chip hears why the count fell to 0 (#51
+                  review) — the rail__error line above is its assertive sibling. */}
               {capture.status === 'ready' && visible.length === 0 && (
-                <p className="rail__empty">No tracks match the filters.</p>
+                <p className="rail__empty" role="status">
+                  No tracks match the filters.
+                </p>
               )}
             </>
           )}

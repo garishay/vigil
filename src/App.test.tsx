@@ -340,6 +340,8 @@ describe('App shell', () => {
     ).toHaveLength(0)
     expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent('0')
     expect(empty()).toBeInTheDocument()
+    // Announced, not just shown: the operator who pressed the chip hears why the count fell.
+    expect(screen.getByRole('status')).toHaveTextContent('No tracks match the filters.')
     fireEvent.click(within(stateChips).getByRole('button', { name: 'All' }))
     expect(empty()).not.toBeInTheDocument()
 
