@@ -24,7 +24,7 @@ import type { ScenarioConfig } from '../config/scenario.ts'
 import { bearingDegrees, destinationPoint, distanceMeters, offsetPoint, round } from './geo.ts'
 import { makeRng } from './rng.ts'
 import type { Rng } from './rng.ts'
-import type { Behavior, Identity, InjectTrack, RemoteIdStatus } from './tracks.ts'
+import type { Behavior, Identity, InjectTrack, RemoteIdStatus, UaType } from './tracks.ts'
 
 /** Every behavior in the model (§5.2). Exported so the coverage guarantee is testable. */
 export const BEHAVIORS = [
@@ -41,6 +41,13 @@ export const REMOTE_ID_STATES = [
   'intermittent',
   'silent',
 ] as const satisfies readonly RemoteIdStatus[]
+
+/** Every UA type an inject can broadcast (§5.2). Exported so the draw's range is testable. */
+export const UA_TYPES = [
+  'multirotor',
+  'aeroplane',
+  'hybrid-lift',
+] as const satisfies readonly UaType[]
 
 const KT_TO_MS = 0.514444
 
@@ -69,6 +76,8 @@ export interface InjectSpec {
   label: string
   behavior: Behavior
   remoteId: RemoteIdStatus
+  /** The UA type the Remote ID broadcast carries. Shown only on frames the broadcast is heard. */
+  uaType: UaType
   launchId: string
   origin: [number, number]
   /** The protected site the approach-retreat leg works against. */
@@ -137,6 +146,17 @@ function coverThenFill<T>(rng: Rng, values: readonly T[], count: number): T[] {
   const out = rng.shuffle(values).slice(0, count)
   while (out.length < count) out.push(rng.pick(values))
   return out
+}
+
+/** One of `weights`' keys, with probability proportional to its weight. One draw, always. */
+function weightedPick<T extends string>(rng: Rng, weights: Record<T, number>): T {
+  const entries = Object.entries(weights) as [T, number][]
+  let draw = rng.next() * entries.reduce((sum, [, weight]) => sum + weight, 0)
+  for (const [value, weight] of entries) {
+    draw -= weight
+    if (draw < 0) return value
+  }
+  return entries[entries.length - 1][0]
 }
 
 /** Where the scripted pattern starts: the launch point, run in along the course for `inboundS`. */
@@ -257,6 +277,8 @@ function trackAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTrack
     remoteId: spec.remoteId,
     identity,
     callsign: heard ? spec.label : null,
+    // Heard with the ident, lost with it: the same observed/not-observed rule (#22).
+    uaType: heard ? spec.uaType : null,
     position: [round(position[0], 5), round(position[1], 5)],
     altitudeFt: Math.round(altitudeAt(spec, t)) + 0,
     onGround: false,
@@ -330,6 +352,12 @@ export function planScenario(
     const label = `UAS-${rng.int(0x10000).toString(16).toUpperCase().padStart(4, '0')}`
     const id = `inject-${String(index + 1).padStart(2, '0')}`
 
+    // The UA type came after the golden was pinned, so it draws from its own per-inject stream
+    // (the a2 pattern, #16): the shared stream above is untouched and every value it dealt
+    // stands. Drawn for every inject — the stream is its own, so it costs nothing, and a silent
+    // inject's value is simply never observed.
+    const uaType = weightedPick(makeRng(`${config.seed}:${id}:ua-type`), config.uaTypes)
+
     // The dropout chain is the only draw whose length depends on the timeline, so it gets its own
     // stream, seeded by the scenario and the inject — never the shared one above.
     const heard: boolean[] = []
@@ -349,6 +377,7 @@ export function planScenario(
       label,
       behavior,
       remoteId,
+      uaType,
       launchId: launch.id,
       origin,
       site,

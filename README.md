@@ -19,9 +19,11 @@ The two scripts under `scripts/` run offline, once, and are the only boxes that 
 a test seam. The app calls the modules; nothing calls back. The diagram draws the **data path,
 not the import graph**: helper modules (`geo`, `rng`, `identity`) and type-only edges are
 deliberately omitted. The shared track model is drawn as the hub on purpose — every stage meets
-its contract there — and pure helpers (`display` included) fold into their consumers. Dashed
-boxes are later PRs; dashed edges are supporting relationships — a startup fetch, a
-regeneration — rather than the runtime data path.
+its contract there — and pure helpers (`display` included) fold into their consumers, as the
+silhouettes fold into the drawer. Dashed boxes are later PRs; dashed edges are supporting
+relationships — a startup fetch, a regeneration, a display lookup that fails soft — rather than
+the runtime data path. The one runtime network call, the photo lookup, sits outside the pure
+boundary and reaches nothing inside it.
 
 ```mermaid
 flowchart LR
@@ -38,7 +40,7 @@ flowchart LR
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
-      cfg["config/scenario.ts<br/>seed · envelope · launch points"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 behaviors · 3 Remote ID states"]
+      cfg["config/scenario.ts<br/>seed · envelope · launch points"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 behaviors · 3 Remote ID states · UA type"]
       gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
     ao["config/ao.ts<br/>AO: center · bbox · protected sites"]
@@ -48,14 +50,19 @@ flowchart LR
     life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text"]
     workcfg["config/contacts.ts + dispositions.ts<br/>recipients · outcome labels"]
+    frames["config/airframes.ts<br/>emitter categories · type codes · kinematic envelope"]
+    airframe["lib/airframe.ts<br/>classify: silhouette class + its basis<br/>type code → category → UA type → envelope"]
     norm --> model
     gen --> model
     ao --> gen
     ao --> rank
     model --> rank
+    model --> airframe
+    frames --> airframe
     model -.-> score
     workcfg --> hand
   end
+  photos["data/photos.ts — 03d<br/>one photo per opened ADS-B track<br/>runtime lookup, fails soft to the silhouette"]
   fx -. fetched at startup .-> load
   gen --> goldgen
   goldgen -. pins .-> gold
@@ -66,7 +73,7 @@ flowchart LR
     app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context"]
-    review["components/ReviewDrawer.tsx<br/>one track — observed or derived<br/>selection synced with the map<br/>lifecycle actions · event log · handoff"]
+    review["components/ReviewDrawer.tsx + TrackVisuals<br/>one track — observed or derived<br/>silhouette by class · selection synced with the map<br/>lifecycle actions · event log · handoff"]
     clock["Playback clock — PR 06"]
     app --> queue
     app --> map
@@ -80,9 +87,11 @@ flowchart LR
   life -- log · status: drawer, state filter --> app
   workcfg -- pickers: drawer --> app
   hand -- handoff text --> review
+  airframe -- class · basis: visuals --> review
+  photos -. fetched on open .-> review
   score -.-> app
   classDef planned stroke-dasharray: 6 4,fill:none;
-  class score,clock planned;
+  class score,clock,photos planned;
 ```
 
 ---

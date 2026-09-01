@@ -10,6 +10,7 @@ const SILENT: InjectTrack = {
   source: 'inject',
   behavior: 'lawnmower',
   remoteId: 'silent',
+  uaType: null,
   identity: 'non-cooperative',
   callsign: null,
   position: [-75.28671, 39.94708],
@@ -26,6 +27,7 @@ const UNHEARD: InjectTrack = {
   id: 'inject-01',
   behavior: 'transit',
   remoteId: 'intermittent',
+  uaType: null,
   identity: 'unknown',
 }
 
@@ -34,6 +36,7 @@ const HEARD: InjectTrack = {
   id: 'inject-04',
   behavior: 'approach-retreat',
   remoteId: 'broadcasting',
+  uaType: null,
   identity: 'cooperative',
   callsign: 'UAS-CD84',
 }

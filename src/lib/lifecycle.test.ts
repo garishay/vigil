@@ -132,6 +132,7 @@ describe('learner-ready shape (§8.3b)', () => {
     source: 'inject',
     behavior: 'loiter',
     remoteId: 'silent',
+    uaType: null,
     identity: 'non-cooperative',
     callsign: null,
     position: [-75.20547, 39.81341],

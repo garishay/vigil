@@ -87,12 +87,24 @@ export interface AdsbTrack extends TrackBase {
   registry: AircraftRegistry | null
 }
 
+/**
+ * The UA type a Remote ID broadcast carries (ASTM F3411, public context), reduced to the three a
+ * small-UAS scenario fields. An inject attribute only, like `RemoteIdStatus`.
+ */
+export type UaType = 'multirotor' | 'aeroplane' | 'hybrid-lift'
+
 /** A simulated small UAS. The only kind of track that can score as a threat. */
 export interface InjectTrack extends TrackBase {
   source: 'inject'
   behavior: Behavior
   remoteId: RemoteIdStatus
   identity: Identity
+  /**
+   * The UA type heard in the Remote ID broadcast — on the frames it is heard, exactly as
+   * `callsign` is, and null on the frames it is not. Observed, never the generator's answer key:
+   * a silent inject reads null on every frame. Display only (#22); nothing scores it.
+   */
+  uaType: UaType | null
 }
 
 export type Track = AdsbTrack | InjectTrack

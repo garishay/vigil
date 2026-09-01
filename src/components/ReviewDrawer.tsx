@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { IdentityDot } from './IdentityDot'
+import { TrackVisuals } from './TrackVisuals'
 import type { ProtectedSite } from '../config/ao'
 import type { ContactId } from '../config/contacts'
 import type { DispositionId } from '../config/dispositions'
+import { describeCategory } from '../lib/airframe'
 import {
   LAYER_BADGE,
   describeEvent,
@@ -22,8 +24,8 @@ import {
 } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
 
-/** A kinematic value, or an em dash for one the track did not broadcast — never a zero (§7). */
-const dash = (value: string | null) => value ?? '—'
+/** A value, or an em dash for one the track did not broadcast or carry — never a zero (§7). */
+const dash = (value: string | null | undefined) => value || '—'
 
 const ACTIONS: { action: LifecycleAction; label: string }[] = [
   { action: 'assess', label: 'Assess' },
@@ -89,8 +91,9 @@ function Picker<Id extends string>({
  * column beside the Queue, so the operator never loses the list to read a track (§4.2); the
  * Review surface shows the same component alone, at the same 26 rem (ruled B1 on #3).
  *
- * Reserved here, filled later: the Track Visuals slot (03c), the score breakdown (PR 04), the
- * history trail's content (PR 06 — at a static frame 0 there is exactly one known position).
+ * Reserved here, filled later: the score breakdown (PR 04), the history trail's content (PR 06 —
+ * at a static frame 0 there is exactly one known position). The Track Visuals slot is 03c's
+ * silhouette tier; 03d adds the photo tier for ADS-B tracks.
  *
  * The caller keys this component by track id, so picker and copied state belong to one track.
  */
@@ -157,10 +160,35 @@ export function ReviewDrawer({
   // so with two sites configured, indexing `[0]` would caption one site's distance with the
   // other's name.
   const siteName = sites.find((site) => site.id === entry.siteId)?.name ?? entry.siteId
+  // The enrichment rows, ADS-B only — an inject has no registry. Each is labelled by provenance
+  // (§5.1): the category is broadcast, the type and registration are lookups (ruled on #22).
+  // Displayed and never scored; the Queue never shows them, so nothing here singles a tail
+  // number out of the list (§2).
+  const enrichment: { label: string; value: string }[] =
+    track.source === 'adsb'
+      ? [
+          { label: 'Category', value: dash(track.category && describeCategory(track.category)) },
+          {
+            label: 'Type',
+            value: dash(
+              track.registry?.typeCode
+                ? `${track.registry.typeCode}${track.registry.typeDesc ? ` — ${track.registry.typeDesc}` : ''} (lookup)`
+                : null,
+            ),
+          },
+          {
+            label: 'Registration',
+            value: dash(
+              track.registry?.registration ? `${track.registry.registration} (lookup)` : null,
+            ),
+          },
+        ]
+      : []
   const rows: { label: string; value: string; className?: string }[] = [
     { label: 'Status', value: STATUS_LABEL[status], className: 'drawer__status' },
     { label: 'Rank', value: `${rank}` },
     { label: 'Range', value: `${formatRangeKm(rangeM)} to ${siteName}` },
+    ...enrichment,
     {
       label: 'Altitude',
       value: dash(track.altitudeFt === null ? null : `${track.altitudeFt} ft`),
@@ -240,10 +268,7 @@ export function ReviewDrawer({
         </button>
       </header>
 
-      {/* Reserved for 03c: the airframe silhouette by class, photo tier for ADS-B only. */}
-      <div className="drawer__slot" aria-hidden="true">
-        Track Visuals — 03c
-      </div>
+      <TrackVisuals track={track} />
 
       <dl className="drawer__kinematics">
         {rows.map((row) => (

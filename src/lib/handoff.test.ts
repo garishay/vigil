@@ -12,6 +12,7 @@ const INJECT: InjectTrack = {
   source: 'inject',
   behavior: 'loiter',
   remoteId: 'silent',
+  uaType: null,
   identity: 'non-cooperative',
   callsign: null,
   position: [-75.20547, 39.81341],

@@ -14,6 +14,7 @@ const SILENT: InjectTrack = {
   source: 'inject',
   behavior: 'loiter',
   remoteId: 'silent',
+  uaType: null,
   identity: 'non-cooperative',
   callsign: null,
   position: [-75.20547, 39.81341],
@@ -119,7 +120,10 @@ describe('ReviewDrawer', () => {
   it('displays observed and derived fields only — never the ground truth', () => {
     renderDrawer(entry(SILENT, 1, 7200.2))
     const drawer = screen.getByLabelText('Track review: TRK-05')
-    expect(drawer.textContent).not.toMatch(/loiter|silent|intermittent|broadcasting/i)
+    // The UA types join the sweep (03c): a silent inject's is never heard, so never shown.
+    expect(drawer.textContent).not.toMatch(
+      /loiter|silent|intermittent|broadcasting|multirotor|aeroplane|hybrid/i,
+    )
   })
 
   it('renders an unbroadcast value as an em dash, never a zero', () => {
@@ -170,11 +174,100 @@ describe('ReviewDrawer', () => {
     expect(within(gs).getByText('—')).toBeInTheDocument()
   })
 
-  it('reserves the Track Visuals slot and the score, and says what fills them', () => {
+  it('reserves the score and the history, and says what fills them', () => {
     renderDrawer(entry(SILENT, 1, 7200.2))
-    expect(screen.getByText(/Track Visuals — 03c/)).toBeInTheDocument()
     expect(screen.getByText(/factors arrive with PR 04/)).toBeInTheDocument()
     expect(screen.getByText(/1 known position/)).toBeInTheDocument()
+  })
+
+  it('shows a silent inject the kinematic class, labelled as such, and no registry rows (03c)', () => {
+    renderDrawer(entry(SILENT, 1, 7200.2))
+    const visuals = screen.getByLabelText('Track visuals')
+    expect(within(visuals).getByText('Small UAS (kinematic class)')).toBeInTheDocument()
+    expect(
+      within(visuals).getByText('from the observed envelope — 63 ft, 19.1 kt; no ident heard'),
+    ).toBeInTheDocument()
+    expect(visuals.querySelector('[data-airframe="unknown"]')).not.toBeNull()
+    for (const label of ['Category', 'Type', 'Registration'])
+      expect(screen.queryByText(label)).not.toBeInTheDocument()
+  })
+
+  it('shows a heard inject its UA-type silhouette, and loses it with the ident (03c)', () => {
+    const heard: InjectTrack = {
+      ...SILENT,
+      id: 'inject-01',
+      remoteId: 'intermittent',
+      identity: 'cooperative',
+      callsign: 'UAS-7CD5',
+      uaType: 'multirotor',
+    }
+    const { rerender } = renderDrawer(entry(heard, 5, 6500))
+    const visuals = () => screen.getByLabelText('Track visuals')
+    expect(within(visuals()).getByText('Small multirotor')).toBeInTheDocument()
+    expect(
+      within(visuals()).getByText(
+        'from Remote ID UA type — helicopter or multirotor (heard this frame)',
+      ),
+    ).toBeInTheDocument()
+    expect(visuals().querySelector('[data-airframe="small-multirotor"]')).not.toBeNull()
+
+    // The same inject on a frame its broadcast is not heard: the observed-only rule, kept.
+    const unheard = entry({ ...heard, identity: 'unknown', callsign: null, uaType: null }, 5, 6500)
+    rerender(
+      <ReviewDrawer
+        entry={unheard}
+        sites={SITES}
+        log={openLog(unheard)}
+        contacts={CONTACTS}
+        dispositions={DISPOSITIONS}
+        onAction={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(within(visuals()).getByText('Small UAS (kinematic class)')).toBeInTheDocument()
+    expect(within(visuals()).queryByText(/multirotor/)).not.toBeInTheDocument()
+  })
+
+  it('shows an ADS-B track its class from the type code, with the three rows labelled (03c)', () => {
+    const airliner: AdsbTrack = {
+      ...PARKED,
+      id: 'adsb-a0540a',
+      icaoHex: 'a0540a',
+      callsign: 'DAL989',
+      altitudeFt: 2175,
+      onGround: false,
+      groundSpeedKt: 180,
+      category: 'A3',
+      registry: { typeCode: 'A321', registration: 'N120DN' },
+    }
+    renderDrawer(entry(airliner, 12, 3400))
+    const visuals = screen.getByLabelText('Track visuals')
+    expect(within(visuals).getByText('Narrowbody')).toBeInTheDocument()
+    expect(within(visuals).getByText('from type code A321 (registry lookup)')).toBeInTheDocument()
+    expect(visuals.querySelector('[data-airframe="narrowbody"]')).not.toBeNull()
+    const row = (label: string) => screen.getByText(label).parentElement as HTMLElement
+    expect(within(row('Category')).getByText('A3 — large (broadcast)')).toBeInTheDocument()
+    expect(within(row('Type')).getByText('A321 (lookup)')).toBeInTheDocument()
+    expect(within(row('Registration')).getByText('N120DN (lookup)')).toBeInTheDocument()
+    // Rows in the mockup's order: after Range, before the kinematics.
+    const labels = Array.from(document.querySelectorAll('.drawer__row dt')).map(
+      (dt) => dt.textContent,
+    )
+    expect(labels.slice(2, 6)).toEqual(['Range', 'Category', 'Type', 'Registration'])
+  })
+
+  it('shows an ADS-B track with no enrichment as unknown, rows dashed, never small-UAS (03c)', () => {
+    renderDrawer(entry(PARKED, 57, 2122.9))
+    const visuals = screen.getByLabelText('Track visuals')
+    expect(within(visuals).getByText('Unknown airframe')).toBeInTheDocument()
+    expect(
+      within(visuals).getByText('no emitter category broadcast, no registry type'),
+    ).toBeInTheDocument()
+    expect(within(visuals).queryByText(/kinematic/)).not.toBeInTheDocument()
+    for (const label of ['Category', 'Type', 'Registration']) {
+      const row = screen.getByText(label).parentElement as HTMLElement
+      expect(within(row).getByText('—')).toBeInTheDocument()
+    }
   })
 
   it('closes through its close button', () => {
