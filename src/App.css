@@ -166,11 +166,14 @@
 }
 
 /*
- * Ordered beneath airborne traffic, and dimmed like the map's ground dots — never hidden. The
- * dim sits on the row's content, not the row element: an element-level opacity would multiply
- * the selection background down to invisible, and on-ground rows are most of the ADS-B layer.
+ * Ground traffic is ordered beneath airborne and dimmed like the map's ground dots — never
+ * hidden. A Resolved or Dismissed row dims the same way, in place (03e). The dim sits on the
+ * row's content, not the row element: an element-level opacity would multiply the selection
+ * background down to invisible, and on-ground rows are most of the ADS-B layer. One rule for
+ * both, on one element, so a handled ground track does not dim twice.
  */
-.queue__row--ground .queue__rowbutton {
+.queue__row--ground .queue__rowbutton,
+.queue__row--terminal .queue__rowbutton {
   opacity: 0.55;
 }
 
@@ -219,6 +222,11 @@
 .queue__badge[data-layer='inject'] {
   background: var(--panel-raised);
   color: var(--text);
+}
+
+/* The lifecycle tag (03e): the badge, upper-cased the way the drawer's status row is. */
+.queue__badge--state {
+  text-transform: uppercase;
 }
 
 .queue__ident {

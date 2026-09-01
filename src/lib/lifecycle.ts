@@ -51,6 +51,13 @@ const TRANSITIONS: Record<Status, Partial<Record<LifecycleAction, Status>>> = {
 export const canAct = (status: Status, action: LifecycleAction): boolean =>
   TRANSITIONS[status][action] !== undefined
 
+/**
+ * Terminal iff the table permits no action from it — derived rather than listed, so the Queue's
+ * dim and its Active chip (03e) cannot disagree with the table that makes Resolved and Dismissed
+ * final.
+ */
+export const isTerminal = (status: Status): boolean => Object.keys(TRANSITIONS[status]).length === 0
+
 /** The next status, or a throw on a transition the table does not allow. */
 export function transition(status: Status, action: LifecycleAction): Status {
   const next = TRANSITIONS[status][action]

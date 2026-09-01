@@ -16,6 +16,7 @@ import {
   STATUS_LABEL,
   appendEvent,
   firstSeen,
+  isTerminal,
   observedSnapshot,
   statusOf,
   type LifecycleAction,
@@ -55,11 +56,16 @@ const FILTERS: { id: LayerFilter; label: string }[] = [
   { id: 'inject', label: 'INJECT' },
 ]
 
-type StateFilter = Status | 'all'
+type StateFilter = Status | 'all' | 'active'
 const STATE_FILTERS: { id: StateFilter; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'active', label: 'Active' },
   ...STATUSES.map((status) => ({ id: status, label: STATUS_LABEL[status] })),
 ]
+
+/** Active is the non-terminal set — New, Assessing, Escalated — read off the table (03e). */
+const matchesState = (status: Status, filter: StateFilter): boolean =>
+  filter === 'all' || (filter === 'active' ? !isTerminal(status) : status === filter)
 
 /**
  * `now` is the clock seam: lifecycle events take `at` and `tSec` as inputs, App supplies them,
@@ -117,7 +123,7 @@ export default function App({
       ranked.filter(
         (entry) =>
           (layerFilter === 'all' || entry.track.source === layerFilter) &&
-          (stateFilter === 'all' || statusOf(eventLogs[entry.track.id]) === stateFilter),
+          matchesState(statusOf(eventLogs[entry.track.id]), stateFilter),
       ),
     [ranked, layerFilter, stateFilter, eventLogs],
   )
@@ -289,6 +295,7 @@ export default function App({
                 ranked={visible}
                 selectedId={selectedId}
                 restoreFocus={keyboardClose}
+                statusFor={(id) => statusOf(eventLogs[id])}
                 onSelect={setSelectedId}
               />
             </>

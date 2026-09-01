@@ -152,6 +152,47 @@ describe('Queue', () => {
     expect(within(silent).queryByText('on ground')).not.toBeInTheDocument()
   })
 
+  it('tags a row with its lifecycle state beside the layer badge, and omits the tag when New (03e)', () => {
+    const status: Record<string, 'assessing' | 'escalated'> = {
+      'inject-03': 'escalated',
+      'inject-01': 'assessing',
+    }
+    render(<Queue ranked={RANKED} statusFor={(id) => status[id] ?? 'new'} />)
+    const [silent, unheard, airliner] = rows()
+    const tag = within(silent).getByText('Escalated')
+    expect(tag).toHaveClass('queue__badge', 'queue__badge--state')
+    expect(tag.previousElementSibling).toHaveTextContent('INJECT')
+    expect(within(unheard).getByText('Assessing')).toHaveClass('queue__badge--state')
+    expect(airliner.querySelector('.queue__badge--state')).toBeNull()
+  })
+
+  it('reads every row as New without a status supplier, and tags nothing (03e)', () => {
+    render(<Queue ranked={RANKED} />)
+    for (const row of rows()) expect(row.querySelector('.queue__badge--state')).toBeNull()
+  })
+
+  it('dims Resolved and Dismissed rows in place — rank kept, still selectable (03e)', () => {
+    const status: Record<string, 'dismissed' | 'resolved' | 'assessing'> = {
+      'inject-03': 'dismissed',
+      'inject-01': 'assessing',
+      'adsb-a46ab9': 'resolved',
+    }
+    const onSelect = vi.fn()
+    render(<Queue ranked={RANKED} statusFor={(id) => status[id] ?? 'new'} onSelect={onSelect} />)
+    const all = rows()
+    expect(all).toHaveLength(RANKED.length)
+    const [silent, unheard, airliner, heard] = all
+    expect(silent).toHaveClass('queue__row--terminal')
+    expect(silent.querySelector('.queue__rank')?.textContent).toBe('1')
+    expect(within(silent).getByText('Dismissed')).toBeInTheDocument()
+    expect(airliner).toHaveClass('queue__row--terminal')
+    expect(airliner.querySelector('.queue__rank')?.textContent).toBe('3')
+    expect(unheard).not.toHaveClass('queue__row--terminal')
+    expect(heard).not.toHaveClass('queue__row--terminal')
+    fireEvent.click(within(silent).getByRole('button'))
+    expect(onSelect).toHaveBeenCalledWith('inject-03')
+  })
+
   it('renders an empty list before the picture has loaded', () => {
     render(<Queue ranked={[]} />)
     expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeEmptyDOMElement()
