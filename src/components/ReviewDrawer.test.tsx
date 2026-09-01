@@ -297,9 +297,7 @@ describe('ReviewDrawer', () => {
     expect(text.value).toContain('Resolved — Benign')
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument())
     expect(writeText).toHaveBeenCalledWith(text.value)
   })
 
@@ -308,8 +306,6 @@ describe('ReviewDrawer', () => {
     // jsdom has no navigator.clipboard by default — this is the fallback environment itself.
     renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument())
   })
 })

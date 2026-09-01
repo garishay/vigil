@@ -85,7 +85,11 @@ describe('event log', () => {
 
   it('appends each action with sequence, from/to, and the caller-supplied clock', () => {
     let log = appendEvent(opened(), 'assess', input())
-    log = appendEvent(log, 'escalate', input({ at: '2026-09-01T12:07:45.000Z', recipient: 'phl-tower' }))
+    log = appendEvent(
+      log,
+      'escalate',
+      input({ at: '2026-09-01T12:07:45.000Z', recipient: 'phl-tower' }),
+    )
     log = appendEvent(log, 'resolve', input({ disposition: 'benign' }))
     expect(log.map((event) => event.seq)).toEqual([1, 2, 3, 4])
     expect(log.map((event) => event.to)).toEqual(['new', 'assessing', 'escalated', 'resolved'])
@@ -111,7 +115,11 @@ describe('event log', () => {
   })
 
   it('drops a recipient or disposition from an action that does not define it', () => {
-    const log = appendEvent(opened(), 'assess', input({ recipient: 'phl-tower', disposition: 'benign' }))
+    const log = appendEvent(
+      opened(),
+      'assess',
+      input({ recipient: 'phl-tower', disposition: 'benign' }),
+    )
     expect('recipient' in log[1]).toBe(false)
     expect('disposition' in log[1]).toBe(false)
   })

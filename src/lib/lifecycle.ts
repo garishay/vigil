@@ -99,7 +99,9 @@ export const firstSeen = (
   observed: ObservedSnapshot,
   at: string,
   tSec = 0,
-): TrackEvent[] => [{ trackId, seq: 1, at, tSec, action: 'first-seen', from: null, to: 'new', observed }]
+): TrackEvent[] => [
+  { trackId, seq: 1, at, tSec, action: 'first-seen', from: null, to: 'new', observed },
+]
 
 /** A track's status is its last event's `to` — the log is the single source of truth. */
 export const statusOf = (log: readonly TrackEvent[] | undefined): Status =>

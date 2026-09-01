@@ -26,7 +26,7 @@ const LAYER_DISCLOSURE: Record<Track['source'], string> = {
   inject: 'synthetic inject',
 }
 
-const dash = <T,>(value: T | null, render: (value: T) => string) =>
+const dash = <T>(value: T | null, render: (value: T) => string) =>
   value === null ? '—' : render(value)
 
 export function handoffText({
@@ -60,6 +60,8 @@ export function handoffText({
     `  ${kinematics}`,
     'Score: — (scoring engine arrives in PR 04)',
     'Timeline:',
-    ...log.map((event) => `  ${eventClock(event.at)}  ${describeEvent(event, contacts, dispositions)}`),
+    ...log.map(
+      (event) => `  ${eventClock(event.at)}  ${describeEvent(event, contacts, dispositions)}`,
+    ),
   ].join('\n')
 }
