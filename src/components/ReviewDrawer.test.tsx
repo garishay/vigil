@@ -292,7 +292,7 @@ describe('ReviewDrawer', () => {
       />,
     )
     const text = screen.getByLabelText('Handoff text') as HTMLTextAreaElement
-    expect(text.value).toContain('VIGIL HANDOFF — demonstration only, not for operational use')
+    expect(text.value).toContain('VIGIL HANDOFF\nDemonstration only — not for operational use')
     expect(text.value).toContain('To: PHL Tower')
     expect(text.value).toContain('Resolved — Benign')
 

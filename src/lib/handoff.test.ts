@@ -54,13 +54,15 @@ const text = (ranked: RankedTrack, log = walkToEscalated(ranked)) =>
   })
 
 describe('handoffText', () => {
-  it('renders the whole summary in the approved shape', () => {
+  it('renders the whole summary in the ruled shape (#36 [5]: reflowed to fit 26 rem)', () => {
     expect(text(entry(INJECT))).toBe(
       [
-        'VIGIL HANDOFF — demonstration only, not for operational use',
+        'VIGIL HANDOFF',
+        'Demonstration only — not for operational use',
         'To: PHL Tower',
         'Track TRK-05 · Non-cooperative · synthetic inject',
-        'Range 7.2 km to PHL Airfield · 63 ft · 19.1 kt · hdg 346',
+        'Range 7.2 km to PHL Airfield',
+        '  63 ft · 19.1 kt · hdg 346',
         'Score: — (scoring engine arrives in PR 04)',
         'Timeline:',
         '  12:04:31  New — first seen',
@@ -68,6 +70,42 @@ describe('handoffText', () => {
         '  12:07:45  Escalated — to PHL Tower',
       ].join('\n'),
     )
+  })
+
+  it('keeps every line within the measured 26 rem fit, for every configured contact and disposition (#36 [5])', () => {
+    // 52 characters is the measured fit of the drawer's handoff block at 26 rem in 12 px mono.
+    // This pin is what keeps the re-gate closed: a longer contact name, a new disposition, or a
+    // PR 04 factor line that overflows the column fails here, not on screen.
+    const MAX_LINE = 52
+    for (const contact of CONTACTS) {
+      for (const disposition of DISPOSITIONS) {
+        const ranked = entry(INJECT)
+        const observed = observedSnapshot(ranked)
+        let log = firstSeen(ranked.track.id, observed, '2026-09-01T12:04:31.000Z')
+        log = appendEvent(log, 'assess', { at: '2026-09-01T12:06:02.000Z', tSec: 0, observed })
+        log = appendEvent(log, 'escalate', {
+          at: '2026-09-01T12:07:45.000Z',
+          tSec: 0,
+          observed,
+          recipient: contact.id,
+        })
+        log = appendEvent(log, 'resolve', {
+          at: '2026-09-01T12:09:12.000Z',
+          tSec: 0,
+          observed,
+          disposition: disposition.id,
+        })
+        const summary = handoffText({
+          entry: ranked,
+          siteName: 'PHL Airfield',
+          recipient: contact,
+          log,
+          contacts: CONTACTS,
+          dispositions: DISPOSITIONS,
+        })
+        for (const line of summary.split('\n')) expect(line.length).toBeLessThanOrEqual(MAX_LINE)
+      }
+    }
   })
 
   it('keeps the timeline growing through resolution, with the disposition label', () => {
@@ -90,7 +128,7 @@ describe('handoffText', () => {
     })
     // The whole value dashes, unit included — same rule as the drawer: a unit on a missing
     // reading would imply a number that was never broadcast.
-    expect(text(silentKinematics)).toContain('Range 7.2 km to PHL Airfield · — · — · hdg —')
+    expect(text(silentKinematics)).toContain('\n  — · — · hdg —\n')
   })
 
   it('discloses a recorded track as ADS-B, by ident rather than inject naming', () => {
