@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import './App.css'
 import { MapView } from './components/MapView'
 import { Queue } from './components/Queue'
@@ -160,6 +160,11 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
     { label: 'Sim clock', value: '—' },
   ]
 
+  // On Review the Queue is unmounted, so its row-focus return has nothing to land on: the close
+  // button a keyboard operator just pressed unmounts under them and focus falls to document.body.
+  // Land it on the surface's own nav item instead — named, visible, and the anchor of where they
+  // already are (#46). Queue-surface closes keep 03a's row return; this never runs there.
+  const reviewNavRef = useRef<HTMLButtonElement>(null)
   const drawer = selected && (
     <ReviewDrawer
       // Keyed by track, so picker and copied state never leak from one track to the next.
@@ -170,7 +175,10 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
       contacts={CONTACTS}
       dispositions={DISPOSITIONS}
       onAction={act}
-      onClose={() => setSelectedId(null)}
+      onClose={() => {
+        setSelectedId(null)
+        if (surfaceId === 'review') reviewNavRef.current?.focus()
+      }}
     />
   )
   // The drawer is its own column beside the Queue (§4.2 — the operator keeps the list while
@@ -188,6 +196,7 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
           {SURFACES.map((s) => (
             <button
               key={s.id}
+              ref={s.id === 'review' ? reviewNavRef : undefined}
               type="button"
               className="nav__item"
               aria-current={s.id === surfaceId ? 'page' : undefined}
