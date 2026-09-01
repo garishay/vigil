@@ -263,6 +263,19 @@ export default function App({ now = () => new Date().toISOString() }: { now?: ()
               <Queue ranked={visible} selectedId={selectedId} onSelect={setSelectedId} />
             </>
           )}
+          {/* A zero count over blank space reads as a broken picture; say the filters did it.
+              Only once the recording is in — a loading or errored picture is empty for its own
+              reason, and already says so (#36 [7], ruled A). A polite live region, so the
+              operator who just pressed the chip hears why the count fell to 0 — the rail__error
+              line above is its assertive sibling. Mounted on every surface with only the text
+              toggling, because a region inserted in the same commit as its text is one some
+              screen readers never announce — and the filters persist across surfaces, so a
+              return to the Queue would otherwise remount it already filled (#51 review). */}
+          <p className="rail__empty" role="status">
+            {surfaceId === 'queue' && capture.status === 'ready' && visible.length === 0
+              ? 'No tracks match the filters.'
+              : null}
+          </p>
           {surfaceId === 'review' &&
             (drawer ?? <p className="rail__empty">Select a track from the Queue.</p>)}
         </section>

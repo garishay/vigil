@@ -325,6 +325,50 @@ describe('App shell', () => {
     for (const row of rows) expect(within(row).queryByText('INJECT')).not.toBeInTheDocument()
   })
 
+  it('says when no track matches the filters, but not while the picture is loading (#49)', () => {
+    const { rerender } = render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    // The live region is there from the moment the Queue is, empty: a region that appears in the
+    // same commit as its text is one some screen readers never announce (#51 review).
+    const region = () => screen.getByRole('status')
+    expect(region()).toBeEmptyDOMElement()
+
+    // Nothing is escalated on a fresh picture, so the Escalated chip is the first legitimately
+    // empty list: the count reads 0, and the line says why — to the operator who pressed it.
+    const stateChips = screen.getByRole('group', { name: 'Filter by state' })
+    fireEvent.click(within(stateChips).getByRole('button', { name: 'Escalated' }))
+    expect(
+      within(screen.getByRole('list', { name: 'Ranked queue' })).queryAllByRole('listitem'),
+    ).toHaveLength(0)
+    expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent('0')
+    expect(region()).toHaveTextContent('No tracks match the filters.')
+
+    // The filters persist across surfaces, so a round trip through Home must land back on the
+    // *same* region, refilled — not a fresh one born with its text (#51 review, round 3).
+    const node = region()
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    expect(region()).toBe(node)
+    expect(region()).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    expect(region()).toBe(node)
+    expect(region()).toHaveTextContent('No tracks match the filters.')
+
+    // The chip row did remount on that trip; the region is the only thing that must not have.
+    const chipsAgain = screen.getByRole('group', { name: 'Filter by state' })
+    fireEvent.click(within(chipsAgain).getByRole('button', { name: 'All' }))
+    expect(region()).toBeEmptyDOMElement()
+
+    // An empty list with no recording behind it is not a filter result: nothing while loading,
+    // nothing on a load failure — the error already says what happened.
+    useCapture.mockReturnValue({ status: 'loading' })
+    rerender(<App />)
+    expect(region()).toBeEmptyDOMElement()
+    useCapture.mockReturnValue({ status: 'error', message: 'Could not load the recording.' })
+    rerender(<App />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(region()).toBeEmptyDOMElement()
+  })
+
   it('keeps the selection but not the ring on Home (03b, ruled A2 on #3)', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))

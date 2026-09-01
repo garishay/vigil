@@ -339,6 +339,11 @@
   font-size: 0.875rem;
 }
 
+/* The Queue's live region stays mounted with no text; it must not hold a blank line's margin. */
+.rail__empty:empty {
+  margin: 0;
+}
+
 .drawer {
   border-right: 1px solid var(--line);
   background: var(--panel);
