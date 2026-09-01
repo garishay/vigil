@@ -44,7 +44,7 @@ const FILLED: Record<Airframe, [number, number][]> = {
   'light-piston': [
     [48, 22],
     [67, 12], // fin
-    [44, 29], // wing stub
+    [44, 29], // main wheel (#57: the wing moved above the cabin)
   ],
   turboprop: [
     [48, 22],
@@ -75,15 +75,20 @@ const FILLED: Record<Airframe, [number, number][]> = {
   ],
   'small-multirotor': [
     [48, 22],
-    [20, 22], // arm
-    [16, 16], // rotor disc
+    [20, 22], // lower-left rotor disc (#57: the arms now run to the corners)
+    [16, 16], // upper-left rotor disc
   ],
   'fixed-wing-uas': [
-    [38, 22], // fuselage — the review's bisected case
-    [12, 20], // wing, left piece
-    [70, 20], // wing, right piece
-    [70, 23], // boom
-    [84, 24], // tail
+    // The first five predate #57 and now all sit on the one wing band; they stay as they were
+    // (#57's requirement 4) and the three after them pin the parts the band does not.
+    [38, 22], // wing, inboard — the #55 review's bisected case, now one band
+    [12, 20], // wing, left
+    [70, 20], // wing, right
+    [70, 23], // wing, right — a boom before #57
+    [84, 24], // wing, outboard — the tail before #57
+    [48, 12], // pod — the fuselage guard, succeeded (#57)
+    [48, 30], // boom
+    [40, 36], // tailplane
   ],
   unknown: [
     [10, 20], // the plate
@@ -114,6 +119,38 @@ describe('Silhouette paths', () => {
     expect(covered([48, 22], PATHS.unknown) % 2).toBe(0) // the stem
     expect(covered([48, 28], PATHS.unknown) % 2).toBe(0) // the dot
     expect(covered([48, 36], PATHS.unknown) % 2).toBe(0) // below the plate: nothing
+  })
+
+  it('draw the #57 redraws with every part in place and the space between parts empty', () => {
+    const filled: [Airframe, [number, number]][] = [
+      ['small-multirotor', [48, 12.5]], // camera nub
+      ['small-multirotor', [32, 15.5]], // upper-left arm
+      ['small-multirotor', [19, 10]], // the four rotor discs, at their hubs
+      ['small-multirotor', [77, 10]],
+      ['small-multirotor', [19, 30]],
+      ['small-multirotor', [77, 30]],
+      ['fixed-wing-uas', [48, 6]], // nose, above the pod probe in FILLED
+      ['fixed-wing-uas', [56, 36]], // tailplane, the side FILLED does not probe
+      ['light-piston', [5, 25]], // prop blade
+      ['light-piston', [30, 10]], // wing band, above the cabin
+      ['light-piston', [16.5, 29]], // nose wheel
+      ['light-piston', [80, 10]], // fin
+      ['turboprop', [24, 8]], // prop blade above the roof
+      ['turboprop', [24, 35]], // and below the nacelle
+      ['turboprop', [90, 2]], // the T-tail's stabiliser
+    ]
+    const empty: [Airframe, [number, number]][] = [
+      ['small-multirotor', [19, 20]], // between the two left rotors: four discs, not two blobs
+      ['fixed-wing-uas', [30, 30]], // beside the boom: a boom, not a second wing
+      ['light-piston', [55, 12]], // behind the wing band: the wing sits on the cabin, not the tail
+      ['turboprop', [60, 8]], // above the roof behind the wing: the prop is the only thing up there
+    ]
+    for (const [airframe, point] of filled) {
+      expect(covered(point, PATHS[airframe]) % 2, `${airframe} at ${point}`).toBe(1)
+    }
+    for (const [airframe, point] of empty) {
+      expect(covered(point, PATHS[airframe]) % 2, `${airframe} at ${point}`).toBe(0)
+    }
   })
 
   it('renders one hidden, evenodd-filled path per airframe', () => {
