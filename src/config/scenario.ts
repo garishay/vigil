@@ -64,6 +64,12 @@ export interface ScenarioConfig {
    * change here without touching the generator.
    */
   uaTypes: Record<UaType, number>
+  /**
+   * The sim clock's start, as a local time of day (`HH:MM`). A scenario quantity like the seed
+   * (ruled D2 on #4): the recording's `capturedAt` stays on the fixture as provenance, and the
+   * picture is scored — and, from PR 06, played — from this hour. §13's demo runs at 02:30.
+   */
+  clock: { startLocal: string }
 }
 
 export const SCENARIO: ScenarioConfig = {
@@ -88,4 +94,5 @@ export const SCENARIO: ScenarioConfig = {
   },
   remoteId: { pStayHeard: 0.8, pStaySilent: 0.6 },
   uaTypes: { multirotor: 4, aeroplane: 1, 'hybrid-lift': 1 },
+  clock: { startLocal: '02:30' },
 }

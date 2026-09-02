@@ -1,14 +1,16 @@
 /**
- * The placeholder ranking (scope §11, PR 02c): identity, then range to the protected site.
+ * The ranked queue (scope §7): every track scored by the engine, ordered by composite.
  *
- * Pure — no React, no DOM, no clock. The Queue is a function of the track list and nothing else,
- * so the same frame always produces the same order, and the scoring engine (PR 04) replaces the
- * sort key without touching the component that renders it.
+ * Pure — no React, no DOM, no clock; time arrives inside the scoring context. The Queue is a
+ * function of the track list and that context and nothing else, so the same frame always
+ * produces the same order. Ranking never reads lifecycle status (CLAUDE.md): status is applied
+ * at render, after this sort.
  */
 
 import type { ProtectedSite } from '../config/ao.ts'
-import { distanceMeters } from './geo.ts'
+import { SCENARIO } from '../config/scenario.ts'
 import { IDENTITIES } from './identity.ts'
+import { minuteOfDay, scoreTrack, type Score, type ScoringContext } from './scoring.ts'
 import type { Track } from './tracks.ts'
 
 export interface RankedTrack {
@@ -19,44 +21,43 @@ export interface RankedTrack {
   rangeM: number
   /** The site that range is measured to. */
   siteId: string
+  score: Score
 }
 
-/** The nearest protected site and the range to its center. */
-function nearestSite(
-  position: [number, number],
-  sites: readonly ProtectedSite[],
-): { siteId: string; rangeM: number } {
-  let best = { siteId: sites[0].id, rangeM: distanceMeters(sites[0].center, position) }
-  for (const site of sites.slice(1)) {
-    const rangeM = distanceMeters(site.center, position)
-    if (rangeM < best.rangeM) best = { siteId: site.id, rangeM }
-  }
-  return best
+/** Frame 0 at the scenario's clock start, nothing yet heard — what a caller without a clock gets. */
+const FRAME_ZERO: ScoringContext = {
+  tSec: 0,
+  minuteOfDay: minuteOfDay(SCENARIO.clock.startLocal, 0),
+  memory: {},
 }
 
 /**
  * Tracks in queue order. The sort key, in order:
  *
- * 1. **identity** — non-cooperative, unknown, cooperative. Silence carries the burden of proof
- *    (§2), and ADS-B is cooperative by construction, so no real aircraft can rank above any
- *    non-cooperative or unknown inject whatever the ranges. A broadcasting inject competes with
- *    ADS-B on range, which is §5.2 working as written.
- * 2. **airborne before on-ground** — a parked aircraft inside the ring reads as zero range, and
- *    the Queue orders rather than hides. Whether scoring filters ground traffic out is PR 04's.
- * 3. **range to the nearest protected site**, ascending.
- * 4. **track id** — the stable tie-break, so a recapture reorders only by data.
+ * 1. **composite score**, descending — the engine's answer, breakdown retained on the entry.
+ * 2. **uncapped composite**, descending — orders the ADS-B block the ceiling flattened.
+ * 3. **identity** — non-cooperative, unknown, cooperative; silence carries the burden (§2).
+ * 4. **airborne before on-ground** — the Queue orders rather than hides.
+ * 5. **range to the nearest protected site**, ascending.
+ * 6. **track id** — the stable tie-break, so a recapture reorders only by data.
  */
 export function rankTracks(
   tracks: readonly Track[],
   sites: readonly ProtectedSite[],
+  context: ScoringContext = FRAME_ZERO,
 ): RankedTrack[] {
   if (sites.length === 0) {
     throw new Error('rankTracks needs at least one protected site to measure range against')
   }
   return tracks
-    .map((track) => ({ track, ...nearestSite(track.position, sites) }))
+    .map((track) => {
+      const score = scoreTrack(track, sites, context)
+      return { track, score, rangeM: score.rangeM, siteId: score.siteId }
+    })
     .sort(
       (a, b) =>
+        b.score.composite - a.score.composite ||
+        b.score.uncapped - a.score.uncapped ||
         IDENTITIES.indexOf(a.track.identity) - IDENTITIES.indexOf(b.track.identity) ||
         Number(a.track.onGround) - Number(b.track.onGround) ||
         a.rangeM - b.rangeM ||

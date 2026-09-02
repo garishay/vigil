@@ -4,8 +4,9 @@
  * (§2); the operator copies it and delivers it themselves until Phase 2.
  *
  * The layer is disclosed in the Track line because the recipient must know a synthetic track is
- * synthetic. An absent kinematic renders as `—`, never as a zero (#35). The score line stays a
- * dash until PR 04 scores the picture.
+ * synthetic. An absent kinematic renders as `—`, never as a zero (#35). The score block is the
+ * composite with its band, the per-factor contributions two to a line, and the ADS-B ceiling as
+ * its own line when it bound — the breakdown travels with the record (§4.1, ruled A3 on #4).
  *
  * Line shape is load-bearing (#36 [5]): the record fits the drawer's ruled 26 rem without a
  * wrap, a scroll, or a smaller font, so the title and disclaimer are separate lines and the
@@ -14,7 +15,14 @@
 
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
-import { describeEvent, eventClock, formatRangeKm, roundHeading, trackIdent } from './display.ts'
+import {
+  describeEvent,
+  eventClock,
+  formatRangeKm,
+  formatScore,
+  roundHeading,
+  trackIdent,
+} from './display.ts'
 import { IDENTITY_LABEL } from './identity.ts'
 import type { TrackEvent } from './lifecycle.ts'
 import type { RankedTrack } from './ranking.ts'
@@ -45,12 +53,23 @@ export function handoffText({
   contacts: readonly Contact[]
   dispositions: readonly Disposition[]
 }): string {
-  const { track, rangeM } = entry
+  const { track, rangeM, score } = entry
   const kinematics = [
     dash(track.altitudeFt, (v) => `${v} ft`),
     dash(track.groundSpeedKt, (v) => `${v} kt`),
     `hdg ${dash(track.headingDeg, (v) => `${roundHeading(v)}`)}`,
   ].join(' · ')
+  // Two factors per line keeps every line inside the pinned fit; the bars sum to the composite.
+  const factorLines: string[] = []
+  for (let index = 0; index < score.factors.length; index += 2) {
+    factorLines.push(
+      '  ' +
+        score.factors
+          .slice(index, index + 2)
+          .map((factor) => `${factor.label} ${Math.round(factor.contribution)}/${factor.weight}`)
+          .join(' · '),
+    )
+  }
   return [
     'VIGIL HANDOFF',
     'Demonstration only — not for operational use',
@@ -58,7 +77,9 @@ export function handoffText({
     `Track ${trackIdent(track)} · ${IDENTITY_LABEL[track.identity]} · ${LAYER_DISCLOSURE[track.source]}`,
     `Range ${formatRangeKm(rangeM)} to ${siteName}`,
     `  ${kinematics}`,
-    'Score: — (scoring engine arrives in PR 04)',
+    `Score: ${formatScore(score)} (${score.band})`,
+    ...factorLines,
+    ...(score.capped ? [`  Capped at ${formatScore(score)} — cooperative aircraft`] : []),
     'Timeline:',
     ...log.map(
       (event) => `  ${eventClock(event.at)}  ${describeEvent(event, contacts, dispositions)}`,

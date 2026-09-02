@@ -9,6 +9,7 @@
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
 import type { TrackEvent } from './lifecycle.ts'
+import type { Score } from './scoring.ts'
 import type { Track } from './tracks.ts'
 
 /**
@@ -28,6 +29,20 @@ export const LAYER_BADGE: Record<Track['source'], string> = { adsb: 'ADS-B', inj
 
 /** Range to the protected site's center, km to one decimal (§7). */
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
+
+/** The composite as the chip and the handoff print it: a whole number, 0–100. */
+export const formatScore = (score: Score) => String(Math.round(score.composite))
+
+/**
+ * The chip's hover: the three largest contributions, so a row explains itself before the drawer
+ * opens. The reason tag waits for PR 05's vocabulary (ruled on #4); this is what stands in.
+ */
+export const scoreSummary = (score: Score) =>
+  [...score.factors]
+    .sort((a, b) => b.contribution - a.contribution)
+    .slice(0, 3)
+    .map((factor) => `${factor.label} ${Math.round(factor.contribution)}`)
+    .join(' · ')
 
 /**
  * A heading as the whole degree the drawer and the handoff both print — one observation, one

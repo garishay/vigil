@@ -45,8 +45,9 @@ flowchart LR
     end
     ao["config/ao.ts<br/>AO: center · bbox · protected sites"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
-    rank["lib/ranking.ts<br/>placeholder rank: identity → range"]
-    score["scoring engine — PR 04<br/>per-factor breakdown retained"]
+    scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours"]
+    score["lib/scoring.ts<br/>five factors · identity memory · ADS-B ceiling<br/>per-factor breakdown retained · input type strips the answer key"]
+    rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
     life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text"]
     workcfg["config/contacts.ts + dispositions.ts<br/>recipients · outcome labels"]
@@ -55,11 +56,13 @@ flowchart LR
     norm --> model
     gen --> model
     ao --> gen
-    ao --> rank
-    model --> rank
+    ao --> score
+    model --> score
+    scorecfg --> score
+    frames -- kinematic box --> score
+    score --> rank
     model --> airframe
     frames --> airframe
-    model -.-> score
     workcfg --> hand
   end
   photos["data/photos.ts + usePhoto<br/>one photo per opened ADS-B track, by hex<br/>runtime lookup · session cache · fails soft to the silhouette"]
@@ -70,7 +73,7 @@ flowchart LR
   norm -. normalize + rate-limit etiquette, at capture time .-> cap
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
-    app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0"]
+    app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0<br/>folds the identity memory · sim clock at the scenario start"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context"]
     review["components/ReviewDrawer.tsx + TrackVisuals<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>lifecycle actions · event log · handoff"]
@@ -83,15 +86,14 @@ flowchart LR
   model -- adsb + injects: map, strip --> app
   ao -- center · zoom · basemap · sites: map, strip --> app
   cfg -- seed: strip --> app
-  rank -- ranked: queue --> app
+  rank -- ranked + scores: queue chip, drawer, handoff, snapshot --> app
   life -- log · status: drawer, state filter --> app
   workcfg -- pickers: drawer --> app
   hand -- handoff text --> review
   airframe -- class · basis: visuals --> review
   photos -. fetched on open .-> review
-  score -.-> app
   classDef planned stroke-dasharray: 6 4,fill:none;
-  class score,clock planned;
+  class clock planned;
 ```
 
 ---

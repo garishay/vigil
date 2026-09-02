@@ -12,6 +12,7 @@
 
 import type { ContactId } from '../config/contacts.ts'
 import type { DispositionId } from '../config/dispositions.ts'
+import type { FactorId } from '../config/scoring.ts'
 import type { RankedTrack } from './ranking.ts'
 import type { Identity } from './tracks.ts'
 
@@ -72,8 +73,10 @@ export interface ObservedSnapshot {
   rangeM: number
   altitudeFt: number | null
   groundSpeedKt: number | null
-  /** Always null until PR 04 scores the picture; typed so the learner sees the field coming. */
-  score: null
+  /** The composite the operator saw, 0–100 after the ceiling. */
+  score: number
+  /** Each factor's 0–100 value at action time — what §8.3b learns from (ruled on #4). */
+  factors: Record<FactorId, number>
 }
 
 export interface TrackEvent {
@@ -93,12 +96,16 @@ export interface TrackEvent {
 }
 
 /** The observed-or-derived fields of a ranked track, snapshotted for the log. */
-export const observedSnapshot = ({ track, rangeM }: RankedTrack): ObservedSnapshot => ({
+export const observedSnapshot = ({ track, rangeM, score }: RankedTrack): ObservedSnapshot => ({
   identity: track.identity,
   rangeM,
   altitudeFt: track.altitudeFt,
   groundSpeedKt: track.groundSpeedKt,
-  score: null,
+  score: score.composite,
+  factors: Object.fromEntries(score.factors.map((factor) => [factor.id, factor.value])) as Record<
+    FactorId,
+    number
+  >,
 })
 
 /** Every track starts New: a log opens with its synthetic first-seen entry. */

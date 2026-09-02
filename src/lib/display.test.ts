@@ -1,5 +1,49 @@
 import { describe, expect, it } from 'vitest'
-import { eventClock, roundHeading } from './display'
+import { eventClock, formatScore, roundHeading, scoreSummary } from './display'
+import type { Score } from './scoring'
+
+const SCORE: Score = {
+  composite: 81.979,
+  uncapped: 81.979,
+  capped: false,
+  band: 'alarm',
+  rangeM: 7200.2,
+  siteId: 'phl-airfield',
+  factors: [
+    {
+      id: 'cooperativity',
+      label: 'Non-cooperative',
+      value: 100,
+      weight: 25,
+      contribution: 25,
+      detail: '',
+    },
+    { id: 'closing', label: 'Closing', value: 44.4, weight: 20, contribution: 8.9, detail: '' },
+    { id: 'proximity', label: 'Proximity', value: 78, weight: 15, contribution: 11.7, detail: '' },
+    {
+      id: 'kinematic',
+      label: 'Flight profile',
+      value: 100,
+      weight: 10,
+      contribution: 10,
+      detail: '',
+    },
+    { id: 'time', label: 'Off-hours', value: 100, weight: 10, contribution: 10, detail: '' },
+  ],
+}
+
+describe('formatScore', () => {
+  it('prints the composite as a whole number', () => {
+    expect(formatScore(SCORE)).toBe('82')
+    expect(formatScore({ ...SCORE, composite: 30 })).toBe('30')
+  })
+})
+
+describe('scoreSummary', () => {
+  it('names the three largest contributions, largest first, for the chip’s hover', () => {
+    expect(scoreSummary(SCORE)).toBe('Non-cooperative 25 · Proximity 12 · Flight profile 10')
+  })
+})
 
 describe('eventClock', () => {
   it('renders a UTC instant as its Zulu clock', () => {

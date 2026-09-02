@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { rankTracks } from './ranking'
 import { AO } from '../config/ao'
 import type { ProtectedSite } from '../config/ao'
+import { SCORING } from '../config/scoring'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture } from './adsb'
 import { destinationPoint, distanceMeters } from './geo'
 import type { InjectScenario } from './injects'
+import type { ScoringContext } from './scoring'
 import type { AdsbTrack, Identity, InjectTrack, Track } from './tracks'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
@@ -19,6 +21,9 @@ const SITES = AO.protectedSites
 /** A point `rangeM` from the protected site, due north unless told otherwise. */
 const at = (rangeM: number, bearingDeg = 0) => destinationPoint(SITE.center, bearingDeg, rangeM)
 
+/** 10:00 local, nothing heard — daylight, so the off-hours factor is out of the way. */
+const DAY: ScoringContext = { tSec: 0, minuteOfDay: 600, memory: {} }
+
 function adsb(hex: string, rangeM: number, extra: Partial<AdsbTrack> = {}): AdsbTrack {
   return {
     id: `adsb-${hex}`,
@@ -30,6 +35,7 @@ function adsb(hex: string, rangeM: number, extra: Partial<AdsbTrack> = {}): Adsb
     altitudeFt: 3000,
     onGround: false,
     groundSpeedKt: 200,
+    // Due north of the site, heading east: abeam, neither closing nor opening.
     headingDeg: 90,
     verticalRateFpm: 0,
     lastSeenSec: 0,
@@ -52,6 +58,7 @@ function inject(n: number, identity: Identity, rangeM: number): InjectTrack {
     altitudeFt: 200,
     onGround: false,
     groundSpeedKt: 20,
+    // Straight in.
     headingDeg: 180,
     verticalRateFpm: 0,
     lastSeenSec: 0,
@@ -62,53 +69,81 @@ const order = (tracks: Track[], sites: ProtectedSite[] = SITES) =>
   rankTracks(tracks, sites).map((entry) => entry.track.id)
 
 describe('rankTracks', () => {
-  it('orders by identity first: non-cooperative, unknown, cooperative', () => {
-    // The nearest track is the cooperative one; identity still wins (§2: silence carries the burden).
+  it('orders by composite score, descending, and carries the breakdown on the entry', () => {
+    // The nearest track is the cooperative one and it still ranks last: the engine, not range,
+    // decides — a silent drone thirty kilometres out carries its cooperativity everywhere.
     const tracks = [
       inject(1, 'cooperative', 500),
       inject(2, 'unknown', 5000),
       inject(3, 'non-cooperative', 9000),
     ]
-    expect(order(tracks)).toEqual(['inject-03', 'inject-02', 'inject-01'])
+    const ranked = rankTracks(tracks, SITES)
+    const composites = ranked.map((entry) => entry.score.composite)
+    expect(composites).toEqual([...composites].sort((a, b) => b - a))
+    expect(ranked.every((entry) => entry.score.factors.length === 5)).toBe(true)
   })
 
-  it('never ranks an ADS-B track above any non-cooperative or unknown inject, whatever the ranges', () => {
-    // The §2 guardrail as a test rather than a convention: ADS-B is cooperative by construction,
-    // and identity is the first key, so a real aircraft parked on the site still sits below a
-    // silent drone thirty kilometres out.
+  it('never ranks an ADS-B track above any silent or unknown inject under the default weights (§2)', () => {
+    // The ceiling is 30; a never-heard inject's cooperativity alone is 25 ÷ 80 = 31.25. So the
+    // placeholder ranking's guarantee survives the engine — by arithmetic, not by a sort key —
+    // and this test is what tells a slider change it has broken it.
+    expect(SCORING.cooperativity.silent * (SCORING.weights.cooperativity / 80)).toBeGreaterThan(
+      SCORING.adsbCeiling,
+    )
     const tracks = [
-      adsb('a00001', 0),
+      adsb('a00001', 0, { altitudeFt: 200, groundSpeedKt: 20, headingDeg: 180 }),
       adsb('a00002', 100),
       inject(1, 'non-cooperative', 30_000),
       inject(2, 'unknown', 30_000),
     ]
-    const ranked = rankTracks(tracks, SITES)
+    const ranked = rankTracks(tracks, SITES, DAY)
     const injects = ranked.filter((r) => r.track.source === 'inject').map((r) => r.rank)
     const adsbRanks = ranked.filter((r) => r.track.source === 'adsb').map((r) => r.rank)
     expect(Math.min(...adsbRanks)).toBeGreaterThan(Math.max(...injects))
   })
 
-  it('lets a broadcasting inject compete with ADS-B on range', () => {
-    // §5.2 working as written: a drone identifying itself is cooperative, and nothing more.
-    const tracks = [inject(1, 'cooperative', 4000), adsb('a00001', 2000), adsb('a00002', 6000)]
-    expect(order(tracks)).toEqual(['adsb-a00001', 'inject-01', 'adsb-a00002'])
+  it('lets a broadcasting inject compete with ADS-B on the geometry', () => {
+    // §5.2 working as written: a drone identifying itself is cooperative and nothing more, so a
+    // capped arrival outranks one that is far out and in daylight; the same drone inside the
+    // ring at night outranks the arrival.
+    const arrival = adsb('a00001', 2000, { altitudeFt: 1000, groundSpeedKt: 174, headingDeg: 180 })
+    expect(rankTracks([inject(1, 'cooperative', 30_000), arrival], SITES, DAY)[0].track.id).toBe(
+      'adsb-a00001',
+    )
+    expect(rankTracks([inject(1, 'cooperative', 2000), arrival], SITES)[0].track.id).toBe(
+      'inject-01',
+    )
   })
 
-  it('puts airborne traffic ahead of ground traffic within the cooperative block', () => {
-    // A parked aircraft inside the ring reads as near-zero range; the Queue orders it beneath
-    // airborne traffic rather than hiding it. Whether scoring filters it out is for PR 04 (#4).
-    const tracks = [adsb('a00001', 100, { onGround: true, altitudeFt: 0 }), adsb('a00002', 20_000)]
-    expect(order(tracks)).toEqual(['adsb-a00002', 'adsb-a00001'])
+  it('orders the capped ADS-B block by its uncapped composite', () => {
+    // Both cap at 30: the arrival (uncapped 58) and an aircraft over the site with no heading
+    // broadcast (uncapped 33). The list still says which is the more pressing of the two.
+    const arrival = adsb('a00001', 2000, { altitudeFt: 1000, groundSpeedKt: 174, headingDeg: 180 })
+    const overhead = adsb('a00002', 100, { headingDeg: null })
+    const ranked = rankTracks([overhead, arrival], SITES)
+    expect(ranked.map((r) => r.score.composite)).toEqual([30, 30])
+    expect(ranked[0].track.id).toBe('adsb-a00001')
+    expect(ranked[0].score.uncapped).toBeGreaterThan(ranked[1].score.uncapped)
   })
 
-  it('orders by range to the protected site within a block, ascending', () => {
-    const tracks = [adsb('a00001', 9000), adsb('a00002', 1000), adsb('a00003', 5000)]
-    expect(order(tracks)).toEqual(['adsb-a00002', 'adsb-a00003', 'adsb-a00001'])
-  })
-
-  it('breaks an exact tie by track id, so a recapture reorders only by data', () => {
-    const tracks = [adsb('b', 3000), adsb('a', 3000), adsb('c', 3000)]
-    expect(order(tracks)).toEqual(['adsb-a', 'adsb-b', 'adsb-c'])
+  it('breaks an equal score by identity, then airborne before on-ground, then range, then id', () => {
+    // Four distant ADS-B tracks with nothing to score but the floor and the hour: all 14.0625.
+    const tracks = [
+      adsb('b', 60_000, { onGround: true, altitudeFt: 0, groundSpeedKt: 0, headingDeg: null }),
+      adsb('a', 60_000, { onGround: true, altitudeFt: 0, groundSpeedKt: 0, headingDeg: null }),
+      adsb('c', 60_000, { onGround: true, altitudeFt: 0, groundSpeedKt: 0, headingDeg: null }),
+      adsb('d', 70_000, { headingDeg: null }),
+      adsb('e', 61_000, { onGround: true, altitudeFt: 0, groundSpeedKt: 0, headingDeg: null }),
+    ]
+    const ranked = rankTracks(tracks, SITES)
+    expect(new Set(ranked.map((r) => r.score.composite)).size).toBe(1)
+    expect(ranked.map((r) => r.track.id)).toEqual([
+      'adsb-d',
+      'adsb-a',
+      'adsb-b',
+      'adsb-c',
+      'adsb-e',
+    ])
   })
 
   it('reports range to the site center in meters, and which site it measured', () => {
@@ -116,6 +151,7 @@ describe('rankTracks', () => {
     expect(entry.rangeM).toBeCloseTo(distanceMeters(SITE.center, entry.track.position), 6)
     expect(entry.rangeM).toBeCloseTo(2500, -1)
     expect(entry.siteId).toBe(SITE.id)
+    expect(entry.score.rangeM).toBe(entry.rangeM)
   })
 
   it('measures to the nearest protected site when there is more than one', () => {
@@ -150,25 +186,35 @@ describe('rankTracks', () => {
 })
 
 describe('determinism', () => {
-  // The Queue is a pure function of the track list: the golden's frame 0 plus the recording's
-  // frame 0 is the picture the app opens on, and this is the order it opens in.
+  // The Queue is a pure function of the track list and the scoring context: the golden's frame 0
+  // plus the recording's frame 0 is the picture the app opens on, and this is the order it opens
+  // in — at the scenario's clock start, with nothing yet heard, which is what the default
+  // context supplies.
   const frame0: Track[] = [...frameTracks(capture.frames[0]), ...golden.frames[0].tracks]
 
   it('ranks the default picture identically every time, and pins its top rows', () => {
     const ids = order(frame0)
     expect(ids).toEqual(order(frame0))
     expect(ids).toHaveLength(capture.frames[0].records.length + golden.frames[0].tracks.length)
-    // The three silent injects first, by range; then the cooperative block, which reads ADS-B and
-    // broadcasting injects interleaved by range — on this frame the injects sit 6.5–10 km out.
+    // The "visibly changes" statement (#4): the placeholder read 05 · 03 · 06 · adsb-c00b80 · 01 ·
+    // 04 · adsb-a28904. The engine reads the three silent injects, then the three broadcasting
+    // ones by geometry, then the capped ADS-B block — the arrival inside the ring that the
+    // placeholder put fourth now sits in that block.
     expect(ids.slice(0, 7)).toEqual([
       'inject-05',
       'inject-03',
       'inject-06',
-      'adsb-c00b80',
       'inject-01',
       'inject-04',
-      'adsb-a28904',
+      'inject-02',
+      'adsb-a0e607',
     ])
+    const ranked = rankTracks(frame0, SITES)
+    expect(ranked.slice(0, 6).map((r) => Math.round(r.score.composite))).toEqual([
+      82, 69, 66, 65, 60, 47,
+    ])
+    expect(ranked[6].score).toMatchObject({ composite: 30, capped: true })
+    expect(ranked.find((r) => r.track.id === 'adsb-c00b80')?.rank).toBeGreaterThan(6)
   })
 
   it('ranks identically with the display enrichment stripped — enrichment is never scored', () => {
@@ -182,7 +228,7 @@ describe('determinism', () => {
     expect(order(stripped)).toEqual(order(frame0))
   })
 
-  it('ends the default picture with its parked aircraft, dimmed rather than dropped', () => {
+  it('ends the default picture with its parked aircraft, dimmed rather than dropped (C3)', () => {
     const ranked = rankTracks(frame0, SITES)
     const tail = ranked.slice(-3)
     expect(tail.every((r) => r.track.onGround)).toBe(true)
@@ -195,7 +241,7 @@ describe('arrival order', () => {
   // Synthetic on purpose: the capture is data, not a test oracle, so a recapture re-pins the
   // frame-0 tests above and nothing else.
   it('produces the same order whatever order the tracks arrive in', () => {
-    // Two tracks share a range on purpose: without a tie the sort key is already a strict total
+    // Two tracks share a score on purpose: without a tie the sort key is already a strict total
     // order and any comparator passes. The tie is what makes the shuffles exercise the id
     // tie-break, and `a00004` arrives first so a stable sort alone cannot save it.
     const tracks: Track[] = [
@@ -208,10 +254,10 @@ describe('arrival order', () => {
       inject(3, 'unknown', 12_000),
     ]
     const expected = [
-      'inject-01',
-      'inject-03',
-      'adsb-a00002',
       'inject-02',
+      'inject-03',
+      'inject-01',
+      'adsb-a00002',
       'adsb-a00003',
       'adsb-a00004',
       'adsb-a00001',

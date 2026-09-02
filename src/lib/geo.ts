@@ -93,6 +93,43 @@ export function bearingDegrees(a: [number, number], b: [number, number]): number
   return (Math.atan2(y, x) / toRad + 360) % 360
 }
 
+/** Closest point of approach: how near a track's current course brings it to a point, and when. */
+export interface ClosestApproach {
+  /** Distance at closest approach, meters. */
+  cpaM: number
+  /** Seconds until closest approach; negative when it has already passed. */
+  tcpaS: number
+}
+
+/**
+ * CPA/TCPA of a track against a stationary target — public first principles (§2), the scoring
+ * engine's closing-geometry input.
+ *
+ * Straight-line extrapolation on the local tangent plane: the target's offset from the track is
+ * taken as east/north meters (equirectangular, on the mean radius, at the mid-latitude), the
+ * velocity from ground speed and heading, and the standard result follows — TCPA is the
+ * projection of the offset onto the velocity, CPA the perpendicular distance. At AO scale the
+ * flat-plane error is well under the ADS-B position error. A track with no ground speed has no
+ * approach: `null`, rather than a zero that a caller could mistake for "arriving now".
+ */
+export function closestApproach(
+  from: [number, number],
+  headingDeg: number,
+  speedMs: number,
+  to: [number, number],
+): ClosestApproach | null {
+  if (speedMs <= 0) return null
+  const toRad = Math.PI / 180
+  const midLat = ((from[1] + to[1]) / 2) * toRad
+  const eastM = (to[0] - from[0]) * toRad * MEAN_EARTH_RADIUS_M * Math.cos(midLat)
+  const northM = (to[1] - from[1]) * toRad * MEAN_EARTH_RADIUS_M
+  const vEast = speedMs * Math.sin(headingDeg * toRad)
+  const vNorth = speedMs * Math.cos(headingDeg * toRad)
+  const tcpaS = (eastM * vEast + northM * vNorth) / (speedMs * speedMs)
+  const cpaM = Math.hypot(eastM - vEast * tcpaS, northM - vNorth * tcpaS)
+  return { cpaM, tcpaS }
+}
+
 /**
  * Trim to `places` decimals without dragging float noise into a fixture.
  *

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   bearingDegrees,
   circlePolygon,
+  closestApproach,
   destinationPoint,
   distanceMeters,
   offsetPoint,
@@ -9,6 +10,35 @@ import {
 } from './geo'
 
 const PHL_CENTER: [number, number] = [-75.2411, 39.8721]
+
+describe('closestApproach', () => {
+  const north = (m: number) => destinationPoint(PHL_CENTER, 0, m)
+
+  it('finds the target itself when the track is heading straight at it', () => {
+    // 2 km north, heading south at 10 m/s: 200 s to a zero-distance CPA.
+    const approach = closestApproach(north(2000), 180, 10, PHL_CENTER)!
+    expect(approach.cpaM).toBeCloseTo(0, 0)
+    expect(approach.tcpaS).toBeCloseTo(200, 0)
+  })
+
+  it('reports a passed approach as a negative time', () => {
+    const approach = closestApproach(north(2000), 0, 10, PHL_CENTER)!
+    expect(approach.tcpaS).toBeCloseTo(-200, 0)
+    expect(approach.cpaM).toBeCloseTo(0, 0)
+  })
+
+  it('finds the perpendicular distance for a track passing abeam', () => {
+    // 10 km north-west, heading east: passes 10 km north of the target in 1000 s.
+    const start = destinationPoint(PHL_CENTER, 315, Math.hypot(10_000, 10_000))
+    const approach = closestApproach(start, 90, 10, PHL_CENTER)!
+    expect(approach.cpaM).toBeCloseTo(10_000, -2)
+    expect(approach.tcpaS).toBeCloseTo(1000, -1)
+  })
+
+  it('has no answer for a track that is not moving', () => {
+    expect(closestApproach(north(2000), 180, 0, PHL_CENTER)).toBeNull()
+  })
+})
 
 describe('circlePolygon', () => {
   it('returns a closed ring', () => {

@@ -5,6 +5,7 @@ import { DISPOSITIONS } from '../config/dispositions'
 import { handoffText } from './handoff'
 import { appendEvent, firstSeen, observedSnapshot } from './lifecycle'
 import type { RankedTrack } from './ranking'
+import { scoreTrack } from './scoring'
 import type { AdsbTrack, InjectTrack } from './tracks'
 
 const INJECT: InjectTrack = {
@@ -24,11 +25,13 @@ const INJECT: InjectTrack = {
   lastSeenSec: 0,
 }
 
+/** Scored for real, at the scenario's 02:30 with nothing yet heard — the picture the app opens on. */
 const entry = (track: InjectTrack | AdsbTrack): RankedTrack => ({
   track,
   rank: 1,
   rangeM: 7200.2,
   siteId: 'phl-airfield',
+  score: scoreTrack(track, AO.protectedSites, { tSec: 0, minuteOfDay: 150, memory: {} }),
 })
 
 const PHL_TOWER = CONTACTS.find((contact) => contact.id === 'phl-tower')!
@@ -65,7 +68,10 @@ describe('handoffText', () => {
         'Track TRK-05 · Non-cooperative · synthetic inject',
         'Range 7.2 km to PHL Airfield',
         '  63 ft · 19.1 kt · hdg 346',
-        'Score: — (scoring engine arrives in PR 04)',
+        'Score: 82 (alarm)',
+        '  Non-cooperative 25/25 · Closing 9/20',
+        '  Proximity 12/15 · Flight profile 10/10',
+        '  Off-hours 10/10',
         'Timeline:',
         '  12:04:31Z  New — first seen',
         '  12:06:02Z  Assessing — claimed',
@@ -158,6 +164,31 @@ describe('handoffText', () => {
       registry: null,
     }
     expect(text(entry(adsb))).toContain('Track AAL423 · Cooperative · recorded ADS-B')
+    expect(text(entry(adsb))).not.toContain('Capped at')
+  })
+
+  it('prints the ADS-B ceiling as its own line when it bound — the guardrail is visible (A3)', () => {
+    // An arrival: inside the ring, straight in, seconds out. Uncapped it would read 58.
+    const arrival: AdsbTrack = {
+      id: 'adsb-a06461',
+      source: 'adsb',
+      icaoHex: 'a06461',
+      identity: 'cooperative',
+      callsign: 'AAL423',
+      position: [-75.2411, 39.8901],
+      altitudeFt: 1000,
+      onGround: false,
+      groundSpeedKt: 174,
+      headingDeg: 180,
+      verticalRateFpm: -640,
+      lastSeenSec: 0,
+      category: null,
+      registry: null,
+    }
+    const summary = text(entry(arrival))
+    expect(summary).toContain('\nScore: 30 (calm)\n')
+    expect(summary).toContain('  Non-cooperative 1/25 · Closing 20/20\n')
+    expect(summary).toContain('  Off-hours 10/10\n  Capped at 30 — cooperative aircraft\nTimeline:')
   })
 
   it('carries no ground truth — the answer key stays out of the record (§8.3b)', () => {

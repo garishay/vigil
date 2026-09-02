@@ -122,6 +122,27 @@ describe('App shell', () => {
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
   })
 
+  it('shows the sim clock at the scenario’s configured start — the hour the picture is scored at (04a)', () => {
+    // Ruled with D2 on #4: the breakdown names a time the strip must not deny. PR 06 makes it tick.
+    render(<App />)
+    expect(screen.getByText('Sim clock').nextSibling).toHaveTextContent(SCENARIO.clock.startLocal)
+  })
+
+  it('scores every row, with the ADS-B block held under the ceiling (04a)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+    const chips = rows.map((row) => Number(row.querySelector('.queue__score')?.textContent))
+    expect(chips.every((chip) => Number.isInteger(chip) && chip >= 0 && chip <= 100)).toBe(true)
+    // Ranked by score: the chips never climb down the list.
+    expect(chips).toEqual([...chips].sort((a, b) => b - a))
+    for (const row of rows) {
+      if (within(row).queryByText('ADS-B')) {
+        expect(Number(row.querySelector('.queue__score')?.textContent)).toBeLessThanOrEqual(30)
+      }
+    }
+  })
+
   it("plans the injects on the recording's own frame grid", () => {
     // The two layers share one timeline, which is what lets PR 06 advance a single clock. App
     // holds the plan and samples it, so that clock will drive `injectTracksAt` with no rewiring.

@@ -11,6 +11,7 @@ import {
   describeEvent,
   eventClock,
   formatRangeKm,
+  formatScore,
   roundHeading,
   trackIdent,
 } from '../lib/display'
@@ -92,7 +93,7 @@ function Picker<Id extends string>({
  * column beside the Queue, so the operator never loses the list to read a track (§4.2); the
  * Review surface shows the same component alone, at the same 26 rem (ruled B1 on #3).
  *
- * Reserved here, filled later: the score breakdown (PR 04), the history trail's content (PR 06 —
+ * Reserved here, filled later: the score breakdown (04b; the composite shows now), the history trail's content (PR 06 —
  * at a static frame 0 there is exactly one known position). The Track Visuals slot is 03c's
  * silhouette tier; 03d adds the photo tier for ADS-B tracks.
  *
@@ -284,7 +285,8 @@ export function ReviewDrawer({
       </dl>
 
       <div className="drawer__slot">
-        Score — <span className="drawer__pending">factors arrive with PR 04</span>
+        Score {formatScore(entry.score)} —{' '}
+        <span className="drawer__pending">factor breakdown arrives with 04b</span>
       </div>
 
       <p className="drawer__history">
