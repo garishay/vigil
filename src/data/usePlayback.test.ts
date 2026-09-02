@@ -73,8 +73,11 @@ describe('usePlayback', () => {
     })
     expect(result.current.durationS).toBeNull()
     expect(clock.scheduled()).toBe(false)
+    // Not playing either: the strip must not offer Pause on a clock that cannot run (#73 review).
+    expect(result.current.playing).toBe(false)
     rerender({ d: 10 })
     expect(clock.scheduled()).toBe(true)
+    expect(result.current.playing).toBe(true)
   })
 
   it('cancels the scheduled tick on unmount', () => {

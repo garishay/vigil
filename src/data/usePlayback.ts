@@ -38,9 +38,10 @@ export function usePlayback(
 ): Playback {
   const [tSec, setTSec] = useState(0)
   const [wantPlaying, setWantPlaying] = useState(true)
-  // Derived, not stored: reaching the end pauses without an effect writing state back.
+  // Derived, not stored: reaching the end pauses without an effect writing state back, and a
+  // clock with no recording to run on is not playing, however much it wants to (#73 review).
   const ended = durationS !== null && tSec >= durationS
-  const playing = wantPlaying && !ended
+  const playing = wantPlaying && durationS !== null && !ended
 
   useEffect(() => {
     if (!playing || durationS === null) return

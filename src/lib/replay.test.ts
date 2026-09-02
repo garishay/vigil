@@ -183,3 +183,21 @@ describe('memoryAt', () => {
     expect(SCENARIO.seed).toBe(plan.seed)
   })
 })
+
+describe('pictureAt — the coast window is one clock in both branches (#73 review)', () => {
+  it('drops a bridged track once the age its sample already carried runs past the window', () => {
+    // Heard 23.4 s before the sample at t=0; the next sample is 75 s on — inside the gap test.
+    const aged = indexCapture(
+      capture([
+        { tMs: 0, records: [{ ...A0, lastSeenSec: 23.4 }] },
+        { tMs: 75000, records: [A1] },
+      ]),
+    )
+    // Bridged while the message is inside the window …
+    expect(pictureAt(aged, 66)[0].lastSeenSec).toBe(89.4)
+    // … absent the moment it is not — the same instant a held track would leave — and back at
+    // the next sample, which is a fresh message.
+    expect(pictureAt(aged, 67)).toEqual([])
+    expect(pictureAt(aged, 75)[0].lastSeenSec).toBe(2)
+  })
+})

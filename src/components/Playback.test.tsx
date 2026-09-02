@@ -42,8 +42,9 @@ describe('Playback', () => {
   })
 
   it('is disabled until the recording is in', () => {
-    render(<Playback playback={state({ durationS: null, tSec: 0 })} />)
-    expect(screen.getByRole('button', { name: 'Pause' })).toBeDisabled()
+    // The hook reports a clock with nothing to run on as not playing (#73 review).
+    render(<Playback playback={state({ durationS: null, tSec: 0, playing: false })} />)
+    expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled()
     expect(screen.getByRole('slider', { name: 'Seek' })).toBeDisabled()
     expect(screen.getByText('—')).toBeInTheDocument()
   })

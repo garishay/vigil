@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { MapView } from './components/MapView'
 import { Playback } from './components/Playback'
@@ -154,6 +154,19 @@ export default function App({
     ? (ranked.find((entry) => entry.track.id === selectedId) ?? null)
     : null
 
+  // The picture can take the selection away: a selected track coasts out and the drawer unmounts
+  // with nobody pressing Close (#73 review). Clear the selection, so the Queue's own return-to-
+  // list effect runs where the Queue is mounted, and remember it for the Review surface, where
+  // focus would otherwise fall to document.body — the failure #46 and #54 were built against.
+  // Guarded set-during-render, as the sighting fold below; only once the recording is in, since
+  // a loading picture has taken nothing away.
+  const orphaned = selectedId !== null && selected === null && capture.status === 'ready'
+  const [orphanCount, setOrphanCount] = useState(0)
+  if (orphaned) {
+    setOrphanCount((count) => count + 1)
+    setSelectedId(null)
+  }
+
   // The sighting fold: every track in the picture without a log gets one opened now — its `at`
   // from the wall clock, its `tSec` from the replay clock, its `observed` from this render —
   // rather than back-stamped to app start (ruled on #6, note 3). Guarded set-during-render is
@@ -218,6 +231,18 @@ export default function App({
   // the close handler records the modality beside the clear — state, so it commits with it —
   // and the Queue skips the return for a pointer-driven close (#54).
   const [keyboardClose, setKeyboardClose] = useState(true)
+  // The Review half of the orphan case above: after the commit that dropped the drawer, land
+  // focus on the Review nav item exactly as a keyboard close does — and only if it actually fell
+  // to body, so a pointer user's focus is left where it is.
+  const orphanHandledRef = useRef(0)
+  useEffect(() => {
+    // Once per orphaning, never again on a later surface switch.
+    if (orphanCount === orphanHandledRef.current) return
+    orphanHandledRef.current = orphanCount
+    if (surfaceId === 'review' && document.activeElement === document.body) {
+      reviewNavRef.current?.focus()
+    }
+  }, [orphanCount, surfaceId])
   const drawer = selected && (
     <ReviewDrawer
       // Keyed by track, so picker and copied state never leak from one track to the next.

@@ -753,6 +753,9 @@ describe('App replay clock (06a)', () => {
     replay.tick(1)
     expect(idents()).not.toContain('bbbbbb')
     expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
+    // The operator's focus was on the drawer; the picture took it away, and it must land on the
+    // list, not on document.body (#73 review).
+    expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
     // The record survives the picture: seek back and the claim is still on it.
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '0' } })
     fireEvent.click(
@@ -763,5 +766,25 @@ describe('App replay clock (06a)', () => {
     expect(
       within(screen.getByText('Status').parentElement as HTMLElement).getByText('Assessing'),
     ).toBeInTheDocument()
+  })
+
+  it('lands focus on the Review nav item when the picture takes the reviewed track away (#73 review)', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    fireEvent.click(
+      within(rows().find((r) => within(r).queryByText('bbbbbb')) as HTMLElement).getByRole(
+        'button',
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    // A keyboard operator mid-walk: focus is on a drawer button when the track coasts out.
+    screen.getByRole('button', { name: 'Assess' }).focus()
+    replay.tick(91)
+    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
+    expect(screen.getByText('Select a track from the Queue.')).toBeInTheDocument()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Review' }))
   })
 })

@@ -103,11 +103,16 @@ export function pictureAt(
     if (prevIndex < 0) continue
     const prev = samples[prevIndex]
     const next = samples[prevIndex + 1] as Sample | undefined
-    // The last message is the previous sample's, however the position between is derived.
+    // The last message is the previous sample's, however the position between is derived, and
+    // the coast window is measured from that message in both branches: a sample that already
+    // carried an age spends it here too, so a bridged hole cannot outlive the window a held
+    // track is dropped at (#73 review). The gap test stays beside it — a hole the aggregator
+    // itself would have dropped the track through is a leave and a return, held, not bridged.
     const lastSeenSec = round(prev.track.lastSeenSec + (tSec - prev.tSec), 1)
+    if (lastSeenSec > config.coastS) continue
     if (next && next.tSec - prev.tSec <= config.coastS) {
       picture.push({ ...interpolate(prev, next, tSec), lastSeenSec })
-    } else if (lastSeenSec <= config.coastS) {
+    } else {
       picture.push({ ...prev.track, lastSeenSec })
     }
   }
