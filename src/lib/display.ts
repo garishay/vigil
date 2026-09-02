@@ -34,13 +34,15 @@ export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} 
 export const formatScore = (score: Score) => String(Math.round(score.composite))
 
 /**
- * The arithmetic behind the number, on the weight scale the factor lines use: `66/80`, or
- * `30/80 → 38` when the ceiling bound and the uncapped composite is the one the total makes.
- * The total is the sum of the *rounded* contributions, so the lines a reader adds up land on it.
+ * The arithmetic behind the number, on the weight scale the factor lines use: `65.6/80`, or
+ * `46.3/80 → 58` when the ceiling bound and the uncapped composite is the one the total makes.
+ * The total is the engine's own one-decimal `total` (ruled on #63, round 2): the integer factor
+ * lines sum to it within rounding, and because the score is made from it the division
+ * reproduces the score exactly — a sum of rounded parts could miss by three points and cross a
+ * band, and even a one-decimal print of the unrounded sum can flip the last digit.
  */
 export const scoreTotal = (score: Score) => {
-  const total = score.factors.reduce((sum, factor) => sum + Math.round(factor.contribution), 0)
-  const over = `${total}/${score.totalWeight}`
+  const over = `${score.total.toFixed(1)}/${score.totalWeight}`
   return score.capped ? `${over} → ${Math.round(score.uncapped)}` : over
 }
 

@@ -16,6 +16,7 @@ import type { ProtectedSite } from '../config/ao'
 import { SCORING, type FactorId } from '../config/scoring'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture } from './adsb'
+import { scoreTotal } from './display'
 import { destinationPoint } from './geo'
 import type { InjectScenario } from './injects'
 import type { AdsbTrack, InjectTrack, Track } from './tracks'
@@ -436,13 +437,16 @@ describe('the composite', () => {
       score.factors.reduce((sum, f) => sum + f.contribution, 0),
       9,
     )
-    expect(score.uncapped).toBeCloseTo((score.weighted / score.totalWeight) * 100, 9)
+    // The score is made from the total to one decimal — the number the record prints — so the
+    // printed division reproduces it by construction (#63, round 2).
+    expect(score.total).toBe(Math.round(score.weighted * 10) / 10)
+    expect(score.uncapped).toBe((score.total / score.totalWeight) * 100)
     expect(score.composite).toBe(score.uncapped)
     expect(score.capped).toBe(false)
   })
 
   it('caps an ADS-B track at the ceiling and reports it, leaving the breakdown honest (A3)', () => {
-    // An arrival: inside the ring, straight in, seconds out, at 02:30. Uncapped it reads 57.8.
+    // An arrival: inside the ring, straight in, seconds out, at 02:30. Uncapped it reads 57.9 (46.25 weighted, scored as 46.3).
     const arrival = adsb({
       position: at(2000),
       altitudeFt: 1000,
@@ -450,7 +454,7 @@ describe('the composite', () => {
       headingDeg: 180,
     })
     const score = scoreTrack(arrival, SITES, NIGHT)
-    expect(score.uncapped).toBeCloseTo(57.8125, 6)
+    expect(score.uncapped).toBeCloseTo(57.875, 6)
     expect(score.composite).toBe(SCORING.adsbCeiling)
     expect(score.capped).toBe(true)
     expect(score.band).toBe('calm')
@@ -473,6 +477,16 @@ describe('the composite', () => {
     expect(bandOf(bands.alarm, bands)).toBe('alarm')
     expect(scoreTrack(inject(), SITES, NIGHT).band).toBe('alarm')
     expect(scoreTrack(adsb(), SITES, NIGHT).band).toBe('calm')
+  })
+
+  it('bands the whole number it prints, so the word never contradicts the score beside it (#63, round 2)', () => {
+    // The hand scenario's silent drone in daylight: 70 / 80 = 87.5, printed as 88. With the
+    // alarm threshold at 87.6 the exact composite is elevated and the printed one is alarm; the
+    // chip says 88, so alarm is the word that agrees with it.
+    const config = { ...SCORING, bands: { elevated: 40, alarm: 87.6 } }
+    const score = scoreTrack(inject(), SITES, { ...DAY, config })
+    expect(score.composite).toBe(87.5)
+    expect(score.band).toBe('alarm')
   })
 
   it('reports the nearest site and the range to it, and refuses to score without one', () => {
@@ -559,7 +573,7 @@ describe('the hand-computed scenario', () => {
   //   closing: heading not observed → 0
   //   proximity: 10 km on the 5 → 15 km ramp → 50 × 15 % = 7.5
   //   kinematic: inside the box → 10
-  //   time: 10                          → 33.75 ÷ 80 = 42.1875
+  //   time: 10                          → 33.75, scored as 33.8 ÷ 80 = 42.25
   const C = adsb({
     id: 'adsb-c',
     icaoHex: 'c',
@@ -573,7 +587,7 @@ describe('the hand-computed scenario', () => {
   //   closing: CPA 0, TCPA 22 s → 100 × 20 = 20
   //   proximity: inside → 15
   //   kinematic: 174 kt is the end of the speed ramp → 0
-  //   time: 10                          → 46.25 ÷ 80 = 57.8125, capped to 30
+  //   time: 10                          → 46.25, scored as 46.3 ÷ 80 = 57.875, capped to 30
   const D = adsb({
     id: 'adsb-d',
     icaoHex: 'd',
@@ -585,14 +599,20 @@ describe('the hand-computed scenario', () => {
   })
   //   D — parked on the site.
   //   cooperativity 1.25; closing, proximity, kinematic on ground → 0; time 10
-  //                                      → 11.25 ÷ 80 = 14.0625
+  //                                      → 11.25, scored as 11.3 ÷ 80 = 14.125
+  //
+  //   The score is made from the weighted total to one decimal — the number the record prints —
+  //   which is why B, C, and D land a hair above the exact quotient (ruled on #63, round 2).
 
   it('matches the arithmetic', () => {
     const composite = (track: Track) => scoreTrack(track, SITES, NIGHT)
-    expect(composite(A).composite).toBe(100)
-    expect(composite(B).composite).toBeCloseTo(42.1875, 9)
-    expect(composite(C)).toMatchObject({ composite: 30, uncapped: 57.8125, capped: true })
-    expect(composite(D).composite).toBeCloseTo(14.0625, 9)
+    expect(composite(A)).toMatchObject({ composite: 100, weighted: 80, total: 80 })
+    expect(composite(B).weighted).toBeCloseTo(33.75, 9)
+    expect(composite(B).total).toBe(33.8)
+    expect(composite(B).composite).toBeCloseTo(42.25, 9)
+    expect(composite(C)).toMatchObject({ composite: 30, total: 46.3, capped: true })
+    expect(composite(C).uncapped).toBeCloseTo(57.875, 9)
+    expect(composite(D).composite).toBeCloseTo(14.125, 9)
   })
 
   it('reads the same in daylight, ten points lower and in the same order', () => {
@@ -623,6 +643,29 @@ describe('determinism', () => {
     expect(stripped.map((t) => scoreTrack(t, SITES, NIGHT))).toEqual(
       frame0.map((t) => scoreTrack(t, SITES, NIGHT)),
     )
+  })
+
+  it('prints a total whose division reproduces the score, for every track of every frame (#63, round 2)', () => {
+    // The Score line's arithmetic must land in the same band as the number beside it. The total
+    // is printed to one decimal, so the division can differ from the true composite by at most
+    // 0.0625 points; this sweep is what says that never flips a rounded score in the picture.
+    let checked = 0
+    for (const frame of capture.frames) {
+      const tSec = frame.tMs / 1000
+      const injects = golden.frames[Math.round(tSec / 15)]?.tracks ?? []
+      for (const track of [...frameTracks(frame), ...injects]) {
+        const score = scoreTrack(track, SITES, { tSec, minuteOfDay: 150, memory: {} })
+        const [total] = scoreTotal(score).split('/')
+        const reproduced = Math.round((Number(total) / score.totalWeight) * 100)
+        expect(reproduced).toBe(Math.round(score.uncapped))
+        // The band is taken on the printed whole number, so the word beside the score agrees
+        // with the arithmetic under it (a 69.6 prints 70 and reads alarm); a capped track's
+        // band is the ceiling's.
+        if (!score.capped) expect(bandOf(reproduced, SCORING.bands)).toBe(score.band)
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThan(5000)
   })
 
   it('carries no ground-truth word in any detail line', () => {

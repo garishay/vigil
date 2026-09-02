@@ -3,10 +3,11 @@ import { eventClock, formatScore, roundHeading, scoreSummary, scoreTotal } from 
 import type { Score } from './scoring'
 
 const SCORE: Score = {
-  composite: 81.979,
+  composite: 82,
   weighted: 65.58,
+  total: 65.6,
   totalWeight: 80,
-  uncapped: 81.979,
+  uncapped: 82,
   capped: false,
   band: 'alarm',
   rangeM: 7200.2,
@@ -46,7 +47,8 @@ const CAPPED: Score = {
   ...SCORE,
   composite: 30,
   weighted: 46.25,
-  uncapped: 57.8125,
+  total: 46.3,
+  uncapped: 57.875,
   capped: true,
   band: 'calm',
   factors: [
@@ -59,25 +61,26 @@ const CAPPED: Score = {
 }
 
 describe('scoreTotal', () => {
-  it('sums the rounded contributions over the configured weights, so the lines add up (#63)', () => {
-    expect(scoreTotal(SCORE)).toBe('66/80')
+  it('prints the one-decimal total the score is made from, over the configured weights (#63, round 2)', () => {
+    // 65.6 / 80 = 82.0 %, the printed score; a sum of rounded parts (66) would read 82.5 %.
+    expect(scoreTotal(SCORE)).toBe('65.6/80')
   })
 
   it('carries the uncapped composite the total makes when the ceiling bound', () => {
-    expect(scoreTotal(CAPPED)).toBe('46/80 → 58')
+    expect(scoreTotal(CAPPED)).toBe('46.3/80 → 58')
   })
 })
 
 describe('scoreSummary', () => {
   it('names the three largest contributions, largest first, and their total, for the chip’s hover', () => {
     expect(scoreSummary(SCORE)).toBe(
-      'Non-cooperative 25 · Proximity 12 · Flight profile 10 (66/80)',
+      'Non-cooperative 25 · Proximity 12 · Flight profile 10 (65.6/80)',
     )
   })
 
   it('leads a capped row with the cap line, so the hover never contradicts the chip (#63)', () => {
     expect(scoreSummary(CAPPED)).toBe(
-      'Capped at 30 — cooperative aircraft · Closing 20 · Proximity 15 · Off-hours 10 (46/80 → 58)',
+      'Capped at 30 — cooperative aircraft · Closing 20 · Proximity 15 · Off-hours 10 (46.3/80 → 58)',
     )
   })
 })

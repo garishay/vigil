@@ -13,8 +13,9 @@
  * **Real aircraft are never the threat** (§2), as arithmetic rather than as weights: after the
  * sum, a track whose observed `source` is ADS-B is capped at the configured ceiling, below the
  * elevated band, and the cap is reported on the score so the display prints it as its own line
- * (ruled A3 on #4). The factor lines sum to the weighted total; the score is that total over
- * the configured weights, then the ceiling — both are on the score, so nothing is hidden.
+ * (ruled A3 on #4). The factor lines sum to the weighted total within rounding; the total, to
+ * one decimal, is what the score is made from — over the configured weights, then the ceiling
+ * — so the printed division reproduces it, and both are on the score: nothing is hidden.
  *
  * Time is an input — `tSec` for the memory, `minuteOfDay` for the off-hours factor — which is
  * the seam PR 06's replay clock drives.
@@ -61,7 +62,7 @@ export interface Factor {
   /** 0–100. */
   value: number
   weight: number
-  /** `value / 100 × weight` — the bar's fill, and what the factor lines sum to (`weighted`). */
+  /** `value / 100 × weight` — the bar's fill; these sum to `weighted`, before rounding. */
   contribution: number
   /** One line saying what the value rests on, in observed terms. */
   detail: string
@@ -70,8 +71,14 @@ export interface Factor {
 export interface Score {
   /** 0–100, after the ceiling. */
   composite: number
-  /** The sum of the contributions — what the factor lines add up to. */
+  /** The sum of the contributions before rounding. */
   weighted: number
+  /**
+   * `weighted` to one decimal — the total the Score line prints, and the number the score is
+   * made from, so the division on that line reproduces the score by construction rather than
+   * within a rounding error that can cross a band (#63, round 2).
+   */
+  total: number
   /** The sum of the configured weights — what `weighted` is over. */
   totalWeight: number
   /** 0–100, before the ceiling — equal to `composite` unless `capped`. */
@@ -322,16 +329,22 @@ export function scoreTrack(
   })
   const totalWeight = factors.reduce((sum, factor) => sum + factor.weight, 0)
   const weighted = factors.reduce((sum, factor) => sum + factor.contribution, 0)
-  const uncapped = (weighted / totalWeight) * 100
+  // The score is made from the total as the record prints it, one decimal: a reader dividing
+  // 65.6 by 80 lands on the same whole number and the same band as the chip, always.
+  const total = Math.round(weighted * 10) / 10
+  const uncapped = (total / totalWeight) * 100
   const capped = track.source === 'adsb' && uncapped > config.adsbCeiling
   const composite = capped ? config.adsbCeiling : uncapped
   return {
     composite,
     weighted,
+    total,
     totalWeight,
     uncapped,
     capped,
-    band: bandOf(composite, config.bands),
+    // Banded on the whole number the chip and the handoff print, so a 69.6 that prints as 70
+    // reads alarm, not elevated: the word and the number beside it can never disagree (#63).
+    band: bandOf(Math.round(composite), config.bands),
     factors,
     rangeM: nearest.rangeM,
     siteId: nearest.site.id,

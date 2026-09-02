@@ -62,8 +62,9 @@ export function handoffText({
     `hdg ${dash(track.headingDeg, (v) => `${roundHeading(v)}`)}`,
   ].join(' · ')
   // Two factors per line keeps every line inside the pinned fit. The factor lines sum to the
-  // weighted total on the Score line; the score is that total over the configured weights, then
-  // the ceiling (ruled on #63) — so the recipient can follow the arithmetic.
+  // total on the Score line within rounding; that total, to one decimal, reproduces the score —
+  // over the configured weights, then the ceiling (ruled on #63) — so the recipient can follow
+  // the arithmetic to the same band.
   const factorLines: string[] = []
   for (let index = 0; index < score.factors.length; index += 2) {
     factorLines.push(
