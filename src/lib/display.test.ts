@@ -18,6 +18,7 @@ const SCORE: Score = {
   uncapped: 82,
   capped: false,
   band: 'warning',
+  pattern: null,
   rangeM: 7200.2,
   siteId: 'phl-airfield',
   factors: [
@@ -143,8 +144,22 @@ describe('describeEvent — band crossings (06b)', () => {
         headingDeg: 345.6,
         score: 72,
         uncapped: 72,
-        factors: { cooperativity: 100, closing: 44.4, proximity: 78, kinematic: 100, time: 100 },
-        weights: { cooperativity: 25, closing: 20, proximity: 15, kinematic: 10, time: 10 },
+        factors: {
+          cooperativity: 100,
+          closing: 44.4,
+          proximity: 78,
+          pattern: 0,
+          kinematic: 100,
+          time: 100,
+        },
+        weights: {
+          cooperativity: 25,
+          closing: 20,
+          proximity: 15,
+          pattern: 15,
+          kinematic: 10,
+          time: 10,
+        },
       },
     }) as const
 

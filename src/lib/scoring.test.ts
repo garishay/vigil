@@ -168,9 +168,13 @@ describe('cooperativity', () => {
 })
 
 describe('closing geometry', () => {
+  // Outside the ring, where the geometry applies: inside it the approach is complete (05a, below).
   it('scores a track heading straight in, minutes out, at 100', () => {
-    // 1 km at 20 kt is 97 s to CPA — inside the two-minute full band — and the CPA is the site.
-    expect(factor(inject(), 'closing')).toMatchObject({ value: 100, detail: 'CPA 0.0 km in 2 min' })
+    // 6 km at 120 kt is 97 s to CPA — inside the two-minute full band — and the CPA is the site.
+    expect(factor(inject({ position: at(6000), groundSpeedKt: 120 }), 'closing')).toMatchObject({
+      value: 100,
+      detail: 'CPA 0.0 km in 2 min',
+    })
   })
 
   it('rolls off with time-to-CPA', () => {
@@ -189,24 +193,60 @@ describe('closing geometry', () => {
   })
 
   it('scores a track that is opening at 0, and says so', () => {
-    expect(factor(inject({ headingDeg: 0 }), 'closing')).toMatchObject({
+    expect(factor(inject({ position: at(6000), headingDeg: 0 }), 'closing')).toMatchObject({
       value: 0,
       detail: 'opening — closest approach already passed',
     })
   })
 
   it('scores 0 with a reason for readings it cannot use — never a guess (#35)', () => {
-    expect(factor(inject({ groundSpeedKt: null }), 'closing').detail).toBe(
+    const far = { position: at(6000) }
+    expect(factor(inject({ ...far, groundSpeedKt: null }), 'closing').detail).toBe(
       'speed or heading not observed',
     )
-    expect(factor(inject({ headingDeg: null }), 'closing').value).toBe(0)
-    expect(factor(inject({ groundSpeedKt: 0 }), 'closing')).toMatchObject({
+    expect(factor(inject({ ...far, headingDeg: null }), 'closing').value).toBe(0)
+    expect(factor(inject({ ...far, groundSpeedKt: 0 }), 'closing')).toMatchObject({
       value: 0,
       detail: 'not moving',
     })
     expect(factor(adsb({ onGround: true, altitudeFt: 0 }), 'closing').detail).toBe(
       'on ground — not in the airspace',
     )
+  })
+
+  it('reads 100 inside the ring whichever way the track points — the approach is complete (ruled on #5)', () => {
+    // Straight in, opening, or parked with no heading: inside the ring the closest approach to
+    // the volume is now, and the CPA/TCPA geometry — built for the approach — no longer applies.
+    const inside = { value: 100, detail: '1.0 km — inside the ring, closest approach is now' }
+    expect(factor(inject(), 'closing')).toMatchObject(inside)
+    expect(factor(inject({ headingDeg: 0 }), 'closing')).toMatchObject(inside)
+    expect(factor(inject({ headingDeg: null, groundSpeedKt: 0.7 }), 'closing')).toMatchObject(
+      inside,
+    )
+    expect(factor(inject({ position: at(SITE.radiusM), headingDeg: 0 }), 'closing').value).toBe(100)
+    // One metre outside, opening: the geometry is back, unchanged.
+    expect(
+      factor(inject({ position: at(SITE.radiusM + 1), headingDeg: 0 }), 'closing'),
+    ).toMatchObject({ value: 0, detail: 'opening — closest approach already passed' })
+  })
+
+  it('names the enclosing site when there is more than one, as proximity does (#80 review)', () => {
+    const decoy: ProtectedSite = {
+      id: 'decoy',
+      name: 'Decoy',
+      center: at(40_000, 90),
+      radiusM: 1000,
+    }
+    const score = scoreTrack(inject(), [decoy, SITE], NIGHT)
+    expect(score.factors.find((f) => f.id === 'closing')).toMatchObject({
+      value: 100,
+      detail: "1.0 km — inside PHL Airfield's ring, closest approach is now",
+    })
+    // Inside two rings, the nearer centre governs.
+    const nested: ProtectedSite = { id: 'inner', name: 'Inner', center: at(200), radiusM: 1000 }
+    expect(
+      scoreTrack(inject(), [SITE, nested], NIGHT).factors.find((f) => f.id === 'closing')?.detail,
+    ).toBe("0.8 km — inside Inner's ring, closest approach is now")
   })
 
   it('takes the worst case across protected sites', () => {
@@ -414,13 +454,14 @@ describe('rememberIdentities', () => {
 })
 
 describe('the composite', () => {
-  it('lists the five factors in §6 order with their labels, weights, and contributions', () => {
+  it('lists the six factors in §6 order with their labels, weights, and contributions', () => {
     const { factors } = scoreTrack(inject(), SITES, NIGHT)
     expect(factors.map((f) => f.id)).toEqual(FACTORS.map((f) => f.id))
     expect(factors.map((f) => f.label)).toEqual([
       'Identity',
       'Closing',
       'Proximity',
+      'Pattern of life',
       'Flight profile',
       'Off-hours',
     ])
@@ -434,7 +475,7 @@ describe('the composite', () => {
     // The invariant the handoff and 04b's breakdown print: the factor lines add up to
     // `weighted`; the score is `weighted / totalWeight × 100`, then the ceiling (ruled on #63).
     const score = scoreTrack(inject({ position: at(10_000) }), SITES, NIGHT)
-    expect(score.totalWeight).toBe(80)
+    expect(score.totalWeight).toBe(95)
     expect(score.weighted).toBeCloseTo(
       score.factors.reduce((sum, f) => sum + f.contribution, 0),
       9,
@@ -448,7 +489,8 @@ describe('the composite', () => {
   })
 
   it('caps an ADS-B track at the ceiling and reports it, leaving the breakdown honest (A3)', () => {
-    // An arrival: inside the ring, straight in, seconds out, at 02:30. Uncapped it reads 57.9 (46.25 weighted, scored as 46.3).
+    // An arrival: inside the ring, straight in, seconds out, at 02:30. Uncapped it reads 48.7
+    // (46.25 weighted, scored as 46.3, over 95).
     const arrival = adsb({
       position: at(2000),
       altitudeFt: 1000,
@@ -456,7 +498,7 @@ describe('the composite', () => {
       headingDeg: 180,
     })
     const score = scoreTrack(arrival, SITES, NIGHT)
-    expect(score.uncapped).toBeCloseTo(57.875, 6)
+    expect(score.uncapped).toBeCloseTo((46.3 / 95) * 100, 6)
     expect(score.composite).toBe(SCORING.adsbCeiling)
     expect(score.capped).toBe(true)
     expect(score.band).toBe('calm')
@@ -464,8 +506,9 @@ describe('the composite', () => {
   })
 
   it('never caps an inject, and leaves an ADS-B track under the ceiling uncapped', () => {
+    // Every factor at full but the pattern row, which has no history to read: 80 over 95.
     const drone = scoreTrack(inject(), SITES, NIGHT)
-    expect(drone.composite).toBe(100)
+    expect(drone.composite).toBeCloseTo((80 / 95) * 100, 9)
     expect(drone.capped).toBe(false)
     const distant = scoreTrack(adsb(), SITES, NIGHT)
     expect(distant.capped).toBe(false)
@@ -482,12 +525,12 @@ describe('the composite', () => {
   })
 
   it('bands the whole number it prints, so the word never contradicts the score beside it (#63, round 2)', () => {
-    // The hand scenario's silent drone in daylight: 70 / 80 = 87.5, printed as 88. With the
-    // warning threshold at 87.6 the exact composite is caution and the printed one is warning; the
-    // chip says 88, so warning is the word that agrees with it.
-    const config = { ...SCORING, bands: { caution: 40, warning: 87.6 } }
+    // The hand scenario's silent drone in daylight: 70 / 95 = 73.68, printed as 74. With the
+    // warning threshold at 73.7 the exact composite is caution and the printed one is warning; the
+    // chip says 74, so warning is the word that agrees with it.
+    const config = { ...SCORING, bands: { caution: 40, warning: 73.7 } }
     const score = scoreTrack(inject(), SITES, { ...DAY, config })
-    expect(score.composite).toBe(87.5)
+    expect(score.composite).toBeCloseTo((70 / 95) * 100, 9)
     expect(score.band).toBe('warning')
   })
 
@@ -553,16 +596,82 @@ describe('the §2 check — no input makes a real aircraft rank as a threat', ()
   })
 })
 
+describe('pattern of life (05a)', () => {
+  // A hover's history at the frame grid: the same point for the whole 420 s window.
+  const hover = [...Array(29)].map((_, i) => ({ tSec: i * 15, position: at(3000) }))
+
+  it('scores 0 with no history to read, and says so', () => {
+    expect(factor(inject(), 'pattern')).toEqual({
+      id: 'pattern',
+      label: 'Pattern of life',
+      value: 0,
+      weight: 15,
+      contribution: 0,
+      detail: 'no history yet',
+    })
+    expect(scoreTrack(inject(), SITES, NIGHT).pattern).toBeNull()
+  })
+
+  it('reads the strongest detector over the history the context carries, and names the kind off the row', () => {
+    const drone = inject({ id: 'inject-05', position: at(3000) })
+    const score = scoreTrack(drone, SITES, { ...NIGHT, history: { 'inject-05': hover } })
+    const row = score.factors.find((f) => f.id === 'pattern')!
+    expect(row).toMatchObject({
+      value: 100,
+      contribution: 15,
+      detail: 'within 450 m for 7 min 0 s',
+    })
+    expect(row.label).toBe('Pattern of life')
+    expect(score.pattern).toBe('loiter')
+    // Every row at full: the top of the scale, which is what a drone holding position inside the
+    // ring at 02:30 with no ident reads (ruled on #5, note 2).
+    expect(score.composite).toBe(100)
+    // Another track's history is not this track's.
+    expect(
+      scoreTrack(drone, SITES, { ...NIGHT, history: { 'inject-01': hover } }).pattern,
+    ).toBeNull()
+  })
+
+  it('reads no pattern on the ground, as it reads no geometry (C3)', () => {
+    const parked = adsb({ position: SITE.center, altitudeFt: 0, onGround: true, groundSpeedKt: 0 })
+    const score = scoreTrack(parked, SITES, { ...NIGHT, history: { [parked.id]: hover } })
+    expect(score.factors.find((f) => f.id === 'pattern')).toMatchObject({
+      value: 0,
+      detail: 'on ground — not in the airspace',
+    })
+    expect(score.pattern).toBeNull()
+  })
+
+  it('scores and names a pattern on a cooperative aircraft, and the ceiling still binds (4A)', () => {
+    const helicopter = adsb({
+      position: at(3000),
+      altitudeFt: 500,
+      groundSpeedKt: 2,
+      headingDeg: null,
+    })
+    const score = scoreTrack(helicopter, SITES, { ...NIGHT, history: { [helicopter.id]: hover } })
+    expect(score.factors.find((f) => f.id === 'pattern')).toMatchObject({
+      value: 100,
+      contribution: 15,
+    })
+    expect(score.pattern).toBe('loiter')
+    expect(score.capped).toBe(true)
+    expect(score.composite).toBe(SCORING.adsbCeiling)
+    expect(score.band).toBe('calm')
+  })
+})
+
 describe('the hand-computed scenario', () => {
   // Four tracks with round inputs, scored by hand in the comments and matched by the engine.
-  // Weights 25 / 20 / 15 / 10 / 10 sum to 80; composite = contributions ÷ 80 × 100. 02:30 local.
+  // Weights 25 / 20 / 15 / 15 / 10 / 10 sum to 95; composite = contributions ÷ 95 × 100. 02:30
+  // local, and no history in the context, so the pattern row reads 0 on every one of them.
   const A = inject({ id: 'inject-01', position: at(1000) })
   //   A — silent inject 1 km north, straight in at 20 kt, 200 ft.
   //   cooperativity: never heard → 100 × 25 = 25
   //   closing: CPA 0 → 100; TCPA 1000 m ÷ 10.29 m/s = 97 s < 2 min → 100; product 100 × 20 = 20
   //   proximity: inside the ring → 100 × 15 = 15
   //   kinematic: inside the box → 100 × 10 = 10
-  //   time: 02:30 → 100 × 10 = 10        → 80 ÷ 80 = 100
+  //   time: 02:30 → 100 × 10 = 10        → 80 ÷ 95 = 84.21
   const B = inject({
     id: 'inject-02',
     identity: 'cooperative',
@@ -575,7 +684,7 @@ describe('the hand-computed scenario', () => {
   //   closing: heading not observed → 0
   //   proximity: 10 km on the 5 → 15 km ramp → 50 × 15 % = 7.5
   //   kinematic: inside the box → 10
-  //   time: 10                          → 33.75, scored as 33.8 ÷ 80 = 42.25
+  //   time: 10                          → 33.75, scored as 33.8 ÷ 95 = 35.58
   const C = adsb({
     id: 'adsb-c',
     icaoHex: 'c',
@@ -589,7 +698,7 @@ describe('the hand-computed scenario', () => {
   //   closing: CPA 0, TCPA 22 s → 100 × 20 = 20
   //   proximity: inside → 15
   //   kinematic: 174 kt is the end of the speed ramp → 0
-  //   time: 10                          → 46.25, scored as 46.3 ÷ 80 = 57.875, capped to 30
+  //   time: 10                          → 46.25, scored as 46.3 ÷ 95 = 48.74, capped to 30
   const D = adsb({
     id: 'adsb-d',
     icaoHex: 'd',
@@ -601,20 +710,21 @@ describe('the hand-computed scenario', () => {
   })
   //   D — parked on the site.
   //   cooperativity 1.25; closing, proximity, kinematic on ground → 0; time 10
-  //                                      → 11.25, scored as 11.3 ÷ 80 = 14.125
+  //                                      → 11.25, scored as 11.3 ÷ 95 = 11.89
   //
   //   The score is made from the weighted total to one decimal — the number the record prints —
   //   which is why B, C, and D land a hair above the exact quotient (ruled on #63, round 2).
 
   it('matches the arithmetic', () => {
     const composite = (track: Track) => scoreTrack(track, SITES, NIGHT)
-    expect(composite(A)).toMatchObject({ composite: 100, weighted: 80, total: 80 })
+    expect(composite(A)).toMatchObject({ weighted: 80, total: 80 })
+    expect(composite(A).composite).toBeCloseTo((80 / 95) * 100, 9)
     expect(composite(B).weighted).toBeCloseTo(33.75, 9)
     expect(composite(B).total).toBe(33.8)
-    expect(composite(B).composite).toBeCloseTo(42.25, 9)
+    expect(composite(B).composite).toBeCloseTo((33.8 / 95) * 100, 9)
     expect(composite(C)).toMatchObject({ composite: 30, total: 46.3, capped: true })
-    expect(composite(C).uncapped).toBeCloseTo(57.875, 9)
-    expect(composite(D).composite).toBeCloseTo(14.125, 9)
+    expect(composite(C).uncapped).toBeCloseTo((46.3 / 95) * 100, 9)
+    expect(composite(D).composite).toBeCloseTo((11.3 / 95) * 100, 9)
   })
 
   it('reads the same in daylight, ten points lower and in the same order', () => {
@@ -622,7 +732,7 @@ describe('the hand-computed scenario', () => {
     const night = [A, B, C, D].map((t) => scoreTrack(t, SITES, NIGHT).uncapped)
     const day = [A, B, C, D].map((t) => scoreTrack(t, SITES, DAY).uncapped)
     for (let index = 0; index < night.length; index++) {
-      expect(night[index] - day[index]).toBeCloseTo(12.5, 9)
+      expect(night[index] - day[index]).toBeCloseTo((10 / 95) * 100, 9)
     }
   })
 })
@@ -714,8 +824,22 @@ describe('scoreFromSnapshot (06b)', () => {
     const observed = {
       score: 30,
       uncapped: 57.8125,
-      factors: { cooperativity: 5, closing: 100, proximity: 100, kinematic: 0, time: 100 },
-      weights: { cooperativity: 25, closing: 20, proximity: 15, kinematic: 10, time: 10 },
+      factors: {
+        cooperativity: 5,
+        closing: 100,
+        proximity: 100,
+        pattern: 0,
+        kinematic: 0,
+        time: 100,
+      },
+      weights: {
+        cooperativity: 25,
+        closing: 20,
+        proximity: 15,
+        pattern: 15,
+        kinematic: 10,
+        time: 10,
+      },
       rangeM: 1200,
       siteId: 'phl-airfield',
     }
@@ -724,7 +848,8 @@ describe('scoreFromSnapshot (06b)', () => {
     expect(score.capped).toBe(true)
     expect(score.band).toBe('calm')
     expect(score.total).toBe(46.3)
-    expect(score.totalWeight).toBe(80)
+    expect(score.totalWeight).toBe(95)
+    expect(score.pattern).toBeNull()
     expect(score.factors.map((factor) => factor.detail)).toContain(
       'as recorded when the operator acted',
     )

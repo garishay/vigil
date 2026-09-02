@@ -25,8 +25,9 @@ import { toTrack } from './adsb.ts'
 import type { AdsbCapture } from './adsb.ts'
 import { round } from './geo.ts'
 import { injectTracksAt, type InjectPlan } from './injects.ts'
+import type { HistorySample, TrackHistories, TrackHistory } from './patterns.ts'
 import { rememberIdentities, type IdentityMemory, type ObservedTrack } from './scoring.ts'
-import type { AdsbTrack, Track } from './tracks.ts'
+import type { AdsbTrack, InjectTrack, Track } from './tracks.ts'
 
 interface Sample {
   tSec: number
@@ -136,13 +137,78 @@ export function memoryAt(
   return memory
 }
 
+/** The inject picture at an instant, computed once however many tracks ask for it (#80 review). */
+type InjectSampler = (tSec: number) => readonly InjectTrack[]
+
+function injectSampler(plan: InjectPlan | null): InjectSampler {
+  const cache = new Map<number, InjectTrack[]>()
+  return (tSec) => {
+    if (!plan) return []
+    let tracks = cache.get(tSec)
+    if (!tracks) {
+      tracks = injectTracksAt(plan, tSec)
+      cache.set(tSec, tracks)
+    }
+    return tracks
+  }
+}
+
+function sampleHistory(
+  index: ReplayIndex,
+  plan: InjectPlan | null,
+  track: Track,
+  tSec: number,
+  windowS: number,
+  coastS: number,
+  injectsAt: InjectSampler,
+): TrackHistory {
+  const since = tSec - windowS
+  let past: HistorySample[] = []
+  if (track.source === 'adsb') {
+    for (const sample of index.samples.get(track.id) ?? []) {
+      if (sample.tSec < since || sample.tSec >= tSec) continue
+      // A hole wider than the coast is a leave and a return — `pictureAt` drops the track through
+      // it — so the history starts over on the far side: a dwell or a return is never read
+      // across time in which nothing was observed (#80 review). A narrower hole is the one the
+      // picture bridges, and the history bridges it the same way.
+      const last = past[past.length - 1]
+      if (last && sample.tSec - last.tSec > coastS) past = []
+      past.push({ tSec: sample.tSec, position: sample.track.position })
+    }
+  } else if (plan) {
+    const first = Math.max(0, Math.ceil(since / plan.intervalS) * plan.intervalS)
+    for (let t = first; t < tSec; t += plan.intervalS) {
+      const position = injectsAt(t).find((inject) => inject.id === track.id)?.position
+      if (position) past.push({ tSec: t, position })
+    }
+  }
+  // A held track sits on its last sample; that is one known position, not two (#75 review).
+  const last = past[past.length - 1]
+  const [lon, lat] = track.position
+  if (last && last.position[0] === lon && last.position[1] === lat) return past
+  return [...past, { tSec, position: track.position }]
+}
+
 /**
- * The selected track's history trail (06b): where it has been over the last `trailS` seconds,
- * oldest first, ending on where it is now. Pure in `tSec`, like the picture — no fold state, so
- * a seek gets the same trail play would. Recorded samples only for an aircraft — real
- * observations, never the interpolations between them — and the frame-grid instants for an
- * inject, which is what a pattern feature (PR 05) will read.
+ * One track's position history: where it has been over the last `windowS` seconds, oldest first,
+ * ending on where it is now. Pure in `tSec`, like the picture — no fold state, so a seek gets
+ * the same history play would. Recorded samples only for an aircraft — real observations, never
+ * the interpolations between them, and never across a hole wider than the coast — and the
+ * frame-grid instants for an inject. The trail the map draws (06b) and the history the pattern
+ * detectors read (05a) are this one sampler at two windows.
  */
+export function historyAt(
+  index: ReplayIndex,
+  plan: InjectPlan | null,
+  track: Track,
+  tSec: number,
+  windowS: number,
+  config: ReplayConfig = REPLAY,
+): TrackHistory {
+  return sampleHistory(index, plan, track, tSec, windowS, config.coastS, injectSampler(plan))
+}
+
+/** The selected track's history trail (06b): its positions over the last `trailS` seconds. */
 export function trailAt(
   index: ReplayIndex,
   plan: InjectPlan | null,
@@ -150,22 +216,28 @@ export function trailAt(
   tSec: number,
   config: ReplayConfig = REPLAY,
 ): [number, number][] {
-  const since = tSec - config.trailS
-  const past: [number, number][] = []
-  if (track.source === 'adsb') {
-    for (const sample of index.samples.get(track.id) ?? []) {
-      if (sample.tSec >= since && sample.tSec < tSec) past.push(sample.track.position)
-    }
-  } else if (plan) {
-    const first = Math.max(0, Math.ceil(since / plan.intervalS) * plan.intervalS)
-    for (let t = first; t < tSec; t += plan.intervalS) {
-      const position = injectTracksAt(plan, t).find((inject) => inject.id === track.id)?.position
-      if (position) past.push(position)
-    }
-  }
-  // A held track sits on its last sample; that is one known position, not two (#75 review).
-  const last = past[past.length - 1]
-  const [lon, lat] = track.position
-  if (last && last[0] === lon && last[1] === lat) return past
-  return [...past, track.position]
+  return historyAt(index, plan, track, tSec, config.trailS, config).map((sample) => sample.position)
+}
+
+/**
+ * Every track's history at `tSec`, by id — the scorer's `history` (05a). Sampled afresh each
+ * tick rather than accumulated, so a seek and a play agree. Each inject instant in the window
+ * is computed once and shared by every track that reads it, so the cost is the grid, not the
+ * grid times the tracks (#80 review).
+ */
+export function historiesAt(
+  index: ReplayIndex,
+  plan: InjectPlan | null,
+  tracks: readonly Track[],
+  tSec: number,
+  windowS: number,
+  config: ReplayConfig = REPLAY,
+): TrackHistories {
+  const injectsAt = injectSampler(plan)
+  return Object.fromEntries(
+    tracks.map((track) => [
+      track.id,
+      sampleHistory(index, plan, track, tSec, windowS, config.coastS, injectsAt),
+    ]),
+  )
 }

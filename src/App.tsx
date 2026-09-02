@@ -9,6 +9,7 @@ import { CONTACTS, type ContactId } from './config/contacts'
 import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { REPLAY } from './config/replay'
 import { SCENARIO } from './config/scenario'
+import { SCORING } from './config/scoring'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useCapture } from './data/useCapture'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
@@ -29,7 +30,7 @@ import {
   type TrackEvent,
 } from './lib/lifecycle'
 import { rankTracks, type RankedTrack } from './lib/ranking'
-import { indexCapture, memoryAt, pictureAt, trailAt } from './lib/replay'
+import { historiesAt, indexCapture, memoryAt, pictureAt, trailAt } from './lib/replay'
 import { minuteOfDay } from './lib/scoring'
 import type { Track } from './lib/tracks'
 
@@ -135,9 +136,16 @@ export default function App({
     [plan, tSec],
   )
   const clockMinute = minuteOfDay(SCENARIO.clock.startLocal, tSec)
+  // Each track's position history over the pattern window (05a), sampled at the clock as the
+  // trail is — pure in t, so a seek reads the same history play would, and scores the same.
+  const history = useMemo(
+    () => (index ? historiesAt(index, plan, tracks, tSec, SCORING.pattern.windowS) : {}),
+    [index, plan, tracks, tSec],
+  )
   const ranked = useMemo(
-    () => rankTracks(tracks, AO.protectedSites, { tSec, minuteOfDay: clockMinute, memory }),
-    [tracks, tSec, clockMinute, memory],
+    () =>
+      rankTracks(tracks, AO.protectedSites, { tSec, minuteOfDay: clockMinute, memory, history }),
+    [tracks, tSec, clockMinute, memory, history],
   )
 
   // Filtered for display; ranks stay global, so a filtered list shows what it hid. The two chip

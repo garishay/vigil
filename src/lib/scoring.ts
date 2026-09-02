@@ -1,6 +1,6 @@
 /**
- * The scoring engine v1 (scope §6, PR 04): five transparent factors, a 0–100 composite, and the
- * per-factor breakdown kept beside it. Pure — no React, no DOM, no I/O, no clock, no network.
+ * The scoring engine v1 (scope §6, PR 04, the pattern row 05a): six transparent factors, a 0–100
+ * composite, and the per-factor breakdown kept beside it. Pure — no React, no DOM, no I/O, no clock, no network.
  * Every number comes from `config/scoring.ts`; the module holds the shapes and the arithmetic.
  *
  * **Scores the observation, never the label** (ruled on #4). The input type is `ObservedTrack`
@@ -18,13 +18,21 @@
  * — so the printed division reproduces it, and both are on the score: nothing is hidden.
  *
  * Time is an input — `tSec` for the memory, `minuteOfDay` for the off-hours factor — which is
- * the seam PR 06's replay clock drives.
+ * the seam PR 06's replay clock drives. **History is an input too** (05a): the pattern-of-life
+ * factor reads each track's position history from the context, sampled by the replay module at
+ * the frame-grid instants, so the detectors in `patterns.ts` see positions and nothing else.
+ *
+ * **Inside the ring the approach is complete** (ruled on #5, note 2): closing reads 100 for any
+ * track inside a protected site's ring — the closest approach to the volume is now — where the
+ * CPA/TCPA geometry, built for the approach, otherwise answers a question that no longer applies
+ * and reads whichever way the nose happens to point. Outside the ring it is unchanged.
  */
 
 import type { ProtectedSite } from '../config/ao.ts'
 import { KINEMATIC_CLASS } from '../config/airframes.ts'
 import { SCORING, type Band, type FactorId, type ScoringConfig } from '../config/scoring.ts'
 import { closestApproach, distanceMeters } from './geo.ts'
+import { detectPattern, type PatternKind, type TrackHistories } from './patterns.ts'
 import type { Track } from './tracks.ts'
 
 export type { Band, FactorId }
@@ -52,6 +60,8 @@ export interface ScoringContext {
   /** Local time of day, minutes from midnight, for the off-hours factor. */
   minuteOfDay: number
   memory: IdentityMemory
+  /** Each track's position history at `tSec` (05a); a track absent here has no history yet. */
+  history?: TrackHistories
   config?: ScoringConfig
 }
 
@@ -87,6 +97,11 @@ export interface Score {
   capped: boolean
   band: Band
   factors: Factor[]
+  /**
+   * The pattern the history names — loiter, orbit, revisit — or null (05a). The verdict word
+   * lives here for the reason tag, the record, and the handoff, never on the breakdown row.
+   */
+  pattern: PatternKind | null
   /** Range to the nearest protected site, meters, and which site — shared with the Queue row. */
   rangeM: number
   siteId: string
@@ -112,6 +127,13 @@ export const FACTORS: readonly { id: FactorId; label: string; intent: string }[]
     label: 'Proximity',
     intent:
       'Current range to the protected site, decaying with distance — the curve spikes inside the protection ring',
+  },
+  {
+    // Named for what it measures, as Identity is (ruled on #5, note 1a): the detail line carries
+    // the evidence — a dwell, a turn, a return — and the detected word stays off the row.
+    id: 'pattern',
+    label: 'Pattern of life',
+    intent: 'Loiter dwell, orbit detection (persistent turn rate), area revisit',
   },
   {
     id: 'kinematic',
@@ -216,6 +238,23 @@ function closing(
   config: ScoringConfig['closing'],
 ): { value: number; detail: string } {
   if (track.onGround) return ON_GROUND
+  // Inside a ring the approach is complete, whichever way the track points (ruled on #5). The
+  // nearest enclosing site governs and is named as proximity names it, so the row's lines never
+  // quote a range to a site they do not say (#80 review).
+  let enclosing: { site: ProtectedSite; rangeM: number } | null = null
+  for (const site of sites) {
+    const rangeM = distanceMeters(site.center, track.position)
+    if (rangeM <= site.radiusM && (enclosing === null || rangeM < enclosing.rangeM)) {
+      enclosing = { site, rangeM }
+    }
+  }
+  if (enclosing) {
+    const ring = sites.length > 1 ? `${enclosing.site.name}'s ring` : 'the ring'
+    return {
+      value: 100,
+      detail: `${km(enclosing.rangeM)} — inside ${ring}, closest approach is now`,
+    }
+  }
   if (track.groundSpeedKt === null || track.headingDeg === null) {
     return { value: 0, detail: 'speed or heading not observed' }
   }
@@ -291,6 +330,21 @@ function kinematic(
   }
 }
 
+/**
+ * Pattern of life (05a): the strongest of the three detectors over the track's position history,
+ * with that detector's evidence as the detail. On the ground there is no pattern to read, as
+ * there is no geometry.
+ */
+function patternOfLife(
+  track: ObservedTrack,
+  history: TrackHistories | undefined,
+  config: ScoringConfig['pattern'],
+): { value: number; detail: string; kind: PatternKind | null } {
+  if (track.onGround) return { ...ON_GROUND, kind: null }
+  const reading = detectPattern(history?.[track.id] ?? [], config)
+  return { value: reading.value, detail: reading.detail, kind: reading.kind }
+}
+
 function timeContext(
   minute: number,
   config: ScoringConfig['operatingHours'],
@@ -318,10 +372,12 @@ export function scoreTrack(
   if (sites.length === 0) throw new Error('scoreTrack needs at least one protected site')
   const config = context.config ?? SCORING
   const nearest = nearestSite(track.position, sites)
+  const pattern = patternOfLife(track, context.history, config.pattern)
   const raw: Record<FactorId, { value: number; detail: string }> = {
     cooperativity: cooperativity(track, context, config.cooperativity),
     closing: closing(track, sites, config.closing),
     proximity: proximity(track, sites, config.proximity),
+    pattern: { value: pattern.value, detail: pattern.detail },
     kinematic: kinematic(track, config.kinematic),
     time: timeContext(context.minuteOfDay, config.operatingHours),
   }
@@ -348,6 +404,7 @@ export function scoreTrack(
     // reads warning, not caution: the word and the number beside it can never disagree (#63).
     band: bandOf(Math.round(composite), config.bands),
     factors,
+    pattern: pattern.kind,
     rangeM: nearest.rangeM,
     siteId: nearest.site.id,
   }
@@ -358,7 +415,8 @@ export function scoreTrack(
  * the same breakdown the operator saw, over the record's own doctrine rather than the live
  * config — the case #64 kept the weights for. The composite and its uncapped twin are the
  * snapshot's own; capped is their inequality. Factor detail lines are not in the record, and
- * say so. The range and the site it was measured to are the snapshot's too (#75 review).
+ * say so. The range and the site it was measured to are the snapshot's too (#75 review). The
+ * named pattern is not in the record until 05b adds it, so a rebuilt score names none.
  */
 export function scoreFromSnapshot(
   observed: {
@@ -394,6 +452,7 @@ export function scoreFromSnapshot(
     capped: observed.score < observed.uncapped,
     band: bandOf(Math.round(observed.score), config.bands),
     factors,
+    pattern: null,
     rangeM: observed.rangeM,
     siteId: observed.siteId,
   }

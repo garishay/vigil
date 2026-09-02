@@ -11,7 +11,7 @@ const SITE = AO.protectedSites[0]
 const north = (rangeM: number) => destinationPoint(SITE.center, 0, rangeM)
 const NIGHT: ScoringContext = { tSec: 0, minuteOfDay: 150, memory: {} }
 
-/** The handoff tests' silent drone: 7.2 km out, straight-ish in — scores 82, warning. */
+/** The handoff tests' silent drone: 7.2 km out, straight-ish in, no history — scores 69, caution. */
 const SILENT: InjectTrack = {
   id: 'inject-05',
   source: 'inject',
@@ -68,18 +68,18 @@ describe('ScoreBreakdown', () => {
   it('heads with the score, its band, and the one-decimal total it is made from (#63)', () => {
     render(<ScoreBreakdown score={score(SILENT)} />)
     const section = screen.getByLabelText('Score breakdown')
-    expect(section).toHaveAttribute('data-band', 'warning')
-    expect(within(section).getByText('Score 82')).toBeInTheDocument()
-    expect(within(section).getByText('warning')).toBeInTheDocument()
-    expect(within(section).getByText(/^— 65\.6\/80$/)).toBeInTheDocument()
+    expect(section).toHaveAttribute('data-band', 'caution')
+    expect(within(section).getByText('Score 69')).toBeInTheDocument()
+    expect(within(section).getByText('caution')).toBeInTheDocument()
+    expect(within(section).getByText(/^— 65\.6\/95$/)).toBeInTheDocument()
     expect(within(section).queryByText(/Capped at/)).not.toBeInTheDocument()
   })
 
-  it('lists the five §6 factors in order with their labels, numbers, bars, and detail lines', () => {
+  it('lists the six §6 factors in order with their labels, numbers, bars, and detail lines', () => {
     const scored = score(SILENT)
     render(<ScoreBreakdown score={scored} />)
     const items = rows()
-    expect(items).toHaveLength(5)
+    expect(items).toHaveLength(6)
     expect(items.map((row) => row.querySelector('.breakdown__label')?.textContent)).toEqual(
       FACTORS.map((f) => f.label),
     )
@@ -87,6 +87,7 @@ describe('ScoreBreakdown', () => {
       '25 / 25',
       '9 / 20',
       '12 / 15',
+      '0 / 15',
       '10 / 10',
       '10 / 10',
     ])
@@ -104,7 +105,10 @@ describe('ScoreBreakdown', () => {
       3,
     )
     expect(within(items[0]).getByText('no ident heard')).toBeInTheDocument()
-    expect(within(items[4]).getByText('02:30 local — outside 06:00–22:00')).toBeInTheDocument()
+    // The pattern row reads its evidence, never a verdict word (ruled on #5, note 1a).
+    expect(within(items[3]).getByText('Pattern of life')).toBeInTheDocument()
+    expect(within(items[3]).getByText('no history yet')).toBeInTheDocument()
+    expect(within(items[5]).getByText('02:30 local — outside 06:00–22:00')).toBeInTheDocument()
   })
 
   it('carries the §6 intent text as each row’s hover', () => {
@@ -117,7 +121,7 @@ describe('ScoreBreakdown', () => {
     const section = screen.getByLabelText('Score breakdown')
     expect(section).toHaveAttribute('data-band', 'calm')
     expect(within(section).getByText('Score 30')).toBeInTheDocument()
-    expect(within(section).getByText(/^— capped, 46\.3\/80 → 58$/)).toBeInTheDocument()
+    expect(within(section).getByText(/^— capped, 46\.3\/95 → 49$/)).toBeInTheDocument()
     expect(within(section).getByText('Capped at 30 — cooperative aircraft')).toBeInTheDocument()
     // The bars are honest about the uncapped geometry.
     expect(within(rows()[1]).getByText('20 / 20')).toBeInTheDocument()
@@ -126,7 +130,7 @@ describe('ScoreBreakdown', () => {
   it('reads the on-ground rule on every geometry row of a parked aircraft (C3)', () => {
     render(<ScoreBreakdown score={score(PARKED)} />)
     const details = rows().map((row) => row.querySelector('.breakdown__detail')?.textContent)
-    expect(details.slice(1, 4)).toEqual(Array(3).fill('on ground — not in the airspace'))
+    expect(details.slice(1, 5)).toEqual(Array(4).fill('on ground — not in the airspace'))
   })
 
   it('labels the cooperativity row Identity, so it never contradicts its own detail (#65)', () => {
@@ -142,7 +146,7 @@ describe('ScoreBreakdown', () => {
     const config = { ...SCORING, weights: { ...SCORING.weights, time: 0 } }
     const scored = scoreTrack(SILENT, AO.protectedSites, { ...NIGHT, config })
     render(<ScoreBreakdown score={scored} />)
-    const offHours = rows()[4]
+    const offHours = rows()[5]
     expect(within(offHours).getByText('0 / 0')).toBeInTheDocument()
     const meter = within(offHours).getByRole('meter')
     expect(meter).toHaveAttribute('aria-valuemin', '0')
@@ -157,7 +161,7 @@ describe('ScoreBreakdown', () => {
     const config = { ...SCORING, weights: { ...SCORING.weights, kinematic: 12.5 } }
     const scored = scoreTrack(SILENT, AO.protectedSites, { ...NIGHT, config })
     render(<ScoreBreakdown score={scored} />)
-    const profile = rows()[3]
+    const profile = rows()[4]
     const meter = within(profile).getByRole('meter')
     expect(meter).toHaveAttribute('aria-valuemax', '12.5')
     expect(Number(meter.getAttribute('aria-valuenow'))).toBeLessThanOrEqual(12.5)
