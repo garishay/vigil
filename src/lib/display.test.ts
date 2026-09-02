@@ -9,7 +9,7 @@ const SCORE: Score = {
   totalWeight: 80,
   uncapped: 82,
   capped: false,
-  band: 'alarm',
+  band: 'warning',
   rangeM: 7200.2,
   siteId: 'phl-airfield',
   factors: [

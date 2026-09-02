@@ -205,20 +205,20 @@
   text-align: center;
 }
 
-.queue__score[data-band='elevated'],
-.breakdown[data-band='elevated'] {
-  --band: var(--elevated);
-  --band-soft: var(--elevated-soft);
+.queue__score[data-band='caution'],
+.breakdown[data-band='caution'] {
+  --band: var(--caution);
+  --band-soft: var(--caution-soft);
 }
 
-.queue__score[data-band='alarm'],
-.breakdown[data-band='alarm'] {
-  --band: var(--alarm);
-  --band-soft: var(--alarm-soft);
+.queue__score[data-band='warning'],
+.breakdown[data-band='warning'] {
+  --band: var(--warning);
+  --band-soft: var(--warning-soft);
 }
 
-.queue__score[data-band='elevated'],
-.queue__score[data-band='alarm'] {
+.queue__score[data-band='caution'],
+.queue__score[data-band='warning'] {
   border-color: var(--band);
   background: var(--band-soft);
   color: var(--band);
