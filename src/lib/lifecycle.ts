@@ -67,7 +67,10 @@ export function transition(status: Status, action: LifecycleAction): Status {
   return next
 }
 
-/** What the operator saw when they acted (§8.3b) — the only features a label may carry. */
+/**
+ * What the operator saw when they acted (§8.3b) — observed features, and the doctrine in force
+ * when they were scored — never assigned labels.
+ */
 export interface ObservedSnapshot {
   identity: Identity
   rangeM: number
@@ -83,6 +86,14 @@ export interface ObservedSnapshot {
   uncapped: number
   /** Each factor's 0–100 value at action time — what §8.3b learns from (ruled on #4). */
   factors: Record<FactorId, number>
+  /**
+   * The weight set the factors were scored under. Doctrine rather than a reading, and in the
+   * record for the reason the breakdown puts contribution over weight: the operator saw it, so
+   * it is part of the moment. Without it an event stops reconciling the first time a weight
+   * moves — PR 07's sliders, or any doctrine edit — and a learner cannot tell a re-weighted
+   * picture from a scoring bug (ruled on #36 [8], #64).
+   */
+  weights: Record<FactorId, number>
 }
 
 export interface TrackEvent {
@@ -110,6 +121,10 @@ export const observedSnapshot = ({ track, rangeM, score }: RankedTrack): Observe
   score: score.composite,
   uncapped: score.uncapped,
   factors: Object.fromEntries(score.factors.map((factor) => [factor.id, factor.value])) as Record<
+    FactorId,
+    number
+  >,
+  weights: Object.fromEntries(score.factors.map((factor) => [factor.id, factor.weight])) as Record<
     FactorId,
     number
   >,
