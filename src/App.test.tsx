@@ -656,7 +656,8 @@ function manualClock() {
  * Eight frames at 15 s. `a06461` starts inside the site's ring and flies east at 250 kt, so its
  * range — and its uncapped score, which orders the ADS-B block under the ceiling — changes every
  * tick; `501267` sits parked at 1.5 radii. `bbbbbb` is heard only at frame 0 and coasts out;
- * `cccccc` appears at frame 2 (30 s).
+ * `cccccc` appears at frame 2 (30 s); `dddddd` is heard at frames 0 and 7 (105 s) — a hole wider
+ * than the coast, so it leaves the picture at 91 s and is back at 105 s, further out and slower.
  */
 const MOVING: CaptureState = {
   status: 'ready',
@@ -684,6 +685,11 @@ const MOVING: CaptureState = {
         ...(i >= 2
           ? [{ hex: 'cccccc', position: [-75.4, 39.95] as [number, number], groundSpeedKt: 120 }]
           : []),
+        ...(i === 0
+          ? [{ hex: 'dddddd', position: [-75.25, 39.87] as [number, number], groundSpeedKt: 100 }]
+          : i === 7
+            ? [{ hex: 'dddddd', position: [-75.5, 40.0] as [number, number], groundSpeedKt: 40 }]
+            : []),
       ],
     })),
   },
@@ -789,6 +795,76 @@ describe('App replay clock (06a)', () => {
     expect(
       within(screen.getByText('Status').parentElement as HTMLElement).getByText('Assessing'),
     ).toBeInTheDocument()
+  })
+
+  it('logs Lost at the tick a claimed track coasts out, with the held picture (ruled on #71)', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    const open = (ident: string) =>
+      fireEvent.click(
+        within(rows().find((r) => within(r).queryByText(ident)) as HTMLElement).getByRole('button'),
+      )
+    open('bbbbbb')
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    const range = (screen.getByText('Range').nextSibling as HTMLElement).textContent
+    replay.tick(91)
+    expect(idents()).not.toContain('bbbbbb')
+    // Rewound to before the loss, the record still holds it: Lost at the tick it left, the
+    // status carried, and no Regained — the clock is behind the frontier.
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '0' } })
+    open('bbbbbb')
+    const log = within(screen.getByLabelText('Event log'))
+    const lines = log.getAllByRole('listitem').map((li) => li.textContent)
+    expect(lines).toEqual([
+      '02:30:00New — first seen',
+      '02:30:00Assessing — claimed',
+      '02:31:31Lost — not heard for 90 s',
+    ])
+    expect(
+      within(screen.getByText('Status').parentElement as HTMLElement).getByText('Assessing'),
+    ).toBeInTheDocument()
+    // The handoff would carry it too: the held picture is the one the drawer showed at the claim.
+    expect((screen.getByText('Range').nextSibling as HTMLElement).textContent).toBe(range)
+  })
+
+  it('logs Regained when a lost track is heard again; a rewind before first sight logs nothing (ruled on #71)', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    const open = (ident: string) =>
+      fireEvent.click(
+        within(rows().find((r) => within(r).queryByText(ident)) as HTMLElement).getByRole('button'),
+      )
+    const lines = () =>
+      within(screen.getByLabelText('Event log'))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent)
+    // `cccccc` opens at 30 s; seek to 0 and it is absent, but its record is ahead of the clock.
+    replay.tick(30)
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '0' } })
+    expect(idents()).not.toContain('cccccc')
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '30' } })
+    open('cccccc')
+    expect(lines()).toEqual(['02:30:30New — first seen'])
+    fireEvent.click(screen.getByRole('button', { name: 'Close review' }))
+    // `dddddd` leaves at 91 s and is back at 105 s. A real aircraft sits under the ceiling, so
+    // no band moves across the hole here; the chain behind Regained is pinned in lifecycle.test.
+    // Ticks inside one act() batch to a single render, so the clock is stepped to the tick it
+    // leaves on, then to the one it returns on.
+    replay.tick(61)
+    expect(idents()).not.toContain('dddddd')
+    replay.tick(14)
+    open('dddddd')
+    expect(lines()).toEqual([
+      '02:30:00New — first seen',
+      '02:31:31Lost — not heard for 90 s',
+      '02:31:45Regained',
+    ])
   })
 
   it('lands focus on the Review nav item when the picture takes the reviewed track away (#73 review)', () => {

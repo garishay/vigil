@@ -21,6 +21,14 @@
  * dismissal, the record shows an upward crossing or a pattern onset — read off the log, never a
  * new state, and never on a real aircraft, keyed on the observed source as the ceiling is: on a
  * cooperative aircraft a pattern is ordered rather than surfaced (4A).
+ *
+ * **Lost and Regained** (ruled on #71): a track with a non-terminal status that coasts out of
+ * the picture logs one line, **Lost**, at sim time, carrying the picture as the operator last
+ * saw it and the coast window it was judged under — the record's own doctrine, as the snapshot
+ * carries its weights (#64). A terminal track logs nothing: its record is closed. A lost track
+ * heard again logs **Regained** with the return picture, and the crossing and pattern change of
+ * that pass are read against the record before it, so what moved across the hole is written
+ * down rather than absorbed. Both are observations: statuses carried, forward-only.
  */
 
 import type { ContactId } from '../config/contacts.ts'
@@ -40,7 +48,7 @@ import type { Identity, Track } from './tracks.ts'
 export type Status = 'new' | 'assessing' | 'escalated' | 'resolved' | 'dismissed'
 export type LifecycleAction = 'assess' | 'escalate' | 'dismiss' | 'resolve'
 /** What the picture did, as opposed to what the operator did. */
-export type ObservationEvent = 'first-seen' | 'band' | 'pattern'
+export type ObservationEvent = 'first-seen' | 'band' | 'pattern' | 'lost' | 'regained'
 
 /** Statuses in lifecycle order — the state filter lists them, the labels render them. */
 export const STATUSES = [
@@ -148,6 +156,12 @@ export interface TrackEvent {
   band?: { from: Band; to: Band }
   /** The change, on a `pattern` entry only: the pattern the record last saw and the one now. */
   pattern?: { from: PatternKind | null; to: PatternKind | null }
+  /**
+   * On a `lost` entry only: the coast window, in seconds, the loss was judged under — doctrine
+   * of its time, kept on the record as the weights are (#64), so the line prints the number the
+   * operator's picture used rather than whatever the config says later.
+   */
+  lost?: { coastS: number }
   observed: ObservedSnapshot
 }
 
@@ -275,6 +289,87 @@ export function patternChange(
       from: status,
       to: status,
       pattern: { from, to },
+      observed: observedSnapshot(entry),
+    },
+  ]
+}
+
+/**
+ * Whether a track absent from the picture at `tSec` is owed a Lost line: its status is not
+ * terminal, its record does not already end on one, and the clock is at or past the record's
+ * frontier. The frontier test is load-bearing here rather than a courtesy: rewound to before a
+ * track's first sight, the picture shows it absent, and this is what keeps that from writing
+ * Lost. The fold reads it so its predicate settles without a write.
+ */
+export const canLose = (log: readonly TrackEvent[], tSec: number): boolean => {
+  const last = log[log.length - 1]
+  return tSec >= last.tSec && last.action !== 'lost' && !isTerminal(statusOf(log))
+}
+
+/** Whether a track in the picture at `tSec` is owed a Regained line: its record ends on Lost. */
+export const canRegain = (log: readonly TrackEvent[], tSec: number): boolean => {
+  const last = log[log.length - 1]
+  return last.action === 'lost' && tSec >= last.tSec
+}
+
+/**
+ * The log with a Lost line appended, or null when `canLose` says nothing is owed (ruled on #71).
+ * `lastDrawn` is the picture as the operator last saw the track — under play, the last sample
+ * held to the coast's edge — since a loss is observed as an absence and there is nothing else
+ * to snapshot. Statuses carried: a loss is not a lifecycle transition, and the §7.1 table gains
+ * no state.
+ */
+export function lost(
+  log: readonly TrackEvent[],
+  lastDrawn: ObservedSnapshot,
+  at: string,
+  tSec: number,
+  coastS: number,
+): TrackEvent[] | null {
+  if (log.length === 0) throw new Error('lost needs a log opened by firstSeen')
+  if (!canLose(log, tSec)) return null
+  const status = statusOf(log)
+  return [
+    ...log,
+    {
+      trackId: log[0].trackId,
+      seq: log.length + 1,
+      at,
+      tSec,
+      action: 'lost',
+      from: status,
+      to: status,
+      lost: { coastS },
+      observed: lastDrawn,
+    },
+  ]
+}
+
+/**
+ * The log with a Regained line appended, or null when the record does not end on Lost or the
+ * clock is behind it (ruled on #71). It carries the return picture; the caller reads the pass's
+ * crossing and pattern change against the record before it, so a band left or a pattern ended
+ * across the hole is logged after this line rather than absorbed into it.
+ */
+export function regained(
+  log: readonly TrackEvent[],
+  entry: RankedTrack,
+  at: string,
+  tSec: number,
+): TrackEvent[] | null {
+  if (log.length === 0) throw new Error('regained needs a log opened by firstSeen')
+  if (!canRegain(log, tSec)) return null
+  const status = statusOf(log)
+  return [
+    ...log,
+    {
+      trackId: log[0].trackId,
+      seq: log.length + 1,
+      at,
+      tSec,
+      action: 'regained',
+      from: status,
+      to: status,
       observed: observedSnapshot(entry),
     },
   ]

@@ -236,6 +236,14 @@ describe('describeEvent — pattern entries and the first-seen word (05b)', () =
       'New — first seen, loitering',
     )
   })
+
+  it('prints a loss with the coast from its own payload, and a return bare (ruled on #71)', () => {
+    expect(describeEvent({ ...base, action: 'lost', lost: { coastS: 90 } }, [], [])).toBe(
+      'Lost — not heard for 90 s',
+    )
+    expect(describeEvent({ ...base, action: 'lost' }, [], [])).toBe('Lost')
+    expect(describeEvent({ ...base, action: 'regained' }, [], [])).toBe('Regained')
+  })
 })
 
 describe('reasonTag (05b, ruled on #5)', () => {

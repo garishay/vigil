@@ -20,12 +20,16 @@ import {
   STATUS_LABEL,
   appendEvent,
   bandCrossing,
+  canLose,
+  canRegain,
   firstSeen,
   isTerminal,
   lastBand,
   lastPattern,
+  lost,
   observedSnapshot,
   patternChange,
+  regained,
   resurfaced,
   statusOf,
   type LifecycleAction,
@@ -150,6 +154,13 @@ export default function App({
       rankTracks(tracks, AO.protectedSites, { tSec, minuteOfDay: clockMinute, memory, history }),
     [tracks, tSec, clockMinute, memory, history],
   )
+  // The picture as last committed, by track — what a Lost line snapshots (#71), since the track
+  // it records is no longer in `ranked` to be read. Written after commit, read on the render
+  // that finds the track gone.
+  const lastDrawn = useRef(new Map<string, RankedTrack>())
+  useEffect(() => {
+    lastDrawn.current = new Map(ranked.map((entry) => [entry.track.id, entry]))
+  }, [ranked])
 
   // Filtered for display; ranks stay global, so a filtered list shows what it hid. The two chip
   // rows compose: a row must pass both. An unstored log is an untouched track — statusOf reads
@@ -230,14 +241,30 @@ export default function App({
   // pattern change is folded the same way, beside the crossing (05b): against the pattern the
   // record last saw, forward-only, terminal or not; a track opened with a pattern already named
   // carries it on its first-seen entry and logs no onset.
-  const recordStale = ranked.some((entry) => {
-    const log = eventLogs[entry.track.id]
-    if (log === undefined) return true
-    return (
-      tSec >= log[log.length - 1].tSec &&
-      (lastBand(log) !== entry.score.band || lastPattern(log) !== entry.score.pattern)
-    )
-  })
+  //
+  // The fold's inverse is the Lost line (ruled on #71): a track with a non-terminal record that
+  // is absent from the picture — the whole picture, not the filtered Queue — logs Lost at sim
+  // time, once the recording is in, since a loading picture has taken nothing away. Its
+  // snapshot is the picture as the operator last saw the track, kept from the previous commit
+  // the way the orphan guard remembers a selection; under play that is the last sample, held to
+  // the coast's edge. A lost track back in the picture logs Regained first, and this pass's
+  // crossing and pattern change are read against the record before it, so what moved across
+  // the hole is written down.
+  const inPicture = useMemo(() => new Set(ranked.map((entry) => entry.track.id)), [ranked])
+  const settled = capture.status === 'ready'
+  const recordStale =
+    ranked.some((entry) => {
+      const log = eventLogs[entry.track.id]
+      if (log === undefined) return true
+      return (
+        tSec >= log[log.length - 1].tSec &&
+        (canRegain(log, tSec) ||
+          lastBand(log) !== entry.score.band ||
+          lastPattern(log) !== entry.score.pattern)
+      )
+    }) ||
+    (settled &&
+      Object.entries(eventLogs).some(([id, log]) => !inPicture.has(id) && canLose(log, tSec)))
   if (recordStale) {
     const at = now()
     setEventLogs((logs) => {
@@ -249,21 +276,40 @@ export default function App({
         if (log === undefined) {
           next[id] = firstSeen(id, observedSnapshot(entry), at, tSec)
           changed = true
-        } else {
-          // Both read against the log as it stands: a crossing's snapshot already carries the
-          // pattern named now, so an onset detected after it would find nothing to log. The
-          // crossing lands first, the pattern entry after it, numbered on.
-          const crossed = bandCrossing(log, entry, at, tSec)
-          const patterned = patternChange(log, entry, at, tSec)
-          if (crossed || patterned) {
-            const base = crossed ?? log
-            next[id] = patterned
-              ? [...base, { ...patterned[patterned.length - 1], seq: base.length + 1 }]
-              : base
+          continue
+        }
+        // All three read against the log as it stands: a crossing's snapshot already carries
+        // the pattern named now, so an onset detected after it would find nothing to log, and a
+        // Regained line carries the return picture, so a crossing read after it would find the
+        // band already there. Regained lands first, the crossing after it, the pattern entry
+        // last, numbered on.
+        const back = regained(log, entry, at, tSec)
+        const crossed = bandCrossing(log, entry, at, tSec)
+        const patterned = patternChange(log, entry, at, tSec)
+        if (back || crossed || patterned) {
+          let out = back ?? log
+          for (const step of [crossed, patterned])
+            if (step) out = [...out, { ...step[step.length - 1], seq: out.length + 1 }]
+          next[id] = out
+          changed = true
+        }
+      }
+      if (settled)
+        for (const [id, log] of Object.entries(next)) {
+          if (inPicture.has(id)) continue
+          const drawn = lastDrawn.current.get(id)
+          const gone = lost(
+            log,
+            drawn ? observedSnapshot(drawn) : log[log.length - 1].observed,
+            at,
+            tSec,
+            REPLAY.coastS,
+          )
+          if (gone) {
+            next[id] = gone
             changed = true
           }
         }
-      }
       return changed ? next : logs
     })
   }

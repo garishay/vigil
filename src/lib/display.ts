@@ -131,7 +131,8 @@ export const roundHeading = (headingDeg: number) => Math.round(headingDeg) % 360
  * learner (§8.3b); names are looked up only here, at display time. A band crossing names the
  * band entered and the one left, up or down, in the words of the one band table (06b, #66). A
  * pattern change names what began and what ended; a track first seen with a pattern already
- * named carries the word on its first line, so a cold open still hands off with it (05b).
+ * named carries the word on its first line, so a cold open still hands off with it (05b). A
+ * loss prints the coast window from its own payload, not the live config (#71).
  */
 export function describeEvent(
   event: TrackEvent,
@@ -146,6 +147,10 @@ export function describeEvent(
       if (to) return `${PATTERN_LABEL[to]} — began${from ? `, ${patternWord(from)} ended` : ''}`
       return from ? `${PATTERN_LABEL[from]} — ended` : 'Pattern — ended'
     }
+    case 'lost':
+      return event.lost ? `Lost — not heard for ${event.lost.coastS} s` : 'Lost'
+    case 'regained':
+      return 'Regained'
     case 'band': {
       const { from, to } = event.band ?? { from: 'calm', to: 'calm' }
       const direction = BANDS.indexOf(to) > BANDS.indexOf(from) ? 'up' : 'down'

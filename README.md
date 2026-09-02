@@ -51,7 +51,7 @@ flowchart LR
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
     score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · closing complete inside the ring<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
-    life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings and pattern changes logged at sim time, statuses carried · re-surface read off the log"]
+    life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings, pattern changes, loss and return logged at sim time, statuses carried · re-surface read off the log"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · timeline live"]
     workcfg["config/contacts.ts + dispositions.ts<br/>recipients · outcome labels"]
     frames["config/airframes.ts<br/>emitter categories · type codes · kinematic envelope"]
