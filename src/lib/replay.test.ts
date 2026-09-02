@@ -1,0 +1,185 @@
+import { describe, expect, it } from 'vitest'
+import captureRaw from '../../public/adsb-phl.json?raw'
+import { PHL } from '../config/ao'
+import { SCENARIO } from '../config/scenario'
+import { frameTracks } from '../data/capture'
+import type { AdsbCapture, CaptureRecord } from './adsb'
+import { injectTracksAt, planScenario } from './injects'
+import { indexCapture, interpolateHeading, memoryAt, pictureAt } from './replay'
+import { rememberIdentities, type IdentityMemory } from './scoring'
+
+const capture = (frames: { tMs: number; records: CaptureRecord[] }[]): AdsbCapture => ({
+  ao: 'phl',
+  source: 'test',
+  capturedAt: '2026-09-02T00:00:00.000Z',
+  intervalMs: 15000,
+  bbox: PHL.bbox,
+  frames,
+})
+
+const A0: CaptureRecord = {
+  hex: 'a00001',
+  callsign: 'TEST1',
+  position: [-75.2, 39.8],
+  altitudeFt: 1000,
+  groundSpeedKt: 200,
+  headingDeg: 350,
+  verticalRateFpm: 0,
+  category: 'A3',
+}
+const A1: CaptureRecord = {
+  ...A0,
+  position: [-75.0, 40.0],
+  altitudeFt: 2000,
+  groundSpeedKt: 300,
+  headingDeg: 10,
+  verticalRateFpm: 1000,
+  lastSeenSec: 2,
+}
+
+describe('pictureAt', () => {
+  const index = indexCapture(
+    capture([
+      { tMs: 0, records: [A0] },
+      { tMs: 15000, records: [A1] },
+    ]),
+  )
+
+  it('reads a track linearly between its two bracketing samples, heading the short way round', () => {
+    const [track] = pictureAt(index, 7.5)
+    expect(track.position).toEqual([-75.1, 39.9])
+    expect(track.altitudeFt).toBe(1500)
+    expect(track.groundSpeedKt).toBe(250)
+    expect(track.verticalRateFpm).toBe(500)
+    // 350° to 10° passes through north, not through 180°.
+    expect(track.headingDeg).toBe(0)
+    // The last message is still the earlier sample's, and it is ageing.
+    expect(track.lastSeenSec).toBe(7.5)
+    // The fields a sample carries whole ride the earlier one.
+    expect(track.callsign).toBe('TEST1')
+    expect(track.category).toBe('A3')
+  })
+
+  it('reproduces a sample exactly at its own instant', () => {
+    expect(pictureAt(index, 0)).toEqual(frameTracks({ tMs: 0, records: [A0] }))
+    expect(pictureAt(index, 15)).toEqual(frameTracks({ tMs: 15000, records: [A1] }))
+  })
+
+  it('is absent before its first sample — never interpolated into existence', () => {
+    const late = indexCapture(
+      capture([
+        { tMs: 0, records: [] },
+        { tMs: 15000, records: [A1] },
+      ]),
+    )
+    expect(pictureAt(late, 10)).toEqual([])
+    expect(pictureAt(late, 15)).toHaveLength(1)
+  })
+
+  it('holds at its last sample while seen accrues, then leaves once past the coast window', () => {
+    const held = pictureAt(index, 60)
+    expect(held).toHaveLength(1)
+    expect(held[0].position).toEqual(A1.position)
+    // Recorded 2 s old at the sample, 45 s later.
+    expect(held[0].lastSeenSec).toBe(47)
+    // 90 s of coast counts from the message, not the sample: 15 + (90 − 2) is the last instant.
+    expect(pictureAt(index, 103)).toHaveLength(1)
+    expect(pictureAt(index, 104)).toEqual([])
+    // The window is configuration.
+    expect(pictureAt(index, 60, { coastS: 30, tickMs: 1000 })).toEqual([])
+  })
+
+  it('bridges an interior hole inside the coast window by the track’s own samples', () => {
+    const gappy = indexCapture(
+      capture([
+        { tMs: 0, records: [A0] },
+        { tMs: 15000, records: [] },
+        { tMs: 30000, records: [A1] },
+      ]),
+    )
+    const [track] = pictureAt(gappy, 15)
+    expect(track.position).toEqual([-75.1, 39.9])
+    expect(track.lastSeenSec).toBe(15)
+  })
+
+  it('does not bridge a hole wider than the coast window — it is a leave and a return', () => {
+    const wide = indexCapture(
+      capture([
+        { tMs: 0, records: [A0] },
+        { tMs: 120000, records: [A1] },
+      ]),
+    )
+    expect(pictureAt(wide, 60)[0].position).toEqual(A0.position)
+    expect(pictureAt(wide, 100)).toEqual([])
+    expect(pictureAt(wide, 120)[0].position).toEqual(A1.position)
+  })
+
+  it('keeps a reading the later sample lacks rather than lerping toward a zero (#35)', () => {
+    const bare: CaptureRecord = { ...A1 }
+    delete bare.altitudeFt
+    delete bare.headingDeg
+    const partial = indexCapture(
+      capture([
+        { tMs: 0, records: [A0] },
+        { tMs: 15000, records: [bare] },
+      ]),
+    )
+    const [track] = pictureAt(partial, 7.5)
+    expect(track.altitudeFt).toBe(1000)
+    expect(track.headingDeg).toBe(350)
+    expect(track.groundSpeedKt).toBe(250)
+  })
+
+  it('reads the committed recording back exactly at every frame instant, id-ordered', () => {
+    const recording = JSON.parse(captureRaw) as AdsbCapture
+    const index = indexCapture(recording)
+    expect(index.durationS).toBe(1185)
+    for (const frame of recording.frames) {
+      const expected = frameTracks(frame)
+      const ids = new Set(expected.map((track) => track.id))
+      const picture = pictureAt(index, frame.tMs / 1000).filter((track) => ids.has(track.id))
+      expect(picture).toEqual(expected)
+    }
+  })
+
+  it('is a function of the clock alone — the same instant twice is the same picture', () => {
+    const recording = JSON.parse(captureRaw) as AdsbCapture
+    const index = indexCapture(recording)
+    expect(pictureAt(index, 307)).toEqual(pictureAt(index, 307))
+    expect(pictureAt(index, 307)).not.toEqual(pictureAt(index, 308))
+  })
+})
+
+describe('interpolateHeading', () => {
+  it('takes the short arc across the wrap in both directions', () => {
+    expect(interpolateHeading(350, 10, 0.5)).toBe(0)
+    expect(interpolateHeading(10, 350, 0.5)).toBe(0)
+    expect(interpolateHeading(10, 350, 0.25)).toBe(5)
+    expect(interpolateHeading(90, 260, 0.5)).toBe(175)
+    expect(interpolateHeading(0, 90, 0.5)).toBe(45)
+  })
+})
+
+describe('memoryAt', () => {
+  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const sample = (t: number) => injectTracksAt(plan, t)
+
+  it('equals the frame-by-frame fold, so playing to an instant and seeking to it agree', () => {
+    let folded: IdentityMemory = {}
+    for (let t = 0; t <= 300; t += 15) folded = rememberIdentities(folded, sample(t), t)
+    expect(memoryAt(sample, plan.intervalS, 300)).toEqual(folded)
+    // Between samples the memory is the last sample's: nothing is heard at 307 that was not at 300.
+    expect(memoryAt(sample, plan.intervalS, 307)).toEqual(folded)
+  })
+
+  it('stamps the sample instant a broadcast was heard at, not the tick that asked', () => {
+    const intermittent = plan.specs.find((spec) => spec.remoteId === 'intermittent')
+    expect(intermittent).toBeDefined()
+    const heard = intermittent!.heard
+    const lastHeardFrame = heard.slice(0, 21).lastIndexOf(true)
+    expect(lastHeardFrame).toBeGreaterThanOrEqual(0)
+    const memory = memoryAt(sample, plan.intervalS, 20 * 15 + 7)
+    expect(memory[intermittent!.id]).toEqual({ lastHeardTSec: lastHeardFrame * 15 })
+    expect(SCENARIO.seed).toBe(plan.seed)
+  })
+})

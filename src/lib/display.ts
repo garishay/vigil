@@ -9,7 +9,7 @@
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
 import type { TrackEvent } from './lifecycle.ts'
-import type { Score } from './scoring.ts'
+import { formatClock, minuteOfDay, type Score } from './scoring.ts'
 import type { Track } from './tracks.ts'
 
 /**
@@ -101,4 +101,14 @@ export function describeEvent(
     case 'resolve':
       return `Resolved — ${dispositions.find((d) => d.id === event.disposition)?.label ?? event.disposition}`
   }
+}
+
+/** The strip's sim clock: the scenario's time of day at `tSec`, to the second (PR 06a). */
+export const simClock = (startLocal: string, tSec: number) =>
+  `${formatClock(minuteOfDay(startLocal, tSec))}:${String(Math.floor(tSec) % 60).padStart(2, '0')}`
+
+/** Replay position as `MM:SS` — minutes unbounded, so a long recording never wraps. */
+export const formatElapsed = (tSec: number) => {
+  const whole = Math.floor(tSec)
+  return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`
 }

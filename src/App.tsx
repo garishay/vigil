@@ -1,15 +1,17 @@
 import { useMemo, useRef, useState } from 'react'
 import './App.css'
 import { MapView } from './components/MapView'
+import { Playback } from './components/Playback'
 import { Queue } from './components/Queue'
 import { ReviewDrawer } from './components/ReviewDrawer'
 import { AO } from './config/ao'
 import { CONTACTS, type ContactId } from './config/contacts'
 import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { SCENARIO } from './config/scenario'
-import { frameTracks } from './data/capture'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useCapture } from './data/useCapture'
+import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
+import { simClock } from './lib/display'
 import { injectTracksAt, planScenario } from './lib/injects'
 import {
   STATUSES,
@@ -24,7 +26,8 @@ import {
   type TrackEvent,
 } from './lib/lifecycle'
 import { rankTracks, type RankedTrack } from './lib/ranking'
-import { formatClock, minuteOfDay, rememberIdentities } from './lib/scoring'
+import { indexCapture, memoryAt, pictureAt } from './lib/replay'
+import { minuteOfDay } from './lib/scoring'
 import type { Track } from './lib/tracks'
 
 type SurfaceId = 'home' | 'queue' | 'review'
@@ -35,7 +38,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'home',
     label: 'Home',
     title: 'Picture summary',
-    body: 'Both layers are counted in the strip above and ranked in the Queue by score. The sim clock starts at the scenario’s configured hour and ticks with playback (PR 06).',
+    body: 'Both layers are counted in the strip above and ranked in the Queue by score. The sim clock starts at the scenario’s configured hour and ticks with playback.',
   },
   {
     id: 'queue',
@@ -64,23 +67,22 @@ const STATE_FILTERS: { id: StateFilter; label: string }[] = [
   ...STATUSES.map((status) => ({ id: status, label: STATUS_LABEL[status] })),
 ]
 
-/** Scenario time. Frame 0 until PR 06 runs the replay clock; the engine takes it as an input. */
-const T_SEC = 0
-
 /** Active is the non-terminal set — New, Assessing, Escalated — read off the table (03e). */
 const matchesState = (status: Status, filter: StateFilter): boolean =>
   filter === 'all' || (filter === 'active' ? !isTerminal(status) : status === filter)
 
 /**
- * `now` is the clock seam: lifecycle events take `at` and `tSec` as inputs, App supplies them,
- * and tests fix them. PR 06 swaps this wall-clock supplier for playback time with no rewiring.
- * `lookupPhoto` is the network seam (03d): the one runtime third-party call, injected the way
- * the capture's fetcher is, so no test reaches the network.
+ * `now` is the wall-clock seam: lifecycle events take `at` as an input, App supplies it, and
+ * tests fix it. `schedule` is the replay clock's seam (06a): the tick is scheduled through it,
+ * so a test drives the clock by hand and never waits on real time. `lookupPhoto` is the network
+ * seam (03d): the one runtime third-party call, injected the way the capture's fetcher is, so no
+ * test reaches the network.
  */
 export default function App({
   now = () => new Date().toISOString(),
+  schedule = intervalSchedule,
   lookupPhoto = defaultLookupPhoto,
-}: { now?: () => string; lookupPhoto?: PhotoLookup } = {}) {
+}: { now?: () => string; schedule?: Schedule; lookupPhoto?: PhotoLookup } = {}) {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
   const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
   const capture = useCapture()
@@ -91,40 +93,48 @@ export default function App({
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
 
   // The §7.1 record: one event log per track, client-side only, never persisted or transmitted.
-  // Only acted-on tracks are stored; an untouched track's log is derived on demand by `logFor`,
-  // so every track reads New with a first-seen entry from the moment the picture loads.
+  // A log opens the first time this session renders its track (ruled on #6, note 3) — see the
+  // sighting fold below — and is kept if the track leaves the picture and returns.
   const [eventLogs, setEventLogs] = useState<Record<string, TrackEvent[]>>({})
 
-  // The replay clock lands in PR 06; until then the picture holds the recording's first frame.
-  const adsb = useMemo(
-    () => (capture.status === 'ready' ? frameTracks(capture.capture.frames[0]) : []),
+  // The recording, re-keyed by aircraft for the interpolator; the clock runs to its last frame.
+  const index = useMemo(
+    () => (capture.status === 'ready' ? indexCapture(capture.capture) : null),
     [capture],
   )
+  const playback = usePlayback(index?.durationS ?? null, schedule)
+  const tSec = playback.tSec
+
+  // The real picture at the clock: bracketed samples read linearly, held then dropped (06a).
+  const adsb = useMemo(() => (index ? pictureAt(index, tSec) : []), [index, tSec])
 
   /**
    * The app holds the inject *plan* — every random decision, made once — and samples it at the
-   * instant it needs. The plan is drawn on the recording's own frame grid rather than one of its
-   * own, so PR 06 drives a single clock through `injectTracksAt` and the ADS-B interpolator with
-   * no rewiring. The generator is pure and synchronous; it never reads the capture itself.
+   * instant the clock names. The plan is drawn on the recording's own frame grid rather than one
+   * of its own, so one clock drives `injectTracksAt` and the ADS-B interpolator together. The
+   * generator is pure and synchronous; it never reads the capture itself.
    */
   const plan = useMemo(() => {
     if (capture.status !== 'ready') return null
     const { frames, intervalMs } = capture.capture
     return planScenario({ frameCount: frames.length, intervalMs })
   }, [capture])
-  const injects = useMemo(() => (plan ? injectTracksAt(plan, T_SEC) : []), [plan])
+  const injects = useMemo(() => (plan ? injectTracksAt(plan, tSec) : []), [plan, tSec])
 
   // One list for the Queue and the scorer: neither knows which layer a track came from.
   const tracks = useMemo<Track[]>(() => [...adsb, ...injects], [adsb, injects])
-  // The identity memory — when each inject's ident was last heard — is folded once, from the
-  // one frame the picture holds; PR 06 folds it per tick, which is the dwell's whole point. The
-  // hour is the scenario's configured clock start (ruled D2 on #4), and the strip shows the same
-  // number the breakdown scores against.
-  const memory = useMemo(() => rememberIdentities({}, injects, T_SEC), [injects])
-  const clockMinute = minuteOfDay(SCENARIO.clock.startLocal, T_SEC)
+  // The identity memory — when each inject's ident was last heard — is a pure fold over the
+  // frame grid up to the clock, so play and seek agree on it (06a). The hour is the scenario's
+  // configured clock start plus the clock (ruled D2 on #4), and the strip shows the same number
+  // the breakdown scores against.
+  const memory = useMemo(
+    () => (plan ? memoryAt((t) => injectTracksAt(plan, t), plan.intervalS, tSec) : {}),
+    [plan, tSec],
+  )
+  const clockMinute = minuteOfDay(SCENARIO.clock.startLocal, tSec)
   const ranked = useMemo(
-    () => rankTracks(tracks, AO.protectedSites, { tSec: T_SEC, minuteOfDay: clockMinute, memory }),
-    [tracks, clockMinute, memory],
+    () => rankTracks(tracks, AO.protectedSites, { tSec, minuteOfDay: clockMinute, memory }),
+    [tracks, tSec, clockMinute, memory],
   )
 
   // Filtered for display; ranks stay global, so a filtered list shows what it hid. The two chip
@@ -144,18 +154,29 @@ export default function App({
     ? (ranked.find((entry) => entry.track.id === selectedId) ?? null)
     : null
 
-  // Every track's log opens with a synthetic first-seen entry, stamped once — when the picture
-  // actually arrives, not at mount, so first sight cannot predate the data it describes by the
-  // fetch latency (#47 round 6). Guarded set-during-render is the documented derived-state
-  // pattern; a memo keyed on `now` would re-stamp every render, since the default prop is a
-  // fresh function each time (#47 round 1).
-  const [openedAt, setOpenedAt] = useState<string | null>(null)
-  if (capture.status === 'ready' && openedAt === null) setOpenedAt(now())
+  // The sighting fold: every track in the picture without a log gets one opened now — its `at`
+  // from the wall clock, its `tSec` from the replay clock, its `observed` from this render —
+  // rather than back-stamped to app start (ruled on #6, note 3). Guarded set-during-render is
+  // the documented derived-state pattern, and the guard is what keeps it to one pass: the
+  // updater re-checks its own argument, so two renders in one commit cannot double-open. A memo
+  // keyed on `now` would re-stamp every render, since the default prop is a fresh function each
+  // time (#47 round 1). Seek-honest: a track first shown after a seek opens at the seek target.
+  const unseen = ranked.filter((entry) => eventLogs[entry.track.id] === undefined)
+  if (unseen.length > 0) {
+    const at = now()
+    setEventLogs((logs) => {
+      const opened = { ...logs }
+      for (const entry of unseen) {
+        if (opened[entry.track.id] === undefined) {
+          opened[entry.track.id] = firstSeen(entry.track.id, observedSnapshot(entry), at, tSec)
+        }
+      }
+      return opened
+    })
+  }
   const logFor = (entry: RankedTrack): TrackEvent[] =>
-    eventLogs[entry.track.id] ??
-    firstSeen(entry.track.id, observedSnapshot(entry), openedAt ?? now())
+    eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), now(), tSec)
 
-  // `now` is the seam PR 06's clock takes over through; `T_SEC` is the other half of it.
   const act = (
     action: LifecycleAction,
     detail?: { recipient?: ContactId; disposition?: DispositionId },
@@ -168,9 +189,9 @@ export default function App({
       // batched into one commit must chain, not overwrite each other (#47 review).
       [selected.track.id]: appendEvent(
         logs[selected.track.id] ??
-          firstSeen(selected.track.id, observedSnapshot(selected), openedAt ?? at),
+          firstSeen(selected.track.id, observedSnapshot(selected), at, tSec),
         action,
-        { at, tSec: T_SEC, observed: observedSnapshot(selected), ...detail },
+        { at, tSec, observed: observedSnapshot(selected), ...detail },
       ),
     }))
   }
@@ -182,7 +203,7 @@ export default function App({
     { label: 'Cooperative', value: count(adsb.length) },
     { label: 'Injects', value: count(injects.length) },
     { label: 'Seed', value: SCENARIO.seed },
-    { label: 'Sim clock', value: formatClock(clockMinute) },
+    { label: 'Sim clock', value: simClock(SCENARIO.clock.startLocal, tSec) },
   ]
 
   // On Review the Queue is unmounted, so its row-focus return has nothing to land on: the close
@@ -251,6 +272,7 @@ export default function App({
             <dd>{field.value}</dd>
           </div>
         ))}
+        <Playback playback={playback} />
         <div className="strip__field strip__field--ao">
           <dt>AO</dt>
           <dd>{AO.name}</dd>

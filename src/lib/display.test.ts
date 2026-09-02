@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { eventClock, formatScore, roundHeading, scoreSummary, scoreTotal } from './display'
+import {
+  eventClock,
+  formatElapsed,
+  formatScore,
+  roundHeading,
+  scoreSummary,
+  scoreTotal,
+  simClock,
+} from './display'
 import type { Score } from './scoring'
 
 const SCORE: Score = {
@@ -105,5 +113,24 @@ describe('roundHeading', () => {
     expect(roundHeading(359.7)).toBe(0)
     expect(roundHeading(359.5)).toBe(0)
     expect(roundHeading(359.4)).toBe(359)
+  })
+})
+
+describe('simClock', () => {
+  it('is the scenario’s time of day at the clock, to the second, wrapping at midnight (06a)', () => {
+    expect(simClock('02:30', 0)).toBe('02:30:00')
+    expect(simClock('02:30', 187)).toBe('02:33:07')
+    expect(simClock('23:59', 61)).toBe('00:00:01')
+    // A fractional tick never prints a fraction.
+    expect(simClock('02:30', 7.9)).toBe('02:30:07')
+  })
+})
+
+describe('formatElapsed', () => {
+  it('prints the replay position as MM:SS with minutes unbounded', () => {
+    expect(formatElapsed(0)).toBe('00:00')
+    expect(formatElapsed(187)).toBe('03:07')
+    expect(formatElapsed(1185)).toBe('19:45')
+    expect(formatElapsed(3725)).toBe('62:05')
   })
 })

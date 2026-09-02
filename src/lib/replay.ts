@@ -1,0 +1,131 @@
+/**
+ * The recording on a clock (scope §5.1, PR 06a): the real picture at any instant, not only at
+ * the fifteen-second samples the capture holds. Pure — no React, no DOM, no I/O, no timer; the
+ * clock is an input, which is what lets a test seek anywhere without waiting.
+ *
+ * **Interpolate, never snap** (ruled on #6). At 400 kt an aircraft moves 3 km between samples;
+ * snapping to the nearest frame would teleport the calm background traffic once every fifteen
+ * seconds. So each aircraft is bracketed by its *own* two samples either side of the clock and
+ * read linearly between them — position, altitude, ground speed, vertical rate — with the
+ * heading taken the short way round the compass. A one-frame hole inside a track's span is
+ * bridged the same way; the position stays plausible while `lastSeenSec` says the last message
+ * is ageing, and the two stay honest separately.
+ *
+ * **Never into existence.** A track is absent before its first sample. After its last — or
+ * across a hole wider than the coast window — it holds at that sample while `lastSeenSec`
+ * accrues, and leaves the picture once that passes the window: the aggregator drops a track
+ * at 60 s of silence, and the replay follows it one sample later.
+ *
+ * This reads the *next* sample, which a live feed cannot. `pictureAt` is the seam where Phase 2
+ * replaces interpolation with dead reckoning; nothing above it knows the difference.
+ */
+
+import { REPLAY, type ReplayConfig } from '../config/replay.ts'
+import { toTrack } from './adsb.ts'
+import type { AdsbCapture } from './adsb.ts'
+import { round } from './geo.ts'
+import { rememberIdentities, type IdentityMemory, type ObservedTrack } from './scoring.ts'
+import type { AdsbTrack } from './tracks.ts'
+
+interface Sample {
+  tSec: number
+  track: AdsbTrack
+}
+
+/** The recording re-keyed by aircraft, so the clock can ask for one track's neighbours. */
+export interface ReplayIndex {
+  /** The last frame's time, seconds — where the clock stops. */
+  durationS: number
+  samples: ReadonlyMap<string, readonly Sample[]>
+}
+
+/** Built once per recording; `pictureAt` reads it on every tick. */
+export function indexCapture(capture: AdsbCapture): ReplayIndex {
+  const samples = new Map<string, Sample[]>()
+  // Sorted by time, not trusted to be: a gap is honest in `tMs`, and so must be the order.
+  const frames = [...capture.frames].sort((a, b) => a.tMs - b.tMs)
+  for (const frame of frames) {
+    for (const record of frame.records) {
+      const track = toTrack(record)
+      const list = samples.get(track.id) ?? []
+      list.push({ tSec: frame.tMs / 1000, track })
+      samples.set(track.id, list)
+    }
+  }
+  return { durationS: frames.length > 0 ? frames[frames.length - 1].tMs / 1000 : 0, samples }
+}
+
+const lerp = (a: number, b: number, f: number) => a + (b - a) * f
+
+/** Both readings, or the earlier one when the later is missing — a null is a gap, not a zero. */
+const between = (a: number | null, b: number | null, f: number, places: number) =>
+  a === null || b === null ? a : round(lerp(a, b, f), places)
+
+/** The short way round: 350° to 10° passes through 0, never through 180. */
+export function interpolateHeading(a: number, b: number, f: number): number {
+  const delta = ((((b - a) % 360) + 540) % 360) - 180
+  return round((((a + delta * f) % 360) + 360) % 360, 1)
+}
+
+function interpolate(prev: Sample, next: Sample, tSec: number): AdsbTrack {
+  const f = (tSec - prev.tSec) / (next.tSec - prev.tSec)
+  const a = prev.track
+  const b = next.track
+  return {
+    ...a,
+    position: [
+      round(lerp(a.position[0], b.position[0], f), 5),
+      round(lerp(a.position[1], b.position[1], f), 5),
+    ],
+    altitudeFt: between(a.altitudeFt, b.altitudeFt, f, 0),
+    groundSpeedKt: between(a.groundSpeedKt, b.groundSpeedKt, f, 1),
+    verticalRateFpm: between(a.verticalRateFpm, b.verticalRateFpm, f, 0),
+    headingDeg:
+      a.headingDeg === null || b.headingDeg === null
+        ? a.headingDeg
+        : interpolateHeading(a.headingDeg, b.headingDeg, f),
+  }
+}
+
+/**
+ * The real picture at `tSec`: every aircraft the recording knows about at that instant, in id
+ * order. At a sample's own instant a track reads exactly as `frameTracks` would read it.
+ */
+export function pictureAt(
+  index: ReplayIndex,
+  tSec: number,
+  config: ReplayConfig = REPLAY,
+): AdsbTrack[] {
+  const picture: AdsbTrack[] = []
+  for (const samples of index.samples.values()) {
+    let prevIndex = -1
+    for (let i = 0; i < samples.length && samples[i].tSec <= tSec; i++) prevIndex = i
+    if (prevIndex < 0) continue
+    const prev = samples[prevIndex]
+    const next = samples[prevIndex + 1] as Sample | undefined
+    // The last message is the previous sample's, however the position between is derived.
+    const lastSeenSec = round(prev.track.lastSeenSec + (tSec - prev.tSec), 1)
+    if (next && next.tSec - prev.tSec <= config.coastS) {
+      picture.push({ ...interpolate(prev, next, tSec), lastSeenSec })
+    } else if (lastSeenSec <= config.coastS) {
+      picture.push({ ...prev.track, lastSeenSec })
+    }
+  }
+  return picture.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+}
+
+/**
+ * The identity memory at `tSec` as a pure fold over the frame grid up to it — the instants a
+ * broadcast is actually sampled at — so playing to a time tick by tick and seeking straight to
+ * it land on the same memory, and the same score (the determinism criterion on #6). Cheap
+ * enough to rebuild every tick: at most eighty frames of a handful of injects.
+ */
+export function memoryAt(
+  sample: (tSec: number) => readonly ObservedTrack[],
+  intervalS: number,
+  tSec: number,
+): IdentityMemory {
+  let memory: IdentityMemory = {}
+  for (let t = 0; t <= tSec; t += intervalS) memory = rememberIdentities(memory, sample(t), t)
+  return memory
+}
