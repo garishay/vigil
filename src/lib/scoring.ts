@@ -358,7 +358,7 @@ export function scoreTrack(
  * the same breakdown the operator saw, over the record's own doctrine rather than the live
  * config — the case #64 kept the weights for. The composite and its uncapped twin are the
  * snapshot's own; capped is their inequality. Factor detail lines are not in the record, and
- * say so. `siteId` is the caller's — the snapshot measures range to the nearest site by value.
+ * say so. The range and the site it was measured to are the snapshot's too (#75 review).
  */
 export function scoreFromSnapshot(
   observed: {
@@ -367,8 +367,8 @@ export function scoreFromSnapshot(
     factors: Record<FactorId, number>
     weights: Record<FactorId, number>
     rangeM: number
+    siteId: string
   },
-  siteId: string,
   config: ScoringConfig = SCORING,
 ): Score {
   const factors = FACTORS.map(({ id, label }): Factor => {
@@ -395,6 +395,6 @@ export function scoreFromSnapshot(
     band: bandOf(Math.round(observed.score), config.bands),
     factors,
     rangeM: observed.rangeM,
-    siteId,
+    siteId: observed.siteId,
   }
 }

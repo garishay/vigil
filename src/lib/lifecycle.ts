@@ -82,6 +82,11 @@ export function transition(status: Status, action: LifecycleAction): Status {
 export interface ObservedSnapshot {
   identity: Identity
   rangeM: number
+  /**
+   * The site `rangeM` was measured to — the nearest at the time — so a frozen range is never
+   * captioned with whichever site is nearest later (#75 review). An id, resolved at display.
+   */
+  siteId: string
   altitudeFt: number | null
   groundSpeedKt: number | null
   /** Degrees true, or null when unreported — the handoff prints it, so the record keeps it (06b). */
@@ -125,9 +130,15 @@ export interface TrackEvent {
 }
 
 /** The observed-or-derived fields of a ranked track, snapshotted for the log. */
-export const observedSnapshot = ({ track, rangeM, score }: RankedTrack): ObservedSnapshot => ({
+export const observedSnapshot = ({
+  track,
+  rangeM,
+  siteId,
+  score,
+}: RankedTrack): ObservedSnapshot => ({
   identity: track.identity,
   rangeM,
+  siteId,
   altitudeFt: track.altitudeFt,
   groundSpeedKt: track.groundSpeedKt,
   headingDeg: track.headingDeg,
@@ -172,6 +183,11 @@ export const lastBand = (
  * the entry is in now. Statuses ride unchanged — a crossing is never a lifecycle change — so
  * `statusOf` reads through it. Compared against the last entry rather than the previous tick, so
  * a seek logs at most one crossing rather than every intermediate band.
+ *
+ * **Forward only.** A crossing is derived from the picture, and a rewound picture is the past
+ * the record already holds: a band read at a sim time earlier than the last entry's is not
+ * logged, so re-watching never writes a contradictory line beneath a later one (#75 review).
+ * The operator's own actions are stamped when they are taken, whatever the clock reads.
  */
 export function bandCrossing(
   log: readonly TrackEvent[],
@@ -181,6 +197,7 @@ export function bandCrossing(
   bands: ScoringConfig['bands'] = SCORING.bands,
 ): TrackEvent[] | null {
   if (log.length === 0) throw new Error('bandCrossing needs a log opened by firstSeen')
+  if (tSec < log[log.length - 1].tSec) return null
   const from = lastBand(log, bands)
   const to = entry.score.band
   if (from === to) return null

@@ -179,10 +179,13 @@ export default function App({
   // to one pass: the updater re-checks its own argument, so two renders in one commit cannot
   // double-open or double-log. A memo keyed on `now` would re-stamp every render, since the
   // default prop is a fresh function each time (#47 round 1). Seek-honest: a track first shown
-  // after a seek opens at the seek target, and a seek logs at most one crossing.
+  // after a seek opens at the seek target, and a seek logs at most one crossing — forward only:
+  // a rewound picture is the past the record already holds, so a band read earlier than the
+  // last entry is not a crossing (#75 review), and the predicate settles without a write.
   const recordStale = ranked.some((entry) => {
     const log = eventLogs[entry.track.id]
-    return log === undefined || lastBand(log) !== entry.score.band
+    if (log === undefined) return true
+    return tSec >= log[log.length - 1].tSec && lastBand(log) !== entry.score.band
   })
   if (recordStale) {
     const at = now()

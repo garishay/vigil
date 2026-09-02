@@ -7,8 +7,9 @@
  * kinematics, and Score lines print from the escalate event's own snapshot — what was known at
  * the moment the notification was made — and the Range line names that moment. The score is
  * rebuilt from the snapshot's factor values and weights, so the arithmetic on the page is the
- * record's, not the live picture's. The Timeline stays live from the log, so a later Resolve
- * still appends. The ident is the track's name and prints live; the identity is the snapshot's.
+ * record's, not the live picture's, and the Range line is captioned with the site the frozen
+ * range was measured to. The Timeline stays live from the log, so a later Resolve still
+ * appends. The ident is the track's name and prints live; the identity is the snapshot's.
  *
  * The layer is disclosed in the Track line because the recipient must know a synthetic track is
  * synthetic. An absent kinematic renders as `—`, never as a zero (#35). The score block is the
@@ -48,7 +49,7 @@ const dash = <T>(value: T | null, render: (value: T) => string) =>
 
 export function handoffText({
   entry,
-  siteName,
+  sites,
   recipient,
   log,
   contacts,
@@ -56,8 +57,8 @@ export function handoffText({
   clock,
 }: {
   entry: RankedTrack
-  /** Name of the site `entry.siteId` names — the caller resolves it. */
-  siteName: string
+  /** The configured sites: the frozen range is captioned with the one it was measured to. */
+  sites: readonly { id: string; name: string }[]
   recipient: Contact
   /** Must hold the escalation whose snapshot the evidence block prints. */
   log: readonly TrackEvent[]
@@ -70,7 +71,9 @@ export function handoffText({
   if (!escalation) throw new Error('handoffText needs a log with an escalation')
   const { track } = entry
   const observed = escalation.observed
-  const score = scoreFromSnapshot(observed, entry.siteId)
+  const score = scoreFromSnapshot(observed)
+  // The site the frozen range was measured to, not whichever is nearest now (#75 review).
+  const siteName = sites.find((site) => site.id === observed.siteId)?.name ?? observed.siteId
   const kinematics = [
     dash(observed.altitudeFt, (v) => `${v} ft`),
     dash(observed.groundSpeedKt, (v) => `${v} kt`),

@@ -246,3 +246,24 @@ describe('trailAt (06b)', () => {
     expect(trailAt(index, plan, later, 135)[0]).toEqual([-75.19, 39.8])
   })
 })
+
+describe('trailAt — a held track (#75 review)', () => {
+  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const index = indexCapture(
+    capture(
+      [...Array(8)].map((_, i) => ({
+        tMs: i * 15000,
+        records: [{ ...A0, position: [-75.2 + i * 0.01, 39.8] as [number, number] }],
+      })),
+    ),
+  )
+
+  it('counts the sample a held track sits on once, not as a sample and a position', () => {
+    // The recording ends at 105 s; at 120 s the track is held on that sample, inside the coast.
+    const [held] = pictureAt(index, 120)
+    expect(held.lastSeenSec).toBe(15)
+    const trail = trailAt(index, plan, held, 120)
+    expect(trail).toHaveLength(8)
+    expect(trail[trail.length - 1]).toEqual(held.position)
+  })
+})

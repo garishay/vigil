@@ -137,6 +137,7 @@ describe('describeEvent — band crossings (06b)', () => {
       observed: {
         identity: 'non-cooperative',
         rangeM: 7200.2,
+        siteId: 'phl-airfield',
         altitudeFt: 63,
         groundSpeedKt: 19.1,
         headingDeg: 345.6,

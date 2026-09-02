@@ -706,9 +706,7 @@ describe('scoreFromSnapshot (06b)', () => {
       })),
     })
     for (const entry of ranked) {
-      expect(strip(scoreFromSnapshot(observedSnapshot(entry), entry.siteId))).toEqual(
-        strip(entry.score),
-      )
+      expect(strip(scoreFromSnapshot(observedSnapshot(entry)))).toEqual(strip(entry.score))
     }
   })
 
@@ -719,8 +717,10 @@ describe('scoreFromSnapshot (06b)', () => {
       factors: { cooperativity: 5, closing: 100, proximity: 100, kinematic: 0, time: 100 },
       weights: { cooperativity: 25, closing: 20, proximity: 15, kinematic: 10, time: 10 },
       rangeM: 1200,
+      siteId: 'phl-airfield',
     }
-    const score = scoreFromSnapshot(observed, 'phl-airfield')
+    const score = scoreFromSnapshot(observed)
+    expect(score.siteId).toBe('phl-airfield')
     expect(score.capped).toBe(true)
     expect(score.band).toBe('calm')
     expect(score.total).toBe(46.3)

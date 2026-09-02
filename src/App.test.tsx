@@ -863,6 +863,29 @@ describe('App record under the clock (06b)', () => {
     expect(handoff()).toContain('  02:49:45  Escalated — to PHL Tower')
   })
 
+  it('writes nothing on a rewind — re-watching never runs the record backwards (#75 review)', () => {
+    useCapture.mockReturnValue(LONG)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '1185' } })
+    const crossedRow = rows().find((row) => {
+      fireEvent.click(within(row).getByRole('button'))
+      return logLines().some((line) => / — (up|down) from /.test(line))
+    })
+    expect(crossedRow).toBeDefined()
+    const before = logLines()
+    // Play again from the start, and seek about in the past: the record holds.
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    replay.tick(30)
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '600' } })
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '0' } })
+    expect(logLines()).toEqual(before)
+    const marks = before.map((line) => line.slice(0, 8))
+    expect(marks).toEqual([...marks].sort())
+  })
+
   it('freezes the handoff evidence block at escalation while the timeline stays live', () => {
     useCapture.mockReturnValue(MOVING)
     const replay = manualClock()

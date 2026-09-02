@@ -163,5 +163,9 @@ export function trailAt(
       if (position) past.push(position)
     }
   }
+  // A held track sits on its last sample; that is one known position, not two (#75 review).
+  const last = past[past.length - 1]
+  const [lon, lat] = track.position
+  if (last && last[0] === lon && last[1] === lat) return past
   return [...past, track.position]
 }

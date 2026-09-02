@@ -25,6 +25,7 @@ import { SCORING, type FactorId } from '../config/scoring'
 const OBSERVED: ObservedSnapshot = {
   identity: 'non-cooperative',
   rangeM: 7200.2,
+  siteId: 'phl-airfield',
   altitudeFt: 63,
   groundSpeedKt: 19.1,
   headingDeg: 345.6,
@@ -176,6 +177,7 @@ describe('learner-ready shape (§8.3b)', () => {
     expect(observedSnapshot(entry)).toEqual({
       identity: 'non-cooperative',
       rangeM: 7200.2,
+      siteId: 'phl-airfield',
       altitudeFt: 63,
       groundSpeedKt: null,
       headingDeg: track.headingDeg,
@@ -253,6 +255,7 @@ describe('learner-ready shape (§8.3b)', () => {
         'identity',
         'rangeM',
         'score',
+        'siteId',
         'uncapped',
         'weights',
       ])
@@ -364,5 +367,61 @@ describe('band crossings (06b)', () => {
     expect(observedSnapshot(ranked(50)).headingDeg).toBe(345.6)
     const unheaded = { ...ranked(50), track: { ...ranked(50).track, headingDeg: null } }
     expect(observedSnapshot(unheaded).headingDeg).toBeNull()
+  })
+})
+
+describe('band crossings are forward only (#75 review)', () => {
+  const at = (score: number, tSec: number): RankedTrack => ({
+    track: {
+      id: 'inject-05',
+      source: 'inject',
+      behavior: 'loiter',
+      remoteId: 'silent',
+      uaType: null,
+      identity: 'non-cooperative',
+      callsign: null,
+      position: [-75.20547, 39.81341],
+      altitudeFt: 63,
+      onGround: false,
+      groundSpeedKt: 19.1,
+      headingDeg: 345.6,
+      verticalRateFpm: 85,
+      lastSeenSec: tSec,
+    },
+    rank: 1,
+    rangeM: 7200.2,
+    siteId: 'phl-airfield',
+    score: {
+      composite: score,
+      weighted: 0,
+      total: 0,
+      totalWeight: 80,
+      uncapped: score,
+      capped: false,
+      band: score >= 70 ? 'warning' : score >= 40 ? 'caution' : 'calm',
+      factors: [],
+      rangeM: 7200.2,
+      siteId: 'phl-airfield',
+    },
+  })
+
+  it('refuses a band read at a sim time earlier than the last entry — a rewind is not a crossing', () => {
+    let log = firstSeen(
+      'inject-05',
+      { ...OBSERVED, score: 20, uncapped: 20 },
+      '2026-09-01T12:04:31.000Z',
+    )
+    log = bandCrossing(log, at(90, 1030), '2026-09-01T12:21:41.000Z', 1030)!
+    expect(log[1].band).toEqual({ from: 'calm', to: 'warning' })
+    // Play again from the start: calm at 0 is the past the record already holds.
+    expect(bandCrossing(log, at(20, 0), '2026-09-01T12:22:00.000Z', 0)).toBeNull()
+    expect(bandCrossing(log, at(55, 600), '2026-09-01T12:32:00.000Z', 600)).toBeNull()
+    // Back past the last entry, still warning: nothing; then a real later change is logged.
+    expect(bandCrossing(log, at(90, 1100), '2026-09-01T12:40:00.000Z', 1100)).toBeNull()
+    const later = bandCrossing(log, at(55, 1150), '2026-09-01T12:41:00.000Z', 1150)!
+    expect(later[2]).toMatchObject({ tSec: 1150, band: { from: 'warning', to: 'caution' } })
+    // The record never runs backwards.
+    for (let i = 1; i < later.length; i++)
+      expect(later[i].tSec).toBeGreaterThanOrEqual(later[i - 1].tSec)
   })
 })

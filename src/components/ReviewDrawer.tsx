@@ -222,7 +222,7 @@ export function ReviewDrawer({
   const escalation = log.findLast((event) => event.action === 'escalate')
   const recipient = escalation && contacts.find((contact) => contact.id === escalation.recipient)
   const handoff = recipient
-    ? handoffText({ entry, siteName, recipient, log, contacts, dispositions, clock })
+    ? handoffText({ entry, sites, recipient, log, contacts, dispositions, clock })
     : null
 
   const copy = async () => {
