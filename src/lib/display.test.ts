@@ -306,6 +306,28 @@ describe('reasonTag (05b, ruled on #5)', () => {
     expect(reasonTag(closing, AO.protectedSites)).toMatch(/closing/)
   })
 
+  it('reads inside the ring off any enclosing site, as closing does, not the nearest centre (#82 review)', () => {
+    // A small decoy ring is the nearest centre, 2 km east of a drone that sits inside PHL's ring.
+    const decoy = {
+      id: 'decoy',
+      name: 'Decoy',
+      center: destinationPoint(at(3000), 90, 2000),
+      radiusM: 1000,
+    }
+    const entry = ranked(silent(at(3000)))
+    const twoSites = [AO.protectedSites[0], decoy]
+    const rescored = scoreTrack(entry.track, twoSites, NIGHT)
+    const twoSiteEntry = {
+      ...entry,
+      score: rescored,
+      rangeM: rescored.rangeM,
+      siteId: rescored.siteId,
+    }
+    expect(twoSiteEntry.siteId).toBe('decoy')
+    expect(rescored.factors.find((f) => f.id === 'closing')!.value).toBe(100)
+    expect(reasonTag(twoSiteEntry, twoSites)).toBe('Non-cooperative, inside the ring, low and slow')
+  })
+
   it('reads Cooperative aircraft and nothing else on a real aircraft, capped or not, pattern or not (§2)', () => {
     const entry = ranked(arrival)
     expect(entry.score.capped).toBe(true)

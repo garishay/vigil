@@ -47,8 +47,8 @@ export function Queue({
   selectedId?: string | null
   /** A track's lifecycle status; an untouched track reads New. */
   statusFor?: (id: string) => Status
-  /** Whether a Dismissed track has re-surfaced since its dismissal (05b). */
-  resurfacedFor?: (id: string) => boolean
+  /** Whether a Dismissed track has re-surfaced since its dismissal (05b); never a real aircraft. */
+  resurfacedFor?: (entry: RankedTrack) => boolean
   /** The protected sites, for the reason tag's site name. */
   sites?: readonly ProtectedSite[]
   /**
@@ -118,7 +118,7 @@ export function Queue({
       {ranked.map((entry) => {
         const { track, rank, rangeM, score } = entry
         const status = statusFor(track.id)
-        const surfaced = resurfacedFor(track.id)
+        const surfaced = resurfacedFor(entry)
         const classes = ['queue__row']
         if (track.onGround) classes.push('queue__row--ground')
         if (isTerminal(status) && !surfaced) classes.push('queue__row--terminal')

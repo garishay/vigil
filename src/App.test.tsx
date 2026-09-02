@@ -1216,9 +1216,12 @@ describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', 
     fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(rowOf('TRK-06')).toHaveClass('queue__row--terminal')
+    expect(screen.getByTestId('map').getAttribute('data-terminal')).toContain('inject-06')
     seek('495')
     expect(rowOf('TRK-06')).not.toHaveClass('queue__row--terminal')
     expect(within(rowOf('TRK-06')).getByText('Re-surfaced')).toBeInTheDocument()
+    // The map's dim set agrees with the row (#61's invariant, #82 review).
+    expect(screen.getByTestId('map').getAttribute('data-terminal')).not.toContain('inject-06')
     expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Dismissed')
     // TRK-03 dismissed at 02:40:00 in warning; it names Revisiting at 02:47:30 with no crossing.
     seek('600')

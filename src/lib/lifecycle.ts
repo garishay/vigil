@@ -19,7 +19,8 @@
  *
  * **Re-surface** (05b, ruled on #5): a Dismissed track surfaces on the Queue row when, since its
  * dismissal, the record shows an upward crossing or a pattern onset — read off the log, never a
- * new state, and never on a capped track, whose pattern is ordered rather than surfaced (4A).
+ * new state, and never on a real aircraft, keyed on the observed source as the ceiling is: on a
+ * cooperative aircraft a pattern is ordered rather than surfaced (4A).
  */
 
 import type { ContactId } from '../config/contacts.ts'
@@ -34,7 +35,7 @@ import {
 } from '../config/scoring.ts'
 import type { RankedTrack } from './ranking.ts'
 import { bandOf } from './scoring.ts'
-import type { Identity } from './tracks.ts'
+import type { Identity, Track } from './tracks.ts'
 
 export type Status = 'new' | 'assessing' | 'escalated' | 'resolved' | 'dismissed'
 export type LifecycleAction = 'assess' | 'escalate' | 'dismiss' | 'resolve'
@@ -282,22 +283,24 @@ export function patternChange(
 /**
  * Whether a Dismissed track has re-surfaced (05b, ruled on #5): since its dismissal the record
  * shows an upward band crossing or a pattern onset. Read off the log — the status stays
- * Dismissed and the §7.1 table gains nothing — and never true of a capped track, whose score at
- * the entry is under its uncapped one: on a cooperative aircraft a pattern is ordered, not
- * surfaced (4A).
+ * Dismissed and the §7.1 table gains nothing — and never true of a real aircraft, keyed on the
+ * observed source exactly as the ceiling is (#82 review): an airliner under the ceiling is not
+ * capped, and on a cooperative aircraft a pattern is ordered, not surfaced (4A).
  */
-export function resurfaced(log: readonly TrackEvent[] | undefined): boolean {
-  if (!log || statusOf(log) !== 'dismissed') return false
+export function resurfaced(
+  log: readonly TrackEvent[] | undefined,
+  source: Track['source'],
+): boolean {
+  if (source === 'adsb' || !log || statusOf(log) !== 'dismissed') return false
   const dismissedAt = log.findLastIndex((event) => event.action === 'dismiss')
   return log
     .slice(dismissedAt + 1)
     .some(
       (event) =>
-        event.observed.score >= event.observed.uncapped &&
-        ((event.action === 'band' &&
+        (event.action === 'band' &&
           event.band !== undefined &&
           BANDS.indexOf(event.band.to) > BANDS.indexOf(event.band.from)) ||
-          (event.action === 'pattern' && event.pattern?.to != null)),
+        (event.action === 'pattern' && event.pattern?.to != null),
     )
 }
 

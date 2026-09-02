@@ -421,7 +421,7 @@ describe('the reason tag and the re-surface (05b, ruled on #5)', () => {
       <Queue
         ranked={RANKED}
         statusFor={(id) => status[id] ?? 'new'}
-        resurfacedFor={(id) => id === 'inject-03'}
+        resurfacedFor={(entry) => entry.track.id === 'inject-03'}
       />,
     )
     const surfaced = screen.getByText('TRK-03').closest('li') as HTMLElement

@@ -84,7 +84,11 @@ export function reasonTag(entry: RankedTrack, sites: readonly ProtectedSite[]): 
   const { track, score } = entry
   if (track.source === 'adsb') return 'Cooperative aircraft'
   const site = sites.find((candidate) => candidate.id === score.siteId)
-  const inside = site !== undefined && distanceMeters(site.center, track.position) <= site.radiusM
+  // Inside any configured ring, as closing reads it — not only the nearest centre's, which with
+  // two sites can be a small ring the track is outside while a larger one encloses it (#82 review).
+  const inside = sites.some(
+    (candidate) => distanceMeters(candidate.center, track.position) <= candidate.radiusM,
+  )
   const wordFor = (factor: Factor): string | null => {
     if (factor.value < 50) return null
     switch (factor.id) {

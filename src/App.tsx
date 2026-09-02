@@ -174,17 +174,24 @@ export default function App({
   // unrelated track. Those are renders where the picture has not moved and the source should
   // not be rebuilt, and they are the common case once the operator stops the clock to work.
   //
-  // Hence the shape: reading `eventLogs` rather than `ranked` keeps it off the per-tick path
-  // (`ranked` is rebuilt every tick, #76), and folding to a sorted string first means the array
-  // below keeps its identity until the *set* changes, not merely until some other track's log
-  // gains an entry. Ids carry no spaces, so the join is unambiguous.
+  // Hence the shape: folding to a sorted string first means the array below keeps its identity
+  // until the *set* changes, not merely until some other track's log gains an entry. Ids carry
+  // no spaces, so the join is unambiguous. A re-surfaced track leaves the set, so the map and
+  // the Queue agree about what is handled (#82 review); that needs each track's source, which
+  // is read off the picture — the key is recomputed per tick, but its string, and so the array's
+  // identity, still changes only with the set.
+  const sourceOf = useMemo(() => new Map(tracks.map((track) => [track.id, track.source])), [tracks])
   const terminalKey = useMemo(
     () =>
       Object.keys(eventLogs)
-        .filter((id) => isTerminal(statusOf(eventLogs[id])))
+        .filter(
+          (id) =>
+            isTerminal(statusOf(eventLogs[id])) &&
+            !resurfaced(eventLogs[id], sourceOf.get(id) ?? 'adsb'),
+        )
         .sort()
         .join(' '),
-    [eventLogs],
+    [eventLogs, sourceOf],
   )
   const terminalIds = useMemo(
     () => (terminalKey === '' ? [] : terminalKey.split(' ')),
@@ -439,7 +446,7 @@ export default function App({
                 selectedId={selectedId}
                 restoreFocus={keyboardClose}
                 statusFor={(id) => statusOf(eventLogs[id])}
-                resurfacedFor={(id) => resurfaced(eventLogs[id])}
+                resurfacedFor={(entry) => resurfaced(eventLogs[entry.track.id], entry.track.source)}
                 sites={AO.protectedSites}
                 onSelect={setSelectedId}
               />

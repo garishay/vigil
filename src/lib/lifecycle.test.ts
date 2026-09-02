@@ -523,25 +523,36 @@ describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
     expect(statusOf(onDismissed)).toBe('dismissed')
   })
 
+  const surfaced = (log: readonly TrackEvent[] | undefined) => resurfaced(log, 'inject')
+
+  it('never re-surfaces a real aircraft, keyed on the observed source as the ceiling is (4A, #82 review)', () => {
+    // The same record that re-surfaces an inject — dismissed, then an upward crossing and an
+    // onset — re-surfaces nothing when the track is ADS-B, capped or not.
+    const up = bandCrossing(dismissedAt(20), withScore(45, null), at, 20)!
+    const onset = patternChange(up, withScore(60, 'orbit'), at, 30)!
+    expect(surfaced(onset)).toBe(true)
+    expect(resurfaced(onset, 'adsb')).toBe(false)
+  })
+
   it('re-surfaces nothing untouched, active, or freshly dismissed', () => {
-    expect(resurfaced(undefined)).toBe(false)
-    expect(resurfaced(openedWith(null))).toBe(false)
-    expect(resurfaced(dismissedAt(60))).toBe(false)
+    expect(surfaced(undefined)).toBe(false)
+    expect(surfaced(openedWith(null))).toBe(false)
+    expect(surfaced(dismissedAt(60))).toBe(false)
   })
 
   it('re-surfaces on an upward crossing since dismissal, not a downward one', () => {
     const up = bandCrossing(dismissedAt(60), withScore(84, null), at, 20)!
     expect(up[2].band).toEqual({ from: 'caution', to: 'warning' })
-    expect(resurfaced(up)).toBe(true)
+    expect(surfaced(up)).toBe(true)
     expect(statusOf(up)).toBe('dismissed')
-    expect(resurfaced(bandCrossing(dismissedAt(84), withScore(60, null), at, 20)!)).toBe(false)
+    expect(surfaced(bandCrossing(dismissedAt(84), withScore(60, null), at, 20)!)).toBe(false)
   })
 
   it('re-surfaces on a pattern onset since dismissal, not an end', () => {
-    expect(resurfaced(patternChange(dismissedAt(84), withScore(100, 'loiter'), at, 20)!)).toBe(true)
-    expect(
-      resurfaced(patternChange(dismissedAt(100, 'loiter'), withScore(84, null), at, 20)!),
-    ).toBe(false)
+    expect(surfaced(patternChange(dismissedAt(84), withScore(100, 'loiter'), at, 20)!)).toBe(true)
+    expect(surfaced(patternChange(dismissedAt(100, 'loiter'), withScore(84, null), at, 20)!)).toBe(
+      false,
+    )
   })
 
   it('ignores evidence from before the dismissal', () => {
@@ -552,14 +563,14 @@ describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
       tSec: 10,
       observed: observedSnapshot(withScore(84, null)),
     })
-    expect(resurfaced(thenDismissed)).toBe(false)
+    expect(surfaced(thenDismissed)).toBe(false)
   })
 
-  it('never re-surfaces a capped track — a pattern on a cooperative aircraft is ordered, not surfaced (4A)', () => {
+  it('reads the source, not the cap: a capped record on a real aircraft never surfaces', () => {
     // Dismissed at the ceiling; the uncapped composite then climbs and a pattern names, and
     // every entry still carries score < uncapped, so none counts.
     const capped = patternChange(dismissedAt(30, null, 45), withScore(30, 'orbit', 60), at, 20)!
     expect(capped[2].observed).toMatchObject({ score: 30, uncapped: 60, pattern: 'orbit' })
-    expect(resurfaced(capped)).toBe(false)
+    expect(resurfaced(capped, 'adsb')).toBe(false)
   })
 })
