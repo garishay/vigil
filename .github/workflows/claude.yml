@@ -30,6 +30,18 @@ jobs:
         with:
           fetch-depth: 1
 
+      # As in claude-code-review.yml, and for the same reason: a mention re-review that has to
+      # install its own dependencies reports that it cannot, and reviews the diff by reading
+      # alone (#63 round 2, #67). Same versions as ci.yml.
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -46,7 +58,21 @@ jobs:
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          # The four gates, so a reviewer asked to run them can (issue #17). Added to the base tool
-          # set, not replacing it.
+          # The four gates, so a reviewer asked to run them can (issue #17). Prefix rules, not
+          # bare strings: `Bash(npm run test)` permitted that one command and nothing else, so a
+          # single flag landed outside the allow-list — the other half of why the checks ran on
+          # some rounds and not others (#67).
+          # The appended instruction is what gives a mention re-review the same receipt the on-open
+          # prompt asks for; this workflow has no `prompt` of its own, because the mention is the
+          # prompt.
           # Opus 5, for the same reason as the on-open review: the strongest model that is not the author.
-          claude_args: '--model claude-opus-5 --allowedTools "Bash(npm ci),Bash(npm run lint),Bash(npm run typecheck),Bash(npm run test),Bash(npm run format:check)"'
+          claude_args: >-
+            --model claude-opus-5
+            --allowedTools "Bash(npm ci:*),Bash(npm run lint:*),Bash(npm run typecheck:*),Bash(npm run test:*),Bash(npm run format:check:*)"
+            --append-system-prompt "The repository dependencies are already installed in this
+            workspace, so the four gates run directly: npm run lint, npm run typecheck, npm run
+            test, npm run format:check. When you are asked to review a pull request, run all four
+            first, and open your comment with one line saying whether they ran and what they
+            returned — Checks: lint, typecheck, test, format:check all pass. — or, naming the
+            failure or the reason, Checks: test fails — 3 failing. / Checks: not run — reason. The
+            checks are context for the review, not a verdict on it; CI is the gate."
