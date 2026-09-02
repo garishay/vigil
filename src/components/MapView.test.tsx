@@ -297,20 +297,95 @@ describe('MapView', () => {
     expect(screen.getByRole('application').parentElement).toContainElement(legend)
   })
 
-  it('feeds injects to their own layer, carrying observed identity and behavior', () => {
+  it('feeds injects to their own layer, carrying observed identity and nothing assigned', () => {
     render(<MapView ao={AO} injects={INJECTS} />)
     const collection = dataFor('inject-tracks')
     expect(collection.features).toHaveLength(2)
     expect(collection.features[0]).toMatchObject({
       geometry: { type: 'Point', coordinates: INJECTS[0].position },
-      properties: { id: 'inject-01', identity: 'non-cooperative', behavior: 'loiter' },
+      properties: { id: 'inject-01', identity: 'non-cooperative' },
     })
-    // The Remote ID ground truth travels with the feature, but the map paints the observation.
     expect(collection.features[1].properties).toMatchObject({
       identity: 'unknown',
-      remoteId: 'intermittent',
       callsign: '',
     })
+    // The answer key does not travel with the feature. A live map source in the running app is
+    // neither a fixture nor a test, which is where §2 keeps `behavior` and `remoteId` — and the
+    // click handler hands the whole feature back (ruled on #61).
+    for (const feature of collection.features) {
+      expect(feature.properties).not.toHaveProperty('behavior')
+      expect(feature.properties).not.toHaveProperty('remoteId')
+    }
+  })
+
+  it('stamps terminal on both layers, for the ids it is given and no others (#61)', () => {
+    render(
+      <MapView
+        ao={AO}
+        tracks={TRACKS}
+        injects={INJECTS}
+        terminalIds={['adsb-a3303d', 'inject-02']}
+      />,
+    )
+    const flag = (sourceId: string) =>
+      Object.fromEntries(
+        dataFor(sourceId).features.map((f) => [f.properties.id, f.properties.terminal]),
+      )
+    expect(flag('adsb-tracks')).toEqual({ 'adsb-a06461': false, 'adsb-a3303d': true })
+    expect(flag('inject-tracks')).toEqual({ 'inject-01': false, 'inject-02': true })
+  })
+
+  it('dims a terminal track to the ruled table, and never twice (#61)', () => {
+    render(<MapView ao={AO} />)
+    const paintOf = (id: string) =>
+      mapInstance.addLayer.mock.calls.find(([layer]) => layer.id === id)![0].paint
+
+    // ADS-B: one expression, two conditions, one value — the Queue's rule, so a handled ground
+    // track does not dim twice. Composing would put a terminal ground dot at 0.22.
+    const adsb = paintOf('adsb-tracks-dot')
+    expect(adsb['circle-opacity']).toEqual([
+      'case',
+      ['any', ['get', 'terminal'], ['get', 'onGround']],
+      0.4,
+      0.8,
+    ])
+    expect(adsb['circle-stroke-opacity']).toEqual(['case', ['get', 'terminal'], 0.18, 0.35])
+    // The radius is untouched, so a terminal airborne dot still reads larger than an active
+    // ground one at the shared 0.4 — which is what keeps the two distinguishable.
+    expect(adsb['circle-radius']).toEqual(['case', ['get', 'onGround'], 1.8, 2.8])
+
+    expect(paintOf('inject-tracks-dot')['circle-opacity']).toEqual([
+      'case',
+      ['get', 'terminal'],
+      0.5,
+      0.95,
+    ])
+    expect(paintOf('inject-tracks-dot')['circle-stroke-opacity']).toEqual([
+      'case',
+      ['get', 'terminal'],
+      0.5,
+      1,
+    ])
+    expect(paintOf('inject-tracks-halo')['circle-opacity']).toEqual([
+      'case',
+      ['get', 'terminal'],
+      0.07,
+      0.14,
+    ])
+  })
+
+  it('re-pushes both sources when a track becomes terminal, with the picture unmoved (#61)', () => {
+    const { rerender } = render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} />)
+    expect(dataFor('inject-tracks').features[1].properties.terminal).toBe(false)
+
+    // Same tracks, same positions — only the record moved. The dim must still arrive, which is
+    // why `terminalIds` is in the effect deps rather than riding on a change of `tracks`.
+    rerender(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} terminalIds={['inject-02']} />)
+    expect(dataFor('inject-tracks').features[1].properties.terminal).toBe(true)
+    expect(dataFor('adsb-tracks').features.map((f) => f.properties.terminal)).toEqual([
+      false,
+      false,
+    ])
   })
 
   it('feeds tracks to the layer as points, carrying id and ground state', () => {

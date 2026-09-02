@@ -15,6 +15,9 @@ const INJECT_SOURCE = 'inject-tracks'
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
 
+/** One frozen empty array, so the default prop is not a new identity every render. */
+const NO_TERMINAL: readonly string[] = []
+
 /** Zero or one point: the selected track's position, or an empty collection. */
 function selectionFeature(position: [number, number] | null) {
   return {
@@ -74,18 +77,7 @@ const IDENTITY_STROKE: ExpressionSpecification = [
   IDENTITY_COLOR['non-cooperative'],
 ]
 
-function trackFeatures(tracks: AdsbTrack[]) {
-  return {
-    type: 'FeatureCollection' as const,
-    features: tracks.map((track) => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: track.position },
-      properties: { id: track.id, callsign: track.callsign ?? '', onGround: track.onGround },
-    })),
-  }
-}
-
-function injectFeatures(tracks: InjectTrack[]) {
+function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
   return {
     type: 'FeatureCollection' as const,
     features: tracks.map((track) => ({
@@ -94,9 +86,27 @@ function injectFeatures(tracks: InjectTrack[]) {
       properties: {
         id: track.id,
         callsign: track.callsign ?? '',
+        onGround: track.onGround,
+        terminal: terminalIds.includes(track.id),
+      },
+    })),
+  }
+}
+
+function injectFeatures(tracks: InjectTrack[], terminalIds: readonly string[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: tracks.map((track) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: track.position },
+      // Observed and derived only. `behavior` and `remoteId` used to travel here unread by any
+      // paint or handler; a live map source in the running app is neither a fixture nor a test,
+      // which is where §2 puts the answer key (ruled on #61).
+      properties: {
+        id: track.id,
+        callsign: track.callsign ?? '',
         identity: track.identity,
-        behavior: track.behavior,
-        remoteId: track.remoteId,
+        terminal: terminalIds.includes(track.id),
       },
     })),
   }
@@ -113,12 +123,22 @@ export function MapView({
   selectedId = null,
   selectionShown = true,
   trail = [],
+  terminalIds = NO_TERMINAL,
   onSelect,
 }: {
   ao: AreaOfOperations
   tracks?: AdsbTrack[]
   injects?: InjectTrack[]
   selectedId?: string | null
+  /**
+   * Ids of tracks in a terminal lifecycle state — Resolved or Dismissed — which draw dimmed on
+   * both layers, matching the Queue row (#61). An array rather than the Queue's `statusFor`
+   * because this component pushes to MapLibre from effects: a function prop would be a new
+   * identity every render and re-push the source on every tick of the clock, or be left out of
+   * the deps and go stale the moment the clock is paused. The caller owes this array a stable
+   * identity while the set is unchanged — see App.
+   */
+  terminalIds?: readonly string[]
   /**
    * Whether the selection ring is drawn — presentation only (A2 on #3: Home suppresses the
    * ring). The selection itself, and the once-per-selection ease stamp, ride `selectedId`:
@@ -177,7 +197,7 @@ export function MapView({
       })
 
       // Added empty and fed by the effect below, so track updates never rebuild the layer.
-      map.addSource(ADSB_SOURCE, { type: 'geojson', data: trackFeatures([]) })
+      map.addSource(ADSB_SOURCE, { type: 'geojson', data: trackFeatures([], NO_TERMINAL) })
       // Invisible hit area, deliberately *below* the visible dot: the ADS-B dot is ~3 px of
       // visible radius, close to unclickable on a dense frame, so this widens the click target
       // without changing the picture — and because click dispatch prefers the topmost feature,
@@ -199,10 +219,15 @@ export function MapView({
         paint: {
           'circle-radius': ['case', ['get', 'onGround'], 1.8, 2.8],
           'circle-color': ADSB_COLOR,
-          'circle-opacity': ['case', ['get', 'onGround'], 0.4, 0.8],
+          // One expression, two conditions, one value — the Queue's own rule transplanted
+          // (`.queue__row--ground, .queue__row--terminal { opacity: 0.55 }`), so a handled
+          // ground track does not dim twice. Composing the two instead would put a terminal
+          // ground dot at 0.22, which on this background is gone. The radius is untouched, so a
+          // terminal airborne dot still reads larger than an active ground one (ruled on #61).
+          'circle-opacity': ['case', ['any', ['get', 'terminal'], ['get', 'onGround']], 0.4, 0.8],
           'circle-stroke-width': 0.5,
           'circle-stroke-color': ADSB_COLOR,
-          'circle-stroke-opacity': 0.35,
+          'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.18, 0.35],
         },
       })
       // The breadcrumb trail (06b) sits under the injects and the ring: where the selected
@@ -215,7 +240,7 @@ export function MapView({
         paint: { 'line-color': RING_COLOR, 'line-width': 1.5, 'line-opacity': 0.55 },
       })
       // Added last, so injects draw above cooperative traffic rather than under it.
-      map.addSource(INJECT_SOURCE, { type: 'geojson', data: injectFeatures([]) })
+      map.addSource(INJECT_SOURCE, { type: 'geojson', data: injectFeatures([], NO_TERMINAL) })
       map.addLayer({
         id: `${INJECT_SOURCE}-halo`,
         type: 'circle',
@@ -223,7 +248,7 @@ export function MapView({
         paint: {
           'circle-radius': 11,
           'circle-color': IDENTITY_STROKE,
-          'circle-opacity': 0.14,
+          'circle-opacity': ['case', ['get', 'terminal'], 0.07, 0.14],
           'circle-blur': 0.6,
         },
       })
@@ -234,9 +259,10 @@ export function MapView({
         paint: {
           'circle-radius': 4.5,
           'circle-color': '#f2f6fc',
-          'circle-opacity': 0.95,
+          'circle-opacity': ['case', ['get', 'terminal'], 0.5, 0.95],
           'circle-stroke-width': 2,
           'circle-stroke-color': IDENTITY_STROKE,
+          'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.5, 1],
         },
       })
 
@@ -284,14 +310,14 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    map.getSource<GeoJSONSource>(ADSB_SOURCE)?.setData(trackFeatures(tracks))
-  }, [tracks, styleReady])
+    map.getSource<GeoJSONSource>(ADSB_SOURCE)?.setData(trackFeatures(tracks, terminalIds))
+  }, [tracks, terminalIds, styleReady])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    map.getSource<GeoJSONSource>(INJECT_SOURCE)?.setData(injectFeatures(injects))
-  }, [injects, styleReady])
+    map.getSource<GeoJSONSource>(INJECT_SOURCE)?.setData(injectFeatures(injects, terminalIds))
+  }, [injects, terminalIds, styleReady])
 
   useEffect(() => {
     const map = mapRef.current
