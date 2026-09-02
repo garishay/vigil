@@ -44,14 +44,29 @@ export function Queue({
 }) {
   const listRef = useRef<HTMLOListElement>(null)
 
+  // Scrolls on a change of selection, never on a re-render of the same one. The effect still
+  // depends on `ranked` — it has to, for the arriving-row case below — but under playback
+  // `ranked` is a new array every tick, so acting on that dependency alone snapped the list back
+  // to the selected row once a second and undid an operator's scroll as fast as they made it
+  // (#76). The ref records the id actually scrolled to, which is the id the effect has already
+  // served; anything else is a genuinely new selection.
+  const scrolledToRef = useRef<string | null>(null)
   useEffect(() => {
+    // A cleared selection forgets, so re-selecting the same track scrolls to it again.
+    if (!selectedId) {
+      scrolledToRef.current = null
+      return
+    }
+    if (selectedId === scrolledToRef.current) return
     // Membership is checked against `ranked`, not just the DOM, so the selected row can render
     // on a *later* commit than the selection — a cleared filter, or a re-rank — and that
-    // arriving row still gets scrolled to. Optional call: jsdom has no scrollIntoView.
-    if (!selectedId || !ranked.some((entry) => entry.track.id === selectedId)) return
+    // arriving row still gets scrolled to. Nothing is recorded until it does, so the arrival
+    // fires exactly once. Optional call: jsdom has no scrollIntoView.
+    if (!ranked.some((entry) => entry.track.id === selectedId)) return
     listRef.current
       ?.querySelector(`[data-id="${CSS.escape(selectedId)}"]`)
       ?.scrollIntoView?.({ block: 'nearest' })
+    scrolledToRef.current = selectedId
   }, [selectedId, ranked])
 
   // A keyboard operator who closes the drawer must not be dropped on document.body: focus
