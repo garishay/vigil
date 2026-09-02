@@ -10,8 +10,8 @@ import type { RankedTrack } from '../lib/ranking'
  * layer badge, ident, ground state, and range on the second. Every field is something the system
  * observed or derived — behavior and Remote ID status are ground truth, and stay in the fixtures
  * until PR 05 earns the right to display a *detected* pattern. The chip carries the composite
- * (PR 04a) with its top contributions as hover text; the band colour and the drawer's breakdown
- * are 04b's.
+ * with its top contributions as hover text, and wears the band's colour — the one place on the
+ * row a warm colour can appear, and only a score can put it there (§4.3).
  *
  * Rows are buttons (03a): clicking selects the track, in sync with the map — the selected row is
  * marked and scrolled into view when the selection came from the map side. Ranks are global,
@@ -94,7 +94,7 @@ export function Queue({
                 <IdentityDot identity={track.identity} />
                 {IDENTITY_LABEL[track.identity]}
               </span>
-              <span className="queue__score" title={scoreSummary(score)}>
+              <span className="queue__score" data-band={score.band} title={scoreSummary(score)}>
                 {formatScore(score)}
               </span>
               <span className="queue__detail">

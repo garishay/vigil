@@ -15,7 +15,7 @@ const SCORE: Score = {
   factors: [
     {
       id: 'cooperativity',
-      label: 'Non-cooperative',
+      label: 'Identity',
       value: 100,
       weight: 25,
       contribution: 25,
@@ -73,9 +73,7 @@ describe('scoreTotal', () => {
 
 describe('scoreSummary', () => {
   it('names the three largest contributions, largest first, and their total, for the chip’s hover', () => {
-    expect(scoreSummary(SCORE)).toBe(
-      'Non-cooperative 25 · Proximity 12 · Flight profile 10 (65.6/80)',
-    )
+    expect(scoreSummary(SCORE)).toBe('Identity 25 · Proximity 12 · Flight profile 10 (65.6/80)')
   })
 
   it('leads a capped row with the cap line, so the hover never contradicts the chip (#63)', () => {

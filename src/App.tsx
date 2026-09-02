@@ -41,7 +41,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'queue',
     label: 'Queue',
     title: 'Ranked queue',
-    body: 'Ranked by score.',
+    body: 'Ranked by score; every score opens to its factors in Review.',
   },
   {
     id: 'review',
