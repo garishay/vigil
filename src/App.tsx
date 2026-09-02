@@ -161,6 +161,33 @@ export default function App({
       ),
     [ranked, layerFilter, stateFilter, eventLogs],
   )
+  // The terminal set for the map's dim (#61). Two steps on purpose: the map pushes this into
+  // MapLibre from an effect, so a new array identity is a re-push of the whole source.
+  //
+  // What that is worth, precisely (#81 review): while the clock runs, `adsb` and `injects` are
+  // memoised on `tSec`, so both source effects already re-push once a second whatever this
+  // array does — a fresh identity here buys nothing back on the per-tick path. What it buys is
+  // every *other* render: paused, or a selection, a filter chip, a band crossing on some
+  // unrelated track. Those are renders where the picture has not moved and the source should
+  // not be rebuilt, and they are the common case once the operator stops the clock to work.
+  //
+  // Hence the shape: reading `eventLogs` rather than `ranked` keeps it off the per-tick path
+  // (`ranked` is rebuilt every tick, #76), and folding to a sorted string first means the array
+  // below keeps its identity until the *set* changes, not merely until some other track's log
+  // gains an entry. Ids carry no spaces, so the join is unambiguous.
+  const terminalKey = useMemo(
+    () =>
+      Object.keys(eventLogs)
+        .filter((id) => isTerminal(statusOf(eventLogs[id])))
+        .sort()
+        .join(' '),
+    [eventLogs],
+  )
+  const terminalIds = useMemo(
+    () => (terminalKey === '' ? [] : terminalKey.split(' ')),
+    [terminalKey],
+  )
+
   const selected = selectedId
     ? (ranked.find((entry) => entry.track.id === selectedId) ?? null)
     : null
@@ -428,6 +455,7 @@ export default function App({
           selectedId={selectedId}
           selectionShown={surfaceId !== 'home'}
           trail={trail}
+          terminalIds={terminalIds}
           onSelect={(id) => {
             setSelectedId(id)
             // The other direction of the same ruling: a selection is an intent to review, so one

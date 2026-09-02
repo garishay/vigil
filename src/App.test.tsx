@@ -6,6 +6,13 @@ import { SCENARIO } from './config/scenario'
 import type { CaptureState } from './data/useCapture'
 import type { Schedule } from './data/usePlayback'
 
+// Every `terminalIds` the map was handed, in order — the array *identities*, not their contents,
+// because the map re-pushes its whole source when that prop changes and the ruling on #61 is that
+// it may only change when the set does.
+const { terminalIdsSeen } = vi.hoisted(() => ({
+  terminalIdsSeen: [] as (readonly string[])[],
+}))
+
 // The map itself is covered by MapView.test.tsx; here it is stubbed so these tests stay about
 // layout, navigation, and what the picture status strip reports.
 vi.mock('./components/MapView', () => ({
@@ -15,6 +22,7 @@ vi.mock('./components/MapView', () => ({
     selectedId,
     selectionShown = true,
     trail = [],
+    terminalIds = [],
     onSelect,
   }: {
     tracks?: { id: string }[]
@@ -22,24 +30,29 @@ vi.mock('./components/MapView', () => ({
     selectedId?: string | null
     selectionShown?: boolean
     trail?: unknown[]
+    terminalIds?: readonly string[]
     onSelect?: (id: string) => void
-  }) => (
-    <div
-      data-testid="map"
-      data-tracks={tracks?.length ?? 0}
-      data-injects={injects?.length ?? 0}
-      data-selected={selectedId ?? ''}
-      data-selection-shown={String(selectionShown)}
-      data-trail={trail.length}
-    >
-      {/* Stands in for a dot click: selects the first inject, like the real map would. */}
-      <button
-        type="button"
-        data-testid="map-select"
-        onClick={() => injects?.[0] && onSelect?.(injects[0].id)}
-      />
-    </div>
-  ),
+  }) => {
+    terminalIdsSeen.push(terminalIds as readonly string[])
+    return (
+      <div
+        data-testid="map"
+        data-tracks={tracks?.length ?? 0}
+        data-injects={injects?.length ?? 0}
+        data-selected={selectedId ?? ''}
+        data-selection-shown={String(selectionShown)}
+        data-trail={trail.length}
+        data-terminal={[...terminalIds].join(',')}
+      >
+        {/* Stands in for a dot click: selects the first inject, like the real map would. */}
+        <button
+          type="button"
+          data-testid="map-select"
+          onClick={() => injects?.[0] && onSelect?.(injects[0].id)}
+        />
+      </div>
+    )
+  },
 }))
 
 const { useCapture, planScenario, lookupPhoto } = vi.hoisted(() => ({
@@ -1066,6 +1079,35 @@ describe('App rewound actions (#77)', () => {
     // Stamped at 02:31:00 — the frontier — because that is where the clock is, not because it
     // was clamped there from somewhere else.
     expect(logLines().at(-1)).toBe('02:31:00Escalated — to PHL Tower')
+  })
+
+  it('hands the map one terminalIds identity until the set itself changes (#61)', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    terminalIdsSeen.length = 0
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(action('Queue'))
+    fireEvent.click(action('ADS-B'))
+
+    // Ten ticks of the clock. `ranked` is a new array on every one of them (#76) and new tracks
+    // open logs as they appear, so anything memoised on either would hand the map a new array
+    // each tick — and the map re-pushes its whole source when this prop changes.
+    replay.tick(10)
+    const distinct = new Set(terminalIdsSeen)
+    expect(distinct.size).toBe(1)
+    expect([...distinct][0]).toEqual([])
+
+    // Resolving one track is a change of the set, and must come through.
+    const row = rows().find((r) => within(r).queryByText('AAL423')) as HTMLElement
+    fireEvent.click(within(row).getByRole('button'))
+    fireEvent.click(action('Dismiss'))
+    const latest = terminalIdsSeen.at(-1) as readonly string[]
+    expect(latest).toEqual(['adsb-a06461'])
+
+    // And then holds still again while the clock runs on.
+    replay.tick(5)
+    expect(terminalIdsSeen.at(-1)).toBe(latest)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-terminal', 'adsb-a06461')
   })
 
   it('announces the state once, not the clock — scrubbing while rewound says nothing more', () => {
