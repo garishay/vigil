@@ -36,6 +36,21 @@ jobs:
         with:
           fetch-depth: 1
 
+      # The gates are installed here rather than left to the reviewer. With no `node_modules`
+      # in the workspace, whether lint, typecheck, and test ran came down to whether the agent
+      # chose to install and whether the command it chose matched the allow-list letter for
+      # letter — which is why #63's rounds reported an absent `node_modules` and denied
+      # dependency installation while #65's on-open run ran all four (#67). Same versions as
+      # ci.yml, so the reviewer sees what the gates see.
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
@@ -56,13 +71,22 @@ jobs:
             reason after the dash). If the review runs and nothing clears the confidence bar, post
             exactly: "Code review: reviewed, nothing above the confidence bar."
 
+            The dependencies are already installed in the workspace, so run the four gates before
+            reviewing — npm run lint, npm run typecheck, npm run test, npm run format:check — and
+            open that one comment with a line saying whether they ran and what they returned:
+            "Checks: lint, typecheck, test, format:check all pass." or, naming the failure or the
+            reason, "Checks: test fails — 3 failing." / "Checks: not run — <reason>." A silent
+            receipt is what hid four PRs' worth of misconfiguration (#17); a receipt that does not
+            say whether the checks ran hides the next one. The checks are context for the review,
+            not a verdict on it — CI is the gate.
+
             /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment
           # The code-review plugin runs subagents, reads the PR with gh, walks git history, and posts
           # its result with gh pr comment. Granting only the inline-comment tool let every run since #8
           # finish green having been denied all of that and posted nothing (see issue #17).
           # Opus 5: the reviewer is the one check that did not write the code, so it is the strongest
           # model that is not the author, and deliberately dissimilar from the engineer on Fable.
-          claude_args: '--model claude-opus-5 --allowedTools "Agent,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git log:*),Bash(git blame:*),Bash(git diff:*),Bash(git show:*),Bash(npm ci),Bash(npm run lint),Bash(npm run typecheck),Bash(npm run test),Bash(npm run format:check),mcp__github_inline_comment__create_inline_comment"'
+          claude_args: '--model claude-opus-5 --allowedTools "Agent,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git log:*),Bash(git blame:*),Bash(git diff:*),Bash(git show:*),Bash(npm ci:*),Bash(npm run lint:*),Bash(npm run typecheck:*),Bash(npm run test:*),Bash(npm run format:check:*),mcp__github_inline_comment__create_inline_comment"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
