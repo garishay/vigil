@@ -321,3 +321,33 @@ describe('historyAt and historiesAt (05a)', () => {
     expect(historiesAt(index, plan, tracks, t, 420)).toEqual(histories)
   })
 })
+
+describe('historyAt across a hole in the recording (#80 review)', () => {
+  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  // Three samples, six minutes of nothing, then two more: the aggregator would have dropped
+  // the track through that hole, and so does pictureAt.
+  const index = indexCapture(
+    capture(
+      [0, 15, 30, 400, 415].map((s) => ({
+        tMs: s * 1000,
+        records: [{ ...A0, position: [-75.2 + s * 0.0001, 39.8] as [number, number] }],
+      })),
+    ),
+  )
+
+  it('starts the history over on the far side of a hole wider than the coast', () => {
+    const [track] = pictureAt(index, 415)
+    const history = historyAt(index, plan, track, 415, 420)
+    expect(history.map((sample) => sample.tSec)).toEqual([400, 415])
+    // Inside the coast the track is held on its last sample, and the history is the run so far.
+    const [earlier] = pictureAt(index, 90)
+    expect(historyAt(index, plan, earlier, 90, 420).map((s) => s.tSec)).toEqual([0, 15, 30])
+  })
+
+  it('computes the same history for every track whether asked one at a time or all at once', () => {
+    const t = 450
+    const tracks = injectTracksAt(plan, t)
+    const all = historiesAt(index, plan, tracks, t, 420)
+    for (const track of tracks) expect(all[track.id]).toEqual(historyAt(index, plan, track, t, 420))
+  })
+})

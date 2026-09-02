@@ -178,17 +178,18 @@ export function detectPattern(history: TrackHistory, config: PatternConfig): Pat
         : '',
     },
   ]
-  // Strongest first; the list order breaks a tie, so a hover that also traces an arc reads as
-  // the dwell it is.
-  const strongest = [...readings].sort((a, b) => b.value - a.value)[0]
+  // The factor's value is the strongest reading; the kind is the strongest *named* reading, so
+  // a dwell past its threshold is not silenced by a turn that is stronger but short of its own
+  // (#80 review). The list order breaks a tie, so a hover that also traces an arc reads as the
+  // dwell it is. The detail follows the named kind when there is one, else the strongest.
+  const byValue = [...readings].sort((a, b) => b.value - a.value)
+  const lead = byValue.find((reading) => reading.named) ?? byValue[0]
   const span = history[history.length - 1].tSec - history[0].tSec
   return {
-    kind: strongest.named ? strongest.kind : null,
-    value: strongest.value,
+    kind: lead.named ? lead.kind : null,
+    value: byValue[0].value,
     detail:
-      strongest.value > 0
-        ? strongest.detail
-        : `no dwell, held turn, or return over ${formatSpan(span)}`,
+      lead.value > 0 ? lead.detail : `no dwell, held turn, or return over ${formatSpan(span)}`,
     loiter,
     orbit,
     revisit: revisited,

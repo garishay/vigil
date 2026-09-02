@@ -137,6 +137,25 @@ describe('detectPattern', () => {
     })
   })
 
+  it('names the strongest *named* reading, not a stronger unnamed one (#80 review)', () => {
+    // Twelve samples straight east, then 163° of a 380 m arc: the dwell is 240 s (loiter 60,
+    // named) while the turn is held for the same 240 s (orbit 60.3, short of the half circle).
+    const end = destinationPoint(at(3000), 90, 11 * 150)
+    const center = destinationPoint(end, 180, 380)
+    const history = every15([
+      ...line(at(3000), 90, 150, 12),
+      ...arc(center, 380, 10.5, 17).slice(1),
+    ])
+    const reading = detectPattern(history, CONFIG)
+    expect(reading.loiter).toBe(60)
+    expect(reading.orbit).toBeGreaterThan(reading.loiter)
+    expect(heldTurn(history, CONFIG.orbit).turnDeg).toBeLessThan(CONFIG.orbit.nameDeg)
+    // The factor is the turn's value; the kind, and the evidence, are the dwell's.
+    expect(reading.value).toBe(reading.orbit)
+    expect(reading.kind).toBe('loiter')
+    expect(reading.detail).toBe('within 450 m for 4 min 0 s')
+  })
+
   it('has nothing to read from fewer than two samples', () => {
     expect(detectPattern([], CONFIG)).toMatchObject({
       kind: null,

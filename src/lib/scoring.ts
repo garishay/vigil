@@ -238,11 +238,21 @@ function closing(
   config: ScoringConfig['closing'],
 ): { value: number; detail: string } {
   if (track.onGround) return ON_GROUND
-  // Inside a ring the approach is complete, whichever way the track points (ruled on #5).
+  // Inside a ring the approach is complete, whichever way the track points (ruled on #5). The
+  // nearest enclosing site governs and is named as proximity names it, so the row's lines never
+  // quote a range to a site they do not say (#80 review).
+  let enclosing: { site: ProtectedSite; rangeM: number } | null = null
   for (const site of sites) {
     const rangeM = distanceMeters(site.center, track.position)
-    if (rangeM <= site.radiusM) {
-      return { value: 100, detail: `${km(rangeM)} — inside the ring, closest approach is now` }
+    if (rangeM <= site.radiusM && (enclosing === null || rangeM < enclosing.rangeM)) {
+      enclosing = { site, rangeM }
+    }
+  }
+  if (enclosing) {
+    const ring = sites.length > 1 ? `${enclosing.site.name}'s ring` : 'the ring'
+    return {
+      value: 100,
+      detail: `${km(enclosing.rangeM)} — inside ${ring}, closest approach is now`,
     }
   }
   if (track.groundSpeedKt === null || track.headingDeg === null) {

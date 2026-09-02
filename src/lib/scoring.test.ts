@@ -230,6 +230,25 @@ describe('closing geometry', () => {
     ).toMatchObject({ value: 0, detail: 'opening — closest approach already passed' })
   })
 
+  it('names the enclosing site when there is more than one, as proximity does (#80 review)', () => {
+    const decoy: ProtectedSite = {
+      id: 'decoy',
+      name: 'Decoy',
+      center: at(40_000, 90),
+      radiusM: 1000,
+    }
+    const score = scoreTrack(inject(), [decoy, SITE], NIGHT)
+    expect(score.factors.find((f) => f.id === 'closing')).toMatchObject({
+      value: 100,
+      detail: "1.0 km — inside PHL Airfield's ring, closest approach is now",
+    })
+    // Inside two rings, the nearer centre governs.
+    const nested: ProtectedSite = { id: 'inner', name: 'Inner', center: at(200), radiusM: 1000 }
+    expect(
+      scoreTrack(inject(), [SITE, nested], NIGHT).factors.find((f) => f.id === 'closing')?.detail,
+    ).toBe("0.8 km — inside Inner's ring, closest approach is now")
+  })
+
   it('takes the worst case across protected sites', () => {
     const decoy: ProtectedSite = {
       id: 'decoy',
