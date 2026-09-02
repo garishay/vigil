@@ -284,6 +284,7 @@ export default function App({
       onAction={act}
       lookupPhoto={lookupPhoto}
       clock={clock}
+      tSec={tSec}
       trail={{ count: trail.length, windowS: REPLAY.trailS }}
       onClose={(event) => {
         const keyboard = event.detail === 0

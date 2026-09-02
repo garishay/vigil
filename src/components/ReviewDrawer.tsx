@@ -40,12 +40,15 @@ function Picker<Id extends string>({
   confirmLabel,
   onConfirm,
   onCancel,
+  blocked = false,
 }: {
   legend: string
   options: readonly { id: Id; label: string }[]
   confirmLabel: string
   onConfirm: (id: Id) => void
   onCancel: () => void
+  /** Rewound behind the frontier: the choice is kept, but it cannot be stamped (#77). */
+  blocked?: boolean
 }) {
   const [choice, setChoice] = useState<Id | null>(null)
   return (
@@ -67,8 +70,8 @@ function Picker<Id extends string>({
         <button
           type="button"
           className="drawer__action"
-          disabled={choice === null}
-          onClick={() => choice !== null && onConfirm(choice)}
+          disabled={choice === null || blocked}
+          onClick={() => choice !== null && !blocked && onConfirm(choice)}
         >
           {confirmLabel}
         </button>
@@ -103,6 +106,7 @@ export function ReviewDrawer({
   onClose,
   lookupPhoto,
   clock,
+  tSec,
   trail,
 }: {
   entry: RankedTrack
@@ -120,11 +124,23 @@ export function ReviewDrawer({
   lookupPhoto: PhotoLookup
   /** Sim time as the record prints it — the event log and the handoff timeline (06b). */
   clock: (tSec: number) => string
+  /** The replay clock's sim time, tested against the record's frontier below (#77). */
+  tSec: number
   /** The history trail the map draws: how many known positions, over what window (06b). */
   trail: { count: number; windowS: number }
 }) {
   const { track, rank, rangeM } = entry
   const status = statusOf(log)
+  // The record's frontier: the sim time of its last entry. Every writer is forward-only — a
+  // crossing declines to log behind the last entry (06b) and the actions below are disabled
+  // behind it — so the last entry is the latest, which is how `bandCrossing` reads it too.
+  const frontier = log.length > 0 ? log[log.length - 1].tSec : tSec
+  // Rewound: the clock is behind the record. Acting here would stamp a moment the record has
+  // already passed, and the timeline would run backwards for operator events as it no longer can
+  // for crossings. The workflow refuses rather than back-dating or clamping to the frontier: the
+  // action and the picture it acted on carry one sim time, and only the frontier has both
+  // (ruled on #77). Copy is untouched — it stamps nothing.
+  const rewound = tSec < frontier
   // Escalate and Resolve gather a required field before they act; the other two fire directly.
   const [pending, setPending] = useState<'escalate' | 'resolve' | null>(null)
   // "Copied" is a claim about the current text: an event appended after the copy regenerates the
@@ -300,7 +316,7 @@ export function ReviewDrawer({
             key={action}
             type="button"
             className="drawer__action"
-            disabled={!canAct(status, action)}
+            disabled={rewound || !canAct(status, action)}
             onClick={() => {
               if (action === 'escalate' || action === 'resolve') setPending(action)
               else {
@@ -314,8 +330,16 @@ export function ReviewDrawer({
         ))}
       </div>
 
+      {/* The reason, in place: buttons that go grey without one read as a bug (§4.3, #77). */}
+      {rewound && (
+        <p className="drawer__rewound" role="status">
+          Rewound to {clock(tSec)} — the record is at {clock(frontier)}
+        </p>
+      )}
+
       {pending === 'escalate' && (
         <Picker
+          blocked={rewound}
           legend="Escalate to:"
           confirmLabel="Confirm escalation"
           options={contacts.map((contact) => ({ id: contact.id, label: contact.name }))}
@@ -328,6 +352,7 @@ export function ReviewDrawer({
       )}
       {pending === 'resolve' && (
         <Picker
+          blocked={rewound}
           legend="Resolve as:"
           confirmLabel="Confirm resolution"
           options={dispositions}

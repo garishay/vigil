@@ -667,6 +667,18 @@
   margin-top: 0.75rem;
 }
 
+/*
+ * Why the actions are grey: the clock is behind the record's frontier (#77). Faint like the
+ * history line above the buttons — it explains a disabled state, it does not warn, and §4.3
+ * keeps the warm end for a score.
+ */
+.drawer__rewound {
+  margin: 0.5rem 0 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .drawer__action {
   border: 1px solid var(--line);
   border-radius: var(--radius);
