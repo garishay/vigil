@@ -13,7 +13,8 @@
  * **Real aircraft are never the threat** (§2), as arithmetic rather than as weights: after the
  * sum, a track whose observed `source` is ADS-B is capped at the configured ceiling, below the
  * elevated band, and the cap is reported on the score so the display prints it as its own line
- * (ruled A3 on #4). The bars still sum to the uncapped composite; nothing is hidden.
+ * (ruled A3 on #4). The factor lines sum to the weighted total; the score is that total over
+ * the configured weights, then the ceiling — both are on the score, so nothing is hidden.
  *
  * Time is an input — `tSec` for the memory, `minuteOfDay` for the off-hours factor — which is
  * the seam PR 06's replay clock drives.
@@ -60,7 +61,7 @@ export interface Factor {
   /** 0–100. */
   value: number
   weight: number
-  /** `value / 100 × weight` — the bar's fill, and what sums to the uncapped composite. */
+  /** `value / 100 × weight` — the bar's fill, and what the factor lines sum to (`weighted`). */
   contribution: number
   /** One line saying what the value rests on, in observed terms. */
   detail: string
@@ -69,6 +70,10 @@ export interface Factor {
 export interface Score {
   /** 0–100, after the ceiling. */
   composite: number
+  /** The sum of the contributions — what the factor lines add up to. */
+  weighted: number
+  /** The sum of the configured weights — what `weighted` is over. */
+  totalWeight: number
   /** 0–100, before the ceiling — equal to `composite` unless `capped`. */
   uncapped: number
   /** True when the ADS-B ceiling bound; the display prints the cap as its own line. */
@@ -110,10 +115,6 @@ export const FACTORS: readonly { id: FactorId; label: string; intent: string }[]
     intent: 'Activity outside normal operating hours scores higher',
   },
 ]
-
-export const FACTOR_LABEL: Record<FactorId, string> = Object.fromEntries(
-  FACTORS.map((factor) => [factor.id, factor.label]),
-) as Record<FactorId, string>
 
 const clamp = (value: number) => Math.max(0, Math.min(100, value))
 
@@ -235,18 +236,29 @@ function closing(
   return best ?? { value: 0, detail: 'no protected site' }
 }
 
+/**
+ * Worst case across sites, as closing is: the highest per-site roll-off, not the nearest centre
+ * — a track inside a large site's ring must not score 0 because a small site is nearer (#63
+ * review). With one site this is the Queue's own range; with more, the detail names the site.
+ */
 function proximity(
   track: ObservedTrack,
-  site: ProtectedSite,
-  rangeM: number,
+  sites: readonly ProtectedSite[],
   config: ScoringConfig['proximity'],
 ): { value: number; detail: string } {
   if (track.onGround) return ON_GROUND
-  const inside = rangeM <= site.radiusM
-  return {
-    value: inside ? 100 : rolloff(rangeM, site.radiusM, site.radiusM * config.rolloffRadii),
-    detail: `${km(rangeM)} — ${inside ? 'inside' : 'outside'} the ${km(site.radiusM)} ring`,
+  let best: { value: number; detail: string } | null = null
+  for (const site of sites) {
+    const rangeM = distanceMeters(site.center, track.position)
+    const inside = rangeM <= site.radiusM
+    const ring = `${sites.length > 1 ? `${site.name}'s ` : 'the '}${km(site.radiusM)} ring`
+    const candidate = {
+      value: inside ? 100 : rolloff(rangeM, site.radiusM, site.radiusM * config.rolloffRadii),
+      detail: `${km(rangeM)} — ${inside ? 'inside' : 'outside'} ${ring}`,
+    }
+    if (best === null || candidate.value > best.value) best = candidate
   }
+  return best ?? { value: 0, detail: 'no protected site' }
 }
 
 function kinematic(
@@ -276,7 +288,9 @@ function timeContext(
 ): { value: number; detail: string } {
   const open = parseClock(config.open)
   const close = parseClock(config.close)
-  const within = minute >= open && minute < close
+  // A window that crosses midnight (22:00–06:00, a night-watch AO) is the two half-days either
+  // side of it; doctrine is configuration, so both shapes have to work (#63 review).
+  const within = open <= close ? minute >= open && minute < close : minute >= open || minute < close
   return {
     value: within ? 0 : 100,
     detail: `${formatClock(minute)} local — ${within ? 'within' : 'outside'} ${config.open}–${config.close}`,
@@ -298,7 +312,7 @@ export function scoreTrack(
   const raw: Record<FactorId, { value: number; detail: string }> = {
     cooperativity: cooperativity(track, context, config.cooperativity),
     closing: closing(track, sites, config.closing),
-    proximity: proximity(track, nearest.site, nearest.rangeM, config.proximity),
+    proximity: proximity(track, sites, config.proximity),
     kinematic: kinematic(track, config.kinematic),
     time: timeContext(context.minuteOfDay, config.operatingHours),
   }
@@ -307,12 +321,14 @@ export function scoreTrack(
     return { id, label, weight, ...raw[id], contribution: (raw[id].value / 100) * weight }
   })
   const totalWeight = factors.reduce((sum, factor) => sum + factor.weight, 0)
-  const uncapped =
-    (factors.reduce((sum, factor) => sum + factor.contribution, 0) / totalWeight) * 100
+  const weighted = factors.reduce((sum, factor) => sum + factor.contribution, 0)
+  const uncapped = (weighted / totalWeight) * 100
   const capped = track.source === 'adsb' && uncapped > config.adsbCeiling
   const composite = capped ? config.adsbCeiling : uncapped
   return {
     composite,
+    weighted,
+    totalWeight,
     uncapped,
     capped,
     band: bandOf(composite, config.bands),

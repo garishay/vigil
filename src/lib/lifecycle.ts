@@ -75,6 +75,12 @@ export interface ObservedSnapshot {
   groundSpeedKt: number | null
   /** The composite the operator saw, 0–100 after the ceiling. */
   score: number
+  /**
+   * The composite before the ceiling — equal to `score` unless the ADS-B cap bound, so the
+   * record reconciles with its own factors and a learner can tell the cap from a bug (#63
+   * review). Capped is the inequality; no flag.
+   */
+  uncapped: number
   /** Each factor's 0–100 value at action time — what §8.3b learns from (ruled on #4). */
   factors: Record<FactorId, number>
 }
@@ -102,6 +108,7 @@ export const observedSnapshot = ({ track, rangeM, score }: RankedTrack): Observe
   altitudeFt: track.altitudeFt,
   groundSpeedKt: track.groundSpeedKt,
   score: score.composite,
+  uncapped: score.uncapped,
   factors: Object.fromEntries(score.factors.map((factor) => [factor.id, factor.value])) as Record<
     FactorId,
     number

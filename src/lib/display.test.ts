@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { eventClock, formatScore, roundHeading, scoreSummary } from './display'
+import { eventClock, formatScore, roundHeading, scoreSummary, scoreTotal } from './display'
 import type { Score } from './scoring'
 
 const SCORE: Score = {
   composite: 81.979,
+  weighted: 65.58,
+  totalWeight: 80,
   uncapped: 81.979,
   capped: false,
   band: 'alarm',
@@ -39,9 +41,44 @@ describe('formatScore', () => {
   })
 })
 
+/** The arrival from the handoff tests: uncapped 57.8, capped to 30. */
+const CAPPED: Score = {
+  ...SCORE,
+  composite: 30,
+  weighted: 46.25,
+  uncapped: 57.8125,
+  capped: true,
+  band: 'calm',
+  factors: [
+    { ...SCORE.factors[0], value: 5, contribution: 1.25 },
+    { ...SCORE.factors[1], value: 100, contribution: 20 },
+    { ...SCORE.factors[2], value: 100, contribution: 15 },
+    { ...SCORE.factors[3], value: 0, contribution: 0 },
+    { ...SCORE.factors[4], value: 100, contribution: 10 },
+  ],
+}
+
+describe('scoreTotal', () => {
+  it('sums the rounded contributions over the configured weights, so the lines add up (#63)', () => {
+    expect(scoreTotal(SCORE)).toBe('66/80')
+  })
+
+  it('carries the uncapped composite the total makes when the ceiling bound', () => {
+    expect(scoreTotal(CAPPED)).toBe('46/80 → 58')
+  })
+})
+
 describe('scoreSummary', () => {
-  it('names the three largest contributions, largest first, for the chip’s hover', () => {
-    expect(scoreSummary(SCORE)).toBe('Non-cooperative 25 · Proximity 12 · Flight profile 10')
+  it('names the three largest contributions, largest first, and their total, for the chip’s hover', () => {
+    expect(scoreSummary(SCORE)).toBe(
+      'Non-cooperative 25 · Proximity 12 · Flight profile 10 (66/80)',
+    )
+  })
+
+  it('leads a capped row with the cap line, so the hover never contradicts the chip (#63)', () => {
+    expect(scoreSummary(CAPPED)).toBe(
+      'Capped at 30 — cooperative aircraft · Closing 20 · Proximity 15 · Off-hours 10 (46/80 → 58)',
+    )
   })
 })
 

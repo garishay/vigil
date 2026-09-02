@@ -239,6 +239,26 @@ describe('proximity', () => {
     expect(factor(inject({ position: at(40_000) }), 'proximity').value).toBe(0)
   })
 
+  it('takes the worst case across sites — the highest roll-off, not the nearest centre (#63)', () => {
+    // A small stadium ring 500 m nearer than the airfield: by centre the stadium is nearest and
+    // its 0.5 km ring rolls off to nothing at 3.5 km, but the drone sits inside the airfield's
+    // 5 km ring and must read 100. The Queue's range column still reports the nearest centre.
+    const stadium: ProtectedSite = {
+      id: 'stadium',
+      name: 'Stadium',
+      center: at(500),
+      radiusM: 500,
+    }
+    const drone = inject({ position: at(4000) })
+    const score = scoreTrack(drone, [stadium, SITE], NIGHT)
+    expect(score.factors.find((f) => f.id === 'proximity')).toMatchObject({
+      value: 100,
+      detail: "4.0 km — inside PHL Airfield's 5.0 km ring",
+    })
+    expect(score.siteId).toBe('stadium')
+    expect(score.rangeM).toBeCloseTo(3500, -1)
+  })
+
   it('does not read a parked aircraft as zero range (C3)', () => {
     expect(
       factor(adsb({ position: at(0), onGround: true, altitudeFt: 0 }), 'proximity'),
@@ -296,6 +316,26 @@ describe('time context', () => {
       value: 0,
       detail: '10:00 local — within 06:00–22:00',
     })
+  })
+
+  it('wraps operating hours that cross midnight (#63)', () => {
+    // A night-watch AO: within from 22:00 through 05:59, outside from 06:00 through 21:59.
+    const config = { ...SCORING, operatingHours: { open: '22:00', close: '06:00' } }
+    const atMinute = (hhmm: string) =>
+      factor(inject(), 'time', { ...NIGHT, minuteOfDay: parseClock(hhmm), config })
+    expect(atMinute('23:00')).toMatchObject({
+      value: 0,
+      detail: '23:00 local — within 22:00–06:00',
+    })
+    expect(atMinute('02:30').value).toBe(0)
+    expect(atMinute('05:59').value).toBe(0)
+    expect(atMinute('06:00')).toMatchObject({
+      value: 100,
+      detail: '06:00 local — outside 22:00–06:00',
+    })
+    expect(atMinute('12:00').value).toBe(100)
+    expect(atMinute('21:59').value).toBe(100)
+    expect(atMinute('22:00').value).toBe(0)
   })
 
   it('treats the open minute as within and the close minute as outside', () => {
@@ -387,12 +427,16 @@ describe('the composite', () => {
     }
   })
 
-  it('normalizes by the configured weights, so the bars sum to the chip on a 0–100 scale', () => {
+  it('sums the contributions to a weighted total, and scores that total over the configured weights', () => {
+    // The invariant the handoff and 04b's breakdown print: the factor lines add up to
+    // `weighted`; the score is `weighted / totalWeight × 100`, then the ceiling (ruled on #63).
     const score = scoreTrack(inject({ position: at(10_000) }), SITES, NIGHT)
-    const total = score.factors.reduce((sum, f) => sum + f.contribution, 0)
-    const weights = score.factors.reduce((sum, f) => sum + f.weight, 0)
-    expect(weights).toBe(80)
-    expect(score.uncapped).toBeCloseTo((total / weights) * 100, 9)
+    expect(score.totalWeight).toBe(80)
+    expect(score.weighted).toBeCloseTo(
+      score.factors.reduce((sum, f) => sum + f.contribution, 0),
+      9,
+    )
+    expect(score.uncapped).toBeCloseTo((score.weighted / score.totalWeight) * 100, 9)
     expect(score.composite).toBe(score.uncapped)
     expect(score.capped).toBe(false)
   })

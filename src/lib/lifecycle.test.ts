@@ -25,6 +25,7 @@ const OBSERVED: ObservedSnapshot = {
   altitudeFt: 63,
   groundSpeedKt: 19.1,
   score: 82,
+  uncapped: 82,
   factors: { cooperativity: 100, closing: 44.4, proximity: 78, kinematic: 100, time: 100 },
 }
 
@@ -173,6 +174,7 @@ describe('learner-ready shape (§8.3b)', () => {
       altitudeFt: 63,
       groundSpeedKt: null,
       score: score.composite,
+      uncapped: score.uncapped,
       factors: {
         cooperativity: 100,
         closing: 0,
@@ -199,6 +201,7 @@ describe('learner-ready shape (§8.3b)', () => {
         'identity',
         'rangeM',
         'score',
+        'uncapped',
       ])
     }
     const serialized = JSON.stringify(log)

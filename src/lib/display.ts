@@ -34,15 +34,32 @@ export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} 
 export const formatScore = (score: Score) => String(Math.round(score.composite))
 
 /**
- * The chip's hover: the three largest contributions, so a row explains itself before the drawer
- * opens. The reason tag waits for PR 05's vocabulary (ruled on #4); this is what stands in.
+ * The arithmetic behind the number, on the weight scale the factor lines use: `66/80`, or
+ * `30/80 → 38` when the ceiling bound and the uncapped composite is the one the total makes.
+ * The total is the sum of the *rounded* contributions, so the lines a reader adds up land on it.
  */
-export const scoreSummary = (score: Score) =>
-  [...score.factors]
+export const scoreTotal = (score: Score) => {
+  const total = score.factors.reduce((sum, factor) => sum + Math.round(factor.contribution), 0)
+  const over = `${total}/${score.totalWeight}`
+  return score.capped ? `${over} → ${Math.round(score.uncapped)}` : over
+}
+
+/** The cap as its own line — the handoff's and the hover's, one wording (ruled A3 on #4). */
+export const capLine = (score: Score) => `Capped at ${formatScore(score)} — cooperative aircraft`
+
+/**
+ * The chip's hover: the three largest contributions and the total they are part of, so a row
+ * explains itself before the drawer opens; a capped row leads with the cap (#63 review). The
+ * reason tag waits for PR 05's vocabulary (ruled on #4); this is what stands in.
+ */
+export const scoreSummary = (score: Score) => {
+  const top = [...score.factors]
     .sort((a, b) => b.contribution - a.contribution)
     .slice(0, 3)
     .map((factor) => `${factor.label} ${Math.round(factor.contribution)}`)
     .join(' · ')
+  return `${score.capped ? `${capLine(score)} · ` : ''}${top} (${scoreTotal(score)})`
+}
 
 /**
  * A heading as the whole degree the drawer and the handoff both print — one observation, one

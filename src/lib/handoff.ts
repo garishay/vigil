@@ -16,11 +16,13 @@
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
 import {
+  capLine,
   describeEvent,
   eventClock,
   formatRangeKm,
   formatScore,
   roundHeading,
+  scoreTotal,
   trackIdent,
 } from './display.ts'
 import { IDENTITY_LABEL } from './identity.ts'
@@ -59,7 +61,9 @@ export function handoffText({
     dash(track.groundSpeedKt, (v) => `${v} kt`),
     `hdg ${dash(track.headingDeg, (v) => `${roundHeading(v)}`)}`,
   ].join(' · ')
-  // Two factors per line keeps every line inside the pinned fit; the bars sum to the composite.
+  // Two factors per line keeps every line inside the pinned fit. The factor lines sum to the
+  // weighted total on the Score line; the score is that total over the configured weights, then
+  // the ceiling (ruled on #63) — so the recipient can follow the arithmetic.
   const factorLines: string[] = []
   for (let index = 0; index < score.factors.length; index += 2) {
     factorLines.push(
@@ -77,9 +81,9 @@ export function handoffText({
     `Track ${trackIdent(track)} · ${IDENTITY_LABEL[track.identity]} · ${LAYER_DISCLOSURE[track.source]}`,
     `Range ${formatRangeKm(rangeM)} to ${siteName}`,
     `  ${kinematics}`,
-    `Score: ${formatScore(score)} (${score.band})`,
+    `Score: ${formatScore(score)} (${score.band}) — ${score.capped ? 'capped, ' : ''}${scoreTotal(score)}`,
     ...factorLines,
-    ...(score.capped ? [`  Capped at ${formatScore(score)} — cooperative aircraft`] : []),
+    ...(score.capped ? [`  ${capLine(score)}`] : []),
     'Timeline:',
     ...log.map(
       (event) => `  ${eventClock(event.at)}  ${describeEvent(event, contacts, dispositions)}`,

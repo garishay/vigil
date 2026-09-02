@@ -68,7 +68,9 @@ describe('handoffText', () => {
         'Track TRK-05 · Non-cooperative · synthetic inject',
         'Range 7.2 km to PHL Airfield',
         '  63 ft · 19.1 kt · hdg 346',
-        'Score: 82 (alarm)',
+        // The factor lines sum to the total on the Score line (25 + 9 + 12 + 10 + 10 = 66); the
+        // score is that total over the configured weights (ruled on #63).
+        'Score: 82 (alarm) — 66/80',
         '  Non-cooperative 25/25 · Closing 9/20',
         '  Proximity 12/15 · Flight profile 10/10',
         '  Off-hours 10/10',
@@ -186,7 +188,8 @@ describe('handoffText', () => {
       registry: null,
     }
     const summary = text(entry(arrival))
-    expect(summary).toContain('\nScore: 30 (calm)\n')
+    // 1 + 20 + 15 + 0 + 10 = 46 over 80 makes 58; the ceiling then holds it at 30.
+    expect(summary).toContain('\nScore: 30 (calm) — capped, 46/80 → 58\n')
     expect(summary).toContain('  Non-cooperative 1/25 · Closing 20/20\n')
     expect(summary).toContain('  Off-hours 10/10\n  Capped at 30 — cooperative aircraft\nTimeline:')
   })
