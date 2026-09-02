@@ -986,7 +986,14 @@ describe('App rewound actions (#77)', () => {
       expect(action(name)).toBeDisabled()
     }
     // Grey buttons without a reason read as a bug; the reason names both clocks.
-    expect(screen.getByText('Rewound to 02:30:30 — the record is at 02:31:00')).toBeInTheDocument()
+    const reason = screen.getByText('Rewound to 02:30:30 — the record is at 02:31:00')
+    expect(reason).toBeInTheDocument()
+    // `disabled` takes all four out of the tab order, so the reason has to reach an operator who
+    // cannot see them grey out: the group points at the live region (#79 review).
+    expect(screen.getByRole('group', { name: 'Lifecycle actions' })).toHaveAttribute(
+      'aria-describedby',
+      reason.id,
+    )
 
     // Pressing them anyway writes nothing — jsdom fires the handler on a disabled button only
     // if one is attached, so this is the real "nothing is logged" check, not a repeat of the
@@ -1008,6 +1015,14 @@ describe('App rewound actions (#77)', () => {
     // Back to where the record is: the same action is legal again.
     seek('60')
     expect(screen.queryByText(/^Rewound to /)).not.toBeInTheDocument()
+    // The live region stays mounted and goes empty rather than unmounting — a region inserted in
+    // the same commit as its text is one some screen readers never announce (#51, #79 review).
+    const region = document.querySelector('.drawer__rewound')
+    expect(region).toBeInTheDocument()
+    expect(region).toBeEmptyDOMElement()
+    expect(screen.getByRole('group', { name: 'Lifecycle actions' })).not.toHaveAttribute(
+      'aria-describedby',
+    )
     expect(action('Escalate')).toBeEnabled()
     fireEvent.click(action('Escalate'))
     fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))

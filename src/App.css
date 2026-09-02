@@ -679,6 +679,12 @@
   line-height: 1.5;
 }
 
+/* Mounted with no text while the clock is at or ahead of the frontier; it must not hold a
+   blank line's margin, the same rule `.rail__empty` keeps. */
+.drawer__rewound:empty {
+  margin: 0;
+}
+
 .drawer__action {
   border: 1px solid var(--line);
   border-radius: var(--radius);

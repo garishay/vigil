@@ -309,8 +309,16 @@ export function ReviewDrawer({
         {Math.round(trail.windowS / 60)} min
       </p>
 
-      {/* Disabled rather than hidden, so the whole action vocabulary stays visible (§7.1). */}
-      <div className="drawer__actions" role="group" aria-label="Lifecycle actions">
+      {/* Disabled rather than hidden, so the whole action vocabulary stays visible (§7.1).
+          Described by the rewound line below when it applies: `disabled` takes all four out of
+          the tab order, so an operator who cannot see them grey out has no other way to reach
+          the reason (#79 review). */}
+      <div
+        className="drawer__actions"
+        role="group"
+        aria-label="Lifecycle actions"
+        aria-describedby={rewound ? 'drawer-rewound' : undefined}
+      >
         {ACTIONS.map(({ action, label }) => (
           <button
             key={action}
@@ -330,12 +338,13 @@ export function ReviewDrawer({
         ))}
       </div>
 
-      {/* The reason, in place: buttons that go grey without one read as a bug (§4.3, #77). */}
-      {rewound && (
-        <p className="drawer__rewound" role="status">
-          Rewound to {clock(tSec)} — the record is at {clock(frontier)}
-        </p>
-      )}
+      {/* The reason, in place: buttons that go grey without one read as a bug (§4.3, #77).
+          Mounted always with only the text toggling, as `rail__empty` is — a region inserted in
+          the same commit as its text is one some screen readers never announce (#51 review), and
+          here that is the announcement that matters most (#79 review). */}
+      <p className="drawer__rewound" id="drawer-rewound" role="status">
+        {rewound ? `Rewound to ${clock(tSec)} — the record is at ${clock(frontier)}` : null}
+      </p>
 
       {pending === 'escalate' && (
         <Picker
