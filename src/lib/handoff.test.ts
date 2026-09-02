@@ -71,7 +71,7 @@ describe('handoffText', () => {
         // The factor lines sum to the total on the Score line within rounding (25 + 9 + 12 + 10
         // + 10 = 66 ≈ 65.6); the total reproduces the score — 65.6 / 80 = 82 % — which a sum of
         // rounded parts would not (66 / 80 = 82.5 %) (ruled on #63, rounds 1 and 2).
-        'Score: 82 (alarm) — 65.6/80',
+        'Score: 82 (warning) — 65.6/80',
         '  Identity 25/25 · Closing 9/20',
         '  Proximity 12/15 · Flight profile 10/10',
         '  Off-hours 10/10',

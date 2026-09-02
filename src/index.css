@@ -18,10 +18,10 @@
    * nothing but a score's band — scope §4.3: alarm colour is earned, never decorative. Calm
    * keeps the accent, so a cooperative picture stays cool.
    */
-  --elevated: #f5b942;
-  --elevated-soft: rgba(245, 185, 66, 0.14);
-  --alarm: #ff6b57;
-  --alarm-soft: rgba(255, 107, 87, 0.14);
+  --caution: #f5b942;
+  --caution-soft: rgba(245, 185, 66, 0.14);
+  --warning: #ff6b57;
+  --warning-soft: rgba(255, 107, 87, 0.14);
 
   --radius: 0.5rem;
   --header-h: 3rem;

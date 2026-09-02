@@ -11,7 +11,7 @@ const SITE = AO.protectedSites[0]
 const north = (rangeM: number) => destinationPoint(SITE.center, 0, rangeM)
 const NIGHT: ScoringContext = { tSec: 0, minuteOfDay: 150, memory: {} }
 
-/** The handoff tests' silent drone: 7.2 km out, straight-ish in — scores 82, alarm. */
+/** The handoff tests' silent drone: 7.2 km out, straight-ish in — scores 82, warning. */
 const SILENT: InjectTrack = {
   id: 'inject-05',
   source: 'inject',
@@ -68,9 +68,9 @@ describe('ScoreBreakdown', () => {
   it('heads with the score, its band, and the one-decimal total it is made from (#63)', () => {
     render(<ScoreBreakdown score={score(SILENT)} />)
     const section = screen.getByLabelText('Score breakdown')
-    expect(section).toHaveAttribute('data-band', 'alarm')
+    expect(section).toHaveAttribute('data-band', 'warning')
     expect(within(section).getByText('Score 82')).toBeInTheDocument()
-    expect(within(section).getByText('alarm')).toBeInTheDocument()
+    expect(within(section).getByText('warning')).toBeInTheDocument()
     expect(within(section).getByText(/^— 65\.6\/80$/)).toBeInTheDocument()
     expect(within(section).queryByText(/Capped at/)).not.toBeInTheDocument()
   })
@@ -168,7 +168,7 @@ describe('ScoreBreakdown', () => {
   it('never wears a warm band on an ADS-B track, whatever it does', () => {
     for (const track of [ARRIVAL, PARKED]) {
       const scored = score(track)
-      expect(scored.composite).toBeLessThan(SCORING.bands.elevated)
+      expect(scored.composite).toBeLessThan(SCORING.bands.caution)
       render(<ScoreBreakdown score={scored} />)
       expect(screen.getAllByLabelText('Score breakdown').at(-1)).toHaveAttribute(
         'data-band',

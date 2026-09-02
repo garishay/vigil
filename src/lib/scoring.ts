@@ -12,7 +12,7 @@
  *
  * **Real aircraft are never the threat** (§2), as arithmetic rather than as weights: after the
  * sum, a track whose observed `source` is ADS-B is capped at the configured ceiling, below the
- * elevated band, and the cap is reported on the score so the display prints it as its own line
+ * caution band, and the cap is reported on the score so the display prints it as its own line
  * (ruled A3 on #4). The factor lines sum to the weighted total within rounding; the total, to
  * one decimal, is what the score is made from — over the configured weights, then the ceiling
  * — so the printed division reproduces it, and both are on the score: nothing is hidden.
@@ -307,7 +307,7 @@ function timeContext(
 }
 
 export const bandOf = (composite: number, bands: ScoringConfig['bands']): Band =>
-  composite >= bands.alarm ? 'alarm' : composite >= bands.elevated ? 'elevated' : 'calm'
+  composite >= bands.warning ? 'warning' : composite >= bands.caution ? 'caution' : 'calm'
 
 /** One track's score against the protected sites, with the breakdown that explains it. */
 export function scoreTrack(
@@ -345,7 +345,7 @@ export function scoreTrack(
     uncapped,
     capped,
     // Banded on the whole number the chip and the handoff print, so a 69.6 that prints as 70
-    // reads alarm, not elevated: the word and the number beside it can never disagree (#63).
+    // reads warning, not caution: the word and the number beside it can never disagree (#63).
     band: bandOf(Math.round(composite), config.bands),
     factors,
     rangeM: nearest.rangeM,
