@@ -317,7 +317,7 @@ export function ReviewDrawer({
         className="drawer__actions"
         role="group"
         aria-label="Lifecycle actions"
-        aria-describedby={rewound ? 'drawer-rewound' : undefined}
+        aria-describedby={rewound ? 'drawer-rewound-state drawer-rewound-times' : undefined}
       >
         {ACTIONS.map(({ action, label }) => (
           <button
@@ -339,12 +339,20 @@ export function ReviewDrawer({
       </div>
 
       {/* The reason, in place: buttons that go grey without one read as a bug (§4.3, #77).
-          Mounted always with only the text toggling, as `rail__empty` is — a region inserted in
-          the same commit as its text is one some screen readers never announce (#51 review), and
-          here that is the announcement that matters most (#79 review). */}
-      <p className="drawer__rewound" id="drawer-rewound" role="status">
-        {rewound ? `Rewound to ${clock(tSec)} — the record is at ${clock(frontier)}` : null}
+          The live region announces the *state*, never the clock (ruled on #79): its line is
+          static, so seeking behind the frontier announces once and scrubbing announces nothing
+          further — the times move in their own element beside it, outside the region. Mounted
+          always with only the text toggling, as `rail__empty` is: a region inserted in the same
+          commit as its text is one some screen readers never announce (#51 review), and here
+          that is the announcement that matters most. */}
+      <p className="drawer__rewound" id="drawer-rewound-state" role="status">
+        {rewound ? 'Rewound — the workflow acts at the record’s frontier' : null}
       </p>
+      {rewound && (
+        <p className="drawer__rewound-times" id="drawer-rewound-times">
+          Clock {clock(tSec)} · record {clock(frontier)}
+        </p>
+      )}
 
       {pending === 'escalate' && (
         <Picker

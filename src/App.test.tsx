@@ -985,14 +985,17 @@ describe('App rewound actions (#77)', () => {
     for (const name of ['Assess', 'Escalate', 'Dismiss', 'Resolve']) {
       expect(action(name)).toBeDisabled()
     }
-    // Grey buttons without a reason read as a bug; the reason names both clocks.
-    const reason = screen.getByText('Rewound to 02:30:30 — the record is at 02:31:00')
-    expect(reason).toBeInTheDocument()
+    // Grey buttons without a reason read as a bug. The live region carries the state; the two
+    // times sit beside it, outside it (ruled on #79).
+    expect(
+      screen.getByText('Rewound — the workflow acts at the record’s frontier'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Clock 02:30:30 · record 02:31:00')).toBeInTheDocument()
     // `disabled` takes all four out of the tab order, so the reason has to reach an operator who
-    // cannot see them grey out: the group points at the live region (#79 review).
+    // cannot see them grey out: the group points at both halves (#79 review).
     expect(screen.getByRole('group', { name: 'Lifecycle actions' })).toHaveAttribute(
       'aria-describedby',
-      reason.id,
+      'drawer-rewound-state drawer-rewound-times',
     )
 
     // Pressing them anyway writes nothing — jsdom fires the handler on a disabled button only
@@ -1014,7 +1017,8 @@ describe('App rewound actions (#77)', () => {
 
     // Back to where the record is: the same action is legal again.
     seek('60')
-    expect(screen.queryByText(/^Rewound to /)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Rewound — /)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Clock /)).not.toBeInTheDocument()
     // The live region stays mounted and goes empty rather than unmounting — a region inserted in
     // the same commit as its text is one some screen readers never announce (#51, #79 review).
     const region = document.querySelector('.drawer__rewound')
@@ -1031,6 +1035,32 @@ describe('App rewound actions (#77)', () => {
     // Stamped at 02:31:00 — the frontier — because that is where the clock is, not because it
     // was clamped there from somewhere else.
     expect(logLines().at(-1)).toBe('02:31:00Escalated — to PHL Tower')
+  })
+
+  it('announces the state once, not the clock — scrubbing while rewound says nothing more', () => {
+    claimedAtSixty()
+    const region = () => document.querySelector('.drawer__rewound') as HTMLElement
+    const times = () => document.querySelector('.drawer__rewound-times')?.textContent
+
+    seek('30')
+    const announced = region().textContent
+    expect(announced).toBe('Rewound — the workflow acts at the record’s frontier')
+    expect(times()).toBe('Clock 02:30:30 · record 02:31:00')
+
+    // Two more seeks, still behind the frontier. The live region's text is what a screen reader
+    // re-announces, so it must not move; the times are outside it and do move (ruled on #79).
+    seek('15')
+    expect(region().textContent).toBe(announced)
+    expect(times()).toBe('Clock 02:30:15 · record 02:31:00')
+    seek('5')
+    expect(region().textContent).toBe(announced)
+    expect(times()).toBe('Clock 02:30:05 · record 02:31:00')
+
+    // The toggle still empties and refills it, which is the announcement that has to survive.
+    seek('60')
+    expect(region()).toBeEmptyDOMElement()
+    seek('30')
+    expect(region().textContent).toBe(announced)
   })
 
   it('leaves the record monotonic across a rewind and return', () => {

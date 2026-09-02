@@ -685,6 +685,16 @@
   margin: 0;
 }
 
+/* The two times, outside the live region so scrubbing announces nothing (#79). Same faint
+   voice, tucked under the state line rather than spaced off it. */
+.drawer__rewound-times {
+  margin: 0.125rem 0 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
 .drawer__action {
   border: 1px solid var(--line);
   border-radius: var(--radius);
