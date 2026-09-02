@@ -270,12 +270,7 @@ describe('Queue', () => {
   })
 
   it('scrolls the selected row into view, including a row that arrives after the selection (03a)', () => {
-    // Patched and restored: jsdom has no scrollIntoView — which is why the component's call is
-    // optional — so the stub must not outlive this test.
-    const original = Element.prototype.scrollIntoView
-    const scroll = vi.fn()
-    Element.prototype.scrollIntoView = scroll
-    try {
+    withScrollStub((scroll) => {
       const filtered = RANKED.filter((entry) => entry.track.source === 'inject')
       const { rerender } = render(<Queue ranked={filtered} selectedId={null} onSelect={vi.fn()} />)
       expect(scroll).not.toHaveBeenCalled()
@@ -285,10 +280,7 @@ describe('Queue', () => {
       // The filter clears and the selected row renders on this later commit — it still scrolls.
       rerender(<Queue ranked={RANKED} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
       expect(scroll).toHaveBeenCalledWith({ block: 'nearest' })
-    } finally {
-      if (original) Element.prototype.scrollIntoView = original
-      else delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
-    }
+    })
   })
 
   it('holds its place while the clock runs: a re-ranked list never re-scrolls a held selection (#76)', () => {
@@ -353,6 +345,36 @@ describe('Queue', () => {
         rerender(<Queue ranked={all()} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
       }
       expect(scroll).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('scrolls a served row again when it leaves the list and comes back (#78 round 1)', () => {
+    withScrollStub((scroll) => {
+      // The selection outlives a filter that hides its row (App keeps the drawer open), so a
+      // row can be scrolled to, dropped by a filter, and re-rendered off-screen in a longer
+      // list. Suppressing on "already served" alone strands it there — the ref has to forget a
+      // row that leaves, or the arriving-row case only ever works for a selection never served.
+      const injects = () => RANKED.filter((entry) => entry.track.source === 'inject')
+      const all = () => RANKED.map((entry) => ({ ...entry }))
+
+      const { rerender } = render(
+        <Queue ranked={all()} selectedId="adsb-a3303d" onSelect={vi.fn()} />,
+      )
+      expect(scroll).toHaveBeenCalledTimes(1)
+
+      // The Injects chip hides the row; the selection and its drawer stay.
+      rerender(<Queue ranked={injects()} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
+      expect(scroll).toHaveBeenCalledTimes(1)
+
+      // Back to All: the row returns, off-screen, and is owed a scroll.
+      rerender(<Queue ranked={all()} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
+      expect(scroll).toHaveBeenCalledTimes(2)
+
+      // Still quiet under the ticks that follow: forgetting on absence did not undo the fix.
+      for (let t = 0; t < 3; t++) {
+        rerender(<Queue ranked={all()} selectedId="adsb-a3303d" onSelect={vi.fn()} />)
+      }
+      expect(scroll).toHaveBeenCalledTimes(2)
     })
   })
 })

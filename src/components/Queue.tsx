@@ -57,12 +57,19 @@ export function Queue({
       scrolledToRef.current = null
       return
     }
-    if (selectedId === scrolledToRef.current) return
     // Membership is checked against `ranked`, not just the DOM, so the selected row can render
     // on a *later* commit than the selection — a cleared filter, or a re-rank — and that
-    // arriving row still gets scrolled to. Nothing is recorded until it does, so the arrival
-    // fires exactly once. Optional call: jsdom has no scrollIntoView.
-    if (!ranked.some((entry) => entry.track.id === selectedId)) return
+    // arriving row still gets scrolled to. A row that is absent forgets, so one that comes back
+    // is owed its scroll again: the selection outlives a filter that hides it (App keeps the
+    // drawer), and returning to a longer list puts it off-screen. This test has to come *before*
+    // the already-served one below, or a row that was scrolled to would never reach it.
+    if (!ranked.some((entry) => entry.track.id === selectedId)) {
+      scrolledToRef.current = null
+      return
+    }
+    // Present, and already served: this is the tick case — do nothing.
+    if (selectedId === scrolledToRef.current) return
+    // Optional call: jsdom has no scrollIntoView.
     listRef.current
       ?.querySelector(`[data-id="${CSS.escape(selectedId)}"]`)
       ?.scrollIntoView?.({ block: 'nearest' })
