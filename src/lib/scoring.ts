@@ -30,9 +30,15 @@
 
 import type { ProtectedSite } from '../config/ao.ts'
 import { KINEMATIC_CLASS } from '../config/airframes.ts'
-import { SCORING, type Band, type FactorId, type ScoringConfig } from '../config/scoring.ts'
+import {
+  SCORING,
+  type Band,
+  type FactorId,
+  type PatternKind,
+  type ScoringConfig,
+} from '../config/scoring.ts'
 import { closestApproach, distanceMeters } from './geo.ts'
-import { detectPattern, type PatternKind, type TrackHistories } from './patterns.ts'
+import { detectPattern, type TrackHistories } from './patterns.ts'
 import type { Track } from './tracks.ts'
 
 export type { Band, FactorId }
@@ -415,8 +421,8 @@ export function scoreTrack(
  * the same breakdown the operator saw, over the record's own doctrine rather than the live
  * config — the case #64 kept the weights for. The composite and its uncapped twin are the
  * snapshot's own; capped is their inequality. Factor detail lines are not in the record, and
- * say so. The range and the site it was measured to are the snapshot's too (#75 review). The
- * named pattern is not in the record until 05b adds it, so a rebuilt score names none.
+ * say so. The range, the site it was measured to, and the named pattern are the snapshot's too
+ * (#75 review; 05b).
  */
 export function scoreFromSnapshot(
   observed: {
@@ -426,6 +432,7 @@ export function scoreFromSnapshot(
     weights: Record<FactorId, number>
     rangeM: number
     siteId: string
+    pattern: PatternKind | null
   },
   config: ScoringConfig = SCORING,
 ): Score {
@@ -452,7 +459,7 @@ export function scoreFromSnapshot(
     capped: observed.score < observed.uncapped,
     band: bandOf(Math.round(observed.score), config.bands),
     factors,
-    pattern: null,
+    pattern: observed.pattern,
     rangeM: observed.rangeM,
     siteId: observed.siteId,
   }

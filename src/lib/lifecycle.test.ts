@@ -7,7 +7,10 @@ import {
   firstSeen,
   isTerminal,
   lastBand,
+  lastPattern,
   observedSnapshot,
+  patternChange,
+  resurfaced,
   statusOf,
   transition,
   type ActionInput,
@@ -17,10 +20,10 @@ import {
   type TrackEvent,
 } from './lifecycle'
 import type { RankedTrack } from './ranking'
-import { scoreTrack } from './scoring'
+import { bandOf, scoreTrack } from './scoring'
 import type { InjectTrack } from './tracks'
 import { AO } from '../config/ao'
-import { SCORING, type FactorId } from '../config/scoring'
+import { SCORING, type FactorId, type PatternKind } from '../config/scoring'
 
 const OBSERVED: ObservedSnapshot = {
   identity: 'non-cooperative',
@@ -31,6 +34,7 @@ const OBSERVED: ObservedSnapshot = {
   headingDeg: 345.6,
   score: 82,
   uncapped: 82,
+  pattern: null,
   factors: {
     cooperativity: 100,
     closing: 44.4,
@@ -190,6 +194,7 @@ describe('learner-ready shape (§8.3b)', () => {
       headingDeg: track.headingDeg,
       score: score.composite,
       uncapped: score.uncapped,
+      pattern: null,
       factors: {
         cooperativity: 100,
         closing: 0,
@@ -261,6 +266,7 @@ describe('learner-ready shape (§8.3b)', () => {
         'groundSpeedKt',
         'headingDeg',
         'identity',
+        'pattern',
         'rangeM',
         'score',
         'siteId',
@@ -433,5 +439,138 @@ describe('band crossings are forward only (#75 review)', () => {
     // The record never runs backwards.
     for (let i = 1; i < later.length; i++)
       expect(later[i].tSec).toBeGreaterThanOrEqual(later[i - 1].tSec)
+  })
+})
+
+describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
+  const at = '2026-09-01T12:06:02.000Z'
+  const drone: InjectTrack = {
+    id: 'inject-05',
+    source: 'inject',
+    behavior: 'loiter',
+    remoteId: 'silent',
+    uaType: null,
+    identity: 'non-cooperative',
+    callsign: null,
+    position: [-75.20547, 39.81341],
+    altitudeFt: 63,
+    onGround: false,
+    groundSpeedKt: 19.1,
+    headingDeg: 345.6,
+    verticalRateFpm: 85,
+    lastSeenSec: 0,
+  }
+  const scored = scoreTrack(drone, AO.protectedSites, { tSec: 0, minuteOfDay: 150, memory: {} })
+  const withScore = (
+    score: number,
+    pattern: PatternKind | null,
+    uncapped = score,
+  ): RankedTrack => ({
+    track: drone,
+    rank: 1,
+    rangeM: scored.rangeM,
+    siteId: scored.siteId,
+    score: {
+      ...scored,
+      composite: score,
+      uncapped,
+      capped: score < uncapped,
+      band: bandOf(Math.round(score), SCORING.bands),
+      pattern,
+    },
+  })
+  const openedWith = (pattern: PatternKind | null, tSec = 0) =>
+    firstSeen(drone.id, observedSnapshot(withScore(84, pattern)), at, tSec)
+  const dismissedAt = (score: number, pattern: PatternKind | null = null, uncapped = score) =>
+    appendEvent(
+      firstSeen(drone.id, observedSnapshot(withScore(score, pattern, uncapped)), at),
+      'dismiss',
+      { at, tSec: 10, observed: observedSnapshot(withScore(score, pattern, uncapped)) },
+    )
+
+  it('logs an onset at sim time against the pattern the record last saw, statuses carried', () => {
+    const log = patternChange(openedWith(null), withScore(95, 'loiter'), at, 990)!
+    expect(log).toHaveLength(2)
+    expect(log[1]).toMatchObject({
+      seq: 2,
+      tSec: 990,
+      action: 'pattern',
+      from: 'new',
+      to: 'new',
+      pattern: { from: null, to: 'loiter' },
+    })
+    expect(log[1].observed.pattern).toBe('loiter')
+    expect(statusOf(log)).toBe('new')
+    expect(lastPattern(log)).toBe('loiter')
+  })
+
+  it('logs nothing when the pattern is the one the record last saw, and never behind the frontier', () => {
+    expect(patternChange(openedWith('loiter'), withScore(95, 'loiter'), at, 990)).toBeNull()
+    // Opened with the word already on the first-seen entry: no onset, as ruled.
+    expect(openedWith('loiter')[0].observed.pattern).toBe('loiter')
+    // Rewound behind the last entry: the past the record already holds.
+    expect(patternChange(openedWith(null, 600), withScore(95, 'loiter'), at, 300)).toBeNull()
+    expect(() => patternChange([], withScore(95, 'loiter'), at, 1)).toThrow(/firstSeen/)
+  })
+
+  it('logs an end, a replacement, and on a terminal track too', () => {
+    const ended = patternChange(openedWith('loiter'), withScore(84, null), at, 30)!
+    expect(ended[1].pattern).toEqual({ from: 'loiter', to: null })
+    const replaced = patternChange(openedWith('loiter'), withScore(90, 'orbit'), at, 30)!
+    expect(replaced[1].pattern).toEqual({ from: 'loiter', to: 'orbit' })
+    const onDismissed = patternChange(dismissedAt(60), withScore(95, 'loiter'), at, 990)!
+    expect(onDismissed[2]).toMatchObject({ action: 'pattern', from: 'dismissed', to: 'dismissed' })
+    expect(statusOf(onDismissed)).toBe('dismissed')
+  })
+
+  const surfaced = (log: readonly TrackEvent[] | undefined) => resurfaced(log, 'inject')
+
+  it('never re-surfaces a real aircraft, keyed on the observed source as the ceiling is (4A, #82 review)', () => {
+    // The same record that re-surfaces an inject — dismissed, then an upward crossing and an
+    // onset — re-surfaces nothing when the track is ADS-B, capped or not.
+    const up = bandCrossing(dismissedAt(20), withScore(45, null), at, 20)!
+    const onset = patternChange(up, withScore(60, 'orbit'), at, 30)!
+    expect(surfaced(onset)).toBe(true)
+    expect(resurfaced(onset, 'adsb')).toBe(false)
+  })
+
+  it('re-surfaces nothing untouched, active, or freshly dismissed', () => {
+    expect(surfaced(undefined)).toBe(false)
+    expect(surfaced(openedWith(null))).toBe(false)
+    expect(surfaced(dismissedAt(60))).toBe(false)
+  })
+
+  it('re-surfaces on an upward crossing since dismissal, not a downward one', () => {
+    const up = bandCrossing(dismissedAt(60), withScore(84, null), at, 20)!
+    expect(up[2].band).toEqual({ from: 'caution', to: 'warning' })
+    expect(surfaced(up)).toBe(true)
+    expect(statusOf(up)).toBe('dismissed')
+    expect(surfaced(bandCrossing(dismissedAt(84), withScore(60, null), at, 20)!)).toBe(false)
+  })
+
+  it('re-surfaces on a pattern onset since dismissal, not an end', () => {
+    expect(surfaced(patternChange(dismissedAt(84), withScore(100, 'loiter'), at, 20)!)).toBe(true)
+    expect(surfaced(patternChange(dismissedAt(100, 'loiter'), withScore(84, null), at, 20)!)).toBe(
+      false,
+    )
+  })
+
+  it('ignores evidence from before the dismissal', () => {
+    const openedCalm = firstSeen(drone.id, observedSnapshot(withScore(60, null)), at)
+    const crossed = bandCrossing(openedCalm, withScore(84, null), at, 5)!
+    const thenDismissed = appendEvent(crossed, 'dismiss', {
+      at,
+      tSec: 10,
+      observed: observedSnapshot(withScore(84, null)),
+    })
+    expect(surfaced(thenDismissed)).toBe(false)
+  })
+
+  it('reads the source, not the cap: a capped record on a real aircraft never surfaces', () => {
+    // Dismissed at the ceiling; the uncapped composite then climbs and a pattern names, and
+    // every entry still carries score < uncapped, so none counts.
+    const capped = patternChange(dismissedAt(30, null, 45), withScore(30, 'orbit', 60), at, 20)!
+    expect(capped[2].observed).toMatchObject({ score: 30, uncapped: 60, pattern: 'orbit' })
+    expect(resurfaced(capped, 'adsb')).toBe(false)
   })
 })

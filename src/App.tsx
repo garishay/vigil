@@ -23,7 +23,10 @@ import {
   firstSeen,
   isTerminal,
   lastBand,
+  lastPattern,
   observedSnapshot,
+  patternChange,
+  resurfaced,
   statusOf,
   type LifecycleAction,
   type Status,
@@ -171,17 +174,24 @@ export default function App({
   // unrelated track. Those are renders where the picture has not moved and the source should
   // not be rebuilt, and they are the common case once the operator stops the clock to work.
   //
-  // Hence the shape: reading `eventLogs` rather than `ranked` keeps it off the per-tick path
-  // (`ranked` is rebuilt every tick, #76), and folding to a sorted string first means the array
-  // below keeps its identity until the *set* changes, not merely until some other track's log
-  // gains an entry. Ids carry no spaces, so the join is unambiguous.
+  // Hence the shape: folding to a sorted string first means the array below keeps its identity
+  // until the *set* changes, not merely until some other track's log gains an entry. Ids carry
+  // no spaces, so the join is unambiguous. A re-surfaced track leaves the set, so the map and
+  // the Queue agree about what is handled (#82 review); that needs each track's source, which
+  // is read off the picture — the key is recomputed per tick, but its string, and so the array's
+  // identity, still changes only with the set.
+  const sourceOf = useMemo(() => new Map(tracks.map((track) => [track.id, track.source])), [tracks])
   const terminalKey = useMemo(
     () =>
       Object.keys(eventLogs)
-        .filter((id) => isTerminal(statusOf(eventLogs[id])))
+        .filter(
+          (id) =>
+            isTerminal(statusOf(eventLogs[id])) &&
+            !resurfaced(eventLogs[id], sourceOf.get(id) ?? 'adsb'),
+        )
         .sort()
         .join(' '),
-    [eventLogs],
+    [eventLogs, sourceOf],
   )
   const terminalIds = useMemo(
     () => (terminalKey === '' ? [] : terminalKey.split(' ')),
@@ -216,11 +226,17 @@ export default function App({
   // default prop is a fresh function each time (#47 round 1). Seek-honest: a track first shown
   // after a seek opens at the seek target, and a seek logs at most one crossing — forward only:
   // a rewound picture is the past the record already holds, so a band read earlier than the
-  // last entry is not a crossing (#75 review), and the predicate settles without a write.
+  // last entry is not a crossing (#75 review), and the predicate settles without a write. A
+  // pattern change is folded the same way, beside the crossing (05b): against the pattern the
+  // record last saw, forward-only, terminal or not; a track opened with a pattern already named
+  // carries it on its first-seen entry and logs no onset.
   const recordStale = ranked.some((entry) => {
     const log = eventLogs[entry.track.id]
     if (log === undefined) return true
-    return tSec >= log[log.length - 1].tSec && lastBand(log) !== entry.score.band
+    return (
+      tSec >= log[log.length - 1].tSec &&
+      (lastBand(log) !== entry.score.band || lastPattern(log) !== entry.score.pattern)
+    )
   })
   if (recordStale) {
     const at = now()
@@ -234,9 +250,16 @@ export default function App({
           next[id] = firstSeen(id, observedSnapshot(entry), at, tSec)
           changed = true
         } else {
+          // Both read against the log as it stands: a crossing's snapshot already carries the
+          // pattern named now, so an onset detected after it would find nothing to log. The
+          // crossing lands first, the pattern entry after it, numbered on.
           const crossed = bandCrossing(log, entry, at, tSec)
-          if (crossed) {
-            next[id] = crossed
+          const patterned = patternChange(log, entry, at, tSec)
+          if (crossed || patterned) {
+            const base = crossed ?? log
+            next[id] = patterned
+              ? [...base, { ...patterned[patterned.length - 1], seq: base.length + 1 }]
+              : base
             changed = true
           }
         }
@@ -423,6 +446,8 @@ export default function App({
                 selectedId={selectedId}
                 restoreFocus={keyboardClose}
                 statusFor={(id) => statusOf(eventLogs[id])}
+                resurfacedFor={(entry) => resurfaced(eventLogs[entry.track.id], entry.track.source)}
+                sites={AO.protectedSites}
                 onSelect={setSelectedId}
               />
             </>

@@ -10,22 +10,37 @@
  * screen can never disagree with the record.
  *
  * Two kinds of entry share the log (06b, ruled on #6): the operator's actions, which move the
- * status, and observations — first sight, and a **band crossing** — which carry the status
- * unchanged. A crossing is what a recipient wants to know ("first warning 02:33:00"); it is
- * logged in either direction, on a terminal track too, and it is never a lifecycle change.
+ * status, and observations — first sight, a **band crossing**, and a **pattern change** (05b)
+ * — which carry the status unchanged. A crossing is what a recipient wants to know ("first
+ * warning 02:33:00"); it is logged in either direction, on a terminal track too, and it is never
+ * a lifecycle change. A pattern's onset and end are logged the same way, against the pattern the
+ * record last saw; a track first seen with a pattern already named carries the word on its
+ * first-seen entry instead (ruled on #5).
+ *
+ * **Re-surface** (05b, ruled on #5): a Dismissed track surfaces on the Queue row when, since its
+ * dismissal, the record shows an upward crossing or a pattern onset — read off the log, never a
+ * new state, and never on a real aircraft, keyed on the observed source as the ceiling is: on a
+ * cooperative aircraft a pattern is ordered rather than surfaced (4A).
  */
 
 import type { ContactId } from '../config/contacts.ts'
 import type { DispositionId } from '../config/dispositions.ts'
-import { SCORING, type Band, type FactorId, type ScoringConfig } from '../config/scoring.ts'
+import {
+  BANDS,
+  SCORING,
+  type Band,
+  type FactorId,
+  type PatternKind,
+  type ScoringConfig,
+} from '../config/scoring.ts'
 import type { RankedTrack } from './ranking.ts'
 import { bandOf } from './scoring.ts'
-import type { Identity } from './tracks.ts'
+import type { Identity, Track } from './tracks.ts'
 
 export type Status = 'new' | 'assessing' | 'escalated' | 'resolved' | 'dismissed'
 export type LifecycleAction = 'assess' | 'escalate' | 'dismiss' | 'resolve'
 /** What the picture did, as opposed to what the operator did. */
-export type ObservationEvent = 'first-seen' | 'band'
+export type ObservationEvent = 'first-seen' | 'band' | 'pattern'
 
 /** Statuses in lifecycle order — the state filter lists them, the labels render them. */
 export const STATUSES = [
@@ -102,6 +117,11 @@ export interface ObservedSnapshot {
   /** Each factor's 0–100 value at action time — what §8.3b learns from (ruled on #4). */
   factors: Record<FactorId, number>
   /**
+   * The pattern the history named when the operator acted, or null (05b). Derived, and seen —
+   * it is the word on the row's tag — so it is part of the moment by the #36 [8] reasoning.
+   */
+  pattern: PatternKind | null
+  /**
    * The weight set the factors were scored under. Doctrine rather than a reading, and in the
    * record for the reason the breakdown puts contribution over weight: the operator saw it, so
    * it is part of the moment. Without it an event stops reconciling the first time a weight
@@ -126,6 +146,8 @@ export interface TrackEvent {
   disposition?: DispositionId
   /** The crossing, on a `band` entry only: which band the score left and which it entered. */
   band?: { from: Band; to: Band }
+  /** The change, on a `pattern` entry only: the pattern the record last saw and the one now. */
+  pattern?: { from: PatternKind | null; to: PatternKind | null }
   observed: ObservedSnapshot
 }
 
@@ -144,6 +166,7 @@ export const observedSnapshot = ({
   headingDeg: track.headingDeg,
   score: score.composite,
   uncapped: score.uncapped,
+  pattern: score.pattern,
   factors: Object.fromEntries(score.factors.map((factor) => [factor.id, factor.value])) as Record<
     FactorId,
     number
@@ -216,6 +239,69 @@ export function bandCrossing(
       observed: observedSnapshot(entry),
     },
   ]
+}
+
+/** The pattern the record last saw for a track — its last entry's snapshot. */
+export const lastPattern = (log: readonly TrackEvent[]): PatternKind | null =>
+  log[log.length - 1].observed.pattern
+
+/**
+ * The log with a pattern change appended, or null when the pattern the record last saw is the
+ * pattern named now — the crossing's shape exactly (05b, ruled on #5): statuses carried, on a
+ * terminal track too, compared against the last entry so a seek logs at most one change, and
+ * forward-only. A track opened with a pattern already named carries it on its first-seen entry
+ * and logs no onset here.
+ */
+export function patternChange(
+  log: readonly TrackEvent[],
+  entry: RankedTrack,
+  at: string,
+  tSec: number,
+): TrackEvent[] | null {
+  if (log.length === 0) throw new Error('patternChange needs a log opened by firstSeen')
+  if (tSec < log[log.length - 1].tSec) return null
+  const from = lastPattern(log)
+  const to = entry.score.pattern
+  if (from === to) return null
+  const status = statusOf(log)
+  return [
+    ...log,
+    {
+      trackId: log[0].trackId,
+      seq: log.length + 1,
+      at,
+      tSec,
+      action: 'pattern',
+      from: status,
+      to: status,
+      pattern: { from, to },
+      observed: observedSnapshot(entry),
+    },
+  ]
+}
+
+/**
+ * Whether a Dismissed track has re-surfaced (05b, ruled on #5): since its dismissal the record
+ * shows an upward band crossing or a pattern onset. Read off the log — the status stays
+ * Dismissed and the §7.1 table gains nothing — and never true of a real aircraft, keyed on the
+ * observed source exactly as the ceiling is (#82 review): an airliner under the ceiling is not
+ * capped, and on a cooperative aircraft a pattern is ordered, not surfaced (4A).
+ */
+export function resurfaced(
+  log: readonly TrackEvent[] | undefined,
+  source: Track['source'],
+): boolean {
+  if (source === 'adsb' || !log || statusOf(log) !== 'dismissed') return false
+  const dismissedAt = log.findLastIndex((event) => event.action === 'dismiss')
+  return log
+    .slice(dismissedAt + 1)
+    .some(
+      (event) =>
+        (event.action === 'band' &&
+          event.band !== undefined &&
+          BANDS.indexOf(event.band.to) > BANDS.indexOf(event.band.from)) ||
+        (event.action === 'pattern' && event.pattern?.to != null),
+    )
 }
 
 export interface ActionInput {

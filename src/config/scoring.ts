@@ -14,6 +14,19 @@ export type FactorId = 'cooperativity' | 'closing' | 'proximity' | 'pattern' | '
 
 export type Band = 'calm' | 'caution' | 'warning'
 
+/** The three patterns the detectors can name (05a). */
+export type PatternKind = 'loiter' | 'orbit' | 'revisit'
+
+/**
+ * The pattern word as the reason tag, the log, and the handoff print it (05b, ruled on #5): one
+ * table, never a breakdown row label — the row is named for what it measures.
+ */
+export const PATTERN_LABEL: Record<PatternKind, string> = {
+  loiter: 'Loitering',
+  orbit: 'Orbiting',
+  revisit: 'Revisiting',
+}
+
 /** The bands in ascending order — what "up" and "down" mean for a crossing (06b). */
 export const BANDS = ['calm', 'caution', 'warning'] as const satisfies readonly Band[]
 

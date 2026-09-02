@@ -1,17 +1,27 @@
 import { useEffect, useRef } from 'react'
 import { IdentityDot } from './IdentityDot'
-import { LAYER_BADGE, formatRangeKm, formatScore, scoreSummary, trackIdent } from '../lib/display'
+import type { ProtectedSite } from '../config/ao'
+import {
+  LAYER_BADGE,
+  formatRangeKm,
+  formatScore,
+  reasonTag,
+  scoreSummary,
+  trackIdent,
+} from '../lib/display'
 import { IDENTITY_LABEL } from '../lib/identity'
 import { STATUS_LABEL, isTerminal, type Status } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
 
 /**
- * The ranked list (§7). Two-line rows: rank, identity, and the score chip on the first line; the
- * layer badge, ident, ground state, and range on the second. Every field is something the system
- * observed or derived — behavior and Remote ID status are ground truth, and stay in the fixtures
- * until PR 05 earns the right to display a *detected* pattern. The chip carries the composite
- * with its top contributions as hover text, and wears the band's colour — the one place on the
- * row a warm colour can appear, and only a score can put it there (§4.3).
+ * The ranked list (§7). Three-line rows: rank, identity, and the score chip on the first line;
+ * the layer badge, ident, ground state, and range on the second; the reason tag on the third —
+ * the top-contributing factors in plain English, leading with the *detected* pattern (05b).
+ * Every field is something the system observed or derived — behavior and Remote ID status are
+ * ground truth and stay in the fixtures; the pattern on the row is what the history showed. The
+ * chip carries the composite with its top contributions as hover text, and wears the band's
+ * colour — the one place on the row a warm colour can appear, and only a score can put it there
+ * (§4.3).
  *
  * Rows are buttons (03a): clicking selects the track, in sync with the map — the selected row is
  * marked and scrolled into view when the selection came from the map side. Ranks are global,
@@ -21,18 +31,26 @@ import type { RankedTrack } from '../lib/ranking'
  * Lifecycle state rides the row (03e): a tag beside the layer badge, omitted when New, and a
  * terminal row dims in place — rank and position untouched, since ranking never reads status.
  * The status arrives through `statusFor`, read from the event log at render, after the sort.
+ * A Dismissed track that has re-surfaced (05b) keeps its status and loses its dim: the tag reads
+ * RE-SURFACED, so the evidence the record logged is seen where triage happens.
  */
 export function Queue({
   ranked,
   selectedId = null,
   restoreFocus = true,
   statusFor = () => 'new',
+  resurfacedFor = () => false,
+  sites = [],
   onSelect,
 }: {
   ranked: RankedTrack[]
   selectedId?: string | null
   /** A track's lifecycle status; an untouched track reads New. */
   statusFor?: (id: string) => Status
+  /** Whether a Dismissed track has re-surfaced since its dismissal (05b); never a real aircraft. */
+  resurfacedFor?: (entry: RankedTrack) => boolean
+  /** The protected sites, for the reason tag's site name. */
+  sites?: readonly ProtectedSite[]
   /**
    * Whether a cleared selection returns focus to its row. The caller passes `false` for a
    * pointer-driven close — the effect below cannot see the click, and a mouse user parked on a
@@ -97,11 +115,13 @@ export function Queue({
 
   return (
     <ol className="queue" aria-label="Ranked queue" ref={listRef} tabIndex={-1}>
-      {ranked.map(({ track, rank, rangeM, score }) => {
+      {ranked.map((entry) => {
+        const { track, rank, rangeM, score } = entry
         const status = statusFor(track.id)
+        const surfaced = resurfacedFor(entry)
         const classes = ['queue__row']
         if (track.onGround) classes.push('queue__row--ground')
-        if (isTerminal(status)) classes.push('queue__row--terminal')
+        if (isTerminal(status) && !surfaced) classes.push('queue__row--terminal')
         if (track.id === selectedId) classes.push('queue__row--selected')
         return (
           <li key={track.id} className={classes.join(' ')} data-id={track.id}>
@@ -124,12 +144,15 @@ export function Queue({
                   {LAYER_BADGE[track.source]}
                 </span>
                 {status !== 'new' && (
-                  <span className="queue__badge queue__badge--state">{STATUS_LABEL[status]}</span>
+                  <span className="queue__badge queue__badge--state">
+                    {surfaced ? 'Re-surfaced' : STATUS_LABEL[status]}
+                  </span>
                 )}
                 <span className="queue__ident">{trackIdent(track)}</span>
                 {track.onGround && <span className="queue__ground">on ground</span>}
                 <span className="queue__range">{formatRangeKm(rangeM)}</span>
               </span>
+              <span className="queue__reason">{reasonTag(entry, sites)}</span>
             </button>
           </li>
         )

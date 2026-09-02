@@ -1159,3 +1159,81 @@ describe('App rewound actions (#77)', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', () => {
+  const rows = () =>
+    within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+  const rowOf = (ident: string) =>
+    rows().find((row) => within(row).queryByText(ident)) as HTMLElement
+  const logLines = () =>
+    within(screen.getByLabelText('Event log'))
+      .getAllByRole('listitem')
+      .map((line) => line.textContent ?? '')
+  const seek = (value: string) =>
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value } })
+  const start = () => {
+    useCapture.mockReturnValue(LONG)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
+    return replay
+  }
+
+  it('logs the onset at sim time, one per seek, and the handoff timeline carries the word', () => {
+    start()
+    // Frame 0, 10 km out: identity, the envelope, and the hour lead; proximity at 50 trails.
+    expect(rowOf('TRK-05').querySelector('.queue__reason')).toHaveTextContent(
+      'Non-cooperative, low and slow, off-hours',
+    )
+    seek('990')
+    fireEvent.click(within(rowOf('TRK-05')).getByRole('button'))
+    expect(logLines()).toEqual([
+      '02:30:00New — first seen',
+      '02:46:30Warning — up from caution',
+      '02:46:30Loitering — began',
+    ])
+    expect(rowOf('TRK-05').querySelector('.queue__reason')).toHaveTextContent(
+      'Loitering, non-cooperative, inside the ring',
+    )
+    // Escalated at 02:46:30: the handoff hands off with the word, in its timeline.
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm escalation' }))
+    const handoff = (screen.getByLabelText('Handoff text') as HTMLTextAreaElement).value
+    expect(handoff).toContain('  02:46:30  Loitering — began\n  02:46:30  Assessing — claimed')
+    expect(handoff).toContain('Proximity 15/15 · Pattern of life 11/15')
+    // A rewind writes nothing.
+    seek('600')
+    expect(logLines()).toHaveLength(5)
+  })
+
+  it('re-surfaces a dismissed track on a later crossing or onset, keeps it Dismissed, out of Active', () => {
+    start()
+    // TRK-06 dismissed at 02:36:00 in caution; it crosses to warning at 02:38:15.
+    seek('360')
+    fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(rowOf('TRK-06')).toHaveClass('queue__row--terminal')
+    expect(screen.getByTestId('map').getAttribute('data-terminal')).toContain('inject-06')
+    seek('495')
+    expect(rowOf('TRK-06')).not.toHaveClass('queue__row--terminal')
+    expect(within(rowOf('TRK-06')).getByText('Re-surfaced')).toBeInTheDocument()
+    // The map's dim set agrees with the row (#61's invariant, #82 review).
+    expect(screen.getByTestId('map').getAttribute('data-terminal')).not.toContain('inject-06')
+    expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Dismissed')
+    // TRK-03 dismissed at 02:40:00 in warning; it names Revisiting at 02:47:30 with no crossing.
+    seek('600')
+    fireEvent.click(within(rowOf('TRK-03')).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    seek('1050')
+    expect(logLines().at(-1)).toBe('02:47:30Revisiting — began')
+    expect(rowOf('TRK-03')).not.toHaveClass('queue__row--terminal')
+    expect(within(rowOf('TRK-03')).getByText('Re-surfaced')).toBeInTheDocument()
+    // Terminal by the table: neither is Active.
+    fireEvent.click(screen.getByRole('button', { name: 'Active' }))
+    expect(rows().some((row) => within(row).queryByText('TRK-06'))).toBe(false)
+    expect(rows().some((row) => within(row).queryByText('TRK-03'))).toBe(false)
+  })
+})

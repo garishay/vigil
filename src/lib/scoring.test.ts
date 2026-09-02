@@ -824,6 +824,7 @@ describe('scoreFromSnapshot (06b)', () => {
     const observed = {
       score: 30,
       uncapped: 57.8125,
+      pattern: null,
       factors: {
         cooperativity: 5,
         closing: 100,
