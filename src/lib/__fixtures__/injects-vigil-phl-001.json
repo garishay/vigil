@@ -5,7 +5,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.28193,39.78589],"altitudeFt":80,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.3,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28671,39.94708],"altitudeFt":89,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":34,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33804,39.89913],"altitudeFt":72,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20547,39.81341],"altitudeFt":63,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19164,39.79058],"altitudeFt":63,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.13544,39.84252],"altitudeFt":85,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 15000, "tracks": [
@@ -13,7 +13,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.28141,39.78726],"altitudeFt":93,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.3,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28603,39.9461],"altitudeFt":98,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":34,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33536,39.89838],"altitudeFt":86,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2059,39.81469],"altitudeFt":84,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19206,39.79186],"altitudeFt":84,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.13667,39.84286],"altitudeFt":94,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 30000, "tracks": [
@@ -21,7 +21,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.28089,39.78862],"altitudeFt":106,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.3,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28534,39.94512],"altitudeFt":106,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":34,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33269,39.89764],"altitudeFt":100,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20633,39.81597],"altitudeFt":105,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19249,39.79315],"altitudeFt":105,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1379,39.84319],"altitudeFt":102,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 45000, "tracks": [
@@ -29,7 +29,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.28037,39.78998],"altitudeFt":120,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.3,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28466,39.94414],"altitudeFt":115,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":34,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33001,39.89689],"altitudeFt":115,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20676,39.81725],"altitudeFt":127,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19292,39.79443],"altitudeFt":127,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.13914,39.84353],"altitudeFt":111,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 60000, "tracks": [
@@ -37,7 +37,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27985,39.79135],"altitudeFt":133,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28398,39.94316],"altitudeFt":123,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":34,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32734,39.89615],"altitudeFt":129,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20719,39.81853],"altitudeFt":148,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19335,39.79571],"altitudeFt":148,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.14037,39.84387],"altitudeFt":119,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 75000, "tracks": [
@@ -45,7 +45,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27933,39.79271],"altitudeFt":146,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2833,39.94218],"altitudeFt":132,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":34,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32467,39.89541],"altitudeFt":143,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20762,39.81981],"altitudeFt":169,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19378,39.79699],"altitudeFt":169,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1416,39.8442],"altitudeFt":128,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 90000, "tracks": [
@@ -53,7 +53,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27881,39.79407],"altitudeFt":159,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28261,39.9412],"altitudeFt":140,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":34,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32199,39.89466],"altitudeFt":158,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20805,39.8211],"altitudeFt":190,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19421,39.79827],"altitudeFt":190,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.14284,39.84454],"altitudeFt":136,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 105000, "tracks": [
@@ -61,7 +61,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27829,39.79543],"altitudeFt":172,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28193,39.94022],"altitudeFt":149,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":34,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31932,39.89392],"altitudeFt":172,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20847,39.82238],"altitudeFt":212,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19463,39.79955],"altitudeFt":212,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":85,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.14407,39.84487],"altitudeFt":145,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 120000, "tracks": [
@@ -69,7 +69,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27776,39.7968],"altitudeFt":185,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":53,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28125,39.93924],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":20,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31665,39.89317],"altitudeFt":186,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2089,39.82366],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":74,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19506,39.80083],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":74,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1453,39.84521],"altitudeFt":153,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 135000, "tracks": [
@@ -77,7 +77,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27724,39.79816],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":1,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.28056,39.93826],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31397,39.89243],"altitudeFt":201,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20933,39.82494],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19549,39.80211],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.14654,39.84554],"altitudeFt":162,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 150000, "tracks": [
@@ -85,7 +85,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27672,39.79952],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27988,39.93728],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.3113,39.89168],"altitudeFt":215,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":57,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20976,39.82622],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19592,39.80339],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.14777,39.84588],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":34,"lastSeenSec":0}
 ]},
 {"tMs": 165000, "tracks": [
@@ -93,7 +93,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.2762,39.80089],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2792,39.9363],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30862,39.89094],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":29,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21019,39.8275],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19635,39.80467],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.149,39.84621],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":1,"lastSeenSec":0}
 ]},
 {"tMs": 180000, "tracks": [
@@ -101,7 +101,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27568,39.80225],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27851,39.93532],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30595,39.89019],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21062,39.82878],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19678,39.80595],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.15024,39.84655],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 195000, "tracks": [
@@ -109,7 +109,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27516,39.80361],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27783,39.93434],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30328,39.88945],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21105,39.83006],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1972,39.80724],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.15147,39.84688],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 210000, "tracks": [
@@ -117,7 +117,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27464,39.80497],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27715,39.93336],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.3006,39.8887],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21148,39.83134],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19763,39.80852],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1527,39.84722],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 225000, "tracks": [
@@ -125,7 +125,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27412,39.80634],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27647,39.93238],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.29793,39.88796],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2119,39.83262],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19806,39.8098],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.15394,39.84755],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 240000, "tracks": [
@@ -133,7 +133,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.2736,39.8077],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27578,39.9314],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.29526,39.88721],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21233,39.8339],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19849,39.81108],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.15517,39.84789],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 255000, "tracks": [
@@ -141,7 +141,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27308,39.80906],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2751,39.93042],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.29258,39.88647],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21276,39.83518],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19892,39.81236],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1564,39.84822],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 270000, "tracks": [
@@ -149,7 +149,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27256,39.81043],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27442,39.92944],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.28991,39.88572],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21319,39.83647],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19934,39.81364],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.15763,39.84856],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 285000, "tracks": [
@@ -157,7 +157,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27204,39.81179],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27374,39.92846],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.28724,39.88498],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21362,39.83775],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19977,39.81492],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.15887,39.84889],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 300000, "tracks": [
@@ -165,7 +165,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27152,39.81315],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27305,39.92748],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.28456,39.88423],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21405,39.83903],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2002,39.8162],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1601,39.84923],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 315000, "tracks": [
@@ -173,7 +173,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.271,39.81452],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27237,39.9265],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.28189,39.88349],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21448,39.84031],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20063,39.81748],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.16133,39.84957],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 330000, "tracks": [
@@ -181,7 +181,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.27048,39.81588],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27169,39.92552],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.27922,39.88274],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21491,39.84159],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20106,39.81876],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.16257,39.8499],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 345000, "tracks": [
@@ -189,7 +189,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26996,39.81724],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27101,39.92454],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.27655,39.88199],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21533,39.84287],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20149,39.82004],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1638,39.85024],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 360000, "tracks": [
@@ -197,7 +197,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26943,39.8186],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.27032,39.92356],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.27387,39.88125],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21576,39.84415],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20192,39.82132],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.16503,39.85057],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 375000, "tracks": [
@@ -205,7 +205,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26891,39.81997],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26964,39.92258],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.2712,39.8805],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21619,39.84543],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20234,39.82261],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.16627,39.85091],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 390000, "tracks": [
@@ -213,7 +213,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26839,39.82133],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26896,39.9216],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.26853,39.87976],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21662,39.84671],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20277,39.82389],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1675,39.85124],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 405000, "tracks": [
@@ -221,7 +221,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26787,39.82269],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26827,39.92062],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.26585,39.87901],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21705,39.84799],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2032,39.82517],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.16873,39.85158],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 420000, "tracks": [
@@ -229,7 +229,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26735,39.82406],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26759,39.91964],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.26318,39.87827],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21748,39.84927],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20363,39.82645],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.16997,39.85191],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 435000, "tracks": [
@@ -237,7 +237,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26683,39.82542],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26691,39.91866],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.26051,39.87752],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21791,39.85055],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20406,39.82773],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1712,39.85225],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 450000, "tracks": [
@@ -245,7 +245,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26631,39.82678],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26623,39.91768],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.25784,39.87677],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21834,39.85184],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20449,39.82901],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.17244,39.85258],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 465000, "tracks": [
@@ -253,7 +253,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26579,39.82814],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26555,39.9167],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.25516,39.87603],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21877,39.85312],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20492,39.83029],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.17367,39.85292],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 480000, "tracks": [
@@ -261,7 +261,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26527,39.82951],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26486,39.91572],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.25249,39.87528],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2184,39.85363],"altitudeFt":230,"onGround":false,"groundSpeedKt":8.4,"headingDeg":29.2,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20534,39.83157],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1749,39.85325],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 495000, "tracks": [
@@ -269,7 +269,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26475,39.83087],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26418,39.91474],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.25395,39.87569],"altitudeFt":222,"onGround":false,"groundSpeedKt":17.1,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21781,39.85391],"altitudeFt":230,"onGround":false,"groundSpeedKt":7.7,"headingDeg":57.9,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20577,39.83285],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.17614,39.85359],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 510000, "tracks": [
@@ -277,7 +277,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26423,39.83223],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2635,39.91376],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.25662,39.87643],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21725,39.85419],"altitudeFt":230,"onGround":false,"groundSpeedKt":7.4,"headingDeg":57.1,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2062,39.83413],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.17737,39.85392],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 525000, "tracks": [
@@ -285,7 +285,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.2637,39.8336],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26282,39.91278],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.25929,39.87718],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21673,39.85446],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.9,"headingDeg":55.7,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20663,39.83541],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1786,39.85426],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 540000, "tracks": [
@@ -293,7 +293,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26318,39.83496],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26213,39.9118],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.26197,39.87793],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21628,39.85472],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.3,"headingDeg":53.5,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20706,39.8367],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.17984,39.85459],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 555000, "tracks": [
@@ -301,7 +301,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26266,39.83632],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26145,39.91082],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.26464,39.87867],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21589,39.85496],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.5,"headingDeg":50.3,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20749,39.83798],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.18107,39.85493],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 570000, "tracks": [
@@ -309,7 +309,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26214,39.83768],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26077,39.90984],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.26731,39.87942],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21559,39.85519],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.7,"headingDeg":45.4,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20792,39.83926],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1823,39.85526],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 585000, "tracks": [
@@ -317,7 +317,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26162,39.83905],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.26009,39.90886],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.26998,39.88016],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21538,39.8554],"altitudeFt":230,"onGround":false,"groundSpeedKt":3.8,"headingDeg":37.8,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20834,39.84054],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.18354,39.8556],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 600000, "tracks": [
@@ -325,7 +325,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.2611,39.84041],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.5,"headingDeg":16.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2594,39.90788],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.27266,39.88091],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21526,39.85559],"altitudeFt":230,"onGround":false,"groundSpeedKt":3,"headingDeg":25.1,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20877,39.84182],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.18477,39.85593],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 615000, "tracks": [
@@ -333,7 +333,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26046,39.84174],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":20.3,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25872,39.9069],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.27533,39.88166],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21525,39.85575],"altitudeFt":230,"onGround":false,"groundSpeedKt":2.4,"headingDeg":4,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2092,39.8431],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.186,39.85627],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 630000, "tracks": [
@@ -341,7 +341,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25952,39.84296],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":30.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25804,39.90592],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.278,39.8824],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21533,39.85589],"altitudeFt":230,"onGround":false,"groundSpeedKt":2.2,"headingDeg":335,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20963,39.84438],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.18724,39.8566],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 645000, "tracks": [
@@ -349,7 +349,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.2583,39.84403],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":41.2,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25736,39.90494],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.28068,39.88315],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21552,39.85601],"altitudeFt":230,"onGround":false,"groundSpeedKt":2.6,"headingDeg":309,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21006,39.84566],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.18847,39.85694],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 660000, "tracks": [
@@ -357,7 +357,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25685,39.84491],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":51.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25667,39.90396],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.28335,39.88389],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21579,39.85609],"altitudeFt":230,"onGround":false,"groundSpeedKt":3.3,"headingDeg":292.2,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21049,39.84694],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1897,39.85727],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 675000, "tracks": [
@@ -365,7 +365,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25522,39.84557],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":62.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25599,39.90298],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.28602,39.88464],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21615,39.85615],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.1,"headingDeg":281.8,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21092,39.84822],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19094,39.85761],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 690000, "tracks": [
@@ -373,7 +373,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25346,39.84599],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":72.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25531,39.902],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.28869,39.88538],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21659,39.85618],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.8,"headingDeg":274.9,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21135,39.8495],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19217,39.85794],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 705000, "tracks": [
@@ -381,7 +381,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25162,39.84616],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":83.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25463,39.90102],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.29137,39.88613],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21709,39.85618],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.5,"headingDeg":269.9,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21177,39.85078],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.1934,39.85828],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 720000, "tracks": [
@@ -389,7 +389,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24978,39.84608],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":93.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25395,39.90004],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.29404,39.88687],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21764,39.85615],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.1,"headingDeg":265.9,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2122,39.85207],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19464,39.85861],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 735000, "tracks": [
@@ -397,7 +397,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24799,39.84573],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":104.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25326,39.89906],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.29671,39.88762],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21822,39.85609],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.5,"headingDeg":262.4,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21263,39.85335],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19587,39.85895],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 750000, "tracks": [
@@ -405,7 +405,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24631,39.84514],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":114.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25258,39.89808],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.29939,39.88836],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21882,39.856],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.8,"headingDeg":259.2,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21306,39.85463],"altitudeFt":230,"onGround":false,"groundSpeedKt":19.1,"headingDeg":345.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19711,39.85928],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 765000, "tracks": [
@@ -413,7 +413,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24479,39.84433],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":125.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2519,39.8971],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30206,39.88911],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21942,39.85588],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.9,"headingDeg":256,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21273,39.85518],"altitudeFt":230,"onGround":false,"groundSpeedKt":8.7,"headingDeg":24.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19834,39.85961],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 780000, "tracks": [
@@ -421,7 +421,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.2435,39.84331],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":135.5,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25122,39.89612],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30473,39.88985],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22,39.85574],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.8,"headingDeg":252.5,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21214,39.85546],"altitudeFt":230,"onGround":false,"groundSpeedKt":7.7,"headingDeg":57.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.19957,39.85995],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 795000, "tracks": [
@@ -429,7 +429,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24247,39.84214],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":146,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25054,39.89514],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30741,39.8906],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22056,39.85558],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.6,"headingDeg":248.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21158,39.85574],"altitudeFt":230,"onGround":false,"groundSpeedKt":7.4,"headingDeg":57.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20081,39.86028],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 810000, "tracks": [
@@ -437,7 +437,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24173,39.84084],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":156.5,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24985,39.89416],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31008,39.89134],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22106,39.85539],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.2,"headingDeg":244,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21106,39.85601],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.9,"headingDeg":55.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20204,39.86062],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 825000, "tracks": [
@@ -445,7 +445,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24132,39.83945],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":167,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24917,39.89318],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31276,39.89209],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22151,39.85518],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.8,"headingDeg":238.4,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21061,39.85627],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.3,"headingDeg":53.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20327,39.86096],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 840000, "tracks": [
@@ -453,7 +453,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24124,39.83804],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":177.5,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24849,39.8922],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31543,39.89283],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22188,39.85495],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.3,"headingDeg":231.3,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21022,39.85651],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.6,"headingDeg":50.5,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20451,39.86129],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 855000, "tracks": [
@@ -461,7 +461,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24149,39.83663],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":188,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24781,39.89122],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.3181,39.89358],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22217,39.8547],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.8,"headingDeg":222.1,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20991,39.85674],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.7,"headingDeg":45.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20574,39.86163],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 870000, "tracks": [
@@ -469,7 +469,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24208,39.83529],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":198.5,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24712,39.89024],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32078,39.89432],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":290,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22237,39.85444],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.3,"headingDeg":210.2,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2097,39.85695],"altitudeFt":230,"onGround":false,"groundSpeedKt":3.9,"headingDeg":38.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20697,39.86196],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 885000, "tracks": [
@@ -477,7 +477,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24297,39.83405],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":208.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24644,39.88926],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32345,39.89507],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":289.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22247,39.85417],"altitudeFt":230,"onGround":false,"groundSpeedKt":4,"headingDeg":195.8,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20958,39.85714],"altitudeFt":230,"onGround":false,"groundSpeedKt":3,"headingDeg":25.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20821,39.8623],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 900000, "tracks": [
@@ -485,7 +485,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24415,39.83295],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":219.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24576,39.88828],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32612,39.89581],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":289.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22247,39.85389],"altitudeFt":230,"onGround":false,"groundSpeedKt":4,"headingDeg":180,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20956,39.85731],"altitudeFt":230,"onGround":false,"groundSpeedKt":2.4,"headingDeg":5,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20944,39.86263],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 915000, "tracks": [
@@ -493,7 +493,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24556,39.83204],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":229.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24508,39.8873],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.3288,39.89656],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":289.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22237,39.85361],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.2,"headingDeg":164.8,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20964,39.85745],"altitudeFt":230,"onGround":false,"groundSpeedKt":2.2,"headingDeg":336.2,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21067,39.86297],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 930000, "tracks": [
@@ -501,7 +501,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24716,39.83134],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":240.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24439,39.88632],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33147,39.8973],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":289.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22217,39.85332],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.7,"headingDeg":152.1,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20982,39.85756],"altitudeFt":230,"onGround":false,"groundSpeedKt":2.6,"headingDeg":309.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21191,39.8633],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 945000, "tracks": [
@@ -509,7 +509,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.24891,39.83087],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":250.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24371,39.88534],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33415,39.89804],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":289.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22188,39.85304],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.2,"headingDeg":142.1,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21009,39.85765],"altitudeFt":230,"onGround":false,"groundSpeedKt":3.3,"headingDeg":292.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21314,39.86364],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 960000, "tracks": [
@@ -517,7 +517,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25074,39.83066],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":261.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24303,39.88436],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":151.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33682,39.89879],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":289.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22151,39.85276],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.8,"headingDeg":134.5,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21045,39.85771],"altitudeFt":230,"onGround":false,"groundSpeedKt":4,"headingDeg":282.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21437,39.86397],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 975000, "tracks": [
@@ -525,7 +525,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25258,39.83071],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":271.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24374,39.88371],"altitudeFt":154,"onGround":false,"groundSpeedKt":12.3,"headingDeg":219.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33658,39.89872],"altitudeFt":222,"onGround":false,"groundSpeedKt":2.8,"headingDeg":109.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22106,39.85248],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.3,"headingDeg":128.7,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21088,39.85774],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.8,"headingDeg":275.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21561,39.86431],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":289.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 990000, "tracks": [
@@ -533,7 +533,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25439,39.83101],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":282.3,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24502,39.88318],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":241.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.3339,39.89798],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22056,39.85222],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.8,"headingDeg":124.2,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21138,39.85774],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.5,"headingDeg":270.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21556,39.86511],"altitudeFt":171,"onGround":false,"groundSpeedKt":11.6,"headingDeg":2.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1005000, "tracks": [
@@ -541,7 +541,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25609,39.83156],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":292.8,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24623,39.88282],"altitudeFt":154,"onGround":false,"groundSpeedKt":14.4,"headingDeg":248.8,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.33123,39.89723],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.22,39.85197],"altitudeFt":230,"onGround":false,"groundSpeedKt":7.1,"headingDeg":120.7,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21193,39.85771],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.1,"headingDeg":266.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21513,39.86606],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":19.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1020000, "tracks": [
@@ -549,7 +549,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25763,39.83234],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":303.3,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24691,39.8838],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32856,39.89649],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21942,39.85173],"altitudeFt":230,"onGround":false,"groundSpeedKt":7.3,"headingDeg":117.8,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21251,39.85765],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.5,"headingDeg":262.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21455,39.86679],"altitudeFt":171,"onGround":false,"groundSpeedKt":12.3,"headingDeg":30.9,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1035000, "tracks": [
@@ -557,7 +557,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25896,39.83332],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":313.8,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.2476,39.88478],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32588,39.89574],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21882,39.85151],"altitudeFt":230,"onGround":false,"groundSpeedKt":7.4,"headingDeg":115.4,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21311,39.85757],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.7,"headingDeg":259.3,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21332,39.86645],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1050000, "tracks": [
@@ -565,7 +565,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26004,39.83447],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":324.3,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24828,39.88576],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32321,39.895],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21822,39.85131],"altitudeFt":230,"onGround":false,"groundSpeedKt":7.2,"headingDeg":113.4,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21371,39.85745],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.9,"headingDeg":256.1,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21209,39.86612],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1065000, "tracks": [
@@ -573,7 +573,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26083,39.83576],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":334.8,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24896,39.88674],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.32053,39.89426],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21763,39.85114],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.9,"headingDeg":111.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21429,39.85731],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.8,"headingDeg":252.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21085,39.86578],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1080000, "tracks": [
@@ -581,7 +581,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.2613,39.83713],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":345.3,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.24964,39.88772],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31786,39.89351],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":109.9,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21709,39.85098],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21485,39.85715],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.6,"headingDeg":248.8,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20962,39.86545],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1095000, "tracks": [
@@ -589,7 +589,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26144,39.83854],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":355.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25033,39.8887],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31519,39.89277],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21659,39.85086],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.8,"headingDeg":108.4,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21536,39.85696],"altitudeFt":230,"onGround":false,"groundSpeedKt":6.3,"headingDeg":244.3,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20839,39.86511],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1110000, "tracks": [
@@ -597,7 +597,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.26124,39.83995],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":6.2,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25101,39.88968],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.31251,39.89202],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21615,39.85076],"altitudeFt":230,"onGround":false,"groundSpeedKt":5,"headingDeg":106.7,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21581,39.85675],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.8,"headingDeg":238.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20715,39.86478],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1125000, "tracks": [
@@ -605,7 +605,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.2607,39.84131],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":16.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25169,39.89066],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30984,39.89128],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21579,39.85068],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.1,"headingDeg":104.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21618,39.85652],"altitudeFt":230,"onGround":false,"groundSpeedKt":5.3,"headingDeg":231.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20592,39.86444],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1140000, "tracks": [
@@ -613,7 +613,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25986,39.84257],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":27.2,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25237,39.89164],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30717,39.89053],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21552,39.85064],"altitudeFt":230,"onGround":false,"groundSpeedKt":3.1,"headingDeg":101.6,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21647,39.85628],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.8,"headingDeg":222.5,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20469,39.86411],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1155000, "tracks": [
@@ -621,7 +621,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25873,39.84369],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":37.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25306,39.89262],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30449,39.88979],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21533,39.85063],"altitudeFt":230,"onGround":false,"groundSpeedKt":2,"headingDeg":95.7,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21667,39.85602],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.3,"headingDeg":210.8,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20345,39.86377],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1170000, "tracks": [
@@ -629,7 +629,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25735,39.84464],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":48.2,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25374,39.8936],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.30182,39.88904],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21525,39.85064],"altitudeFt":230,"onGround":false,"groundSpeedKt":1,"headingDeg":76.7,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21678,39.85575],"altitudeFt":230,"onGround":false,"groundSpeedKt":4.1,"headingDeg":196.4,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20222,39.86344],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]},
 {"tMs": 1185000, "tracks": [
@@ -637,7 +637,7 @@
 {"id":"inject-02","source":"inject","behavior":"orbit","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-A341","uaType":"hybrid-lift","position":[-75.25578,39.84538],"altitudeFt":186,"onGround":false,"groundSpeedKt":20.4,"headingDeg":58.7,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-03","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.25442,39.89458],"altitudeFt":154,"onGround":false,"groundSpeedKt":16,"headingDeg":331.9,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-04","source":"inject","behavior":"approach-retreat","remoteId":"broadcasting","identity":"cooperative","callsign":"UAS-CD84","uaType":"multirotor","position":[-75.29915,39.8883],"altitudeFt":222,"onGround":false,"groundSpeedKt":31.4,"headingDeg":110,"verticalRateFpm":0,"lastSeenSec":0},
-{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21526,39.85069],"altitudeFt":230,"onGround":false,"groundSpeedKt":0.7,"headingDeg":345.3,"verticalRateFpm":0,"lastSeenSec":0},
+{"id":"inject-05","source":"inject","behavior":"loiter","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.21678,39.85547],"altitudeFt":230,"onGround":false,"groundSpeedKt":4,"headingDeg":180.6,"verticalRateFpm":0,"lastSeenSec":0},
 {"id":"inject-06","source":"inject","behavior":"lawnmower","remoteId":"silent","identity":"non-cooperative","callsign":null,"uaType":null,"position":[-75.20099,39.8631],"altitudeFt":171,"onGround":false,"groundSpeedKt":14.5,"headingDeg":109.5,"verticalRateFpm":0,"lastSeenSec":0}
 ]}
 ]}

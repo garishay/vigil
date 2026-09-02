@@ -80,7 +80,9 @@ export const SCENARIO: ScenarioConfig = {
     { id: 'lp-nne', name: 'North-northeast launch point', bearingDeg: 20, rangeKm: 8.3 },
     { id: 'lp-ene', name: 'East-northeast launch point', bearingDeg: 65, rangeKm: 6.5 },
     { id: 'lp-ese', name: 'East-southeast launch point', bearingDeg: 110, rangeKm: 9.6 },
-    { id: 'lp-sse', name: 'South-southeast launch point', bearingDeg: 155, rangeKm: 7.2 },
+    // 10.0 km puts the §13 hero on its arc (ruled on #5, note 3): it opens caution, crosses to
+    // warning on approach, and climbs to the top of the queue as it begins to loiter.
+    { id: 'lp-sse', name: 'South-southeast launch point', bearingDeg: 155, rangeKm: 10.0 },
     { id: 'lp-ssw', name: 'South-southwest launch point', bearingDeg: 200, rangeKm: 10.2 },
     { id: 'lp-wsw', name: 'West-southwest launch point', bearingDeg: 245, rangeKm: 7.8 },
     { id: 'lp-wnw', name: 'West-northwest launch point', bearingDeg: 290, rangeKm: 8.8 },

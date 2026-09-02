@@ -191,7 +191,7 @@ describe('ReviewDrawer', () => {
     expect(
       within(breakdown).getByText(`Score ${Math.round(ranked.score.composite)}`),
     ).toBeInTheDocument()
-    expect(within(breakdown).getAllByRole('listitem')).toHaveLength(5)
+    expect(within(breakdown).getAllByRole('listitem')).toHaveLength(6)
     expect(document.querySelector('.drawer__slot')).toBeNull()
     expect(screen.getByText(/1 known position/)).toBeInTheDocument()
   })

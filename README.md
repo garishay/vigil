@@ -37,7 +37,7 @@ flowchart LR
     subgraph real["Real layer — public ADS-B, cooperative by construction"]
       direction LR
       load["data/capture.ts<br/>loadCapture: fetch once at startup, AO guard<br/>frameTracks"] --> norm["lib/adsb.ts<br/>toTrack: record → AdsbTrack<br/>identity is the literal 'cooperative'<br/>(normalizers run at capture time)"]
-      norm --> replay["lib/replay.ts<br/>indexCapture → pictureAt(t): bracket by the track's own samples,<br/>interpolate, hold, coast then drop · memoryAt: identity memory as a fold over the frame grid<br/>trailAt(t): the selected track's history, samples for an aircraft, grid instants for an inject"]
+      norm --> replay["lib/replay.ts<br/>indexCapture → pictureAt(t): bracket by the track's own samples,<br/>interpolate, hold, coast then drop · memoryAt: identity memory as a fold over the frame grid<br/>historyAt / historiesAt(t): every track's position history — samples for an aircraft, grid instants for an inject —<br/>the map's trail at one window, the pattern detectors' input at another"]
       replaycfg["config/replay.ts<br/>coast window · tick"] --> replay
     end
     subgraph syn["Synthetic layer — 100% generated"]
@@ -47,8 +47,9 @@ flowchart LR
     end
     ao["config/ao.ts<br/>AO: center · bbox · protected sites"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
-    scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours"]
-    score["lib/scoring.ts<br/>five factors · identity memory · ADS-B ceiling<br/>per-factor breakdown retained · input type strips the answer key"]
+    scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
+    patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
+    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · closing complete inside the ring<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
     life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings logged at sim time, statuses carried"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · timeline live"]
@@ -62,6 +63,9 @@ flowchart LR
     ao --> score
     model --> score
     scorecfg --> score
+    scorecfg --> patterns
+    patterns --> score
+    replay -- histories at t --> score
     frames -- kinematic box --> score
     score --> rank
     model --> airframe
@@ -76,7 +80,7 @@ flowchart LR
   norm -. normalize + rate-limit etiquette, at capture time .-> cap
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
-    app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples both layers at the clock's t<br/>opens a track's log when it first appears · sim clock ticking from the scenario start"]
+    app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples both layers and every history at the clock's t<br/>opens a track's log when it first appears · sim clock ticking from the scenario start"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count"]
