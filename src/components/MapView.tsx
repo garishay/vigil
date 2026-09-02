@@ -13,6 +13,7 @@ const SITES_SOURCE = 'protected-sites'
 const ADSB_SOURCE = 'adsb-tracks'
 const INJECT_SOURCE = 'inject-tracks'
 const SELECT_SOURCE = 'selected-track'
+const TRAIL_SOURCE = 'selected-trail'
 
 /** Zero or one point: the selected track's position, or an empty collection. */
 function selectionFeature(position: [number, number] | null) {
@@ -27,6 +28,23 @@ function selectionFeature(position: [number, number] | null) {
           },
         ]
       : [],
+  }
+}
+
+/** Zero or one line: the selected track's trail, oldest first, or an empty collection. */
+function trailFeature(trail: readonly [number, number][]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features:
+      trail.length >= 2
+        ? [
+            {
+              type: 'Feature' as const,
+              geometry: { type: 'LineString' as const, coordinates: trail.map((p) => [...p]) },
+              properties: {},
+            },
+          ]
+        : [],
   }
 }
 
@@ -94,6 +112,7 @@ export function MapView({
   injects = [],
   selectedId = null,
   selectionShown = true,
+  trail = [],
   onSelect,
 }: {
   ao: AreaOfOperations
@@ -106,6 +125,8 @@ export function MapView({
    * hiding the ring must not reset them, or a Home round trip re-flies the camera (#47).
    */
   selectionShown?: boolean
+  /** The selected track's history trail (06b), oldest first; drawn only with the ring. */
+  trail?: readonly [number, number][]
   onSelect?: (id: string) => void
 }) {
   const container = useRef<HTMLDivElement>(null)
@@ -183,6 +204,15 @@ export function MapView({
           'circle-stroke-color': ADSB_COLOR,
           'circle-stroke-opacity': 0.35,
         },
+      })
+      // The breadcrumb trail (06b) sits under the injects and the ring: where the selected
+      // track has been must never cover where it is.
+      map.addSource(TRAIL_SOURCE, { type: 'geojson', data: trailFeature([]) })
+      map.addLayer({
+        id: `${TRAIL_SOURCE}-line`,
+        type: 'line',
+        source: TRAIL_SOURCE,
+        paint: { 'line-color': RING_COLOR, 'line-width': 1.5, 'line-opacity': 0.55 },
       })
       // Added last, so injects draw above cooperative traffic rather than under it.
       map.addSource(INJECT_SOURCE, { type: 'geojson', data: injectFeatures([]) })
@@ -262,6 +292,12 @@ export function MapView({
     if (!map || !styleReady) return
     map.getSource<GeoJSONSource>(INJECT_SOURCE)?.setData(injectFeatures(injects))
   }, [injects, styleReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    map.getSource<GeoJSONSource>(TRAIL_SOURCE)?.setData(trailFeature(selectionShown ? trail : []))
+  }, [trail, selectionShown, styleReady])
 
   useEffect(() => {
     const map = mapRef.current

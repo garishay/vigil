@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { AO } from '../config/ao'
 import { CONTACTS } from '../config/contacts'
 import { DISPOSITIONS } from '../config/dispositions'
+import { simClock } from './display'
 import { handoffText } from './handoff'
-import { appendEvent, firstSeen, observedSnapshot } from './lifecycle'
+import { appendEvent, bandCrossing, firstSeen, observedSnapshot } from './lifecycle'
 import type { RankedTrack } from './ranking'
 import { scoreTrack } from './scoring'
 import type { AdsbTrack, InjectTrack } from './tracks'
@@ -36,6 +37,9 @@ const entry = (track: InjectTrack | AdsbTrack): RankedTrack => ({
 
 const PHL_TOWER = CONTACTS.find((contact) => contact.id === 'phl-tower')!
 
+/** The record's clock: the scenario's 02:30 start plus the event's `tSec` (06b). */
+const clock = (tSec: number) => simClock('02:30', tSec)
+
 const walkToEscalated = (ranked: RankedTrack) => {
   const observed = observedSnapshot(ranked)
   const base = { tSec: 0, observed }
@@ -51,11 +55,12 @@ const walkToEscalated = (ranked: RankedTrack) => {
 const text = (ranked: RankedTrack, log = walkToEscalated(ranked)) =>
   handoffText({
     entry: ranked,
-    siteName: 'PHL Airfield',
+    sites: AO.protectedSites,
     recipient: PHL_TOWER,
     log,
     contacts: CONTACTS,
     dispositions: DISPOSITIONS,
+    clock,
   })
 
 describe('handoffText', () => {
@@ -66,7 +71,7 @@ describe('handoffText', () => {
         'Demonstration only — not for operational use',
         'To: PHL Tower',
         'Track TRK-05 · Non-cooperative · synthetic inject',
-        'Range 7.2 km to PHL Airfield',
+        'Range 7.2 km to PHL Airfield at 02:30:00',
         '  63 ft · 19.1 kt · hdg 346',
         // The factor lines sum to the total on the Score line within rounding (25 + 9 + 12 + 10
         // + 10 = 66 ≈ 65.6); the total reproduces the score — 65.6 / 80 = 82 % — which a sum of
@@ -76,9 +81,9 @@ describe('handoffText', () => {
         '  Proximity 12/15 · Flight profile 10/10',
         '  Off-hours 10/10',
         'Timeline:',
-        '  12:04:31Z  New — first seen',
-        '  12:06:02Z  Assessing — claimed',
-        '  12:07:45Z  Escalated — to PHL Tower',
+        '  02:30:00  New — first seen',
+        '  02:30:00  Assessing — claimed',
+        '  02:30:00  Escalated — to PHL Tower',
       ].join('\n'),
     )
   })
@@ -110,11 +115,12 @@ describe('handoffText', () => {
           })
           const summary = handoffText({
             entry: { ...ranked, rangeM: 19700.4 },
-            siteName: site.name,
+            sites: [{ id: 'phl-airfield', name: site.name }],
             recipient: contact,
             log,
             contacts: CONTACTS,
             dispositions: DISPOSITIONS,
+            clock,
           })
           for (const line of summary.split('\n')) expect(line.length).toBeLessThanOrEqual(MAX_LINE)
         }
@@ -130,7 +136,7 @@ describe('handoffText', () => {
       observed: observedSnapshot(ranked),
       disposition: 'handled-by-target',
     })
-    expect(text(ranked, log)).toContain('  12:09:12Z  Resolved — Handled by escalation target')
+    expect(text(ranked, log)).toContain('  02:30:00  Resolved — Handled by escalation target')
   })
 
   it('dashes an absent kinematic, never a zero (#35)', () => {
@@ -197,5 +203,79 @@ describe('handoffText', () => {
 
   it('carries no ground truth — the answer key stays out of the record (§8.3b)', () => {
     expect(text(entry(INJECT))).not.toMatch(/loiter|silent|intermittent|broadcasting|inject-\d/)
+  })
+})
+
+describe('handoffText — the evidence block is the escalation’s (06b)', () => {
+  it('freezes Range, kinematics, and Score at the escalate snapshot while the timeline stays live', () => {
+    const then = entry(INJECT)
+    const log = walkToEscalated(then)
+    // The picture moves on: nearer, lower, faster, a different heading, a different score.
+    const now: RankedTrack = {
+      ...entry({ ...INJECT, altitudeFt: 40, groundSpeedKt: 28.4, headingDeg: 12 }),
+      rangeM: 1900,
+    }
+    const frozen = text(then, log)
+    const later = text(now, log)
+    expect(later).toBe(frozen)
+    expect(later).toContain('Range 7.2 km to PHL Airfield at 02:30:00\n  63 ft · 19.1 kt · hdg 346')
+    const resolved = appendEvent(log, 'resolve', {
+      at: '2026-09-01T12:09:12.000Z',
+      tSec: 187,
+      observed: observedSnapshot(now),
+      disposition: 'benign',
+    })
+    expect(text(now, resolved)).toContain(
+      '  02:30:00  Escalated — to PHL Tower\n  02:33:07  Resolved — Benign',
+    )
+    expect(text(now, resolved).split('Timeline:')[0]).toBe(frozen.split('Timeline:')[0])
+  })
+
+  it('captions the frozen range with the site it was measured to, not the nearest now (#75 review)', () => {
+    const then = entry(INJECT)
+    const log = walkToEscalated(then)
+    const drifted: RankedTrack = { ...then, siteId: 'decoy', rangeM: 900 }
+    const summary = handoffText({
+      entry: drifted,
+      sites: [
+        { id: 'decoy', name: 'Decoy Stadium' },
+        { id: 'phl-airfield', name: 'PHL Airfield' },
+      ],
+      recipient: PHL_TOWER,
+      log,
+      contacts: CONTACTS,
+      dispositions: DISPOSITIONS,
+      clock,
+    })
+    expect(summary).toContain('Range 7.2 km to PHL Airfield at 02:30:00')
+    expect(summary).not.toContain('Decoy')
+  })
+
+  it('carries a band crossing in the timeline, marked in sim time', () => {
+    const then = entry(INJECT)
+    const crossed = bandCrossing(
+      firstSeen(
+        then.track.id,
+        { ...observedSnapshot(then), score: 20, uncapped: 20 },
+        '2026-09-01T12:04:31.000Z',
+      ),
+      then,
+      '2026-09-01T12:05:01.000Z',
+      30,
+    )!
+    let log = appendEvent(crossed, 'assess', {
+      at: '2026-09-01T12:06:02.000Z',
+      tSec: 40,
+      observed: observedSnapshot(then),
+    })
+    log = appendEvent(log, 'escalate', {
+      at: '2026-09-01T12:07:45.000Z',
+      tSec: 45,
+      observed: observedSnapshot(then),
+      recipient: 'phl-tower',
+    })
+    expect(text(then, log)).toContain(
+      '  02:30:00  New — first seen\n  02:30:30  Warning — up from calm\n  02:30:40  Assessing — claimed',
+    )
   })
 })

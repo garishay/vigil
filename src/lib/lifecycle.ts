@@ -1,23 +1,31 @@
 /**
  * The §7.1 incident lifecycle, pure: the transition table, the guard, and the per-track event
- * log. No React, no DOM, no clock — `at` and `tSec` are inputs, which is the seam PR 06 uses to
- * swap wall time for playback time. Client state only; nothing persists or transmits (§2).
+ * log. No React, no DOM, no clock — `at` and `tSec` are inputs, which is the seam the replay
+ * clock drives. Client state only; nothing persists or transmits (§2).
  *
  * The log doubles as the Phase 3b training signal (§8.3b): `observed` is what the operator saw
  * when they acted — observed or derived fields only, never `behavior` or `remoteId`, which are
  * the answer key. A scorer or learner fed the answer key detects nothing; see the rule on #4.
  * Status is derived from the log's last entry rather than stored beside it, so the badge on
  * screen can never disagree with the record.
+ *
+ * Two kinds of entry share the log (06b, ruled on #6): the operator's actions, which move the
+ * status, and observations — first sight, and a **band crossing** — which carry the status
+ * unchanged. A crossing is what a recipient wants to know ("first warning 02:33:00"); it is
+ * logged in either direction, on a terminal track too, and it is never a lifecycle change.
  */
 
 import type { ContactId } from '../config/contacts.ts'
 import type { DispositionId } from '../config/dispositions.ts'
-import type { FactorId } from '../config/scoring.ts'
+import { SCORING, type Band, type FactorId, type ScoringConfig } from '../config/scoring.ts'
 import type { RankedTrack } from './ranking.ts'
+import { bandOf } from './scoring.ts'
 import type { Identity } from './tracks.ts'
 
 export type Status = 'new' | 'assessing' | 'escalated' | 'resolved' | 'dismissed'
 export type LifecycleAction = 'assess' | 'escalate' | 'dismiss' | 'resolve'
+/** What the picture did, as opposed to what the operator did. */
+export type ObservationEvent = 'first-seen' | 'band'
 
 /** Statuses in lifecycle order — the state filter lists them, the labels render them. */
 export const STATUSES = [
@@ -74,8 +82,15 @@ export function transition(status: Status, action: LifecycleAction): Status {
 export interface ObservedSnapshot {
   identity: Identity
   rangeM: number
+  /**
+   * The site `rangeM` was measured to — the nearest at the time — so a frozen range is never
+   * captioned with whichever site is nearest later (#75 review). An id, resolved at display.
+   */
+  siteId: string
   altitudeFt: number | null
   groundSpeedKt: number | null
+  /** Degrees true, or null when unreported — the handoff prints it, so the record keeps it (06b). */
+  headingDeg: number | null
   /** The composite the operator saw, 0–100 after the ceiling. */
   score: number
   /**
@@ -102,22 +117,31 @@ export interface TrackEvent {
   seq: number
   /** Wall clock, ISO — supplied by the caller, never read from a clock here. */
   at: string
-  /** Scenario time in seconds; 0 until PR 06 runs the replay clock. */
+  /** Scenario time in seconds, from the replay clock. */
   tSec: number
-  action: 'first-seen' | LifecycleAction
+  action: ObservationEvent | LifecycleAction
   from: Status | null
   to: Status
   recipient?: ContactId
   disposition?: DispositionId
+  /** The crossing, on a `band` entry only: which band the score left and which it entered. */
+  band?: { from: Band; to: Band }
   observed: ObservedSnapshot
 }
 
 /** The observed-or-derived fields of a ranked track, snapshotted for the log. */
-export const observedSnapshot = ({ track, rangeM, score }: RankedTrack): ObservedSnapshot => ({
+export const observedSnapshot = ({
+  track,
+  rangeM,
+  siteId,
+  score,
+}: RankedTrack): ObservedSnapshot => ({
   identity: track.identity,
   rangeM,
+  siteId,
   altitudeFt: track.altitudeFt,
   groundSpeedKt: track.groundSpeedKt,
+  headingDeg: track.headingDeg,
   score: score.composite,
   uncapped: score.uncapped,
   factors: Object.fromEntries(score.factors.map((factor) => [factor.id, factor.value])) as Record<
@@ -143,6 +167,56 @@ export const firstSeen = (
 /** A track's status is its last event's `to` — the log is the single source of truth. */
 export const statusOf = (log: readonly TrackEvent[] | undefined): Status =>
   log && log.length > 0 ? log[log.length - 1].to : 'new'
+
+/**
+ * The band the record last saw for a track: its last entry's score, banded the way the chip
+ * bands it. Read off the score rather than stored, so a crossing is detected against what the
+ * record says and nothing else.
+ */
+export const lastBand = (
+  log: readonly TrackEvent[],
+  bands: ScoringConfig['bands'] = SCORING.bands,
+) => bandOf(Math.round(log[log.length - 1].observed.score), bands)
+
+/**
+ * The log with a band crossing appended, or null when the band the record last saw is the band
+ * the entry is in now. Statuses ride unchanged — a crossing is never a lifecycle change — so
+ * `statusOf` reads through it. Compared against the last entry rather than the previous tick, so
+ * a seek logs at most one crossing rather than every intermediate band.
+ *
+ * **Forward only.** A crossing is derived from the picture, and a rewound picture is the past
+ * the record already holds: a band read at a sim time earlier than the last entry's is not
+ * logged, so re-watching never writes a contradictory line beneath a later one (#75 review).
+ * The operator's own actions are stamped when they are taken, whatever the clock reads.
+ */
+export function bandCrossing(
+  log: readonly TrackEvent[],
+  entry: RankedTrack,
+  at: string,
+  tSec: number,
+  bands: ScoringConfig['bands'] = SCORING.bands,
+): TrackEvent[] | null {
+  if (log.length === 0) throw new Error('bandCrossing needs a log opened by firstSeen')
+  if (tSec < log[log.length - 1].tSec) return null
+  const from = lastBand(log, bands)
+  const to = entry.score.band
+  if (from === to) return null
+  const status = statusOf(log)
+  return [
+    ...log,
+    {
+      trackId: log[0].trackId,
+      seq: log.length + 1,
+      at,
+      tSec,
+      action: 'band',
+      from: status,
+      to: status,
+      band: { from, to },
+      observed: observedSnapshot(entry),
+    },
+  ]
+}
 
 export interface ActionInput {
   at: string

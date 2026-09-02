@@ -14,6 +14,8 @@ export interface ReplayConfig {
   coastS: number
   /** Wall milliseconds between replay ticks; each tick advances the sim clock one second. */
   tickMs: number
+  /** How far back the selected track's history trail reaches, seconds (06b). */
+  trailS: number
 }
 
-export const REPLAY: ReplayConfig = { coastS: 90, tickMs: 1000 }
+export const REPLAY: ReplayConfig = { coastS: 90, tickMs: 1000, trailS: 120 }

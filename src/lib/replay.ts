@@ -24,8 +24,9 @@ import { REPLAY, type ReplayConfig } from '../config/replay.ts'
 import { toTrack } from './adsb.ts'
 import type { AdsbCapture } from './adsb.ts'
 import { round } from './geo.ts'
+import { injectTracksAt, type InjectPlan } from './injects.ts'
 import { rememberIdentities, type IdentityMemory, type ObservedTrack } from './scoring.ts'
-import type { AdsbTrack } from './tracks.ts'
+import type { AdsbTrack, Track } from './tracks.ts'
 
 interface Sample {
   tSec: number
@@ -133,4 +134,38 @@ export function memoryAt(
   let memory: IdentityMemory = {}
   for (let t = 0; t <= tSec; t += intervalS) memory = rememberIdentities(memory, sample(t), t)
   return memory
+}
+
+/**
+ * The selected track's history trail (06b): where it has been over the last `trailS` seconds,
+ * oldest first, ending on where it is now. Pure in `tSec`, like the picture — no fold state, so
+ * a seek gets the same trail play would. Recorded samples only for an aircraft — real
+ * observations, never the interpolations between them — and the frame-grid instants for an
+ * inject, which is what a pattern feature (PR 05) will read.
+ */
+export function trailAt(
+  index: ReplayIndex,
+  plan: InjectPlan | null,
+  track: Track,
+  tSec: number,
+  config: ReplayConfig = REPLAY,
+): [number, number][] {
+  const since = tSec - config.trailS
+  const past: [number, number][] = []
+  if (track.source === 'adsb') {
+    for (const sample of index.samples.get(track.id) ?? []) {
+      if (sample.tSec >= since && sample.tSec < tSec) past.push(sample.track.position)
+    }
+  } else if (plan) {
+    const first = Math.max(0, Math.ceil(since / plan.intervalS) * plan.intervalS)
+    for (let t = first; t < tSec; t += plan.intervalS) {
+      const position = injectTracksAt(plan, t).find((inject) => inject.id === track.id)?.position
+      if (position) past.push(position)
+    }
+  }
+  // A held track sits on its last sample; that is one known position, not two (#75 review).
+  const last = past[past.length - 1]
+  const [lon, lat] = track.position
+  if (last && last[0] === lon && last[1] === lat) return past
+  return [...past, track.position]
 }

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   STATUSES,
   appendEvent,
+  bandCrossing,
   canAct,
   firstSeen,
   isTerminal,
+  lastBand,
   observedSnapshot,
   statusOf,
   transition,
@@ -23,8 +25,10 @@ import { SCORING, type FactorId } from '../config/scoring'
 const OBSERVED: ObservedSnapshot = {
   identity: 'non-cooperative',
   rangeM: 7200.2,
+  siteId: 'phl-airfield',
   altitudeFt: 63,
   groundSpeedKt: 19.1,
+  headingDeg: 345.6,
   score: 82,
   uncapped: 82,
   factors: { cooperativity: 100, closing: 44.4, proximity: 78, kinematic: 100, time: 100 },
@@ -173,8 +177,10 @@ describe('learner-ready shape (§8.3b)', () => {
     expect(observedSnapshot(entry)).toEqual({
       identity: 'non-cooperative',
       rangeM: 7200.2,
+      siteId: 'phl-airfield',
       altitudeFt: 63,
       groundSpeedKt: null,
+      headingDeg: track.headingDeg,
       score: score.composite,
       uncapped: score.uncapped,
       factors: {
@@ -245,9 +251,11 @@ describe('learner-ready shape (§8.3b)', () => {
         'altitudeFt',
         'factors',
         'groundSpeedKt',
+        'headingDeg',
         'identity',
         'rangeM',
         'score',
+        'siteId',
         'uncapped',
         'weights',
       ])
@@ -265,5 +273,155 @@ describe('learner-ready shape (§8.3b)', () => {
     const escalated = log[2] as TrackEvent
     expect(escalated.recipient).toBe('airport-police-cuas')
     expect(JSON.stringify(escalated)).not.toContain('Airport Police')
+  })
+})
+
+describe('band crossings (06b)', () => {
+  const ranked = (score: number, uncapped = score): RankedTrack => ({
+    track: {
+      id: 'inject-05',
+      source: 'inject',
+      behavior: 'loiter',
+      remoteId: 'silent',
+      uaType: null,
+      identity: 'non-cooperative',
+      callsign: null,
+      position: [-75.20547, 39.81341],
+      altitudeFt: 63,
+      onGround: false,
+      groundSpeedKt: 19.1,
+      headingDeg: 345.6,
+      verticalRateFpm: 85,
+      lastSeenSec: 0,
+    },
+    rank: 1,
+    rangeM: 7200.2,
+    siteId: 'phl-airfield',
+    score: {
+      composite: score,
+      weighted: 0,
+      total: 0,
+      totalWeight: 80,
+      uncapped,
+      capped: score < uncapped,
+      band: score >= 70 ? 'warning' : score >= 40 ? 'caution' : 'calm',
+      factors: [],
+      rangeM: 7200.2,
+      siteId: 'phl-airfield',
+    },
+  })
+  const openedAt = (score: number) =>
+    firstSeen('inject-05', { ...OBSERVED, score, uncapped: score }, '2026-09-01T12:04:31.000Z')
+
+  it('logs a crossing up at sim time, statuses carried unchanged, and reads the new band next', () => {
+    const log = bandCrossing(openedAt(38), ranked(72), '2026-09-01T12:06:02.000Z', 187)
+    expect(log).not.toBeNull()
+    expect(log![1]).toMatchObject({
+      seq: 2,
+      at: '2026-09-01T12:06:02.000Z',
+      tSec: 187,
+      action: 'band',
+      from: 'new',
+      to: 'new',
+      band: { from: 'calm', to: 'warning' },
+    })
+    expect(log![1].observed.score).toBe(72)
+    expect(statusOf(log!)).toBe('new')
+    expect(lastBand(log!)).toBe('warning')
+    // Settled: the same band again is no crossing.
+    expect(bandCrossing(log!, ranked(75), '2026-09-01T12:06:03.000Z', 188)).toBeNull()
+  })
+
+  it('logs a crossing down too, and none when the band the record last saw is the band now', () => {
+    expect(bandCrossing(openedAt(82), ranked(80), '2026-09-01T12:06:02.000Z', 5)).toBeNull()
+    const down = bandCrossing(openedAt(82), ranked(55), '2026-09-01T12:06:02.000Z', 5)
+    expect(down![1].band).toEqual({ from: 'warning', to: 'caution' })
+  })
+
+  it('compares against the last entry, so a seek logs one crossing rather than every band between', () => {
+    // Calm → warning in one step: one entry, calm to warning, not two.
+    const log = bandCrossing(openedAt(10), ranked(90), '2026-09-01T12:06:02.000Z', 900)
+    expect(log).toHaveLength(2)
+    expect(log![1].band).toEqual({ from: 'calm', to: 'warning' })
+  })
+
+  it('logs on a terminal track as well — evidence for a re-surface (#5), never a lifecycle change', () => {
+    const dismissed = appendEvent(openedAt(38), 'dismiss', {
+      at: '2026-09-01T12:05:00.000Z',
+      tSec: 30,
+      observed: { ...OBSERVED, score: 38, uncapped: 38 },
+    })
+    const log = bandCrossing(dismissed, ranked(72), '2026-09-01T12:06:02.000Z', 187)
+    expect(log![2]).toMatchObject({ action: 'band', from: 'dismissed', to: 'dismissed' })
+    expect(statusOf(log!)).toBe('dismissed')
+    expect(isTerminal(statusOf(log!))).toBe(true)
+  })
+
+  it('bands the record the way the chip bands the score — on the rounded composite', () => {
+    // 69.6 prints as 70 and reads warning on the chip; the record must agree (#63).
+    expect(lastBand(openedAt(69.6))).toBe('warning')
+    expect(lastBand(openedAt(39.4))).toBe('calm')
+  })
+
+  it('carries the heading the handoff prints (06b)', () => {
+    expect(observedSnapshot(ranked(50)).headingDeg).toBe(345.6)
+    const unheaded = { ...ranked(50), track: { ...ranked(50).track, headingDeg: null } }
+    expect(observedSnapshot(unheaded).headingDeg).toBeNull()
+  })
+})
+
+describe('band crossings are forward only (#75 review)', () => {
+  const at = (score: number, tSec: number): RankedTrack => ({
+    track: {
+      id: 'inject-05',
+      source: 'inject',
+      behavior: 'loiter',
+      remoteId: 'silent',
+      uaType: null,
+      identity: 'non-cooperative',
+      callsign: null,
+      position: [-75.20547, 39.81341],
+      altitudeFt: 63,
+      onGround: false,
+      groundSpeedKt: 19.1,
+      headingDeg: 345.6,
+      verticalRateFpm: 85,
+      lastSeenSec: tSec,
+    },
+    rank: 1,
+    rangeM: 7200.2,
+    siteId: 'phl-airfield',
+    score: {
+      composite: score,
+      weighted: 0,
+      total: 0,
+      totalWeight: 80,
+      uncapped: score,
+      capped: false,
+      band: score >= 70 ? 'warning' : score >= 40 ? 'caution' : 'calm',
+      factors: [],
+      rangeM: 7200.2,
+      siteId: 'phl-airfield',
+    },
+  })
+
+  it('refuses a band read at a sim time earlier than the last entry — a rewind is not a crossing', () => {
+    let log = firstSeen(
+      'inject-05',
+      { ...OBSERVED, score: 20, uncapped: 20 },
+      '2026-09-01T12:04:31.000Z',
+    )
+    log = bandCrossing(log, at(90, 1030), '2026-09-01T12:21:41.000Z', 1030)!
+    expect(log[1].band).toEqual({ from: 'calm', to: 'warning' })
+    // Play again from the start: calm at 0 is the past the record already holds.
+    expect(bandCrossing(log, at(20, 0), '2026-09-01T12:22:00.000Z', 0)).toBeNull()
+    expect(bandCrossing(log, at(55, 600), '2026-09-01T12:32:00.000Z', 600)).toBeNull()
+    // Back past the last entry, still warning: nothing; then a real later change is logged.
+    expect(bandCrossing(log, at(90, 1100), '2026-09-01T12:40:00.000Z', 1100)).toBeNull()
+    const later = bandCrossing(log, at(55, 1150), '2026-09-01T12:41:00.000Z', 1150)!
+    expect(later[2]).toMatchObject({ tSec: 1150, band: { from: 'warning', to: 'caution' } })
+    // The record never runs backwards.
+    for (let i = 1; i < later.length; i++)
+      expect(later[i].tSec).toBeGreaterThanOrEqual(later[i - 1].tSec)
   })
 })

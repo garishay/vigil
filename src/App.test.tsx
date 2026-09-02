@@ -14,12 +14,14 @@ vi.mock('./components/MapView', () => ({
     injects,
     selectedId,
     selectionShown = true,
+    trail = [],
     onSelect,
   }: {
     tracks?: { id: string }[]
     injects?: { id: string }[]
     selectedId?: string | null
     selectionShown?: boolean
+    trail?: unknown[]
     onSelect?: (id: string) => void
   }) => (
     <div
@@ -28,6 +30,7 @@ vi.mock('./components/MapView', () => ({
       data-injects={injects?.length ?? 0}
       data-selected={selectedId ?? ''}
       data-selection-shown={String(selectionShown)}
+      data-trail={trail.length}
     >
       {/* Stands in for a dot click: selects the first inject, like the real map would. */}
       <button
@@ -362,7 +365,7 @@ describe('App shell', () => {
     // Every track opened its log as New, with the injected clock in the first-seen entry.
     expect(within(status()).getByText('New')).toBeInTheDocument()
     expect(within(drawer()).getByText('New — first seen')).toBeInTheDocument()
-    expect(within(drawer()).getByText('12:04:31Z')).toBeInTheDocument()
+    expect(within(drawer()).getByText('02:30:00')).toBeInTheDocument()
 
     fireEvent.click(within(drawer()).getByRole('button', { name: 'Assess' }))
     expect(within(status()).getByText('Assessing')).toBeInTheDocument()
@@ -383,7 +386,7 @@ describe('App shell', () => {
       expect(within(drawer()).getByRole('button', { name })).toBeDisabled()
     // The record kept every step, oldest first.
     const lines = within(within(drawer()).getByLabelText('Event log')).getAllByRole('listitem')
-    expect(lines.map((line) => line.textContent?.slice(9))).toEqual([
+    expect(lines.map((line) => line.textContent?.slice(8))).toEqual([
       'New — first seen',
       'Assessing — claimed',
       'Escalated — to PHL Tower',
@@ -391,17 +394,23 @@ describe('App shell', () => {
     ])
   })
 
-  it('stamps first sight once, not per render (03b review fix)', () => {
+  it('stamps first sight once, not per render or per tick (03b review fix, 06a)', () => {
     // The default `now` prop is a fresh function identity each render, so first-seen must not
-    // ride a memo keyed on it: even a *replaced* clock may not restamp the opening entry.
-    const { rerender } = render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
+    // ride a memo keyed on it — and the replay clock must not restamp it either: a track first
+    // seen at 02:30:00 keeps that mark after the clock has moved.
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    const { rerender } = render(
+      <App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />,
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
-    rerender(<App schedule={never} now={() => '2026-09-01T13:00:00.000Z'} />)
+    replay.tick(10)
+    rerender(<App schedule={replay.schedule} now={() => '2026-09-01T13:00:00.000Z'} />)
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
-    const drawer = screen.getByLabelText(/^Track review: /)
-    expect(within(drawer).getByText('12:04:31Z')).toBeInTheDocument()
-    expect(within(drawer).queryByText('13:00:00Z')).not.toBeInTheDocument()
+    const log = within(screen.getByLabelText('Event log'))
+    expect(log.getByText('02:30:00')).toBeInTheDocument()
+    expect(log.queryByText('02:30:10')).not.toBeInTheDocument()
   })
 
   it('filters by state with global ranks kept, composing with the layer filter (03b)', () => {
@@ -548,7 +557,7 @@ describe('App shell', () => {
       dismiss.click()
     })
     const lines = within(within(drawer).getByLabelText('Event log')).getAllByRole('listitem')
-    expect(lines.map((line) => line.textContent?.slice(9))).toEqual([
+    expect(lines.map((line) => line.textContent?.slice(8))).toEqual([
       'New — first seen',
       'Assessing — claimed',
       'Dismissed',
@@ -731,9 +740,10 @@ describe('App replay clock (06a)', () => {
     const row = rows().find((r) => within(r).queryByText('cccccc'))
     expect(row).toBeDefined()
     fireEvent.click(within(row as HTMLElement).getByRole('button'))
+    // The record reads in sim time (06b): opened at the tick it appeared, not at the start.
     const log = within(screen.getByLabelText('Event log'))
-    expect(log.getByText('12:05:01Z')).toBeInTheDocument()
-    expect(log.queryByText('12:04:31Z')).not.toBeInTheDocument()
+    expect(log.getByText('02:30:30')).toBeInTheDocument()
+    expect(log.queryByText('02:30:00')).not.toBeInTheDocument()
   })
 
   it('drops a coasted track from the Queue and closes its drawer, keeping its log', () => {
@@ -786,5 +796,144 @@ describe('App replay clock (06a)', () => {
     expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
     expect(screen.getByText('Select a track from the Queue.')).toBeInTheDocument()
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Review' }))
+  })
+})
+
+/** The full recording's length with one parked aircraft, so the injects run their whole script. */
+const LONG: CaptureState = {
+  status: 'ready',
+  capture: {
+    ao: 'phl',
+    source: 'adsb.lol v2',
+    capturedAt: '2026-08-29T23:09:25.373Z',
+    intervalMs: 15000,
+    bbox: AO.bbox,
+    frames: [...Array(80)].map((_, i) => ({
+      tMs: i * 15000,
+      records: [
+        { hex: '501267', position: [-75.2411, 39.9396] as [number, number], groundSpeedKt: 60 },
+      ],
+    })),
+  },
+}
+
+describe('App record under the clock (06b)', () => {
+  const rows = () =>
+    within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+  const logLines = () =>
+    within(screen.getByLabelText('Event log'))
+      .getAllByRole('listitem')
+      .map((line) => line.textContent ?? '')
+  const handoff = () => (screen.getByLabelText('Handoff text') as HTMLTextAreaElement).value
+
+  it('logs band crossings at sim time as the picture plays — in the log and the handoff timeline', () => {
+    useCapture.mockReturnValue(LONG)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
+    // Twenty minutes in one seek: at most one crossing per band change the record last saw.
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '1185' } })
+    let crossed: string[] | null = null
+    for (const row of rows()) {
+      fireEvent.click(within(row).getByRole('button'))
+      const lines = logLines()
+      if (lines.some((line) => / — (up|down) from /.test(line))) {
+        crossed = lines
+        break
+      }
+    }
+    expect(crossed).not.toBeNull()
+    const crossing = crossed!.find((line) => / — (up|down) from /.test(line))!
+    // Sim time, then the band entered and the one left, in the one table's words (#66).
+    expect(crossing).toMatch(
+      /^02:[3-5]\d:\d\d(Caution|Warning|Calm) — (up|down) from (calm|caution|warning)$/,
+    )
+    expect(crossed![0]).toMatch(/^02:30:00New — first seen$/)
+    // Never a lifecycle change: the track still reads New, and Assess is still the legal move.
+    expect(
+      within(screen.getByText('Status').parentElement as HTMLElement).getByText('New'),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm escalation' }))
+    // The handoff timeline carries the crossing, two spaces between the mark and the line.
+    expect(handoff()).toContain(`  ${crossing.slice(0, 8)}  ${crossing.slice(8)}`)
+    expect(handoff()).toContain('  02:49:45  Escalated — to PHL Tower')
+  })
+
+  it('writes nothing on a rewind — re-watching never runs the record backwards (#75 review)', () => {
+    useCapture.mockReturnValue(LONG)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '1185' } })
+    const crossedRow = rows().find((row) => {
+      fireEvent.click(within(row).getByRole('button'))
+      return logLines().some((line) => / — (up|down) from /.test(line))
+    })
+    expect(crossedRow).toBeDefined()
+    const before = logLines()
+    // Play again from the start, and seek about in the past: the record holds.
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    replay.tick(30)
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '600' } })
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '0' } })
+    expect(logLines()).toEqual(before)
+    const marks = before.map((line) => line.slice(0, 8))
+    expect(marks).toEqual([...marks].sort())
+  })
+
+  it('freezes the handoff evidence block at escalation while the timeline stays live', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    fireEvent.click(
+      within(rows().find((r) => within(r).queryByText('AAL423')) as HTMLElement).getByRole(
+        'button',
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm escalation' }))
+    const frozen = handoff().split('\n')
+    expect(frozen[4]).toMatch(/^Range \d+\.\d km to PHL Airfield at 02:30:00$/)
+    const rangeRow = () => screen.getByText('Range').parentElement as HTMLElement
+    expect(rangeRow()).toHaveTextContent(frozen[4].slice(6, frozen[4].indexOf(' to')))
+    // A minute on, the aircraft has flown: the drawer's Range row moved, the record's did not.
+    replay.tick(60)
+    const later = handoff().split('\n')
+    expect(later[4]).toBe(frozen[4])
+    expect(later[5]).toBe(frozen[5])
+    expect(later[6]).toBe(frozen[6])
+    expect(rangeRow()).not.toHaveTextContent(frozen[4].slice(6, frozen[4].indexOf(' to')))
+    // The timeline stays live: a later Resolve appends at its own sim time.
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Benign' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm resolution' }))
+    expect(handoff()).toContain(
+      '  02:30:00  Escalated — to PHL Tower\n  02:31:00  Resolved — Benign',
+    )
+  })
+
+  it('draws the selected track’s trail and counts it in the drawer', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    replay.tick(67)
+    fireEvent.click(screen.getByTestId('map-select'))
+    // An inject at 67 s: the frame-grid instants 0, 15, 30, 45, 60 and now.
+    expect(screen.getByText('History: 6 known positions over the last 2 min')).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-trail', '6')
+    // Home suppresses the ring, and the trail with it — presentation only (A2 on #3).
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-trail', '6')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selection-shown', 'false')
   })
 })

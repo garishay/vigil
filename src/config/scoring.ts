@@ -14,6 +14,16 @@ export type FactorId = 'cooperativity' | 'closing' | 'proximity' | 'kinematic' |
 
 export type Band = 'calm' | 'caution' | 'warning'
 
+/** The bands in ascending order — what "up" and "down" mean for a crossing (06b). */
+export const BANDS = ['calm', 'caution', 'warning'] as const satisfies readonly Band[]
+
+/** The band word as a line of the record prints it (06b) — one table, so a rename flows through. */
+export const BAND_LABEL: Record<Band, string> = {
+  calm: 'Calm',
+  caution: 'Caution',
+  warning: 'Warning',
+}
+
 export interface ScoringConfig {
   /** §6 default weights. The composite normalizes by their sum, so the scale is always 0–100. */
   weights: Record<FactorId, number>
