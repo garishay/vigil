@@ -25,10 +25,13 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
+      # Full history, for the same reason as claude-code-review.yml: a mention re-review is
+      # asked the history questions most often — "is this a regression of #29?" — and blame at
+      # depth 1 answers every one of them with this commit (#70).
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       # As in claude-code-review.yml, and for the same reason: a mention re-review that has to
       # install its own dependencies reports that it cannot, and reviews the diff by reading
