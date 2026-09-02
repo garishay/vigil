@@ -95,6 +95,7 @@ const renderDrawer = (
       onAction={vi.fn()}
       onClose={vi.fn()}
       clock={(tSec) => simClock('02:30', tSec)}
+      tSec={0}
       trail={{ count: 1, windowS: 120 }}
       {...props}
     />,
@@ -240,6 +241,7 @@ describe('ReviewDrawer', () => {
         onAction={vi.fn()}
         onClose={vi.fn()}
         clock={(tSec) => simClock('02:30', tSec)}
+        tSec={0}
         trail={{ count: 1, windowS: 120 }}
       />,
     )
@@ -320,6 +322,7 @@ describe('ReviewDrawer', () => {
         onAction={vi.fn()}
         onClose={vi.fn()}
         clock={(tSec) => simClock('02:30', tSec)}
+        tSec={0}
         trail={{ count: 1, windowS: 120 }}
       />,
     )
@@ -338,6 +341,7 @@ describe('ReviewDrawer', () => {
         onAction={vi.fn()}
         onClose={vi.fn()}
         clock={(tSec) => simClock('02:30', tSec)}
+        tSec={0}
         trail={{ count: 1, windowS: 120 }}
       />,
     )
@@ -412,6 +416,7 @@ describe('ReviewDrawer', () => {
           onAction={vi.fn()}
           onClose={vi.fn()}
           clock={(tSec) => simClock('02:30', tSec)}
+          tSec={0}
           trail={{ count: 1, windowS: 120 }}
         />
       </StrictMode>,
@@ -437,6 +442,7 @@ describe('ReviewDrawer', () => {
         onAction={vi.fn()}
         onClose={vi.fn()}
         clock={(tSec) => simClock('02:30', tSec)}
+        tSec={0}
         trail={{ count: 1, windowS: 120 }}
       />,
     )
@@ -455,6 +461,7 @@ describe('ReviewDrawer', () => {
       onClose: vi.fn(),
       lookupPhoto: noPhoto,
       clock: (tSec: number) => simClock('02:30', tSec),
+      tSec: 0,
       trail: { count: 1, windowS: 120 },
     }
     // Mount steals nothing: engines that don't focus clicked buttons (Safari) leave focus on
@@ -504,6 +511,7 @@ describe('ReviewDrawer', () => {
         onAction={vi.fn()}
         onClose={vi.fn()}
         clock={(tSec) => simClock('02:30', tSec)}
+        tSec={0}
         trail={{ count: 1, windowS: 120 }}
       />,
     )

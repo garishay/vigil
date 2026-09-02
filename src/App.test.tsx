@@ -937,3 +937,152 @@ describe('App record under the clock (06b)', () => {
     expect(screen.getByTestId('map')).toHaveAttribute('data-selection-shown', 'false')
   })
 })
+
+/**
+ * #77, ruled: while the clock is behind the record's frontier the workflow refuses. Not clamped
+ * to the frontier, not stamped at wall time — the action and the picture it acted on carry one
+ * sim time, and only the frontier has both.
+ */
+describe('App rewound actions (#77)', () => {
+  const rows = () =>
+    within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+  const logLines = () =>
+    within(screen.getByLabelText('Event log'))
+      .getAllByRole('listitem')
+      .map((line) => line.textContent ?? '')
+  const seek = (value: string) =>
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value } })
+  const action = (name: string) => screen.getByRole('button', { name })
+
+  /** Selects AAL423 and claims it at 02:31:00, which puts the record's frontier at 60 s. */
+  const claimedAtSixty = () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(action('Queue'))
+    fireEvent.click(action('ADS-B'))
+    fireEvent.click(
+      within(rows().find((r) => within(r).queryByText('AAL423')) as HTMLElement).getByRole(
+        'button',
+      ),
+    )
+    seek('60')
+    fireEvent.click(action('Assess'))
+    expect(logLines().at(-1)).toMatch(/^02:31:00Assessing/)
+    return replay
+  }
+
+  it('disables the workflow behind the frontier, says why, and logs nothing', () => {
+    claimedAtSixty()
+    // Escalated too, so the handoff exists and its Copy button can be checked below.
+    fireEvent.click(action('Escalate'))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(action('Confirm escalation'))
+    const before = logLines()
+
+    seek('30')
+    // Every workflow button, legal or not: the record is ahead of the picture.
+    for (const name of ['Assess', 'Escalate', 'Dismiss', 'Resolve']) {
+      expect(action(name)).toBeDisabled()
+    }
+    // Grey buttons without a reason read as a bug. The live region carries the state; the two
+    // times sit beside it, outside it (ruled on #79).
+    expect(
+      screen.getByText('Rewound — the workflow acts at the record’s frontier'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Clock 02:30:30 · record 02:31:00')).toBeInTheDocument()
+    // `disabled` takes all four out of the tab order, so the reason has to reach an operator who
+    // cannot see them grey out: the group points at both halves (#79 review).
+    expect(screen.getByRole('group', { name: 'Lifecycle actions' })).toHaveAttribute(
+      'aria-describedby',
+      'drawer-rewound-state drawer-rewound-times',
+    )
+
+    // Pressing them anyway writes nothing — jsdom fires the handler on a disabled button only
+    // if one is attached, so this is the real "nothing is logged" check, not a repeat of the
+    // assertion above.
+    for (const name of ['Assess', 'Escalate', 'Dismiss', 'Resolve']) {
+      fireEvent.click(action(name))
+    }
+    expect(logLines()).toEqual(before)
+
+    // Copy stamps nothing, so it stays enabled while the workflow is refused (ruled on #77).
+    expect(action('Copy')).toBeEnabled()
+  })
+
+  it('re-enables at the frontier, and the action stamps at the frontier’s sim time', () => {
+    claimedAtSixty()
+    seek('30')
+    expect(action('Escalate')).toBeDisabled()
+
+    // Back to where the record is: the same action is legal again.
+    seek('60')
+    expect(screen.queryByText(/^Rewound — /)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Clock /)).not.toBeInTheDocument()
+    // The live region stays mounted and goes empty rather than unmounting — a region inserted in
+    // the same commit as its text is one some screen readers never announce (#51, #79 review).
+    const region = document.querySelector('.drawer__rewound')
+    expect(region).toBeInTheDocument()
+    expect(region).toBeEmptyDOMElement()
+    expect(screen.getByRole('group', { name: 'Lifecycle actions' })).not.toHaveAttribute(
+      'aria-describedby',
+    )
+    expect(action('Escalate')).toBeEnabled()
+    fireEvent.click(action('Escalate'))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(action('Confirm escalation'))
+
+    // Stamped at 02:31:00 — the frontier — because that is where the clock is, not because it
+    // was clamped there from somewhere else.
+    expect(logLines().at(-1)).toBe('02:31:00Escalated — to PHL Tower')
+  })
+
+  it('announces the state once, not the clock — scrubbing while rewound says nothing more', () => {
+    claimedAtSixty()
+    const region = () => document.querySelector('.drawer__rewound') as HTMLElement
+    const times = () => document.querySelector('.drawer__rewound-times')?.textContent
+
+    seek('30')
+    const announced = region().textContent
+    expect(announced).toBe('Rewound — the workflow acts at the record’s frontier')
+    expect(times()).toBe('Clock 02:30:30 · record 02:31:00')
+
+    // Two more seeks, still behind the frontier. The live region's text is what a screen reader
+    // re-announces, so it must not move; the times are outside it and do move (ruled on #79).
+    seek('15')
+    expect(region().textContent).toBe(announced)
+    expect(times()).toBe('Clock 02:30:15 · record 02:31:00')
+    seek('5')
+    expect(region().textContent).toBe(announced)
+    expect(times()).toBe('Clock 02:30:05 · record 02:31:00')
+
+    // The toggle still empties and refills it, which is the announcement that has to survive.
+    seek('60')
+    expect(region()).toBeEmptyDOMElement()
+    seek('30')
+    expect(region().textContent).toBe(announced)
+  })
+
+  it('leaves the record monotonic across a rewind and return', () => {
+    claimedAtSixty()
+
+    // Rewind, try to act, come back, act for real — the walk #77 describes.
+    seek('15')
+    fireEvent.click(action('Escalate'))
+    seek('0')
+    fireEvent.click(action('Dismiss'))
+    seek('75')
+    fireEvent.click(action('Escalate'))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(action('Confirm escalation'))
+
+    const marks = logLines().map((line) => line.slice(0, 8))
+    expect(marks).toEqual([...marks].sort())
+    expect(marks.at(-1)).toBe('02:31:15')
+    // The two rewound presses left nothing behind: Dismiss from Assessing is a legal transition
+    // and would have terminated the track had the frontier not refused it.
+    expect(
+      within(screen.getByText('Status').parentElement as HTMLElement).getByText('Escalated'),
+    ).toBeInTheDocument()
+  })
+})
