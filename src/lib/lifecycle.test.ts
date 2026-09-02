@@ -220,10 +220,16 @@ describe('learner-ready shape (§8.3b)', () => {
     expect(reconcile(observed)).toBeCloseTo(observed.uncapped, 10)
     expect(reconcile(later)).toBeCloseTo(later.uncapped, 10)
 
-    // The negative, which is the whole point: the older event's factors read against the newer
-    // doctrine reproduce neither score. That is what an event without its weight set would look
-    // like to a learner — a number it cannot account for, indistinguishable from a bug.
-    expect(reconcile({ ...observed, weights: later.weights })).not.toBeCloseTo(observed.uncapped, 1)
+    // The negative, which is the whole point, and it is worse than a number that fails to add
+    // up: only the weights moved, so the older event's factors read against the newer doctrine
+    // land *cleanly* on the newer composite and quietly disagree with the one the event stored.
+    // An event without its weight set is not a number a learner cannot account for — it is a
+    // number that accounts for itself under the wrong doctrine, so a re-weighted picture reads
+    // as a correct record rather than as a change. Both halves are pinned: the cross-read hits
+    // the new score exactly, and misses the stored one.
+    const crossRead = reconcile({ ...observed, weights: later.weights })
+    expect(crossRead).toBeCloseTo(later.uncapped, 10)
+    expect(crossRead).not.toBeCloseTo(observed.uncapped, 1)
   })
 
   it('carries no ground-truth field anywhere in a fully walked log', () => {
