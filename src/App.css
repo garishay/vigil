@@ -315,6 +315,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The reason tag (05b): the row's third line, muted like the detail line, wrapping rather than
+ * truncating — the words are the row's case for its number, and a cut-off word is no case. */
+.queue__reason {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
 .identity-dot {
   display: inline-block;
   flex: none;

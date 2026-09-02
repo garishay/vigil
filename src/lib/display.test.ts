@@ -5,10 +5,16 @@ import {
   formatScore,
   roundHeading,
   scoreSummary,
+  reasonTag,
   scoreTotal,
   simClock,
 } from './display'
-import type { Score } from './scoring'
+import { scoreTrack, type Score, type ScoringContext } from './scoring'
+import { AO } from '../config/ao'
+import { destinationPoint } from './geo'
+import type { TrackEvent } from './lifecycle'
+import type { RankedTrack } from './ranking'
+import type { AdsbTrack, InjectTrack, Track } from './tracks'
 
 const SCORE: Score = {
   composite: 82,
@@ -144,6 +150,7 @@ describe('describeEvent — band crossings (06b)', () => {
         headingDeg: 345.6,
         score: 72,
         uncapped: 72,
+        pattern: null,
         factors: {
           cooperativity: 100,
           closing: 44.4,
@@ -167,5 +174,177 @@ describe('describeEvent — band crossings (06b)', () => {
     expect(describeEvent(crossing('calm', 'caution'), [], [])).toBe('Caution — up from calm')
     expect(describeEvent(crossing('caution', 'warning'), [], [])).toBe('Warning — up from caution')
     expect(describeEvent(crossing('warning', 'calm'), [], [])).toBe('Calm — down from warning')
+  })
+})
+
+describe('describeEvent — pattern entries and the first-seen word (05b)', () => {
+  const observed: TrackEvent['observed'] = {
+    identity: 'non-cooperative',
+    rangeM: 3000,
+    siteId: 'phl-airfield',
+    altitudeFt: 230,
+    groundSpeedKt: 6,
+    headingDeg: 270,
+    score: 95,
+    uncapped: 95,
+    pattern: null,
+    factors: {
+      cooperativity: 100,
+      closing: 100,
+      proximity: 100,
+      pattern: 70,
+      kinematic: 100,
+      time: 100,
+    },
+    weights: {
+      cooperativity: 25,
+      closing: 20,
+      proximity: 15,
+      pattern: 15,
+      kinematic: 10,
+      time: 10,
+    },
+  }
+  const base: TrackEvent = {
+    trackId: 'inject-05',
+    seq: 2,
+    at: '2026-09-01T12:06:02.000Z',
+    tSec: 990,
+    action: 'pattern',
+    from: 'new',
+    to: 'new',
+    observed,
+  }
+  const change = (from: 'loiter' | 'orbit' | 'revisit' | null, to: typeof from): TrackEvent => ({
+    ...base,
+    pattern: { from, to },
+  })
+
+  it('names what began and what ended, from the one word table', () => {
+    expect(describeEvent(change(null, 'loiter'), [], [])).toBe('Loitering — began')
+    expect(describeEvent(change('loiter', null), [], [])).toBe('Loitering — ended')
+    expect(describeEvent(change('loiter', 'orbit'), [], [])).toBe(
+      'Orbiting — began, loitering ended',
+    )
+    expect(describeEvent(change(null, 'revisit'), [], [])).toBe('Revisiting — began')
+  })
+
+  it('carries the word on a first-seen entry when the track opens with a pattern named', () => {
+    const opened: TrackEvent = { ...base, seq: 1, action: 'first-seen', from: null }
+    expect(describeEvent(opened, [], [])).toBe('New — first seen')
+    expect(describeEvent({ ...opened, observed: { ...observed, pattern: 'loiter' } }, [], [])).toBe(
+      'New — first seen, loitering',
+    )
+  })
+})
+
+describe('reasonTag (05b, ruled on #5)', () => {
+  const SITE = AO.protectedSites[0]
+  const at = (rangeM: number) => destinationPoint(SITE.center, 0, rangeM)
+  const NIGHT: ScoringContext = { tSec: 0, minuteOfDay: 150, memory: {} }
+  const hover = (position: [number, number]) =>
+    [...Array(29)].map((_, i) => ({ tSec: i * 15, position }))
+  const silent = (position: [number, number]): InjectTrack => ({
+    ...{
+      id: 'inject-05',
+      source: 'inject',
+      behavior: 'loiter',
+      remoteId: 'silent',
+      uaType: null,
+      identity: 'non-cooperative',
+      callsign: null,
+      position: [-75.20547, 39.81341],
+      altitudeFt: 63,
+      onGround: false,
+      groundSpeedKt: 19.1,
+      headingDeg: 345.6,
+      verticalRateFpm: 85,
+      lastSeenSec: 0,
+    },
+    position,
+    altitudeFt: 230,
+    groundSpeedKt: 6,
+    headingDeg: 270,
+  })
+  const ranked = (track: Track, context = NIGHT): RankedTrack => {
+    const score = scoreTrack(track, AO.protectedSites, context)
+    return { track, rank: 1, rangeM: score.rangeM, siteId: score.siteId, score }
+  }
+  const arrival: AdsbTrack = {
+    id: 'adsb-a06461',
+    source: 'adsb',
+    icaoHex: 'a06461',
+    identity: 'cooperative',
+    callsign: 'AAL423',
+    position: at(2000),
+    altitudeFt: 1000,
+    onGround: false,
+    groundSpeedKt: 174,
+    headingDeg: 180,
+    verticalRateFpm: -640,
+    lastSeenSec: 0,
+    category: null,
+    registry: null,
+  }
+
+  it('leads with the named pattern, then the two largest other contributions', () => {
+    const drone = silent(at(3000))
+    const entry = ranked(drone, { ...NIGHT, history: { 'inject-05': hover(drone.position) } })
+    expect(entry.score.pattern).toBe('loiter')
+    expect(reasonTag(entry, AO.protectedSites)).toBe('Loitering, non-cooperative, inside the ring')
+  })
+
+  it('names the site outside the ring, and gives a factor a word only at half the scale or more', () => {
+    // 7.2 km out, straight in at 19 kt: closing reads 44, under the gate; proximity 78 names the site.
+    const entry = ranked({ ...silent(at(7200)), groundSpeedKt: 19.1, headingDeg: 180 })
+    expect(entry.score.factors.find((f) => f.id === 'closing')!.value).toBeLessThan(50)
+    expect(reasonTag(entry, AO.protectedSites)).toBe(
+      'Non-cooperative, near PHL Airfield, low and slow',
+    )
+    // Closing earns its word once it clears the gate.
+    const closing = ranked({ ...silent(at(6000)), groundSpeedKt: 120, headingDeg: 180 })
+    expect(reasonTag(closing, AO.protectedSites)).toMatch(/closing/)
+  })
+
+  it('reads Cooperative aircraft and nothing else on a real aircraft, capped or not, pattern or not (§2)', () => {
+    const entry = ranked(arrival)
+    expect(entry.score.capped).toBe(true)
+    expect(reasonTag(entry, AO.protectedSites)).toBe('Cooperative aircraft')
+    const holding = ranked(arrival, {
+      ...NIGHT,
+      history: { 'adsb-a06461': hover(arrival.position) },
+    })
+    expect(holding.score.pattern).toBe('loiter')
+    expect(reasonTag(holding, AO.protectedSites)).toBe('Cooperative aircraft')
+  })
+
+  it('reads a dash when no factor clears the gate, and a lone word when one does', () => {
+    // An airliner under the ceiling, uncapped, still reads the one line a real aircraft gets.
+    const far: AdsbTrack = {
+      ...arrival,
+      id: 'adsb-far',
+      icaoHex: 'far',
+      callsign: null,
+      position: at(60_000),
+      altitudeFt: 30_000,
+      groundSpeedKt: 400,
+      headingDeg: 90,
+    }
+    const airliner = ranked(far, { ...NIGHT, minuteOfDay: 600 })
+    expect(airliner.score.capped).toBe(false)
+    expect(reasonTag(airliner, AO.protectedSites)).toBe('Cooperative aircraft')
+    // A heard drone far out, high and fast, in daylight: nothing clears the gate.
+    const quiet = {
+      ...silent(at(30_000)),
+      identity: 'cooperative' as const,
+      callsign: 'UAS-2',
+      altitudeFt: 3000,
+      groundSpeedKt: 150,
+    }
+    expect(reasonTag(ranked(quiet, { ...NIGHT, minuteOfDay: 600 }), AO.protectedSites)).toBe('—')
+    const heard = { ...silent(at(30_000)), identity: 'cooperative' as const, callsign: 'UAS-1' }
+    expect(reasonTag(ranked(heard, { ...NIGHT, minuteOfDay: 600 }), AO.protectedSites)).toBe(
+      'Low and slow',
+    )
   })
 })

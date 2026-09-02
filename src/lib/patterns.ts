@@ -17,10 +17,10 @@
  * amendment a).
  */
 
-import type { ScoringConfig } from '../config/scoring.ts'
+import type { PatternKind, ScoringConfig } from '../config/scoring.ts'
 import { bearingDegrees, distanceMeters } from './geo.ts'
 
-export type PatternKind = 'loiter' | 'orbit' | 'revisit'
+export type { PatternKind }
 
 /** One known position of a track at a scenario instant. */
 export interface HistorySample {

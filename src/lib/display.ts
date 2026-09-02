@@ -8,9 +8,12 @@
 
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
-import { BANDS, BAND_LABEL } from '../config/scoring.ts'
+import type { ProtectedSite } from '../config/ao.ts'
+import { BANDS, BAND_LABEL, PATTERN_LABEL } from '../config/scoring.ts'
+import { distanceMeters } from './geo.ts'
 import type { TrackEvent } from './lifecycle.ts'
-import { formatClock, minuteOfDay, type Score } from './scoring.ts'
+import type { RankedTrack } from './ranking.ts'
+import { formatClock, minuteOfDay, type Factor, type Score } from './scoring.ts'
 import type { Track } from './tracks.ts'
 
 /**
@@ -53,7 +56,7 @@ export const capLine = (score: Score) => `Capped at ${formatScore(score)} — co
 /**
  * The chip's hover: the three largest contributions and the total they are part of, so a row
  * explains itself before the drawer opens; a capped row leads with the cap (#63 review). The
- * reason tag waits for PR 05's vocabulary (ruled on #4); this is what stands in.
+ * reason tag below carries the words; this carries the numbers.
  */
 export const scoreSummary = (score: Score) => {
   const top = [...score.factors]
@@ -62,6 +65,53 @@ export const scoreSummary = (score: Score) => {
     .map((factor) => `${factor.label} ${Math.round(factor.contribution)}`)
     .join(' · ')
   return `${score.capped ? `${capLine(score)} · ` : ''}${top} (${scoreTotal(score)})`
+}
+
+/** A pattern word in running text: `loitering`. */
+const patternWord = (kind: keyof typeof PATTERN_LABEL) => PATTERN_LABEL[kind].toLowerCase()
+
+/**
+ * The §7 reason tag on the Queue row (05b, ruled on #5): the top-contributing factors in plain
+ * English. Each factor has a word when its value is at least half the scale — Identity's is the
+ * observed identity, Closing's only outside the ring (inside, Proximity says it), Proximity's
+ * names the configured site — and the tag leads with the named pattern, then the two largest
+ * other contributions. A real aircraft's row reads *Cooperative aircraft* and nothing else, so
+ * it never wears a threat word (§2) — keyed on the observed source, as the ceiling is, since a
+ * distant airliner sits under the ceiling uncapped and would otherwise read "Closing,
+ * off-hours" on the strength of its own approach.
+ */
+export function reasonTag(entry: RankedTrack, sites: readonly ProtectedSite[]): string {
+  const { track, score } = entry
+  if (track.source === 'adsb') return 'Cooperative aircraft'
+  const site = sites.find((candidate) => candidate.id === score.siteId)
+  const inside = site !== undefined && distanceMeters(site.center, track.position) <= site.radiusM
+  const wordFor = (factor: Factor): string | null => {
+    if (factor.value < 50) return null
+    switch (factor.id) {
+      case 'cooperativity':
+        return track.identity === 'non-cooperative' ? 'non-cooperative' : 'ident unknown'
+      case 'closing':
+        return inside ? null : 'closing'
+      case 'proximity':
+        return inside ? 'inside the ring' : `near ${site?.name ?? 'the site'}`
+      case 'kinematic':
+        return 'low and slow'
+      case 'time':
+        return 'off-hours'
+      case 'pattern':
+        return null
+    }
+  }
+  const others = [...score.factors]
+    .sort((a, b) => b.contribution - a.contribution)
+    .map(wordFor)
+    .filter((word): word is string => word !== null)
+  const words = score.pattern
+    ? [patternWord(score.pattern), ...others.slice(0, 2)]
+    : others.slice(0, 3)
+  if (words.length === 0) return '—'
+  const tag = words.join(', ')
+  return tag[0].toUpperCase() + tag.slice(1)
 }
 
 /**
@@ -75,7 +125,9 @@ export const roundHeading = (headingDeg: number) => Math.round(headingDeg) % 360
  * One line of the event record, identical in the drawer's log and the handoff timeline. The
  * config lists are parameters, like the sites in `rankTracks` — ids stay in the log for the
  * learner (§8.3b); names are looked up only here, at display time. A band crossing names the
- * band entered and the one left, up or down, in the words of the one band table (06b, #66).
+ * band entered and the one left, up or down, in the words of the one band table (06b, #66). A
+ * pattern change names what began and what ended; a track first seen with a pattern already
+ * named carries the word on its first line, so a cold open still hands off with it (05b).
  */
 export function describeEvent(
   event: TrackEvent,
@@ -84,7 +136,12 @@ export function describeEvent(
 ): string {
   switch (event.action) {
     case 'first-seen':
-      return 'New — first seen'
+      return `New — first seen${event.observed.pattern ? `, ${patternWord(event.observed.pattern)}` : ''}`
+    case 'pattern': {
+      const { from, to } = event.pattern ?? { from: null, to: null }
+      if (to) return `${PATTERN_LABEL[to]} — began${from ? `, ${patternWord(from)} ended` : ''}`
+      return from ? `${PATTERN_LABEL[from]} — ended` : 'Pattern — ended'
+    }
     case 'band': {
       const { from, to } = event.band ?? { from: 'calm', to: 'calm' }
       const direction = BANDS.indexOf(to) > BANDS.indexOf(from) ? 'up' : 'down'

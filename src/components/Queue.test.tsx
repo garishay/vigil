@@ -2,7 +2,9 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Queue } from './Queue'
 import { AO } from '../config/ao'
+import { trackIdent } from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
+import type { Status } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
 import { scoreTrack } from '../lib/scoring'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
@@ -400,3 +402,33 @@ function hexToRgb(hex: string): string {
   const n = parseInt(hex.slice(1), 16)
   return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`
 }
+
+describe('the reason tag and the re-surface (05b, ruled on #5)', () => {
+  it('prints a reason tag on every row, and the cap alone on a capped row', () => {
+    render(<Queue ranked={RANKED} sites={AO.protectedSites} />)
+    for (const entry of RANKED) {
+      const row = screen.getByText(trackIdent(entry.track)).closest('li') as HTMLElement
+      const reason = row.querySelector('.queue__reason')?.textContent
+      expect(reason).toBeTruthy()
+      if (entry.track.source === 'adsb') expect(reason).toBe('Cooperative aircraft')
+      else expect(reason).not.toMatch(/Cooperative aircraft/)
+    }
+  })
+
+  it('un-dims a re-surfaced Dismissed row and tags it; one that has not stays dimmed', () => {
+    const status: Record<string, Status> = { 'inject-03': 'dismissed', 'inject-01': 'dismissed' }
+    render(
+      <Queue
+        ranked={RANKED}
+        statusFor={(id) => status[id] ?? 'new'}
+        resurfacedFor={(id) => id === 'inject-03'}
+      />,
+    )
+    const surfaced = screen.getByText('TRK-03').closest('li') as HTMLElement
+    const still = screen.getByText('TRK-01').closest('li') as HTMLElement
+    expect(surfaced).not.toHaveClass('queue__row--terminal')
+    expect(within(surfaced).getByText('Re-surfaced')).toBeInTheDocument()
+    expect(still).toHaveClass('queue__row--terminal')
+    expect(within(still).getByText('Dismissed')).toBeInTheDocument()
+  })
+})

@@ -51,7 +51,7 @@ flowchart LR
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
     score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · closing complete inside the ring<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
-    life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings logged at sim time, statuses carried"]
+    life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings and pattern changes logged at sim time, statuses carried · re-surface read off the log"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · timeline live"]
     workcfg["config/contacts.ts + dispositions.ts<br/>recipients · outcome labels"]
     frames["config/airframes.ts<br/>emitter categories · type codes · kinematic envelope"]
@@ -81,7 +81,7 @@ flowchart LR
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
     app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples both layers and every history at the clock's t<br/>opens a track's log when it first appears · sim clock ticking from the scenario start"]
-    queue["Queue<br/>ranked list, the product"]
+    queue["Queue<br/>ranked list, the product · reason tag in plain English"]
     map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count"]
     clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick<br/>scheduler injected, so no test waits on time"]
@@ -94,7 +94,7 @@ flowchart LR
   ao -- center · zoom · basemap · sites: map, strip --> app
   cfg -- seed: strip --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot --> app
-  life -- log · status: drawer, state filter --> app
+  life -- log · status · re-surface: drawer, state filter, row --> app
   workcfg -- pickers: drawer --> app
   hand -- handoff text --> review
   airframe -- class · basis: visuals --> review

@@ -4,7 +4,7 @@ import { CONTACTS } from '../config/contacts'
 import { DISPOSITIONS } from '../config/dispositions'
 import { simClock } from './display'
 import { handoffText } from './handoff'
-import { appendEvent, bandCrossing, firstSeen, observedSnapshot } from './lifecycle'
+import { appendEvent, bandCrossing, patternChange, firstSeen, observedSnapshot } from './lifecycle'
 import type { RankedTrack } from './ranking'
 import { scoreTrack } from './scoring'
 import type { AdsbTrack, InjectTrack } from './tracks'
@@ -280,5 +280,49 @@ describe('handoffText — the evidence block is the escalation’s (06b)', () =>
     expect(text(then, log)).toContain(
       '  02:30:00  New — first seen\n  02:30:30  Caution — up from calm\n  02:30:40  Assessing — claimed',
     )
+  })
+})
+
+describe('handoffText — the word rides the timeline (05b, ruled on #5)', () => {
+  const at = '2026-09-01T12:06:02.000Z'
+  const named = (ranked: RankedTrack, pattern: 'loiter' | 'orbit' | null): RankedTrack => ({
+    ...ranked,
+    score: { ...ranked.score, pattern },
+  })
+
+  it('carries the word on the first-seen line when the track opened with a pattern named', () => {
+    const then = entry(INJECT)
+    const opened = firstSeen(then.track.id, observedSnapshot(named(then, 'loiter')), at, 1020)
+    let log = appendEvent(opened, 'assess', { at, tSec: 1030, observed: observedSnapshot(then) })
+    log = appendEvent(log, 'escalate', {
+      at,
+      tSec: 1040,
+      observed: observedSnapshot(then),
+      recipient: 'phl-tower',
+    })
+    expect(text(then, log)).toContain('Timeline:\n  02:47:00  New — first seen, loitering\n')
+  })
+
+  it('carries an onset and a replacement as their own lines, inside the fit', () => {
+    const then = entry(INJECT)
+    const onset = patternChange(
+      firstSeen(then.track.id, observedSnapshot(then), at),
+      named(then, 'orbit'),
+      at,
+      960,
+    )!
+    const replaced = patternChange(onset, named(then, 'loiter'), at, 990)!
+    let log = appendEvent(replaced, 'assess', { at, tSec: 995, observed: observedSnapshot(then) })
+    log = appendEvent(log, 'escalate', {
+      at,
+      tSec: 999,
+      observed: observedSnapshot(then),
+      recipient: 'phl-tower',
+    })
+    const summary = text(then, log)
+    expect(summary).toContain(
+      '  02:46:00  Orbiting — began\n  02:46:30  Loitering — began, orbiting ended\n',
+    )
+    for (const line of summary.split('\n')) expect(line.length).toBeLessThanOrEqual(53)
   })
 })
