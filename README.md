@@ -37,6 +37,8 @@ flowchart LR
     subgraph real["Real layer — public ADS-B, cooperative by construction"]
       direction LR
       load["data/capture.ts<br/>loadCapture: fetch once at startup, AO guard<br/>frameTracks"] --> norm["lib/adsb.ts<br/>toTrack: record → AdsbTrack<br/>identity is the literal 'cooperative'<br/>(normalizers run at capture time)"]
+      norm --> replay["lib/replay.ts<br/>indexCapture → pictureAt(t): bracket by the track's own samples,<br/>interpolate, hold, coast then drop · memoryAt: identity memory as a fold over the frame grid"]
+      replaycfg["config/replay.ts<br/>coast window · tick"] --> replay
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
@@ -53,7 +55,7 @@ flowchart LR
     workcfg["config/contacts.ts + dispositions.ts<br/>recipients · outcome labels"]
     frames["config/airframes.ts<br/>emitter categories · type codes · kinematic envelope"]
     airframe["lib/airframe.ts<br/>classify: silhouette class + its basis<br/>type code → category → UA type → envelope"]
-    norm --> model
+    replay --> model
     gen --> model
     ao --> gen
     ao --> score
@@ -73,15 +75,15 @@ flowchart LR
   norm -. normalize + rate-limit etiquette, at capture time .-> cap
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
-    app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0<br/>folds the identity memory · sim clock at the scenario start"]
+    app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples both layers at the clock's t<br/>opens a track's log when it first appears · sim clock ticking from the scenario start"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log · handoff"]
-    clock["Playback clock — PR 06"]
+    clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick<br/>scheduler injected, so no test waits on time"]
     app --> queue
     app --> map
     app -- selected track: drawer --> review
-    clock -.-> app
+    clock -- t --> app
   end
   model -- adsb + injects: map, strip --> app
   ao -- center · zoom · basemap · sites: map, strip --> app
@@ -92,8 +94,6 @@ flowchart LR
   hand -- handoff text --> review
   airframe -- class · basis: visuals --> review
   photos -. fetched on open .-> review
-  classDef planned stroke-dasharray: 6 4,fill:none;
-  class clock planned;
 ```
 
 ---

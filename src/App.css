@@ -86,6 +86,45 @@
   margin-left: auto;
 }
 
+/* 06a: the replay clock's field — toggle, seek, position — reads as one control in the strip. */
+.strip__field--playback dd {
+  color: var(--text);
+}
+
+.playback {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.playback__toggle {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  color: var(--text);
+  padding: 0.125rem 0.5rem;
+  font: inherit;
+  font-size: 0.75rem;
+  min-width: 3.5rem;
+  cursor: pointer;
+}
+
+.playback__toggle:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.playback__seek {
+  width: 12rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.playback__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
 .strip__field--ao dd {
   color: var(--text);
 }

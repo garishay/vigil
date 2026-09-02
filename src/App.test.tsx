@@ -4,6 +4,7 @@ import App from './App'
 import { AO } from './config/ao'
 import { SCENARIO } from './config/scenario'
 import type { CaptureState } from './data/useCapture'
+import type { Schedule } from './data/usePlayback'
 
 // The map itself is covered by MapView.test.tsx; here it is stubbed so these tests stay about
 // layout, navigation, and what the picture status strip reports.
@@ -76,6 +77,10 @@ const READY: CaptureState = {
   },
 }
 
+// The replay clock never ticks here unless a test drives it: frame 0 stays frame 0 whatever
+// the test's wall duration, which is the flake the acceptance on #6 names.
+const never: Schedule = () => () => {}
+
 beforeEach(() => {
   useCapture.mockReturnValue(READY)
   lookupPhoto.mockReset()
@@ -84,7 +89,7 @@ beforeEach(() => {
 
 describe('App shell', () => {
   it('renders the product name, the AO, and the status strip', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     expect(screen.getByRole('heading', { level: 1, name: 'Vigil' })).toBeInTheDocument()
     expect(screen.getByLabelText('Picture status')).toBeInTheDocument()
     expect(screen.getByText(AO.name)).toBeInTheDocument()
@@ -92,24 +97,24 @@ describe('App shell', () => {
   })
 
   it('states that it is not an operational system', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     expect(screen.getByText(/not for operational use/i)).toBeInTheDocument()
   })
 
   it('opens on Home', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     expect(screen.getByRole('button', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('heading', { name: 'Picture summary' })).toBeInTheDocument()
   })
 
   it('reports the cooperative track count once the recording loads', async () => {
-    render(<App />)
+    render(<App schedule={never} />)
     await waitFor(() => expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2'))
     expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '2')
   })
 
   it('puts injects on the map alongside the cooperative layer', async () => {
-    render(<App />)
+    render(<App schedule={never} />)
     const map = screen.getByTestId('map')
     await waitFor(() => expect(Number(map.getAttribute('data-injects'))).toBeGreaterThan(0))
     expect(screen.getByText('Injects').nextSibling).toHaveTextContent(
@@ -118,18 +123,18 @@ describe('App shell', () => {
   })
 
   it('names the seed, so the picture on screen can be reproduced', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
   })
 
   it('shows the sim clock at the scenario’s configured start — the hour the picture is scored at (04a)', () => {
     // Ruled with D2 on #4: the breakdown names a time the strip must not deny. PR 06 makes it tick.
-    render(<App />)
+    render(<App schedule={never} />)
     expect(screen.getByText('Sim clock').nextSibling).toHaveTextContent(SCENARIO.clock.startLocal)
   })
 
   it('scores every row, with the ADS-B block held under the ceiling (04a)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
     const chips = rows.map((row) => Number(row.querySelector('.queue__score')?.textContent))
@@ -146,7 +151,7 @@ describe('App shell', () => {
   })
 
   it('opens a row to its breakdown in the drawer, header and bars agreeing with the chip (04b)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const firstRow = within(queue).getAllByRole('listitem')[0]
@@ -161,7 +166,7 @@ describe('App shell', () => {
   it("plans the injects on the recording's own frame grid", () => {
     // The two layers share one timeline, which is what lets PR 06 advance a single clock. App
     // holds the plan and samples it, so that clock will drive `injectTracksAt` with no rewiring.
-    render(<App />)
+    render(<App schedule={never} />)
     expect(planScenario).toHaveBeenCalledWith({
       frameCount: READY.status === 'ready' ? READY.capture.frames.length : 0,
       intervalMs: 15000,
@@ -169,7 +174,7 @@ describe('App shell', () => {
   })
 
   it('ranks both layers into one queue on the Queue surface', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const rows = within(queue).getAllByRole('listitem')
@@ -185,7 +190,7 @@ describe('App shell', () => {
   })
 
   it('shows the Queue only on the Queue surface', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     expect(screen.queryByRole('list', { name: 'Ranked queue' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeInTheDocument()
@@ -195,7 +200,7 @@ describe('App shell', () => {
 
   it('holds the count back while the recording is still loading', () => {
     useCapture.mockReturnValue({ status: 'loading' })
-    render(<App />)
+    render(<App schedule={never} />)
     expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('…')
     expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '0')
   })
@@ -203,13 +208,13 @@ describe('App shell', () => {
   // An airspace picture that cannot load its traffic has to say so, not show a plausible empty map.
   it('surfaces a load failure instead of rendering an empty picture silently', () => {
     useCapture.mockReturnValue({ status: 'error', message: 'could not load the ADS-B recording' })
-    render(<App />)
+    render(<App schedule={never} />)
     expect(screen.getByRole('alert')).toHaveTextContent('could not load the ADS-B recording')
     expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('—')
   })
 
   it('opens the drawer beside the list from a row click, and closes it (03a)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const firstRow = within(queue).getAllByRole('listitem')[0]
@@ -227,7 +232,7 @@ describe('App shell', () => {
   })
 
   it('shows the drawer alone on Review, and an empty state without a selection (03a)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Review' }))
     expect(screen.getByText('Select a track from the Queue.')).toBeInTheDocument()
 
@@ -242,7 +247,7 @@ describe('App shell', () => {
   })
 
   it('lands focus on the Review nav item when the drawer closes on Review, not on body (#46)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
@@ -259,7 +264,7 @@ describe('App shell', () => {
   })
 
   it('leaves a mouse-driven close on Review alone — no focus jump to the header (#53 review)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
@@ -272,7 +277,7 @@ describe('App shell', () => {
   })
 
   it('sends a mouse-driven close on the Queue surface to the list, not the row (#54)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const row = within(within(queue).getAllByRole('listitem')[0]).getByRole('button')
@@ -287,7 +292,7 @@ describe('App shell', () => {
   })
 
   it('keeps the Queue-surface close returning focus to the row, as 03a built it (#46)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const row = within(within(queue).getAllByRole('listitem')[0]).getByRole('button')
@@ -299,7 +304,7 @@ describe('App shell', () => {
   })
 
   it('selects from the map side and syncs the row (03a)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByTestId('map-select'))
     expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
@@ -311,7 +316,7 @@ describe('App shell', () => {
   })
 
   it('lands a Home-surface map selection on the Queue, where it can be reviewed and cleared (03a)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     // Home has no drawer and no close button; a selection made there must not strand the user.
     fireEvent.click(screen.getByTestId('map-select'))
     expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-current', 'page')
@@ -321,7 +326,7 @@ describe('App shell', () => {
   })
 
   it('filters by layer without renumbering the ranks (03a)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const injectCount = Number(screen.getByTestId('map').getAttribute('data-injects'))
 
@@ -347,7 +352,7 @@ describe('App shell', () => {
   })
 
   it('walks the full lifecycle New → Assessing → Escalated → Resolved in the drawer (03b)', () => {
-    render(<App now={() => '2026-09-01T12:04:31.000Z'} />)
+    render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
@@ -389,9 +394,9 @@ describe('App shell', () => {
   it('stamps first sight once, not per render (03b review fix)', () => {
     // The default `now` prop is a fresh function identity each render, so first-seen must not
     // ride a memo keyed on it: even a *replaced* clock may not restamp the opening entry.
-    const { rerender } = render(<App now={() => '2026-09-01T12:04:31.000Z'} />)
+    const { rerender } = render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
-    rerender(<App now={() => '2026-09-01T13:00:00.000Z'} />)
+    rerender(<App schedule={never} now={() => '2026-09-01T13:00:00.000Z'} />)
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
     const drawer = screen.getByLabelText(/^Track review: /)
@@ -400,7 +405,7 @@ describe('App shell', () => {
   })
 
   it('filters by state with global ranks kept, composing with the layer filter (03b)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = () => screen.getByRole('list', { name: 'Ranked queue' })
     const total = within(queue()).getAllByRole('listitem').length
@@ -426,7 +431,7 @@ describe('App shell', () => {
   })
 
   it('shows lifecycle state on the row, and Active as the non-terminal set with global ranks (03e)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = () => screen.getByRole('list', { name: 'Ranked queue' })
     const rows = () => within(queue()).getAllByRole('listitem')
@@ -467,7 +472,7 @@ describe('App shell', () => {
   })
 
   it('says when no track matches the filters, but not while the picture is loading (#49)', () => {
-    const { rerender } = render(<App />)
+    const { rerender } = render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     // The live region is there from the moment the Queue is, empty: a region that appears in the
     // same commit as its text is one some screen readers never announce (#51 review).
@@ -502,16 +507,16 @@ describe('App shell', () => {
     // An empty list with no recording behind it is not a filter result: nothing while loading,
     // nothing on a load failure — the error already says what happened.
     useCapture.mockReturnValue({ status: 'loading' })
-    rerender(<App />)
+    rerender(<App schedule={never} />)
     expect(region()).toBeEmptyDOMElement()
     useCapture.mockReturnValue({ status: 'error', message: 'Could not load the recording.' })
-    rerender(<App />)
+    rerender(<App schedule={never} />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(region()).toBeEmptyDOMElement()
   })
 
   it('keeps the selection but not the ring on Home (03b, ruled A2 on #3)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByTestId('map-select'))
     const selected = screen.getByTestId('map').getAttribute('data-selected')
@@ -529,7 +534,7 @@ describe('App shell', () => {
   })
 
   it('chains actions batched into one commit instead of overwriting (03b review fix)', () => {
-    render(<App now={() => '2026-09-01T12:04:31.000Z'} />)
+    render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
@@ -551,7 +556,7 @@ describe('App shell', () => {
   })
 
   it('renders the Review surface at the drawer column width (03b, ruled B1 on #3)', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Review' }))
     expect(document.querySelector('.shell__body--review')).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Home' }))
@@ -559,7 +564,7 @@ describe('App shell', () => {
   })
 
   it('switches surfaces without unmounting the map', () => {
-    render(<App />)
+    render(<App schedule={never} />)
     const map = screen.getByTestId('map')
 
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -581,7 +586,7 @@ describe('App shell', () => {
       link: 'https://www.planespotters.net/photo/1/n123?utm_source=api',
       photographer: 'Tester',
     })
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
@@ -601,11 +606,185 @@ describe('App shell', () => {
   })
 
   it('never looks up a photo for an inject (03d)', async () => {
-    render(<App />)
+    render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByTestId('map-select'))
     expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
     await act(async () => {})
     expect(lookupPhoto).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * A scheduler the test drives by hand: `tick()` is the replay clock. Nothing here waits on real
+ * time, which is the flake the acceptance on #6 names.
+ */
+function manualClock() {
+  let pending: (() => void) | null = null
+  const schedule: Schedule = (tick) => {
+    pending = tick
+    return () => {
+      pending = null
+    }
+  }
+  return { schedule, tick: (n = 1) => act(() => void [...Array(n)].forEach(() => pending?.())) }
+}
+
+/**
+ * Eight frames at 15 s. `a06461` starts inside the site's ring and flies east at 250 kt, so its
+ * range — and its uncapped score, which orders the ADS-B block under the ceiling — changes every
+ * tick; `501267` sits parked at 1.5 radii. `bbbbbb` is heard only at frame 0 and coasts out;
+ * `cccccc` appears at frame 2 (30 s).
+ */
+const MOVING: CaptureState = {
+  status: 'ready',
+  capture: {
+    ao: 'phl',
+    source: 'adsb.lol v2',
+    capturedAt: '2026-08-29T23:09:25.373Z',
+    intervalMs: 15000,
+    bbox: AO.bbox,
+    frames: [...Array(8)].map((_, i) => ({
+      tMs: i * 15000,
+      records: [
+        {
+          hex: 'a06461',
+          callsign: 'AAL423',
+          position: [-75.23 + i * 0.03, 39.88] as [number, number],
+          altitudeFt: 3000,
+          groundSpeedKt: 250,
+          headingDeg: 90,
+        },
+        { hex: '501267', position: [-75.2411, 39.9396] as [number, number], groundSpeedKt: 60 },
+        ...(i === 0
+          ? [{ hex: 'bbbbbb', position: [-75.3, 39.85] as [number, number], groundSpeedKt: 90 }]
+          : []),
+        ...(i >= 2
+          ? [{ hex: 'cccccc', position: [-75.4, 39.95] as [number, number], groundSpeedKt: 120 }]
+          : []),
+      ],
+    })),
+  },
+}
+
+describe('App replay clock (06a)', () => {
+  const clock = () => screen.getByText('Sim clock').nextSibling as HTMLElement
+  const rows = () =>
+    within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+  const idents = () => rows().map((row) => row.querySelector('.queue__ident')?.textContent)
+
+  it('ticks the sim clock one second at a time from the scenario start, and shows the position', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} />)
+    expect(clock()).toHaveTextContent('02:30:00')
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled()
+    replay.tick(67)
+    expect(clock()).toHaveTextContent('02:31:07')
+    expect(screen.getByText('01:07 / 01:45')).toBeInTheDocument()
+    expect(screen.getByRole('slider', { name: 'Seek' })).toHaveValue('67')
+  })
+
+  it('re-ranks the Queue live as the picture plays', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    // AAL423 starts inside the ring and ranks above the parked track.
+    const before = idents()
+    expect(before.indexOf('AAL423')).toBeLessThan(before.indexOf('501267'))
+    replay.tick(105)
+    // Seven samples later it is 18 km out, past the proximity roll-off; the parked track leads.
+    const after = idents()
+    expect(after.indexOf('501267')).toBeLessThan(after.indexOf('AAL423'))
+    expect(after).not.toEqual(before)
+  })
+
+  it('freezes the picture on Pause and moves it on Seek', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    replay.tick(10)
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }))
+    const frozen = document.querySelector('.queue')?.textContent
+    replay.tick(10)
+    expect(clock()).toHaveTextContent('02:30:10')
+    expect(document.querySelector('.queue')?.textContent).toBe(frozen)
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '90' } })
+    expect(clock()).toHaveTextContent('02:31:30')
+    expect(document.querySelector('.queue')?.textContent).not.toBe(frozen)
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
+  })
+
+  it('opens a track’s log when it first appears on the clock, not back-stamped to app start', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    let wall = '2026-09-01T12:04:31.000Z'
+    render(<App schedule={replay.schedule} now={() => wall} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    expect(idents()).not.toContain('cccccc')
+    wall = '2026-09-01T12:05:01.000Z'
+    replay.tick(30)
+    const row = rows().find((r) => within(r).queryByText('cccccc'))
+    expect(row).toBeDefined()
+    fireEvent.click(within(row as HTMLElement).getByRole('button'))
+    const log = within(screen.getByLabelText('Event log'))
+    expect(log.getByText('12:05:01Z')).toBeInTheDocument()
+    expect(log.queryByText('12:04:31Z')).not.toBeInTheDocument()
+  })
+
+  it('drops a coasted track from the Queue and closes its drawer, keeping its log', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    const row = rows().find((r) => within(r).queryByText('bbbbbb')) as HTMLElement
+    fireEvent.click(within(row).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    expect(screen.getByLabelText('Track review: bbbbbb')).toBeInTheDocument()
+    // Heard only at frame 0: held through the 90 s coast, gone after it.
+    replay.tick(90)
+    expect(idents()).toContain('bbbbbb')
+    expect(screen.getByText('Seen').nextSibling).toHaveTextContent('90 s ago')
+    replay.tick(1)
+    expect(idents()).not.toContain('bbbbbb')
+    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
+    // The operator's focus was on the drawer; the picture took it away, and it must land on the
+    // list, not on document.body (#73 review).
+    expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
+    // The record survives the picture: seek back and the claim is still on it.
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '0' } })
+    fireEvent.click(
+      within(rows().find((r) => within(r).queryByText('bbbbbb')) as HTMLElement).getByRole(
+        'button',
+      ),
+    )
+    expect(
+      within(screen.getByText('Status').parentElement as HTMLElement).getByText('Assessing'),
+    ).toBeInTheDocument()
+  })
+
+  it('lands focus on the Review nav item when the picture takes the reviewed track away (#73 review)', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
+    fireEvent.click(
+      within(rows().find((r) => within(r).queryByText('bbbbbb')) as HTMLElement).getByRole(
+        'button',
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    // A keyboard operator mid-walk: focus is on a drawer button when the track coasts out.
+    screen.getByRole('button', { name: 'Assess' }).focus()
+    replay.tick(91)
+    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
+    expect(screen.getByText('Select a track from the Queue.')).toBeInTheDocument()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Review' }))
   })
 })
