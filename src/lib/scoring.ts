@@ -352,3 +352,49 @@ export function scoreTrack(
     siteId: nearest.site.id,
   }
 }
+
+/**
+ * A score rebuilt from the record (06b): the factor values and the weights an event carries make
+ * the same breakdown the operator saw, over the record's own doctrine rather than the live
+ * config — the case #64 kept the weights for. The composite and its uncapped twin are the
+ * snapshot's own; capped is their inequality. Factor detail lines are not in the record, and
+ * say so. `siteId` is the caller's — the snapshot measures range to the nearest site by value.
+ */
+export function scoreFromSnapshot(
+  observed: {
+    score: number
+    uncapped: number
+    factors: Record<FactorId, number>
+    weights: Record<FactorId, number>
+    rangeM: number
+  },
+  siteId: string,
+  config: ScoringConfig = SCORING,
+): Score {
+  const factors = FACTORS.map(({ id, label }): Factor => {
+    const value = observed.factors[id]
+    const weight = observed.weights[id]
+    return {
+      id,
+      label,
+      value,
+      weight,
+      contribution: (value / 100) * weight,
+      detail: 'as recorded when the operator acted',
+    }
+  })
+  const totalWeight = factors.reduce((sum, factor) => sum + factor.weight, 0)
+  const weighted = factors.reduce((sum, factor) => sum + factor.contribution, 0)
+  return {
+    composite: observed.score,
+    weighted,
+    total: Math.round(weighted * 10) / 10,
+    totalWeight,
+    uncapped: observed.uncapped,
+    capped: observed.score < observed.uncapped,
+    band: bandOf(Math.round(observed.score), config.bands),
+    factors,
+    rangeM: observed.rangeM,
+    siteId,
+  }
+}

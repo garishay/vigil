@@ -7,6 +7,7 @@ import { ReviewDrawer } from './components/ReviewDrawer'
 import { AO } from './config/ao'
 import { CONTACTS, type ContactId } from './config/contacts'
 import { DISPOSITIONS, type DispositionId } from './config/dispositions'
+import { REPLAY } from './config/replay'
 import { SCENARIO } from './config/scenario'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useCapture } from './data/useCapture'
@@ -17,8 +18,10 @@ import {
   STATUSES,
   STATUS_LABEL,
   appendEvent,
+  bandCrossing,
   firstSeen,
   isTerminal,
+  lastBand,
   observedSnapshot,
   statusOf,
   type LifecycleAction,
@@ -26,7 +29,7 @@ import {
   type TrackEvent,
 } from './lib/lifecycle'
 import { rankTracks, type RankedTrack } from './lib/ranking'
-import { indexCapture, memoryAt, pictureAt } from './lib/replay'
+import { indexCapture, memoryAt, pictureAt, trailAt } from './lib/replay'
 import { minuteOfDay } from './lib/scoring'
 import type { Track } from './lib/tracks'
 
@@ -167,26 +170,49 @@ export default function App({
     setSelectedId(null)
   }
 
-  // The sighting fold: every track in the picture without a log gets one opened now — its `at`
-  // from the wall clock, its `tSec` from the replay clock, its `observed` from this render —
-  // rather than back-stamped to app start (ruled on #6, note 3). Guarded set-during-render is
-  // the documented derived-state pattern, and the guard is what keeps it to one pass: the
-  // updater re-checks its own argument, so two renders in one commit cannot double-open. A memo
-  // keyed on `now` would re-stamp every render, since the default prop is a fresh function each
-  // time (#47 round 1). Seek-honest: a track first shown after a seek opens at the seek target.
-  const unseen = ranked.filter((entry) => eventLogs[entry.track.id] === undefined)
-  if (unseen.length > 0) {
+  // The record's fold over the picture, once per render that changes it. Every track without a
+  // log gets one opened now — its `at` from the wall clock, its `tSec` from the replay clock,
+  // its `observed` from this render — rather than back-stamped to app start (ruled on #6, note
+  // 3); every track whose band differs from the band its record last saw gets a crossing
+  // appended at sim time, in either direction, terminal or not (06b, ruled on #6). Guarded
+  // set-during-render is the documented derived-state pattern, and the guard is what keeps it
+  // to one pass: the updater re-checks its own argument, so two renders in one commit cannot
+  // double-open or double-log. A memo keyed on `now` would re-stamp every render, since the
+  // default prop is a fresh function each time (#47 round 1). Seek-honest: a track first shown
+  // after a seek opens at the seek target, and a seek logs at most one crossing.
+  const recordStale = ranked.some((entry) => {
+    const log = eventLogs[entry.track.id]
+    return log === undefined || lastBand(log) !== entry.score.band
+  })
+  if (recordStale) {
     const at = now()
     setEventLogs((logs) => {
-      const opened = { ...logs }
-      for (const entry of unseen) {
-        if (opened[entry.track.id] === undefined) {
-          opened[entry.track.id] = firstSeen(entry.track.id, observedSnapshot(entry), at, tSec)
+      const next = { ...logs }
+      let changed = false
+      for (const entry of ranked) {
+        const id = entry.track.id
+        const log = next[id]
+        if (log === undefined) {
+          next[id] = firstSeen(id, observedSnapshot(entry), at, tSec)
+          changed = true
+        } else {
+          const crossed = bandCrossing(log, entry, at, tSec)
+          if (crossed) {
+            next[id] = crossed
+            changed = true
+          }
         }
       }
-      return opened
+      return changed ? next : logs
     })
   }
+  // Sim time as the record prints it — the event log and the handoff timeline (06b).
+  const clock = (t: number) => simClock(SCENARIO.clock.startLocal, t)
+  // The selected track's history trail: pure in the clock, drawn behind its dot (06b).
+  const trail = useMemo(
+    () => (index && selected ? trailAt(index, plan, selected.track, tSec) : []),
+    [index, plan, selected, tSec],
+  )
   const logFor = (entry: RankedTrack): TrackEvent[] =>
     eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), now(), tSec)
 
@@ -254,6 +280,8 @@ export default function App({
       dispositions={DISPOSITIONS}
       onAction={act}
       lookupPhoto={lookupPhoto}
+      clock={clock}
+      trail={{ count: trail.length, windowS: REPLAY.trailS }}
       onClose={(event) => {
         const keyboard = event.detail === 0
         setKeyboardClose(keyboard)
@@ -387,6 +415,7 @@ export default function App({
           // so a Home round trip cannot reset the ease stamp and re-fly the camera (#47).
           selectedId={selectedId}
           selectionShown={surfaceId !== 'home'}
+          trail={trail}
           onSelect={(id) => {
             setSelectedId(id)
             // The other direction of the same ruling: a selection is an intent to review, so one

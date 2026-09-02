@@ -7,14 +7,7 @@ import type { ContactId } from '../config/contacts'
 import type { DispositionId } from '../config/dispositions'
 import type { PhotoLookup } from '../data/photos'
 import { describeCategory } from '../lib/airframe'
-import {
-  LAYER_BADGE,
-  describeEvent,
-  eventClock,
-  formatRangeKm,
-  roundHeading,
-  trackIdent,
-} from '../lib/display'
+import { LAYER_BADGE, describeEvent, formatRangeKm, roundHeading, trackIdent } from '../lib/display'
 import { handoffText } from '../lib/handoff'
 import { IDENTITY_LABEL } from '../lib/identity'
 import {
@@ -93,10 +86,10 @@ function Picker<Id extends string>({
  * column beside the Queue, so the operator never loses the list to read a track (§4.2); the
  * Review surface shows the same component alone, at the same 26 rem (ruled B1 on #3).
  *
- * The score breakdown (04b) sits between the kinematics and the history. Reserved here, filled
- * later: the history trail's content (PR 06 —
- * at a static frame 0 there is exactly one known position). The Track Visuals slot is 03c's
- * silhouette tier; 03d adds the photo tier for ADS-B tracks.
+ * The score breakdown (04b) sits between the kinematics and the history line, which counts the
+ * trail the map draws (06b). The Track Visuals slot is 03c's silhouette tier; 03d adds the photo
+ * tier for ADS-B tracks. The event log and the handoff timeline read in sim time (06b): the
+ * caller supplies the clock, so the drawer never knows the scenario's start.
  *
  * The caller keys this component by track id, so picker and copied state belong to one track.
  */
@@ -109,6 +102,8 @@ export function ReviewDrawer({
   onAction,
   onClose,
   lookupPhoto,
+  clock,
+  trail,
 }: {
   entry: RankedTrack
   sites: ProtectedSite[]
@@ -123,6 +118,10 @@ export function ReviewDrawer({
   onClose: (event: MouseEvent<HTMLButtonElement>) => void
   /** The photo tier's lookup (03d), injected so no test reaches the network. */
   lookupPhoto: PhotoLookup
+  /** Sim time as the record prints it — the event log and the handoff timeline (06b). */
+  clock: (tSec: number) => string
+  /** The history trail the map draws: how many known positions, over what window (06b). */
+  trail: { count: number; windowS: number }
 }) {
   const { track, rank, rangeM } = entry
   const status = statusOf(log)
@@ -223,7 +222,7 @@ export function ReviewDrawer({
   const escalation = log.findLast((event) => event.action === 'escalate')
   const recipient = escalation && contacts.find((contact) => contact.id === escalation.recipient)
   const handoff = recipient
-    ? handoffText({ entry, siteName, recipient, log, contacts, dispositions })
+    ? handoffText({ entry, siteName, recipient, log, contacts, dispositions, clock })
     : null
 
   const copy = async () => {
@@ -287,8 +286,11 @@ export function ReviewDrawer({
 
       <ScoreBreakdown score={entry.score} />
 
+      {/* The trail the map draws behind the selected track (06b): recorded samples for an
+          aircraft, frame-grid instants for an inject, the current position last. */}
       <p className="drawer__history">
-        History: 1 known position (frame 0) — the trail fills when the clock runs (PR 06).
+        History: {trail.count} known {trail.count === 1 ? 'position' : 'positions'} over the last{' '}
+        {Math.round(trail.windowS / 60)} min
       </p>
 
       {/* Disabled rather than hidden, so the whole action vocabulary stays visible (§7.1). */}
@@ -361,7 +363,7 @@ export function ReviewDrawer({
         <ol className="drawer__log">
           {log.map((event) => (
             <li className="drawer__event" key={event.seq}>
-              <span className="drawer__eventclock">{eventClock(event.at)}</span>
+              <span className="drawer__eventclock">{clock(event.tSec)}</span>
               <span>{describeEvent(event, contacts, dispositions)}</span>
             </li>
           ))}

@@ -3,6 +3,7 @@ import { StrictMode, type ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ReviewDrawer } from './ReviewDrawer'
 import type { ProtectedSite } from '../config/ao'
+import { simClock } from '../lib/display'
 import { CONTACTS } from '../config/contacts'
 import { DISPOSITIONS } from '../config/dispositions'
 import { appendEvent, firstSeen, observedSnapshot, type TrackEvent } from '../lib/lifecycle'
@@ -93,6 +94,8 @@ const renderDrawer = (
       dispositions={DISPOSITIONS}
       onAction={vi.fn()}
       onClose={vi.fn()}
+      clock={(tSec) => simClock('02:30', tSec)}
+      trail={{ count: 1, windowS: 120 }}
       {...props}
     />,
   )
@@ -236,6 +239,8 @@ describe('ReviewDrawer', () => {
         dispositions={DISPOSITIONS}
         onAction={vi.fn()}
         onClose={vi.fn()}
+        clock={(tSec) => simClock('02:30', tSec)}
+        trail={{ count: 1, windowS: 120 }}
       />,
     )
     expect(within(visuals()).getByText('Small UAS (kinematic class)')).toBeInTheDocument()
@@ -314,6 +319,8 @@ describe('ReviewDrawer', () => {
         dispositions={DISPOSITIONS}
         onAction={vi.fn()}
         onClose={vi.fn()}
+        clock={(tSec) => simClock('02:30', tSec)}
+        trail={{ count: 1, windowS: 120 }}
       />,
     )
     expect(within(status()).getByText('Assessing')).toBeInTheDocument()
@@ -330,6 +337,8 @@ describe('ReviewDrawer', () => {
         dispositions={DISPOSITIONS}
         onAction={vi.fn()}
         onClose={vi.fn()}
+        clock={(tSec) => simClock('02:30', tSec)}
+        trail={{ count: 1, windowS: 120 }}
       />,
     )
     expect(within(status()).getByText('Resolved')).toBeInTheDocument()
@@ -402,6 +411,8 @@ describe('ReviewDrawer', () => {
           dispositions={DISPOSITIONS}
           onAction={vi.fn()}
           onClose={vi.fn()}
+          clock={(tSec) => simClock('02:30', tSec)}
+          trail={{ count: 1, windowS: 120 }}
         />
       </StrictMode>,
     )
@@ -425,6 +436,8 @@ describe('ReviewDrawer', () => {
         dispositions={DISPOSITIONS}
         onAction={vi.fn()}
         onClose={vi.fn()}
+        clock={(tSec) => simClock('02:30', tSec)}
+        trail={{ count: 1, windowS: 120 }}
       />,
     )
     expect(document.activeElement).toBe(document.body)
@@ -441,6 +454,8 @@ describe('ReviewDrawer', () => {
       onAction: vi.fn(),
       onClose: vi.fn(),
       lookupPhoto: noPhoto,
+      clock: (tSec: number) => simClock('02:30', tSec),
+      trail: { count: 1, windowS: 120 },
     }
     // Mount steals nothing: engines that don't focus clicked buttons (Safari) leave focus on
     // body during mouse use, and opening a track must not yank it into the drawer (#47 round 4).
@@ -464,9 +479,9 @@ describe('ReviewDrawer', () => {
       .getAllByRole('listitem')
       .map((item) => item.textContent)
     expect(lines).toEqual([
-      '12:04:31ZNew — first seen',
-      '12:06:02ZAssessing — claimed',
-      '12:07:45ZEscalated — to PHL Tower',
+      '02:30:00New — first seen',
+      '02:30:00Assessing — claimed',
+      '02:30:00Escalated — to PHL Tower',
     ])
   })
 
@@ -488,6 +503,8 @@ describe('ReviewDrawer', () => {
         dispositions={DISPOSITIONS}
         onAction={vi.fn()}
         onClose={vi.fn()}
+        clock={(tSec) => simClock('02:30', tSec)}
+        trail={{ count: 1, windowS: 120 }}
       />,
     )
     const text = screen.getByLabelText('Handoff text') as HTMLTextAreaElement

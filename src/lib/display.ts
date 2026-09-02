@@ -8,6 +8,7 @@
 
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
+import { BANDS, BAND_LABEL } from '../config/scoring.ts'
 import type { TrackEvent } from './lifecycle.ts'
 import { formatClock, minuteOfDay, type Score } from './scoring.ts'
 import type { Track } from './tracks.ts'
@@ -71,18 +72,10 @@ export const scoreSummary = (score: Score) => {
 export const roundHeading = (headingDeg: number) => Math.round(headingDeg) % 360
 
 /**
- * An event's wall clock as HH:MM:SSZ — normalized to UTC before the label, not sliced blind: a
- * caller supplying an offset form (`…+02:00`, a shape the PR 06 clock seam permits) must not see
- * local time labelled Zulu (#47 review). The mark itself is the point — an unlabelled 12:07
- * reads as local and makes the defensible record misreadable ([2c]). Zulu is also what the
- * recipient's own logs run on. Deterministic for tests whatever the environment's zone.
- */
-export const eventClock = (at: string) => `${new Date(at).toISOString().slice(11, 19)}Z`
-
-/**
  * One line of the event record, identical in the drawer's log and the handoff timeline. The
  * config lists are parameters, like the sites in `rankTracks` — ids stay in the log for the
- * learner (§8.3b); names are looked up only here, at display time.
+ * learner (§8.3b); names are looked up only here, at display time. A band crossing names the
+ * band entered and the one left, up or down, in the words of the one band table (06b, #66).
  */
 export function describeEvent(
   event: TrackEvent,
@@ -92,6 +85,11 @@ export function describeEvent(
   switch (event.action) {
     case 'first-seen':
       return 'New — first seen'
+    case 'band': {
+      const { from, to } = event.band ?? { from: 'calm', to: 'calm' }
+      const direction = BANDS.indexOf(to) > BANDS.indexOf(from) ? 'up' : 'down'
+      return `${BAND_LABEL[to]} — ${direction} from ${from}`
+    }
     case 'assess':
       return 'Assessing — claimed'
     case 'escalate':
@@ -103,7 +101,12 @@ export function describeEvent(
   }
 }
 
-/** The strip's sim clock: the scenario's time of day at `tSec`, to the second (PR 06a). */
+/**
+ * The sim clock: the scenario's time of day at `tSec`, to the second — the strip's clock (06a)
+ * and, from 06b, the mark on every line of the event log and the handoff timeline: "first
+ * warning 02:33:00" is what a recipient wants to know (ruled on #6). The wall-clock `at` stays
+ * on every event for the learner; it is simply not the time the record reads in.
+ */
 export const simClock = (startLocal: string, tSec: number) =>
   `${formatClock(minuteOfDay(startLocal, tSec))}:${String(Math.floor(tSec) % 60).padStart(2, '0')}`
 

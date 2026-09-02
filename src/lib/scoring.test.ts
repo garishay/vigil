@@ -10,6 +10,8 @@ import {
   type IdentityMemory,
   type ObservedTrack,
   type ScoringContext,
+  scoreFromSnapshot,
+  type Score,
 } from './scoring'
 import { AO } from '../config/ao'
 import type { ProtectedSite } from '../config/ao'
@@ -676,5 +678,55 @@ describe('determinism', () => {
         )
       }
     }
+  })
+})
+
+describe('scoreFromSnapshot (06b)', () => {
+  it('rebuilds the breakdown the operator saw from the record alone, for every golden inject', async () => {
+    const { injectTracksAt, planScenario } = await import('./injects')
+    const { rankTracks } = await import('./ranking')
+    const { observedSnapshot } = await import('./lifecycle')
+    const { PHL } = await import('../config/ao')
+    const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+    const ranked = rankTracks(injectTracksAt(plan, 300), PHL.protectedSites, {
+      tSec: 300,
+      minuteOfDay: 155,
+      memory: {},
+    })
+    expect(ranked.length).toBeGreaterThan(0)
+    // Everything but the detail lines, which the record does not carry.
+    const strip = (score: Score) => ({
+      ...score,
+      factors: score.factors.map(({ id, label, value, weight, contribution }) => ({
+        id,
+        label,
+        value,
+        weight,
+        contribution,
+      })),
+    })
+    for (const entry of ranked) {
+      expect(strip(scoreFromSnapshot(observedSnapshot(entry), entry.siteId))).toEqual(
+        strip(entry.score),
+      )
+    }
+  })
+
+  it('reads the cap off the inequality and the band off the rounded composite', () => {
+    const observed = {
+      score: 30,
+      uncapped: 57.8125,
+      factors: { cooperativity: 5, closing: 100, proximity: 100, kinematic: 0, time: 100 },
+      weights: { cooperativity: 25, closing: 20, proximity: 15, kinematic: 10, time: 10 },
+      rangeM: 1200,
+    }
+    const score = scoreFromSnapshot(observed, 'phl-airfield')
+    expect(score.capped).toBe(true)
+    expect(score.band).toBe('calm')
+    expect(score.total).toBe(46.3)
+    expect(score.totalWeight).toBe(80)
+    expect(score.factors.map((factor) => factor.detail)).toContain(
+      'as recorded when the operator acted',
+    )
   })
 })

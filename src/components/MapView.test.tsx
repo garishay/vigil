@@ -152,15 +152,20 @@ describe('MapView', () => {
     const [adsbId, adsbSource] = mapInstance.addSource.mock.calls[1]
     expect(adsbId).toBe('adsb-tracks')
     expect(adsbSource.data.features).toEqual([])
-    const [injectId, injectSource] = mapInstance.addSource.mock.calls[2]
+    // 06b adds the breadcrumb trail between them: under the injects, under the ring.
+    const [trailId, trailSource] = mapInstance.addSource.mock.calls[2]
+    expect(trailId).toBe('selected-trail')
+    expect(trailSource.data.features).toEqual([])
+    const [injectId, injectSource] = mapInstance.addSource.mock.calls[3]
     expect(injectId).toBe('inject-tracks')
     expect(injectSource.data.features).toEqual([])
     // 03a adds the selection ring: its own source, empty, layered above everything.
-    const [selectId, selectSource] = mapInstance.addSource.mock.calls[3]
+    const [selectId, selectSource] = mapInstance.addSource.mock.calls[4]
     expect(selectId).toBe('selected-track')
     expect(selectSource.data.features).toEqual([])
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(7)
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(8)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
+    expect(order.indexOf('selected-trail-line')).toBeLessThan(order.indexOf('inject-tracks-halo'))
     expect(order.at(-1)).toBe('selected-track-ring')
     // The ADS-B hit layer widens the click target for airborne traffic only, and paints
     // nothing — a parked 1.8 px dot must not carry an invisible 16 px blanket over the apron.

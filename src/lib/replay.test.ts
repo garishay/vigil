@@ -5,7 +5,7 @@ import { SCENARIO } from '../config/scenario'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture, CaptureRecord } from './adsb'
 import { injectTracksAt, planScenario } from './injects'
-import { indexCapture, interpolateHeading, memoryAt, pictureAt } from './replay'
+import { indexCapture, interpolateHeading, memoryAt, pictureAt, trailAt } from './replay'
 import { rememberIdentities, type IdentityMemory } from './scoring'
 
 const capture = (frames: { tMs: number; records: CaptureRecord[] }[]): AdsbCapture => ({
@@ -86,7 +86,7 @@ describe('pictureAt', () => {
     expect(pictureAt(index, 103)).toHaveLength(1)
     expect(pictureAt(index, 104)).toEqual([])
     // The window is configuration.
-    expect(pictureAt(index, 60, { coastS: 30, tickMs: 1000 })).toEqual([])
+    expect(pictureAt(index, 60, { coastS: 30, tickMs: 1000, trailS: 120 })).toEqual([])
   })
 
   it('bridges an interior hole inside the coast window by the track’s own samples', () => {
@@ -199,5 +199,50 @@ describe('pictureAt — the coast window is one clock in both branches (#73 revi
     // the next sample, which is a fresh message.
     expect(pictureAt(aged, 67)).toEqual([])
     expect(pictureAt(aged, 75)[0].lastSeenSec).toBe(2)
+  })
+})
+
+describe('trailAt (06b)', () => {
+  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const samples = [...Array(8)].map((_, i) => ({
+    tMs: i * 15000,
+    records: [{ ...A0, position: [-75.2 + i * 0.01, 39.8] as [number, number] }],
+  }))
+  const index = indexCapture(capture(samples))
+
+  it('lists an aircraft’s recorded samples inside the window, oldest first, then where it is now', () => {
+    const [track] = pictureAt(index, 67)
+    const trail = trailAt(index, plan, track, 67)
+    // 67 − 120 < 0, so every sample before 67 s: 0, 15, 30, 45, 60 — then the current
+    // interpolated position, which is not a sample.
+    expect(trail).toHaveLength(6)
+    expect(trail[0]).toEqual([-75.2, 39.8])
+    expect(trail[4]).toEqual([-75.16, 39.8])
+    expect(trail[5]).toEqual(track.position)
+    // A tighter window keeps only the samples it reaches: 60 and 45, then now.
+    expect(trailAt(index, plan, track, 67, { coastS: 90, tickMs: 1000, trailS: 25 })).toHaveLength(
+      3,
+    )
+  })
+
+  it('samples an inject at the frame-grid instants inside the window, then now', () => {
+    const t = 67
+    const inject = injectTracksAt(plan, t)[0]
+    const trail = trailAt(index, plan, inject, t)
+    expect(trail).toHaveLength(6)
+    expect(trail[0]).toEqual(injectTracksAt(plan, 0)[0].position)
+    expect(trail[4]).toEqual(injectTracksAt(plan, 60)[0].position)
+    expect(trail[5]).toEqual(inject.position)
+    // Seek-honest: the same instant asked twice is the same trail.
+    expect(trailAt(index, plan, inject, t)).toEqual(trail)
+  })
+
+  it('reaches back exactly the window and no further', () => {
+    const [track] = pictureAt(index, 105)
+    // 105 − 120 < 0: all eight samples before 105 are in, then now.
+    expect(trailAt(index, plan, track, 105)).toHaveLength(8)
+    // At 135 the sample at 0 falls out of a 120 s window; the one at 15 leads.
+    const later = pictureAt(index, 135)[0]
+    expect(trailAt(index, plan, later, 135)[0]).toEqual([-75.19, 39.8])
   })
 })

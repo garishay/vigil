@@ -3,6 +3,13 @@
  * notification with the evidence attached, and this is the evidence. Nothing is transmitted
  * (§2); the operator copies it and delivers it themselves until Phase 2.
  *
+ * **The evidence block is frozen at escalation** (06b, ruled on #6): the Track, Range,
+ * kinematics, and Score lines print from the escalate event's own snapshot — what was known at
+ * the moment the notification was made — and the Range line names that moment. The score is
+ * rebuilt from the snapshot's factor values and weights, so the arithmetic on the page is the
+ * record's, not the live picture's. The Timeline stays live from the log, so a later Resolve
+ * still appends. The ident is the track's name and prints live; the identity is the snapshot's.
+ *
  * The layer is disclosed in the Track line because the recipient must know a synthetic track is
  * synthetic. An absent kinematic renders as `—`, never as a zero (#35). The score block is the
  * composite with its band, the per-factor contributions two to a line, and the ADS-B ceiling as
@@ -18,7 +25,6 @@ import type { Disposition } from '../config/dispositions.ts'
 import {
   capLine,
   describeEvent,
-  eventClock,
   formatRangeKm,
   formatScore,
   roundHeading,
@@ -28,6 +34,7 @@ import {
 import { IDENTITY_LABEL } from './identity.ts'
 import type { TrackEvent } from './lifecycle.ts'
 import type { RankedTrack } from './ranking.ts'
+import { scoreFromSnapshot } from './scoring.ts'
 import type { Track } from './tracks.ts'
 
 /** Plain provenance for the recipient — the counterpart of the on-screen layer badge. */
@@ -46,20 +53,28 @@ export function handoffText({
   log,
   contacts,
   dispositions,
+  clock,
 }: {
   entry: RankedTrack
-  /** Name of the site `entry.rangeM` was measured to — the caller resolves `entry.siteId`. */
+  /** Name of the site `entry.siteId` names — the caller resolves it. */
   siteName: string
   recipient: Contact
+  /** Must hold the escalation whose snapshot the evidence block prints. */
   log: readonly TrackEvent[]
   contacts: readonly Contact[]
   dispositions: readonly Disposition[]
+  /** Sim time as the record prints it — `HH:MM:SS` from a `tSec`. */
+  clock: (tSec: number) => string
 }): string {
-  const { track, rangeM, score } = entry
+  const escalation = log.findLast((event) => event.action === 'escalate')
+  if (!escalation) throw new Error('handoffText needs a log with an escalation')
+  const { track } = entry
+  const observed = escalation.observed
+  const score = scoreFromSnapshot(observed, entry.siteId)
   const kinematics = [
-    dash(track.altitudeFt, (v) => `${v} ft`),
-    dash(track.groundSpeedKt, (v) => `${v} kt`),
-    `hdg ${dash(track.headingDeg, (v) => `${roundHeading(v)}`)}`,
+    dash(observed.altitudeFt, (v) => `${v} ft`),
+    dash(observed.groundSpeedKt, (v) => `${v} kt`),
+    `hdg ${dash(observed.headingDeg, (v) => `${roundHeading(v)}`)}`,
   ].join(' · ')
   // Two factors per line keeps every line inside the pinned fit. The factor lines sum to the
   // total on the Score line within rounding; that total, to one decimal, reproduces the score —
@@ -79,15 +94,15 @@ export function handoffText({
     'VIGIL HANDOFF',
     'Demonstration only — not for operational use',
     `To: ${recipient.name}`,
-    `Track ${trackIdent(track)} · ${IDENTITY_LABEL[track.identity]} · ${LAYER_DISCLOSURE[track.source]}`,
-    `Range ${formatRangeKm(rangeM)} to ${siteName}`,
+    `Track ${trackIdent(track)} · ${IDENTITY_LABEL[observed.identity]} · ${LAYER_DISCLOSURE[track.source]}`,
+    `Range ${formatRangeKm(observed.rangeM)} to ${siteName} at ${clock(escalation.tSec)}`,
     `  ${kinematics}`,
     `Score: ${formatScore(score)} (${score.band}) — ${score.capped ? 'capped, ' : ''}${scoreTotal(score)}`,
     ...factorLines,
     ...(score.capped ? [`  ${capLine(score)}`] : []),
     'Timeline:',
     ...log.map(
-      (event) => `  ${eventClock(event.at)}  ${describeEvent(event, contacts, dispositions)}`,
+      (event) => `  ${clock(event.tSec)}  ${describeEvent(event, contacts, dispositions)}`,
     ),
   ].join('\n')
 }

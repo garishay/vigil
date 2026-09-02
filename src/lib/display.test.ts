@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  eventClock,
+  describeEvent,
   formatElapsed,
   formatScore,
   roundHeading,
@@ -91,18 +91,6 @@ describe('scoreSummary', () => {
   })
 })
 
-describe('eventClock', () => {
-  it('renders a UTC instant as its Zulu clock', () => {
-    expect(eventClock('2026-09-01T12:07:45.000Z')).toBe('12:07:45Z')
-  })
-
-  it('normalizes an offset form before labelling it Zulu (#47 review)', () => {
-    // The PR 06 clock seam permits any ISO form; 14:07 at +02:00 *is* 12:07Z, and the record
-    // must say so rather than slicing the local digits and stamping a Z on them.
-    expect(eventClock('2026-09-01T14:07:45.000+02:00')).toBe('12:07:45Z')
-  })
-})
-
 describe('roundHeading', () => {
   it('rounds to the whole degree both the drawer and the handoff print (#49)', () => {
     expect(roundHeading(345.6)).toBe(346)
@@ -132,5 +120,36 @@ describe('formatElapsed', () => {
     expect(formatElapsed(187)).toBe('03:07')
     expect(formatElapsed(1185)).toBe('19:45')
     expect(formatElapsed(3725)).toBe('62:05')
+  })
+})
+
+describe('describeEvent — band crossings (06b)', () => {
+  const crossing = (from: 'calm' | 'caution' | 'warning', to: typeof from) =>
+    ({
+      trackId: 'inject-05',
+      seq: 2,
+      at: '2026-09-01T12:06:02.000Z',
+      tSec: 187,
+      action: 'band',
+      from: 'new',
+      to: 'new',
+      band: { from, to },
+      observed: {
+        identity: 'non-cooperative',
+        rangeM: 7200.2,
+        altitudeFt: 63,
+        groundSpeedKt: 19.1,
+        headingDeg: 345.6,
+        score: 72,
+        uncapped: 72,
+        factors: { cooperativity: 100, closing: 44.4, proximity: 78, kinematic: 100, time: 100 },
+        weights: { cooperativity: 25, closing: 20, proximity: 15, kinematic: 10, time: 10 },
+      },
+    }) as const
+
+  it('names the band entered and the one left, up or down, in the one table’s words (#66)', () => {
+    expect(describeEvent(crossing('calm', 'caution'), [], [])).toBe('Caution — up from calm')
+    expect(describeEvent(crossing('caution', 'warning'), [], [])).toBe('Warning — up from caution')
+    expect(describeEvent(crossing('warning', 'calm'), [], [])).toBe('Calm — down from warning')
   })
 })
