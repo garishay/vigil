@@ -76,7 +76,7 @@ flowchart LR
     app["App.tsx + data/useCapture.ts<br/>loads the recording once<br/>holds the inject plan · samples t = 0<br/>folds the identity memory · sim clock at the scenario start"]
     queue["Queue<br/>ranked list, the product"]
     map["MapView + IdentityLegend<br/>context"]
-    review["components/ReviewDrawer.tsx + TrackVisuals<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>lifecycle actions · event log · handoff"]
+    review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log · handoff"]
     clock["Playback clock — PR 06"]
     app --> queue
     app --> map

@@ -13,13 +13,18 @@
   --accent: #4c9aff;
   --accent-soft: rgba(76, 154, 255, 0.12);
 
+  /*
+   * The warm end of the spectrum, entering with the scoring engine (PR 04b) and spent on
+   * nothing but a score's band — scope §4.3: alarm colour is earned, never decorative. Calm
+   * keeps the accent, so a cooperative picture stays cool.
+   */
+  --elevated: #f5b942;
+  --elevated-soft: rgba(245, 185, 66, 0.14);
+  --alarm: #ff6b57;
+  --alarm-soft: rgba(255, 107, 87, 0.14);
+
   --radius: 0.5rem;
   --header-h: 3rem;
-
-  /*
-   * No alarm colors are defined yet, deliberately. Scope §4.3: alarm color is earned by a
-   * score, never spent on decoration — so it enters the theme with the scoring engine (PR 04).
-   */
 
   color-scheme: dark;
   font-family:

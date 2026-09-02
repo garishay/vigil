@@ -139,8 +139,23 @@ describe('App shell', () => {
     for (const row of rows) {
       if (within(row).queryByText('ADS-B')) {
         expect(Number(row.querySelector('.queue__score')?.textContent)).toBeLessThanOrEqual(30)
+        // The warm bands are a score's to earn, and no real aircraft can (§2, 04b).
+        expect(row.querySelector('.queue__score')).toHaveAttribute('data-band', 'calm')
       }
     }
+  })
+
+  it('opens a row to its breakdown in the drawer, header and bars agreeing with the chip (04b)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    const firstRow = within(queue).getAllByRole('listitem')[0]
+    const chip = firstRow.querySelector('.queue__score') as HTMLElement
+    fireEvent.click(within(firstRow).getByRole('button'))
+    const breakdown = screen.getByLabelText('Score breakdown')
+    expect(within(breakdown).getByText(`Score ${chip.textContent}`)).toBeInTheDocument()
+    expect(breakdown).toHaveAttribute('data-band', chip.getAttribute('data-band'))
+    expect(within(breakdown).getAllByRole('meter')).toHaveLength(5)
   })
 
   it("plans the injects on the recording's own frame grid", () => {

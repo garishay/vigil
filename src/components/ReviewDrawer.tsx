@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { IdentityDot } from './IdentityDot'
+import { ScoreBreakdown } from './ScoreBreakdown'
 import { TrackVisuals } from './TrackVisuals'
 import type { ProtectedSite } from '../config/ao'
 import type { ContactId } from '../config/contacts'
@@ -11,7 +12,6 @@ import {
   describeEvent,
   eventClock,
   formatRangeKm,
-  formatScore,
   roundHeading,
   trackIdent,
 } from '../lib/display'
@@ -93,7 +93,8 @@ function Picker<Id extends string>({
  * column beside the Queue, so the operator never loses the list to read a track (§4.2); the
  * Review surface shows the same component alone, at the same 26 rem (ruled B1 on #3).
  *
- * Reserved here, filled later: the score breakdown (04b; the composite shows now), the history trail's content (PR 06 —
+ * The score breakdown (04b) sits between the kinematics and the history. Reserved here, filled
+ * later: the history trail's content (PR 06 —
  * at a static frame 0 there is exactly one known position). The Track Visuals slot is 03c's
  * silhouette tier; 03d adds the photo tier for ADS-B tracks.
  *
@@ -284,10 +285,7 @@ export function ReviewDrawer({
         ))}
       </dl>
 
-      <div className="drawer__slot">
-        Score {formatScore(entry.score)} —{' '}
-        <span className="drawer__pending">factor breakdown arrives with 04b</span>
-      </div>
+      <ScoreBreakdown score={entry.score} />
 
       <p className="drawer__history">
         History: 1 known position (frame 0) — the trail fills when the clock runs (PR 06).

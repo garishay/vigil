@@ -114,7 +114,8 @@ describe('ReviewDrawer', () => {
 
   it('shows identity, the layer badge, rank, and range to the named site', () => {
     renderDrawer(entry(SILENT, 1, 7200.2))
-    expect(screen.getByText('Non-cooperative')).toBeInTheDocument()
+    // Scoped to the header: the breakdown's cooperativity row wears the same §6 label (04b).
+    expect(document.querySelector('.drawer__identity')).toHaveTextContent('Non-cooperative')
     expect(screen.getByText('INJECT')).toBeInTheDocument()
     // Named from entry.siteId, not sites[0]: the decoy site sits first in SITES on purpose.
     expect(screen.getByText('7.2 km to PHL Airfield')).toBeInTheDocument()
@@ -180,12 +181,15 @@ describe('ReviewDrawer', () => {
     expect(within(gs).getByText('—')).toBeInTheDocument()
   })
 
-  it('shows the composite in the reserved slot, and says what fills the rest', () => {
+  it('opens the score to its factors in the breakdown, and still reserves the history (04b)', () => {
     const ranked = entry(SILENT, 1, 7200.2)
     renderDrawer(ranked)
-    const slot = document.querySelector('.drawer__slot') as HTMLElement
-    expect(slot).toHaveTextContent(`Score ${Math.round(ranked.score.composite)}`)
-    expect(within(slot).getByText(/factor breakdown arrives with 04b/)).toBeInTheDocument()
+    const breakdown = screen.getByLabelText('Score breakdown')
+    expect(
+      within(breakdown).getByText(`Score ${Math.round(ranked.score.composite)}`),
+    ).toBeInTheDocument()
+    expect(within(breakdown).getAllByRole('listitem')).toHaveLength(5)
+    expect(document.querySelector('.drawer__slot')).toBeNull()
     expect(screen.getByText(/1 known position/)).toBeInTheDocument()
   })
 

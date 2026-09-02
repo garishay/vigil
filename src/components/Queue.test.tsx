@@ -121,6 +121,16 @@ describe('Queue', () => {
     for (const row of rows()) expect(row.querySelector('.queue__score')).not.toHaveTextContent('—')
   })
 
+  it('wears the band on the chip — the one warm colour on the row, and never on ADS-B (04b)', () => {
+    render(<Queue ranked={RANKED} />)
+    const band = (row: HTMLElement) => row.querySelector('.queue__score')?.getAttribute('data-band')
+    expect(rows().map(band)).toEqual(RANKED.map((entry) => entry.score.band))
+    const [silent, , airliner, , parked] = rows()
+    expect(band(silent)).not.toBe('calm')
+    expect(band(airliner)).toBe('calm')
+    expect(band(parked)).toBe('calm')
+  })
+
   it('discloses the layer in the badge, and nowhere else', () => {
     render(<Queue ranked={RANKED} />)
     const [silent, , airliner] = rows()

@@ -190,7 +190,11 @@
   color: var(--text);
 }
 
-/* The chip is here so its place in the row is settled before PR 04 gives it a number. */
+/*
+ * The score chip. Calm stays the faint outline the placeholder had; the two warm bands are the
+ * only warm colour on the row, and only the engine's band can set them (§4.3). The same three
+ * tokens colour the breakdown's header and bars, so the chip and the drawer agree.
+ */
 .queue__score {
   min-width: 2.25rem;
   border: 1px solid var(--line);
@@ -199,6 +203,26 @@
   color: var(--faint);
   font-variant-numeric: tabular-nums;
   text-align: center;
+}
+
+.queue__score[data-band='elevated'],
+.breakdown[data-band='elevated'] {
+  --band: var(--elevated);
+  --band-soft: var(--elevated-soft);
+}
+
+.queue__score[data-band='alarm'],
+.breakdown[data-band='alarm'] {
+  --band: var(--alarm);
+  --band-soft: var(--alarm-soft);
+}
+
+.queue__score[data-band='elevated'],
+.queue__score[data-band='alarm'] {
+  border-color: var(--band);
+  background: var(--band-soft);
+  color: var(--band);
+  font-weight: 600;
 }
 
 .queue__detail {
@@ -472,19 +496,94 @@
   line-height: 1.45;
 }
 
-/* Reserved space stays visible, so the layout does not jump when PR 04 fills it. */
-.drawer__slot {
+/*
+ * The score breakdown (04b). Calm reads in the accent; the warm bands come from the tokens the
+ * chip sets above. Bars are contribution over weight, so a full bar is a factor at 100.
+ */
+.breakdown {
+  --band: var(--accent);
+  --band-soft: var(--accent-soft);
   margin-top: 0.75rem;
-  border: 1px dashed var(--line);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 0.75rem;
-  color: var(--faint);
+  padding: 0.6rem 0.75rem;
   font-size: 0.8125rem;
-  text-align: center;
 }
 
-.drawer__pending {
+.breakdown__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.breakdown__band {
+  border: 1px solid var(--band);
+  border-radius: var(--radius);
+  padding: 0 0.4rem;
+  color: var(--band);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.breakdown__total {
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown__factors {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breakdown__factor {
+  display: grid;
+  grid-template-columns: 7rem 1fr 3.5rem;
+  align-items: center;
+  column-gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.breakdown__label {
+  color: var(--text);
+}
+
+.breakdown__bar {
+  display: block;
+  height: 0.4rem;
+  border-radius: 0.2rem;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.breakdown__fill {
+  display: block;
+  height: 100%;
+  background: var(--band);
+}
+
+.breakdown__numbers {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.breakdown__detail {
+  grid-column: 1 / -1;
   color: var(--faint);
+  font-size: 0.75rem;
+}
+
+.breakdown__cap {
+  margin: 0.5rem 0 0;
+  border-top: 1px solid var(--line);
+  padding-top: 0.4rem;
+  color: var(--muted);
 }
 
 .drawer__kinematics {
