@@ -18,6 +18,7 @@ import type { RankedTrack } from './ranking'
 import { scoreTrack } from './scoring'
 import type { InjectTrack } from './tracks'
 import { AO } from '../config/ao'
+import { SCORING, type FactorId } from '../config/scoring'
 
 const OBSERVED: ObservedSnapshot = {
   identity: 'non-cooperative',
@@ -27,6 +28,7 @@ const OBSERVED: ObservedSnapshot = {
   score: 82,
   uncapped: 82,
   factors: { cooperativity: 100, closing: 44.4, proximity: 78, kinematic: 100, time: 100 },
+  weights: { cooperativity: 25, closing: 20, proximity: 15, kinematic: 10, time: 10 },
 }
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
@@ -182,7 +184,52 @@ describe('learner-ready shape (§8.3b)', () => {
         kinematic: 0,
         time: 100,
       },
+      weights: SCORING.weights,
     })
+  })
+
+  it('reconciles with its own composite after the weights move (#36 [8], #64)', () => {
+    const observed = observedSnapshot(entry)
+    const ids = Object.keys(observed.factors) as FactorId[]
+
+    // The event's own arithmetic, read off the event and nothing else — no config import. Same
+    // three steps the scorer takes, so the stored numbers reproduce the stored score exactly.
+    const reconcile = (snap: ObservedSnapshot) => {
+      const weighted = ids.reduce((sum, id) => sum + (snap.factors[id] / 100) * snap.weights[id], 0)
+      const totalWeight = ids.reduce((sum, id) => sum + snap.weights[id], 0)
+      return (Math.round(weighted * 10) / 10 / totalWeight) * 100
+    }
+    expect(reconcile(observed)).toBeCloseTo(observed.uncapped, 10)
+
+    // PR 07 moves a slider. The same track under new doctrine scores somewhere else, and the
+    // older event still reproduces its own number from the weights it stored — which is how a
+    // learner tells a re-weighted picture from a scoring bug. Read against the live config
+    // instead, the old event would now reconcile to the new number and the record would lie.
+    const config = { ...SCORING, weights: { ...SCORING.weights, cooperativity: 5, time: 40 } }
+    const later = observedSnapshot({
+      ...entry,
+      score: scoreTrack(track, AO.protectedSites, {
+        tSec: 0,
+        minuteOfDay: 150,
+        memory: {},
+        config,
+      }),
+    })
+    expect(later.weights).not.toEqual(observed.weights)
+    expect(later.uncapped).not.toBeCloseTo(observed.uncapped, 1)
+    expect(reconcile(observed)).toBeCloseTo(observed.uncapped, 10)
+    expect(reconcile(later)).toBeCloseTo(later.uncapped, 10)
+
+    // The negative, which is the whole point, and it is worse than a number that fails to add
+    // up: only the weights moved, so the older event's factors read against the newer doctrine
+    // land *cleanly* on the newer composite and quietly disagree with the one the event stored.
+    // An event without its weight set is not a number a learner cannot account for — it is a
+    // number that accounts for itself under the wrong doctrine, so a re-weighted picture reads
+    // as a correct record rather than as a change. Both halves are pinned: the cross-read hits
+    // the new score exactly, and misses the stored one.
+    const crossRead = reconcile({ ...observed, weights: later.weights })
+    expect(crossRead).toBeCloseTo(later.uncapped, 10)
+    expect(crossRead).not.toBeCloseTo(observed.uncapped, 1)
   })
 
   it('carries no ground-truth field anywhere in a fully walked log', () => {
@@ -202,6 +249,7 @@ describe('learner-ready shape (§8.3b)', () => {
         'rangeM',
         'score',
         'uncapped',
+        'weights',
       ])
     }
     const serialized = JSON.stringify(log)

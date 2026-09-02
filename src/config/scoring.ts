@@ -12,7 +12,7 @@
 /** The v1 factors, in the order the breakdown lists them. PR 05 and PR 06 add their rows here. */
 export type FactorId = 'cooperativity' | 'closing' | 'proximity' | 'kinematic' | 'time'
 
-export type Band = 'calm' | 'elevated' | 'alarm'
+export type Band = 'calm' | 'caution' | 'warning'
 
 export interface ScoringConfig {
   /** §6 default weights. The composite normalizes by their sum, so the scale is always 0–100. */
@@ -47,11 +47,11 @@ export interface ScoringConfig {
   kinematic: { altitudeZeroFt: number; speedZeroKt: number }
   /** Local operating hours, `HH:MM`; activity outside them scores the off-hours factor at 100. */
   operatingHours: { open: string; close: string }
-  /** Composite thresholds for the chip's colour: elevated at or above, alarm at or above. */
-  bands: { elevated: number; alarm: number }
+  /** Composite thresholds for the chip's colour: caution at or above, warning at or above. */
+  bands: { caution: number; warning: number }
   /**
    * The §2 guardrail as arithmetic: the composite of any track whose observed source is ADS-B
-   * is capped here, below the elevated band, and the cap prints as its own breakdown line. Keyed
+   * is capped here, below the caution band, and the cap prints as its own breakdown line. Keyed
    * on `source`, never on a label — an inject cannot receive it and a real aircraft cannot
    * escape it (ruled A3 on #4).
    */
@@ -65,6 +65,6 @@ export const SCORING: ScoringConfig = {
   proximity: { rolloffRadii: 3 },
   kinematic: { altitudeZeroFt: 2000, speedZeroKt: 174 },
   operatingHours: { open: '06:00', close: '22:00' },
-  bands: { elevated: 40, alarm: 70 },
+  bands: { caution: 40, warning: 70 },
   adsbCeiling: 30,
 }

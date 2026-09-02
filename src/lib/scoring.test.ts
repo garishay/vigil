@@ -472,21 +472,21 @@ describe('the composite', () => {
 
   it('bands the composite at the configured thresholds', () => {
     const { bands } = SCORING
-    expect(bandOf(bands.elevated - 0.01, bands)).toBe('calm')
-    expect(bandOf(bands.elevated, bands)).toBe('elevated')
-    expect(bandOf(bands.alarm, bands)).toBe('alarm')
-    expect(scoreTrack(inject(), SITES, NIGHT).band).toBe('alarm')
+    expect(bandOf(bands.caution - 0.01, bands)).toBe('calm')
+    expect(bandOf(bands.caution, bands)).toBe('caution')
+    expect(bandOf(bands.warning, bands)).toBe('warning')
+    expect(scoreTrack(inject(), SITES, NIGHT).band).toBe('warning')
     expect(scoreTrack(adsb(), SITES, NIGHT).band).toBe('calm')
   })
 
   it('bands the whole number it prints, so the word never contradicts the score beside it (#63, round 2)', () => {
     // The hand scenario's silent drone in daylight: 70 / 80 = 87.5, printed as 88. With the
-    // alarm threshold at 87.6 the exact composite is elevated and the printed one is alarm; the
-    // chip says 88, so alarm is the word that agrees with it.
-    const config = { ...SCORING, bands: { elevated: 40, alarm: 87.6 } }
+    // warning threshold at 87.6 the exact composite is caution and the printed one is warning; the
+    // chip says 88, so warning is the word that agrees with it.
+    const config = { ...SCORING, bands: { caution: 40, warning: 87.6 } }
     const score = scoreTrack(inject(), SITES, { ...DAY, config })
     expect(score.composite).toBe(87.5)
-    expect(score.band).toBe('alarm')
+    expect(score.band).toBe('warning')
   })
 
   it('reports the nearest site and the range to it, and refuses to score without one', () => {
@@ -497,7 +497,7 @@ describe('the composite', () => {
   })
 
   it('takes its doctrine from the context when one is supplied', () => {
-    const config = { ...SCORING, adsbCeiling: 10, bands: { elevated: 5, alarm: 8 } }
+    const config = { ...SCORING, adsbCeiling: 10, bands: { caution: 5, warning: 8 } }
     const arrival = adsb({
       position: at(2000),
       altitudeFt: 1000,
@@ -506,16 +506,16 @@ describe('the composite', () => {
     })
     const score = scoreTrack(arrival, SITES, { ...NIGHT, config })
     expect(score.composite).toBe(10)
-    expect(score.band).toBe('alarm')
+    expect(score.band).toBe('warning')
   })
 })
 
 describe('the §2 check — no input makes a real aircraft rank as a threat', () => {
   const ceiling = SCORING.adsbCeiling
-  const elevated = SCORING.bands.elevated
+  const caution = SCORING.bands.caution
 
-  it('holds the ceiling below the elevated band', () => {
-    expect(ceiling).toBeLessThan(elevated)
+  it('holds the ceiling below the caution band', () => {
+    expect(ceiling).toBeLessThan(caution)
   })
 
   it('caps every ADS-B track of every frame of the recording, and the cap is doing work', () => {
@@ -530,8 +530,8 @@ describe('the §2 check — no input makes a real aircraft rank as a threat', ()
       }
     }
     // The airport's own arrivals close on the site and end inside its ring: without the ceiling
-    // the worst of them would sit in the elevated band. This is why A3 exists.
-    expect(worstUncapped).toBeGreaterThan(elevated)
+    // the worst of them would sit in the caution band. This is why A3 exists.
+    expect(worstUncapped).toBeGreaterThan(caution)
   })
 
   it('caps adversarial ADS-B tracks: on the site, closing at full, low and slow, at 02:30', () => {
@@ -543,7 +543,7 @@ describe('the §2 check — no input makes a real aircraft rank as a threat', ()
     ]
     for (const track of adversarial) {
       const score = scoreTrack(track, SITES, NIGHT)
-      expect(score.uncapped).toBeGreaterThan(elevated)
+      expect(score.uncapped).toBeGreaterThan(caution)
       expect(score.composite).toBe(ceiling)
       expect(score.capped).toBe(true)
       expect(score.band).toBe('calm')
@@ -659,7 +659,7 @@ describe('determinism', () => {
         const reproduced = Math.round((Number(total) / score.totalWeight) * 100)
         expect(reproduced).toBe(Math.round(score.uncapped))
         // The band is taken on the printed whole number, so the word beside the score agrees
-        // with the arithmetic under it (a 69.6 prints 70 and reads alarm); a capped track's
+        // with the arithmetic under it (a 69.6 prints 70 and reads warning); a capped track's
         // band is the ceiling's.
         if (!score.capped) expect(bandOf(reproduced, SCORING.bands)).toBe(score.band)
         checked++
