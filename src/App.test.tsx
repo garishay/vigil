@@ -797,7 +797,7 @@ describe('App replay clock (06a)', () => {
     ).toBeInTheDocument()
   })
 
-  it('logs Lost at the tick a claimed track coasts out, with the held picture (ruled on #71)', () => {
+  it('logs Lost at the tick a claimed track coasts out, status carried (ruled on #71)', () => {
     useCapture.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
@@ -809,8 +809,12 @@ describe('App replay clock (06a)', () => {
       )
     open('bbbbbb')
     fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
-    const range = (screen.getByText('Range').nextSibling as HTMLElement).textContent
-    replay.tick(91)
+    // Two commits, as play makes them: held at the coast's edge, then gone. The held snapshot
+    // the Lost line carries has no reader on screen — the handoff freezes at escalation — so
+    // what it holds is pinned in lifecycle.test; here the line, its tick, and the status are.
+    replay.tick(90)
+    expect(idents()).toContain('bbbbbb')
+    replay.tick(1)
     expect(idents()).not.toContain('bbbbbb')
     // Rewound to before the loss, the record still holds it: Lost at the tick it left, the
     // status carried, and no Regained — the clock is behind the frontier.
@@ -826,8 +830,6 @@ describe('App replay clock (06a)', () => {
     expect(
       within(screen.getByText('Status').parentElement as HTMLElement).getByText('Assessing'),
     ).toBeInTheDocument()
-    // The handoff would carry it too: the held picture is the one the drawer showed at the claim.
-    expect((screen.getByText('Range').nextSibling as HTMLElement).textContent).toBe(range)
   })
 
   it('logs Regained when a lost track is heard again; a rewind before first sight logs nothing (ruled on #71)', () => {
