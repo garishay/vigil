@@ -31,10 +31,16 @@ jobs:
       id-token: write
 
     steps:
+      # Full history, not one commit: the reviewer is allow-listed for `git log`, `git blame`,
+      # `git diff`, and `git show`, and at depth 1 the workspace has a single parentless commit —
+      # log returns one entry, blame attributes every line to it, and show against an earlier ref
+      # fails. The tools were granted and inert (#70). The diff itself was never at risk; it comes
+      # from `gh pr diff` over the API. What was missing is the history this repo's review rounds
+      # argue from — which PR introduced a line, and what its round said.
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       # The gates are installed here rather than left to the reviewer. With no `node_modules`
       # in the workspace, whether lint, typecheck, and test ran came down to whether the agent
