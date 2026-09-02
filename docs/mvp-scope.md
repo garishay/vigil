@@ -70,7 +70,7 @@ A pure TypeScript module producing a 0–100 composite with the per-factor break
 
 | Factor | UI label | Intent (doubles as hover text) | Default weight |
 |---|---|---|---|
-| Cooperativity | Non-cooperative | Silence carries the burden of proof — a spectrum: ADS-B aircraft near-floor, Remote ID drones low, silent tracks high | 25% |
+| Cooperativity | Identity | Silence carries the burden of proof — a spectrum: ADS-B aircraft near-floor, Remote ID drones low, silent tracks high | 25% |
 | Closing geometry | Closing | CPA distance and time-to-CPA relative to the protected site | 20% |
 | Proximity | Proximity | Current range to the protected site, decaying with distance — the curve spikes inside the protection ring, which subsumes "airspace violation" for MVP | 15% |
 | Pattern of life | Loitering | Loiter dwell, orbit detection (persistent turn rate), area revisit — the reason tag names the specific behavior | 15% |

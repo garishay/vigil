@@ -114,8 +114,8 @@ describe('ReviewDrawer', () => {
 
   it('shows identity, the layer badge, rank, and range to the named site', () => {
     renderDrawer(entry(SILENT, 1, 7200.2))
-    // Scoped to the header: the breakdown's cooperativity row wears the same §6 label (04b).
-    expect(document.querySelector('.drawer__identity')).toHaveTextContent('Non-cooperative')
+    // Unique again: the breakdown's cooperativity row is labelled Identity (ruled on #65).
+    expect(screen.getByText('Non-cooperative')).toBeInTheDocument()
     expect(screen.getByText('INJECT')).toBeInTheDocument()
     // Named from entry.siteId, not sites[0]: the decoy site sits first in SITES on purpose.
     expect(screen.getByText('7.2 km to PHL Airfield')).toBeInTheDocument()

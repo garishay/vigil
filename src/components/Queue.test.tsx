@@ -115,7 +115,7 @@ describe('Queue', () => {
     // so a row explains itself before the drawer opens.
     const chip = silent.querySelector('.queue__score') as HTMLElement
     expect(chip).toHaveTextContent(String(Math.round(RANKED[0].score.composite)))
-    expect(chip.title).toMatch(/^Non-cooperative 25 · /)
+    expect(chip.title).toMatch(/^Identity 25 · /)
     // The ceiling on the arrival, and never a dash anywhere.
     expect(airliner.querySelector('.queue__score')).toHaveTextContent('30')
     for (const row of rows()) expect(row.querySelector('.queue__score')).not.toHaveTextContent('—')

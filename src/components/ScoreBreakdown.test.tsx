@@ -92,7 +92,11 @@ describe('ScoreBreakdown', () => {
     ])
     // The bar is the contribution over the weight, and says so to assistive tech.
     const closing = within(items[1]).getByRole('meter', { name: 'Closing contribution' })
-    expect(closing).toHaveAttribute('aria-valuenow', '9')
+    // The meter carries the contribution unrounded (to two decimals), never above its max.
+    expect(Number(closing.getAttribute('aria-valuenow'))).toBeCloseTo(
+      scored.factors[1].contribution,
+      2,
+    )
     expect(closing).toHaveAttribute('aria-valuemax', '20')
     const fill = closing.querySelector('.breakdown__fill') as HTMLElement
     expect(parseFloat(fill.style.width)).toBeCloseTo(
@@ -123,6 +127,42 @@ describe('ScoreBreakdown', () => {
     render(<ScoreBreakdown score={score(PARKED)} />)
     const details = rows().map((row) => row.querySelector('.breakdown__detail')?.textContent)
     expect(details.slice(1, 4)).toEqual(Array(3).fill('on ground — not in the airspace'))
+  })
+
+  it('labels the cooperativity row Identity, so it never contradicts its own detail (#65)', () => {
+    render(<ScoreBreakdown score={score(ARRIVAL)} />)
+    const [identity] = rows()
+    expect(within(identity).getByText('Identity')).toBeInTheDocument()
+    expect(within(identity).getByText('ADS-B, cooperative by construction')).toBeInTheDocument()
+    expect(screen.queryByText('Non-cooperative')).not.toBeInTheDocument()
+  })
+
+  it('fills nothing and prints 0 / 0 at a weight of 0 — no NaN reaches the DOM (#65)', () => {
+    // Doctrine is configuration: the slider panel can zero a weight.
+    const config = { ...SCORING, weights: { ...SCORING.weights, time: 0 } }
+    const scored = scoreTrack(SILENT, AO.protectedSites, { ...NIGHT, config })
+    render(<ScoreBreakdown score={scored} />)
+    const offHours = rows()[4]
+    expect(within(offHours).getByText('0 / 0')).toBeInTheDocument()
+    const meter = within(offHours).getByRole('meter')
+    expect(meter).toHaveAttribute('aria-valuemin', '0')
+    expect(meter).toHaveAttribute('aria-valuemax', '1')
+    expect(meter).toHaveAttribute('aria-valuenow', '0')
+    const fill = meter.querySelector('.breakdown__fill') as HTMLElement
+    expect(fill.style.width).toBe('0%')
+    expect(offHours.innerHTML).not.toMatch(/NaN/)
+  })
+
+  it('keeps the meter within its range at a non-integer weight (#65)', () => {
+    const config = { ...SCORING, weights: { ...SCORING.weights, kinematic: 12.5 } }
+    const scored = scoreTrack(SILENT, AO.protectedSites, { ...NIGHT, config })
+    render(<ScoreBreakdown score={scored} />)
+    const profile = rows()[3]
+    const meter = within(profile).getByRole('meter')
+    expect(meter).toHaveAttribute('aria-valuemax', '12.5')
+    expect(Number(meter.getAttribute('aria-valuenow'))).toBeLessThanOrEqual(12.5)
+    expect(within(profile).getByText('12.5 / 12.5')).toBeInTheDocument()
+    expect((meter.querySelector('.breakdown__fill') as HTMLElement).style.width).toBe('100%')
   })
 
   it('never wears a warm band on an ADS-B track, whatever it does', () => {

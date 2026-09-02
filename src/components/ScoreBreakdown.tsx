@@ -36,16 +36,20 @@ export function ScoreBreakdown({ score }: { score: Score }) {
               role="meter"
               aria-label={`${factor.label} contribution`}
               aria-valuemin={0}
-              aria-valuemax={factor.weight}
-              aria-valuenow={Math.round(factor.contribution)}
+              aria-valuemax={factor.weight > 0 ? factor.weight : 1}
+              aria-valuenow={Number(Math.min(factor.contribution, factor.weight).toFixed(2))}
             >
+              {/* A weight of 0 is reachable from the slider panel (§4.4): it fills nothing and
+                  prints 0 / 0 — never a NaN width the browser drops into a full bar (#65). */}
               <span
                 className="breakdown__fill"
-                style={{ width: `${(factor.contribution / factor.weight) * 100}%` }}
+                style={{
+                  width: `${factor.weight > 0 ? (factor.contribution / factor.weight) * 100 : 0}%`,
+                }}
               />
             </span>
             <span className="breakdown__numbers">
-              {Math.round(factor.contribution)} / {factor.weight}
+              {Math.min(Math.round(factor.contribution), factor.weight)} / {factor.weight}
             </span>
             <span className="breakdown__detail">{factor.detail}</span>
           </li>

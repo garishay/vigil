@@ -502,7 +502,6 @@
  */
 .breakdown {
   --band: var(--accent);
-  --band-soft: var(--accent-soft);
   margin-top: 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);

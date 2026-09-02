@@ -95,8 +95,10 @@ export interface Score {
 /** The §6 table's UI labels and intent text, keyed by factor, in breakdown order. */
 export const FACTORS: readonly { id: FactorId; label: string; intent: string }[] = [
   {
+    // Named for what it measures — the identity state — not for a verdict, like the other
+    // four; the value and the detail carry the judgement (ruled on #65).
     id: 'cooperativity',
-    label: 'Non-cooperative',
+    label: 'Identity',
     intent:
       'Silence carries the burden of proof — a spectrum: ADS-B aircraft near-floor, Remote ID drones low, silent tracks high',
   },

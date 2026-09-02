@@ -416,7 +416,7 @@ describe('the composite', () => {
     const { factors } = scoreTrack(inject(), SITES, NIGHT)
     expect(factors.map((f) => f.id)).toEqual(FACTORS.map((f) => f.id))
     expect(factors.map((f) => f.label)).toEqual([
-      'Non-cooperative',
+      'Identity',
       'Closing',
       'Proximity',
       'Flight profile',

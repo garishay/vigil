@@ -72,7 +72,7 @@ describe('handoffText', () => {
         // + 10 = 66 ≈ 65.6); the total reproduces the score — 65.6 / 80 = 82 % — which a sum of
         // rounded parts would not (66 / 80 = 82.5 %) (ruled on #63, rounds 1 and 2).
         'Score: 82 (alarm) — 65.6/80',
-        '  Non-cooperative 25/25 · Closing 9/20',
+        '  Identity 25/25 · Closing 9/20',
         '  Proximity 12/15 · Flight profile 10/10',
         '  Off-hours 10/10',
         'Timeline:',
@@ -191,7 +191,7 @@ describe('handoffText', () => {
     const summary = text(entry(arrival))
     // 1.25 + 20 + 15 + 0 + 10 = 46.25 over 80 makes 58; the ceiling then holds it at 30.
     expect(summary).toContain('\nScore: 30 (calm) — capped, 46.3/80 → 58\n')
-    expect(summary).toContain('  Non-cooperative 1/25 · Closing 20/20\n')
+    expect(summary).toContain('  Identity 1/25 · Closing 20/20\n')
     expect(summary).toContain('  Off-hours 10/10\n  Capped at 30 — cooperative aircraft\nTimeline:')
   })
 
