@@ -5,7 +5,15 @@ import { SCENARIO } from '../config/scenario'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture, CaptureRecord } from './adsb'
 import { injectTracksAt, planScenario } from './injects'
-import { indexCapture, interpolateHeading, memoryAt, pictureAt, trailAt } from './replay'
+import {
+  historiesAt,
+  historyAt,
+  indexCapture,
+  interpolateHeading,
+  memoryAt,
+  pictureAt,
+  trailAt,
+} from './replay'
 import { rememberIdentities, type IdentityMemory } from './scoring'
 
 const capture = (frames: { tMs: number; records: CaptureRecord[] }[]): AdsbCapture => ({
@@ -265,5 +273,81 @@ describe('trailAt — a held track (#75 review)', () => {
     const trail = trailAt(index, plan, held, 120)
     expect(trail).toHaveLength(8)
     expect(trail[trail.length - 1]).toEqual(held.position)
+  })
+})
+
+describe('historyAt and historiesAt (05a)', () => {
+  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const index = indexCapture(
+    capture(
+      [...Array(8)].map((_, i) => ({
+        tMs: i * 15000,
+        records: [{ ...A0, position: [-75.2 + i * 0.01, 39.8] as [number, number] }],
+      })),
+    ),
+  )
+
+  it('carries the instant with each position, and the trail is its positions', () => {
+    const [track] = pictureAt(index, 67)
+    const history = historyAt(index, plan, track, 67, 120)
+    expect(history.map((sample) => sample.tSec)).toEqual([0, 15, 30, 45, 60, 67])
+    expect(history.map((sample) => sample.position)).toEqual(trailAt(index, plan, track, 67))
+    const inject = injectTracksAt(plan, 67)[0]
+    expect(historyAt(index, plan, inject, 67, 120).map((s) => s.tSec)).toEqual([
+      0, 15, 30, 45, 60, 67,
+    ])
+  })
+
+  it('keys every track in the picture, each ending on where it is now, over the window asked', () => {
+    // 150 s: the recording ended at 105 s and the aircraft is held on that sample, inside the
+    // coast; the window reaches back past the start.
+    const t = 150
+    const tracks = [...pictureAt(index, t), ...injectTracksAt(plan, t)]
+    expect(tracks[0].source).toBe('adsb')
+    const histories = historiesAt(index, plan, tracks, t, 420)
+    expect(Object.keys(histories).sort()).toEqual(tracks.map((track) => track.id).sort())
+    for (const track of tracks) {
+      const history = histories[track.id]
+      expect(history[history.length - 1].position).toEqual(track.position)
+      expect(history[0].tSec).toBeGreaterThanOrEqual(t - 420)
+    }
+    // The held aircraft: its eight samples, the last of which is where it sits — counted once.
+    expect(histories[tracks[0].id]).toHaveLength(8)
+    // An inject's: the ten grid instants before 150, then now, which is on the grid itself.
+    expect(histories['inject-01'].map((sample) => sample.tSec)).toEqual([
+      0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150,
+    ])
+    // Pure in t: asked again, the same.
+    expect(historiesAt(index, plan, tracks, t, 420)).toEqual(histories)
+  })
+})
+
+describe('historyAt across a hole in the recording (#80 review)', () => {
+  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  // Three samples, six minutes of nothing, then two more: the aggregator would have dropped
+  // the track through that hole, and so does pictureAt.
+  const index = indexCapture(
+    capture(
+      [0, 15, 30, 400, 415].map((s) => ({
+        tMs: s * 1000,
+        records: [{ ...A0, position: [-75.2 + s * 0.0001, 39.8] as [number, number] }],
+      })),
+    ),
+  )
+
+  it('starts the history over on the far side of a hole wider than the coast', () => {
+    const [track] = pictureAt(index, 415)
+    const history = historyAt(index, plan, track, 415, 420)
+    expect(history.map((sample) => sample.tSec)).toEqual([400, 415])
+    // Inside the coast the track is held on its last sample, and the history is the run so far.
+    const [earlier] = pictureAt(index, 90)
+    expect(historyAt(index, plan, earlier, 90, 420).map((s) => s.tSec)).toEqual([0, 15, 30])
+  })
+
+  it('computes the same history for every track whether asked one at a time or all at once', () => {
+    const t = 450
+    const tracks = injectTracksAt(plan, t)
+    const all = historiesAt(index, plan, tracks, t, 420)
+    for (const track of tracks) expect(all[track.id]).toEqual(historyAt(index, plan, track, t, 420))
   })
 })

@@ -73,13 +73,14 @@ describe('handoffText', () => {
         'Track TRK-05 · Non-cooperative · synthetic inject',
         'Range 7.2 km to PHL Airfield at 02:30:00',
         '  63 ft · 19.1 kt · hdg 346',
-        // The factor lines sum to the total on the Score line within rounding (25 + 9 + 12 + 10
-        // + 10 = 66 ≈ 65.6); the total reproduces the score — 65.6 / 80 = 82 % — which a sum of
-        // rounded parts would not (66 / 80 = 82.5 %) (ruled on #63, rounds 1 and 2).
-        'Score: 82 (warning) — 65.6/80',
+        // The factor lines sum to the total on the Score line within rounding (25 + 9 + 12 + 0
+        // + 10 + 10 = 66 ≈ 65.6); the total reproduces the score — 65.6 / 95 = 69 % — which a sum
+        // of rounded parts would not (66 / 95 = 69.5 %) (ruled on #63, rounds 1 and 2). No
+        // history in this picture, so the pattern row reads 0 (05a).
+        'Score: 69 (caution) — 65.6/95',
         '  Identity 25/25 · Closing 9/20',
-        '  Proximity 12/15 · Flight profile 10/10',
-        '  Off-hours 10/10',
+        '  Proximity 12/15 · Pattern of life 0/15',
+        '  Flight profile 10/10 · Off-hours 10/10',
         'Timeline:',
         '  02:30:00  New — first seen',
         '  02:30:00  Assessing — claimed',
@@ -195,10 +196,12 @@ describe('handoffText', () => {
       registry: null,
     }
     const summary = text(entry(arrival))
-    // 1.25 + 20 + 15 + 0 + 10 = 46.25 over 80 makes 58; the ceiling then holds it at 30.
-    expect(summary).toContain('\nScore: 30 (calm) — capped, 46.3/80 → 58\n')
+    // 1.25 + 20 + 15 + 0 + 0 + 10 = 46.25 over 95 makes 49; the ceiling then holds it at 30.
+    expect(summary).toContain('\nScore: 30 (calm) — capped, 46.3/95 → 49\n')
     expect(summary).toContain('  Identity 1/25 · Closing 20/20\n')
-    expect(summary).toContain('  Off-hours 10/10\n  Capped at 30 — cooperative aircraft\nTimeline:')
+    expect(summary).toContain(
+      '  Flight profile 0/10 · Off-hours 10/10\n  Capped at 30 — cooperative aircraft\nTimeline:',
+    )
   })
 
   it('carries no ground truth — the answer key stays out of the record (§8.3b)', () => {
@@ -275,7 +278,7 @@ describe('handoffText — the evidence block is the escalation’s (06b)', () =>
       recipient: 'phl-tower',
     })
     expect(text(then, log)).toContain(
-      '  02:30:00  New — first seen\n  02:30:30  Warning — up from calm\n  02:30:40  Assessing — claimed',
+      '  02:30:00  New — first seen\n  02:30:30  Caution — up from calm\n  02:30:40  Assessing — claimed',
     )
   })
 })

@@ -6,8 +6,9 @@ import { SCORING } from '../config/scoring'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture } from './adsb'
 import { destinationPoint, distanceMeters } from './geo'
-import type { InjectScenario } from './injects'
-import type { ScoringContext } from './scoring'
+import { injectTracksAt, planScenario, type InjectScenario } from './injects'
+import { historiesAt, memoryAt, type ReplayIndex } from './replay'
+import { minuteOfDay, type ScoringContext } from './scoring'
 import type { AdsbTrack, Identity, InjectTrack, Track } from './tracks'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
@@ -80,7 +81,7 @@ describe('rankTracks', () => {
     const ranked = rankTracks(tracks, SITES)
     const composites = ranked.map((entry) => entry.score.composite)
     expect(composites).toEqual([...composites].sort((a, b) => b - a))
-    expect(ranked.every((entry) => entry.score.factors.length === 5)).toBe(true)
+    expect(ranked.every((entry) => entry.score.factors.length === 6)).toBe(true)
   })
 
   it('never ranks an ADS-B track above any silent or unknown inject under the default weights (§2)', () => {
@@ -116,9 +117,10 @@ describe('rankTracks', () => {
   })
 
   it('orders the capped ADS-B block by its uncapped composite', () => {
-    // Both cap at 30: the arrival (uncapped 58) and an aircraft over the site with no heading
-    // broadcast (uncapped 33). The list still says which is the more pressing of the two.
-    const arrival = adsb('a00001', 2000, { altitudeFt: 1000, groundSpeedKt: 174, headingDeg: 180 })
+    // Both cap at 30: the arrival, low and slowing (uncapped 55), and an aircraft over the site
+    // at 3,000 ft with no heading broadcast (uncapped 49 — inside the ring, closing is complete
+    // whichever way it points, 05a). The list still says which is the more pressing of the two.
+    const arrival = adsb('a00001', 2000, { altitudeFt: 1000, groundSpeedKt: 120, headingDeg: 180 })
     const overhead = adsb('a00002', 100, { headingDeg: null })
     const ranked = rankTracks([overhead, arrival], SITES)
     expect(ranked.map((r) => r.score.composite)).toEqual([30, 30])
@@ -198,8 +200,10 @@ describe('determinism', () => {
     expect(ids).toHaveLength(capture.frames[0].records.length + golden.frames[0].tracks.length)
     // The "visibly changes" statement (#4): the placeholder read 05 · 03 · 06 · adsb-c00b80 · 01 ·
     // 04 · adsb-a28904. The engine reads the three silent injects, then the three broadcasting
-    // ones by geometry, then the capped ADS-B block — the arrival inside the ring that the
-    // placeholder put fourth now sits in that block.
+    // ones by geometry, then the capped ADS-B block — led by the arrival inside the ring that
+    // the placeholder put fourth, since inside the ring its approach is complete (05a). The
+    // composites are over 95 with the pattern row at 0 — no history at frame 0 — and the hero
+    // opens at 10 km, one point clear of the nearer grid sweep (ruled on #5, note 3).
     expect(ids.slice(0, 7)).toEqual([
       'inject-05',
       'inject-03',
@@ -207,11 +211,11 @@ describe('determinism', () => {
       'inject-01',
       'inject-04',
       'inject-02',
-      'adsb-a0e607',
+      'adsb-c00b80',
     ])
     const ranked = rankTracks(frame0, SITES)
     expect(ranked.slice(0, 6).map((r) => Math.round(r.score.composite))).toEqual([
-      82, 69, 66, 65, 60, 47,
+      59, 58, 56, 54, 50, 40,
     ])
     expect(ranked[6].score).toMatchObject({ composite: 30, capped: true })
     expect(ranked.find((r) => r.track.id === 'adsb-c00b80')?.rank).toBeGreaterThan(6)
@@ -234,6 +238,68 @@ describe('determinism', () => {
     expect(tail.every((r) => r.track.onGround)).toBe(true)
     expect(tail.map((r) => r.track.id)).toEqual(['adsb-a8f5ba', 'adsb-abf0ca', 'adsb-a1bc1f'])
     expect(ranked.slice(0, -3).some((r) => r.track.onGround)).toBe(false)
+  })
+})
+
+describe('pattern of life in the order (05a acceptance)', () => {
+  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const noRecording: ReplayIndex = { durationS: 0, samples: new Map() }
+  const injectsAt = (t: number) => {
+    const tracks = injectTracksAt(plan, t)
+    return rankTracks(tracks, SITES, {
+      tSec: t,
+      minuteOfDay: minuteOfDay('02:30', t),
+      memory: memoryAt((s) => injectTracksAt(plan, s), plan.intervalS, t),
+      history: historiesAt(noRecording, plan, tracks, t, SCORING.pattern.windowS),
+    })
+  }
+  const rankOf = (ranked: ReturnType<typeof rankTracks>, id: string) =>
+    ranked.find((entry) => entry.track.id === id)!.rank
+
+  it('ranks the scripted loiter and orbit above the scripted transit once their histories fill', () => {
+    // The acceptance criterion on #5, on the default scenario at 02:46:30 and at the last frame.
+    // The oracle is the generator's behavior, read here and nowhere in the scorer.
+    for (const t of [990, 1185]) {
+      const ranked = injectsAt(t)
+      const byBehavior = Object.fromEntries(
+        ranked.map((entry) => [(entry.track as InjectTrack).behavior, entry.track.id]),
+      )
+      expect(rankOf(ranked, byBehavior.loiter)).toBeLessThan(rankOf(ranked, byBehavior.transit))
+      expect(rankOf(ranked, byBehavior.orbit)).toBeLessThan(rankOf(ranked, byBehavior.transit))
+      expect(ranked.find((e) => e.track.id === byBehavior.loiter)!.score.pattern).toBe('loiter')
+      expect(ranked.find((e) => e.track.id === byBehavior.orbit)!.score.pattern).toBe('orbit')
+    }
+  })
+
+  it('lifts the hero back to the top of the queue as its dwell builds (ruled on #5, note 3)', () => {
+    // Inside the ring the two silent grid sweeps tie the hero at 84 and are nearer; the loiter
+    // row is what puts it back at rank 1 — at 02:44:45, and it stays there until a sweep's own
+    // return lane ties it at 100.
+    expect(rankOf(injectsAt(870), 'inject-05')).toBe(3)
+    expect(rankOf(injectsAt(885), 'inject-05')).toBe(1)
+    expect(
+      Math.round(injectsAt(990).find((e) => e.track.id === 'inject-05')!.score.composite),
+    ).toBe(95)
+  })
+
+  it('ranks a hover above the same drone in transit — behavior, not just position (§6)', () => {
+    const here = at(3000)
+    const hovering = inject(1, 'non-cooperative', 3000)
+    const passing = { ...inject(2, 'non-cooperative', 3000), position: here }
+    const still = [...Array(29)].map((_, i) => ({ tSec: i * 15, position: here }))
+    const straight = [...Array(29)].map((_, i) => ({
+      tSec: i * 15,
+      position: destinationPoint(here, 180, (i - 28) * 150),
+    }))
+    const ranked = rankTracks([passing, hovering], SITES, {
+      tSec: 420,
+      minuteOfDay: 150,
+      memory: {},
+      history: { 'inject-01': still, 'inject-02': straight },
+    })
+    expect(ranked.map((entry) => entry.track.id)).toEqual(['inject-01', 'inject-02'])
+    expect(ranked[0].score.pattern).toBe('loiter')
+    expect(ranked[1].score.pattern).toBeNull()
   })
 })
 

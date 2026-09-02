@@ -176,7 +176,7 @@ describe('App shell', () => {
     const breakdown = screen.getByLabelText('Score breakdown')
     expect(within(breakdown).getByText(`Score ${chip.textContent}`)).toBeInTheDocument()
     expect(breakdown).toHaveAttribute('data-band', chip.getAttribute('data-band'))
-    expect(within(breakdown).getAllByRole('meter')).toHaveLength(5)
+    expect(within(breakdown).getAllByRole('meter')).toHaveLength(6)
   })
 
   it("plans the injects on the recording's own frame grid", () => {
@@ -948,6 +948,37 @@ describe('App record under the clock (06b)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Home' }))
     expect(screen.getByTestId('map')).toHaveAttribute('data-trail', '6')
     expect(screen.getByTestId('map')).toHaveAttribute('data-selection-shown', 'false')
+  })
+})
+
+describe('App pattern row under the clock (05a)', () => {
+  it('fills the pattern row from the history at the clock, and the hero climbs back to the top', () => {
+    useCapture.mockReturnValue(LONG)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
+    const rows = () =>
+      within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+    // At frame 0 nothing has a history: the row reads so, and the hero opens at rank 1 by a point.
+    expect(within(rows()[0]).getByText('TRK-05')).toBeInTheDocument()
+    fireEvent.click(within(rows()[0]).getByRole('button'))
+    const breakdownRows = () =>
+      within(screen.getByLabelText('Score breakdown')).getAllByRole('listitem')
+    expect(within(breakdownRows()[3]).getByText('Pattern of life')).toBeInTheDocument()
+    expect(within(breakdownRows()[3]).getByText('no history yet')).toBeInTheDocument()
+    // 02:46:30, one seek: the hero has held position inside the ring for 4 min 15 s — the row
+    // reads its evidence and fills to 11 of 15, the chip reads 95, and it is back at rank 1 above
+    // the two grid sweeps that tied it at 84 (ruled on #5, note 3).
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '990' } })
+    expect(within(rows()[0]).getByText('TRK-05')).toBeInTheDocument()
+    expect(rows()[0].querySelector('.queue__score')).toHaveTextContent('95')
+    expect(within(breakdownRows()[3]).getByText('11 / 15')).toBeInTheDocument()
+    expect(within(breakdownRows()[3]).getByText('within 450 m for 4 min 15 s')).toBeInTheDocument()
+    expect(screen.getByLabelText('Score breakdown').textContent).not.toMatch(/loiter/i)
+    // Play one more tick: the same history, one second on — no jump.
+    replay.tick()
+    expect(rows()[0].querySelector('.queue__score')).toHaveTextContent('95')
   })
 })
 

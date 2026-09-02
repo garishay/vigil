@@ -31,8 +31,15 @@ const OBSERVED: ObservedSnapshot = {
   headingDeg: 345.6,
   score: 82,
   uncapped: 82,
-  factors: { cooperativity: 100, closing: 44.4, proximity: 78, kinematic: 100, time: 100 },
-  weights: { cooperativity: 25, closing: 20, proximity: 15, kinematic: 10, time: 10 },
+  factors: {
+    cooperativity: 100,
+    closing: 44.4,
+    proximity: 78,
+    pattern: 0,
+    kinematic: 100,
+    time: 100,
+  },
+  weights: { cooperativity: 25, closing: 20, proximity: 15, pattern: 15, kinematic: 10, time: 10 },
 }
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
@@ -187,6 +194,7 @@ describe('learner-ready shape (§8.3b)', () => {
         cooperativity: 100,
         closing: 0,
         proximity: score.factors[2].value,
+        pattern: 0,
         kinematic: 0,
         time: 100,
       },
@@ -306,6 +314,7 @@ describe('band crossings (06b)', () => {
       capped: score < uncapped,
       band: score >= 70 ? 'warning' : score >= 40 ? 'caution' : 'calm',
       factors: [],
+      pattern: null,
       rangeM: 7200.2,
       siteId: 'phl-airfield',
     },
@@ -400,6 +409,7 @@ describe('band crossings are forward only (#75 review)', () => {
       capped: false,
       band: score >= 70 ? 'warning' : score >= 40 ? 'caution' : 'calm',
       factors: [],
+      pattern: null,
       rangeM: 7200.2,
       siteId: 'phl-airfield',
     },
