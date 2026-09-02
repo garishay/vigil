@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { IdentityDot } from './IdentityDot'
 import { LAYER_BADGE, formatRangeKm, trackIdent } from '../lib/display'
 import { IDENTITY_LABEL } from '../lib/identity'
+import { STATUS_LABEL, isTerminal, type Status } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
 
 /**
@@ -14,15 +15,22 @@ import type { RankedTrack } from '../lib/ranking'
  * marked and scrolled into view when the selection came from the map side. Ranks are global,
  * never renumbered by a filter: a filtered list that reads 2, 5, 9 tells the operator what it
  * hid.
+ *
+ * Lifecycle state rides the row (03e): a tag beside the layer badge, omitted when New, and a
+ * terminal row dims in place — rank and position untouched, since ranking never reads status.
+ * The status arrives through `statusFor`, read from the event log at render, after the sort.
  */
 export function Queue({
   ranked,
   selectedId = null,
   restoreFocus = true,
+  statusFor = () => 'new',
   onSelect,
 }: {
   ranked: RankedTrack[]
   selectedId?: string | null
+  /** A track's lifecycle status; an untouched track reads New. */
+  statusFor?: (id: string) => Status
   /**
    * Whether a cleared selection returns focus to its row. The caller passes `false` for a
    * pointer-driven close — the effect below cannot see the click, and a mouse user parked on a
@@ -66,8 +74,10 @@ export function Queue({
   return (
     <ol className="queue" aria-label="Ranked queue" ref={listRef} tabIndex={-1}>
       {ranked.map(({ track, rank, rangeM }) => {
+        const status = statusFor(track.id)
         const classes = ['queue__row']
         if (track.onGround) classes.push('queue__row--ground')
+        if (isTerminal(status)) classes.push('queue__row--terminal')
         if (track.id === selectedId) classes.push('queue__row--selected')
         return (
           <li key={track.id} className={classes.join(' ')} data-id={track.id}>
@@ -89,6 +99,9 @@ export function Queue({
                 <span className="queue__badge" data-layer={track.source}>
                   {LAYER_BADGE[track.source]}
                 </span>
+                {status !== 'new' && (
+                  <span className="queue__badge queue__badge--state">{STATUS_LABEL[status]}</span>
+                )}
                 <span className="queue__ident">{trackIdent(track)}</span>
                 {track.onGround && <span className="queue__ground">on ground</span>}
                 <span className="queue__range">{formatRangeKm(rangeM)}</span>

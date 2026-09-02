@@ -389,6 +389,47 @@ describe('App shell', () => {
     for (const row of rows) expect(within(row).queryByText('INJECT')).not.toBeInTheDocument()
   })
 
+  it('shows lifecycle state on the row, and Active as the non-terminal set with global ranks (03e)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const queue = () => screen.getByRole('list', { name: 'Ranked queue' })
+    const rows = () => within(queue()).getAllByRole('listitem')
+    const total = rows().length
+    const stateChips = screen.getByRole('group', { name: 'Filter by state' })
+    const rank = (row: HTMLElement) => row.querySelector('.queue__rank')?.textContent
+
+    // A fresh picture is all New: no tag anywhere, nothing dimmed, and Active shows everything.
+    expect(queue().querySelector('.queue__badge--state')).toBeNull()
+    expect(queue().querySelector('.queue__row--terminal')).toBeNull()
+    fireEvent.click(within(stateChips).getByRole('button', { name: 'Active' }))
+    expect(rows()).toHaveLength(total)
+
+    // Claim the second-ranked track and dismiss the first. Under All both keep their places:
+    // the claimed one tagged, the dismissed one tagged and dimmed, rank 1 still on it.
+    fireEvent.click(within(rows()[1]).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    fireEvent.click(within(rows()[0]).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    fireEvent.click(within(stateChips).getByRole('button', { name: 'All' }))
+    expect(rows()).toHaveLength(total)
+    expect(rows()[0]).toHaveClass('queue__row--terminal')
+    expect(within(rows()[0]).getByText('Dismissed')).toHaveClass('queue__badge--state')
+    expect(rank(rows()[0])).toBe('1')
+    expect(rows()[1]).not.toHaveClass('queue__row--terminal')
+    expect(within(rows()[1]).getByText('Assessing')).toHaveClass('queue__badge--state')
+
+    // Active drops the dismissed row and nothing else; the list now starts at rank 2, and the
+    // count follows. It composes with the layer row like every other state chip.
+    fireEvent.click(within(stateChips).getByRole('button', { name: 'Active' }))
+    expect(rows()).toHaveLength(total - 1)
+    expect(rank(rows()[0])).toBe('2')
+    expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent(String(total - 1))
+    const layerChips = screen.getByRole('group', { name: 'Filter by layer' })
+    fireEvent.click(within(layerChips).getByRole('button', { name: 'ADS-B' }))
+    expect(rows()).toHaveLength(2)
+    for (const row of rows()) expect(within(row).queryByText('INJECT')).not.toBeInTheDocument()
+  })
+
   it('says when no track matches the filters, but not while the picture is loading (#49)', () => {
     const { rerender } = render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))

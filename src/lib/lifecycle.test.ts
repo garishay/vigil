@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  STATUSES,
   appendEvent,
   canAct,
   firstSeen,
+  isTerminal,
   observedSnapshot,
   statusOf,
   transition,
@@ -63,6 +65,19 @@ describe('transition table', () => {
       }
     }
   }
+})
+
+describe('terminal states (03e)', () => {
+  it('reads terminal off the table: exactly the statuses no action leaves', () => {
+    for (const [status, actions] of Object.entries(TABLE) as [
+      Status,
+      Record<LifecycleAction, Status | null>,
+    ][]) {
+      const stuck = Object.values(actions).every((next) => next === null)
+      expect(isTerminal(status), status).toBe(stuck)
+    }
+    expect(STATUSES.filter(isTerminal)).toEqual(['resolved', 'dismissed'])
+  })
 })
 
 describe('event log', () => {

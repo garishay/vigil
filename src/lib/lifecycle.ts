@@ -51,6 +51,14 @@ const TRANSITIONS: Record<Status, Partial<Record<LifecycleAction, Status>>> = {
 export const canAct = (status: Status, action: LifecycleAction): boolean =>
   TRANSITIONS[status][action] !== undefined
 
+/**
+ * Terminal iff the table permits no action from it — derived rather than listed, and by the same
+ * test `canAct` applies (an entry is a transition only if it is defined), so the Queue's dim and
+ * its Active chip (03e) cannot disagree with the buttons the drawer enables.
+ */
+export const isTerminal = (status: Status): boolean =>
+  Object.values(TRANSITIONS[status]).every((next) => next === undefined)
+
 /** The next status, or a throw on a transition the table does not allow. */
 export function transition(status: Status, action: LifecycleAction): Status {
   const next = TRANSITIONS[status][action]
