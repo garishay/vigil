@@ -9,6 +9,7 @@
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
 import type { TrackEvent } from './lifecycle.ts'
+import type { Score } from './scoring.ts'
 import type { Track } from './tracks.ts'
 
 /**
@@ -28,6 +29,39 @@ export const LAYER_BADGE: Record<Track['source'], string> = { adsb: 'ADS-B', inj
 
 /** Range to the protected site's center, km to one decimal (§7). */
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
+
+/** The composite as the chip and the handoff print it: a whole number, 0–100. */
+export const formatScore = (score: Score) => String(Math.round(score.composite))
+
+/**
+ * The arithmetic behind the number, on the weight scale the factor lines use: `65.6/80`, or
+ * `46.3/80 → 58` when the ceiling bound and the uncapped composite is the one the total makes.
+ * The total is the engine's own one-decimal `total` (ruled on #63, round 2): the integer factor
+ * lines sum to it within rounding, and because the score is made from it the division
+ * reproduces the score exactly — a sum of rounded parts could miss by three points and cross a
+ * band, and even a one-decimal print of the unrounded sum can flip the last digit.
+ */
+export const scoreTotal = (score: Score) => {
+  const over = `${score.total.toFixed(1)}/${score.totalWeight}`
+  return score.capped ? `${over} → ${Math.round(score.uncapped)}` : over
+}
+
+/** The cap as its own line — the handoff's and the hover's, one wording (ruled A3 on #4). */
+export const capLine = (score: Score) => `Capped at ${formatScore(score)} — cooperative aircraft`
+
+/**
+ * The chip's hover: the three largest contributions and the total they are part of, so a row
+ * explains itself before the drawer opens; a capped row leads with the cap (#63 review). The
+ * reason tag waits for PR 05's vocabulary (ruled on #4); this is what stands in.
+ */
+export const scoreSummary = (score: Score) => {
+  const top = [...score.factors]
+    .sort((a, b) => b.contribution - a.contribution)
+    .slice(0, 3)
+    .map((factor) => `${factor.label} ${Math.round(factor.contribution)}`)
+    .join(' · ')
+  return `${score.capped ? `${capLine(score)} · ` : ''}${top} (${scoreTotal(score)})`
+}
 
 /**
  * A heading as the whole degree the drawer and the handoff both print — one observation, one

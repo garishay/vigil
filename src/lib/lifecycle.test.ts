@@ -15,14 +15,18 @@ import {
   type TrackEvent,
 } from './lifecycle'
 import type { RankedTrack } from './ranking'
+import { scoreTrack } from './scoring'
 import type { InjectTrack } from './tracks'
+import { AO } from '../config/ao'
 
 const OBSERVED: ObservedSnapshot = {
   identity: 'non-cooperative',
   rangeM: 7200.2,
   altitudeFt: 63,
   groundSpeedKt: 19.1,
-  score: null,
+  score: 82,
+  uncapped: 82,
+  factors: { cooperativity: 100, closing: 44.4, proximity: 78, kinematic: 100, time: 100 },
 }
 
 const input = (over: Partial<ActionInput> = {}): ActionInput => ({
@@ -158,15 +162,26 @@ describe('learner-ready shape (§8.3b)', () => {
     verticalRateFpm: 85,
     lastSeenSec: 0,
   }
-  const entry: RankedTrack = { track, rank: 1, rangeM: 7200.2, siteId: 'phl-airfield' }
+  const score = scoreTrack(track, AO.protectedSites, { tSec: 0, minuteOfDay: 150, memory: {} })
+  const entry: RankedTrack = { track, rank: 1, rangeM: 7200.2, siteId: 'phl-airfield', score }
 
   it('snapshots exactly what the operator saw — nullable kinematics included (#35)', () => {
+    // The score is the composite the chip showed; the factors are each 0–100 value, by id, which
+    // is what §8.3b learns from (ruled on #4) — never the detail text, never the label.
     expect(observedSnapshot(entry)).toEqual({
       identity: 'non-cooperative',
       rangeM: 7200.2,
       altitudeFt: 63,
       groundSpeedKt: null,
-      score: null,
+      score: score.composite,
+      uncapped: score.uncapped,
+      factors: {
+        cooperativity: 100,
+        closing: 0,
+        proximity: score.factors[2].value,
+        kinematic: 0,
+        time: 100,
+      },
     })
   })
 
@@ -181,10 +196,12 @@ describe('learner-ready shape (§8.3b)', () => {
     for (const event of log) {
       expect(Object.keys(event.observed).sort()).toEqual([
         'altitudeFt',
+        'factors',
         'groundSpeedKt',
         'identity',
         'rangeM',
         'score',
+        'uncapped',
       ])
     }
     const serialized = JSON.stringify(log)

@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Queue } from './Queue'
+import { AO } from '../config/ao'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { RankedTrack } from '../lib/ranking'
+import { scoreTrack } from '../lib/scoring'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const SILENT: InjectTrack = {
@@ -68,12 +70,21 @@ const PARKED: AdsbTrack = {
   groundSpeedKt: 0,
 }
 
+/** Scored for real at the scenario's 02:30, nothing yet heard — the row shows what the engine says. */
+const entry = (track: InjectTrack | AdsbTrack, rank: number, rangeM: number): RankedTrack => ({
+  track,
+  rank,
+  rangeM,
+  siteId: 'phl-airfield',
+  score: scoreTrack(track, AO.protectedSites, { tSec: 0, minuteOfDay: 150, memory: {} }),
+})
+
 const RANKED: RankedTrack[] = [
-  { track: SILENT, rank: 1, rangeM: 9200.3, siteId: 'phl-airfield' },
-  { track: UNHEARD, rank: 2, rangeM: 6499.4, siteId: 'phl-airfield' },
-  { track: AIRLINER, rank: 3, rangeM: 1124.5, siteId: 'phl-airfield' },
-  { track: HEARD, rank: 4, rangeM: 8800.4, siteId: 'phl-airfield' },
-  { track: PARKED, rank: 5, rangeM: 2122.9, siteId: 'phl-airfield' },
+  entry(SILENT, 1, 9200.3),
+  entry(UNHEARD, 2, 6499.4),
+  entry(AIRLINER, 3, 1124.5),
+  entry(HEARD, 4, 8800.4),
+  entry(PARKED, 5, 2122.9),
 ]
 
 const rows = () =>
@@ -89,7 +100,7 @@ describe('Queue', () => {
     )
   })
 
-  it('shows plain-English identity with the shared dot, and a score chip placeholder', () => {
+  it('shows plain-English identity with the shared dot, and the score on the chip (04a)', () => {
     render(<Queue ranked={RANKED} />)
     const [silent, unheard, airliner] = rows()
     expect(silent).toHaveTextContent('Non-cooperative')
@@ -100,7 +111,14 @@ describe('Queue', () => {
     expect(dot).toHaveAttribute('data-identity', 'non-cooperative')
     expect(dot.style.background).toBe(hexToRgb(IDENTITY_COLOR['non-cooperative']))
     expect(silent.querySelectorAll('.queue__score')).toHaveLength(1)
-    expect(silent.querySelector('.queue__score')).toHaveTextContent('—')
+    // The chip is the whole-number composite; its hover names the three largest contributions,
+    // so a row explains itself before the drawer opens.
+    const chip = silent.querySelector('.queue__score') as HTMLElement
+    expect(chip).toHaveTextContent(String(Math.round(RANKED[0].score.composite)))
+    expect(chip.title).toMatch(/^Non-cooperative 25 · /)
+    // The ceiling on the arrival, and never a dash anywhere.
+    expect(airliner.querySelector('.queue__score')).toHaveTextContent('30')
+    for (const row of rows()) expect(row.querySelector('.queue__score')).not.toHaveTextContent('—')
   })
 
   it('discloses the layer in the badge, and nowhere else', () => {

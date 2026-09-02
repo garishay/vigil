@@ -7,6 +7,7 @@ import { CONTACTS } from '../config/contacts'
 import { DISPOSITIONS } from '../config/dispositions'
 import { appendEvent, firstSeen, observedSnapshot, type TrackEvent } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
+import { scoreTrack } from '../lib/scoring'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const SILENT: InjectTrack = {
@@ -54,6 +55,7 @@ const entry = (track: InjectTrack | AdsbTrack, rank: number, rangeM: number): Ra
   rank,
   rangeM,
   siteId: 'phl-airfield',
+  score: scoreTrack(track, SITES, { tSec: 0, minuteOfDay: 150, memory: {} }),
 })
 
 /** The photo tier is 03d's and tested in TrackVisuals.test.tsx; here it answers nothing. */
@@ -178,9 +180,12 @@ describe('ReviewDrawer', () => {
     expect(within(gs).getByText('—')).toBeInTheDocument()
   })
 
-  it('reserves the score and the history, and says what fills them', () => {
-    renderDrawer(entry(SILENT, 1, 7200.2))
-    expect(screen.getByText(/factors arrive with PR 04/)).toBeInTheDocument()
+  it('shows the composite in the reserved slot, and says what fills the rest', () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    renderDrawer(ranked)
+    const slot = document.querySelector('.drawer__slot') as HTMLElement
+    expect(slot).toHaveTextContent(`Score ${Math.round(ranked.score.composite)}`)
+    expect(within(slot).getByText(/factor breakdown arrives with 04b/)).toBeInTheDocument()
     expect(screen.getByText(/1 known position/)).toBeInTheDocument()
   })
 

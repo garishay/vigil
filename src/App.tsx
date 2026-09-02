@@ -24,6 +24,7 @@ import {
   type TrackEvent,
 } from './lib/lifecycle'
 import { rankTracks, type RankedTrack } from './lib/ranking'
+import { formatClock, minuteOfDay, rememberIdentities } from './lib/scoring'
 import type { Track } from './lib/tracks'
 
 type SurfaceId = 'home' | 'queue' | 'review'
@@ -34,13 +35,13 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'home',
     label: 'Home',
     title: 'Picture summary',
-    body: 'Both layers are counted in the strip above and ranked in the Queue. The scenario clock and time-of-day arrive with playback (PR 06).',
+    body: 'Both layers are counted in the strip above and ranked in the Queue by score. The sim clock starts at the scenario’s configured hour and ticks with playback (PR 06).',
   },
   {
     id: 'queue',
     label: 'Queue',
     title: 'Ranked queue',
-    body: 'Placeholder ranking: identity, then range to the protected site. Scores arrive in PR 04.',
+    body: 'Ranked by score.',
   },
   {
     id: 'review',
@@ -62,6 +63,9 @@ const STATE_FILTERS: { id: StateFilter; label: string }[] = [
   { id: 'active', label: 'Active' },
   ...STATUSES.map((status) => ({ id: status, label: STATUS_LABEL[status] })),
 ]
+
+/** Scenario time. Frame 0 until PR 06 runs the replay clock; the engine takes it as an input. */
+const T_SEC = 0
 
 /** Active is the non-terminal set — New, Assessing, Escalated — read off the table (03e). */
 const matchesState = (status: Status, filter: StateFilter): boolean =>
@@ -108,11 +112,20 @@ export default function App({
     const { frames, intervalMs } = capture.capture
     return planScenario({ frameCount: frames.length, intervalMs })
   }, [capture])
-  const injects = useMemo(() => (plan ? injectTracksAt(plan, 0) : []), [plan])
+  const injects = useMemo(() => (plan ? injectTracksAt(plan, T_SEC) : []), [plan])
 
-  // One list for the Queue and, later, the scorer: neither knows which layer a track came from.
+  // One list for the Queue and the scorer: neither knows which layer a track came from.
   const tracks = useMemo<Track[]>(() => [...adsb, ...injects], [adsb, injects])
-  const ranked = useMemo(() => rankTracks(tracks, AO.protectedSites), [tracks])
+  // The identity memory — when each inject's ident was last heard — is folded once, from the
+  // one frame the picture holds; PR 06 folds it per tick, which is the dwell's whole point. The
+  // hour is the scenario's configured clock start (ruled D2 on #4), and the strip shows the same
+  // number the breakdown scores against.
+  const memory = useMemo(() => rememberIdentities({}, injects, T_SEC), [injects])
+  const clockMinute = minuteOfDay(SCENARIO.clock.startLocal, T_SEC)
+  const ranked = useMemo(
+    () => rankTracks(tracks, AO.protectedSites, { tSec: T_SEC, minuteOfDay: clockMinute, memory }),
+    [tracks, clockMinute, memory],
+  )
 
   // Filtered for display; ranks stay global, so a filtered list shows what it hid. The two chip
   // rows compose: a row must pass both. An unstored log is an untouched track — statusOf reads
@@ -142,7 +155,7 @@ export default function App({
     eventLogs[entry.track.id] ??
     firstSeen(entry.track.id, observedSnapshot(entry), openedAt ?? now())
 
-  // tSec stays 0 until PR 06 runs the replay clock; `now` is the seam it takes over through.
+  // `now` is the seam PR 06's clock takes over through; `T_SEC` is the other half of it.
   const act = (
     action: LifecycleAction,
     detail?: { recipient?: ContactId; disposition?: DispositionId },
@@ -157,7 +170,7 @@ export default function App({
         logs[selected.track.id] ??
           firstSeen(selected.track.id, observedSnapshot(selected), openedAt ?? at),
         action,
-        { at, tSec: 0, observed: observedSnapshot(selected), ...detail },
+        { at, tSec: T_SEC, observed: observedSnapshot(selected), ...detail },
       ),
     }))
   }
@@ -169,7 +182,7 @@ export default function App({
     { label: 'Cooperative', value: count(adsb.length) },
     { label: 'Injects', value: count(injects.length) },
     { label: 'Seed', value: SCENARIO.seed },
-    { label: 'Sim clock', value: '—' },
+    { label: 'Sim clock', value: formatClock(clockMinute) },
   ]
 
   // On Review the Queue is unmounted, so its row-focus return has nothing to land on: the close

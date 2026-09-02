@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { IdentityDot } from './IdentityDot'
-import { LAYER_BADGE, formatRangeKm, trackIdent } from '../lib/display'
+import { LAYER_BADGE, formatRangeKm, formatScore, scoreSummary, trackIdent } from '../lib/display'
 import { IDENTITY_LABEL } from '../lib/identity'
 import { STATUS_LABEL, isTerminal, type Status } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
@@ -9,7 +9,9 @@ import type { RankedTrack } from '../lib/ranking'
  * The ranked list (§7). Two-line rows: rank, identity, and the score chip on the first line; the
  * layer badge, ident, ground state, and range on the second. Every field is something the system
  * observed or derived — behavior and Remote ID status are ground truth, and stay in the fixtures
- * until PR 05 earns the right to display a *detected* pattern.
+ * until PR 05 earns the right to display a *detected* pattern. The chip carries the composite
+ * (PR 04a) with its top contributions as hover text; the band colour and the drawer's breakdown
+ * are 04b's.
  *
  * Rows are buttons (03a): clicking selects the track, in sync with the map — the selected row is
  * marked and scrolled into view when the selection came from the map side. Ranks are global,
@@ -73,7 +75,7 @@ export function Queue({
 
   return (
     <ol className="queue" aria-label="Ranked queue" ref={listRef} tabIndex={-1}>
-      {ranked.map(({ track, rank, rangeM }) => {
+      {ranked.map(({ track, rank, rangeM, score }) => {
         const status = statusFor(track.id)
         const classes = ['queue__row']
         if (track.onGround) classes.push('queue__row--ground')
@@ -92,8 +94,8 @@ export function Queue({
                 <IdentityDot identity={track.identity} />
                 {IDENTITY_LABEL[track.identity]}
               </span>
-              <span className="queue__score" title="Score arrives with the scoring engine (PR 04)">
-                —
+              <span className="queue__score" title={scoreSummary(score)}>
+                {formatScore(score)}
               </span>
               <span className="queue__detail">
                 <span className="queue__badge" data-layer={track.source}>
