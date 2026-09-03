@@ -60,10 +60,38 @@ const KT_TO_MS = 0.514444
  */
 const KINEMATIC_WINDOW_S = 15
 
-/** The frame grid the scenario is sampled on — supplied by the caller, never read from disk. */
+/**
+ * The instants the scenario is sampled at — the recording's own frame times, supplied by the
+ * caller and never read from disk. They need not be contiguous: a hole in the recording is a
+ * hole in both layers, never a stale offset (#39).
+ */
 export interface Timeline {
-  frameCount: number
   intervalMs: number
+  /** Milliseconds since the capture began, one per frame the recording actually has, ascending. */
+  frameTimesMs: readonly number[]
+}
+
+/** The timeline a recording actually has — read from its frames, never assumed from their count. */
+export function timelineOf(capture: {
+  intervalMs: number
+  frames: readonly { tMs: number }[]
+}): Timeline {
+  return { intervalMs: capture.intervalMs, frameTimesMs: capture.frames.map((frame) => frame.tMs) }
+}
+
+/** A contiguous grid of `frameCount` frames — the timeline a recording with no holes has. */
+export function gridTimeline(frameCount: number, intervalMs: number): Timeline {
+  return { intervalMs, frameTimesMs: Array.from({ length: frameCount }, (_, i) => i * intervalMs) }
+}
+
+/**
+ * Slots from 0 to the last instant inclusive: the grid the dropout chain is drawn on. Sized by
+ * span rather than by count, so a gappy recording and a contiguous one of the same length deal
+ * the same plan — the §5.2 invariant, kept by construction.
+ */
+function gridLength(timeline: Timeline): number {
+  const last = timeline.frameTimesMs[timeline.frameTimesMs.length - 1]
+  return last === undefined ? 0 : Math.floor(last / timeline.intervalMs) + 1
 }
 
 /**
@@ -314,6 +342,7 @@ export function planScenario(
   }
   const rng = makeRng(config.seed)
   const intervalS = timeline.intervalMs / 1000
+  const frameCount = gridLength(timeline)
   const site = ao.protectedSites[0]?.center ?? ao.center
   const count = config.minInjects + rng.int(config.maxInjects - config.minInjects + 1)
   const behaviors = coverThenFill(rng, BEHAVIORS, count)
@@ -364,7 +393,7 @@ export function planScenario(
     if (remoteId === 'intermittent') {
       const chain = makeRng(`${config.seed}:${id}:remote-id`)
       let on = true
-      for (let frame = 0; frame < timeline.frameCount; frame++) {
+      for (let frame = 0; frame < frameCount; frame++) {
         if (frame > 0) {
           on = chain.bool(on ? config.remoteId.pStayHeard : 1 - config.remoteId.pStaySilent)
         }
@@ -410,22 +439,16 @@ export function injectTracksAt(plan: InjectPlan, tSec: number): InjectTrack[] {
   return plan.specs.map((spec) => trackAt(spec, plan.intervalS, tSec))
 }
 
-/** The whole scenario, sampled onto the timeline's frame grid. */
+/** The whole scenario, sampled at the timeline's frame times. */
 export function generateScenario(
   timeline: Timeline,
   config: ScenarioConfig = SCENARIO,
   ao: AreaOfOperations = AO,
 ): InjectScenario {
   const plan = planScenario(timeline, config, ao)
-  const frames: InjectFrame[] = []
-  for (let index = 0; index < timeline.frameCount; index++) {
-    const tMs = index * timeline.intervalMs
-    frames.push({ tMs, tracks: injectTracksAt(plan, tMs / 1000) })
-  }
-  return {
-    seed: plan.seed,
-    frameCount: timeline.frameCount,
-    intervalMs: timeline.intervalMs,
-    frames,
-  }
+  const frames: InjectFrame[] = timeline.frameTimesMs.map((tMs) => ({
+    tMs,
+    tracks: injectTracksAt(plan, tMs / 1000),
+  }))
+  return { seed: plan.seed, frameCount: frames.length, intervalMs: timeline.intervalMs, frames }
 }

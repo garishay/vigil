@@ -30,7 +30,7 @@ flowchart LR
   subgraph offline["Offline, run once — network and filesystem, not a runtime module"]
     direction LR
     cap["scripts/capture-adsb.ts"] --> fx[("public/adsb-phl.json<br/>the committed recording")]
-    fx --> goldgen["scripts/generate-inject-golden.ts<br/>npm run fixture:injects<br/>samples the plan on the recording's frame grid"]
+    fx --> goldgen["scripts/generate-inject-golden.ts<br/>npm run fixture:injects<br/>samples the plan at the recording's frame times"]
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
     direction LR

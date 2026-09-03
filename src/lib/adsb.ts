@@ -292,6 +292,11 @@ export const CAPTURE_ETIQUETTE = {
   rateLimitBackoffS: 60,
   /** A feed that has gone away stops the run rather than burning the whole window on it. */
   maxConsecutiveFailures: 3,
+  /**
+   * The share of a run's frames that may be missing before the recording is refused. A rate,
+   * with a floor under it — see `gapBudget` (#36 [3]).
+   */
+  maxMissingRate: 0.1,
 } as const
 
 /** Why a frame could not be fetched. */
@@ -409,4 +414,41 @@ export function scheduleNextFrame(
   const firstAhead = Math.ceil((nowMs - startedAt) / intervalMs)
   const index = Math.max(attempted + minSlots, firstAhead)
   return { index, waitMs: Math.max(startedAt + index * intervalMs - nowMs, 0) }
+}
+
+/**
+ * Whether a backoff would end past the run's last slot — decided before the sleep, never after.
+ *
+ * `Retry-After: 3600` on frame 5 of 80 used to be slept through in full, only for the loop to
+ * wake, find every remaining slot behind it, and throw (#41). The projection is the scheduler's
+ * own answer at the moment the backoff would end, so the two can never disagree about which slot
+ * comes next.
+ */
+export function backoffOutlastsWindow(
+  schedule: FrameSchedule,
+  backOffS: number,
+  frameCount: number,
+  nowMs: number = Date.now(),
+  etiquette: typeof CAPTURE_ETIQUETTE = CAPTURE_ETIQUETTE,
+): boolean {
+  return scheduleNextFrame(schedule, nowMs + backOffS * 1000, etiquette).index >= frameCount
+}
+
+/**
+ * How many frames a run may be missing and still be written.
+ *
+ * A rate alone made a short capture fragile: `--minutes 5` gives twenty frames and a budget of
+ * two, and the one 429 the etiquette deliberately tolerates costs five — the failed request plus
+ * the four slots a 60 s backoff runs past — so the capture was discarded for an event the rules
+ * permit (#36 [3]). The floor is that event's cost at the fallback backoff: the budget is never
+ * smaller than what the etiquette itself allows, and a long capture keeps the rate, which is
+ * larger.
+ */
+export function gapBudget(
+  frameCount: number,
+  intervalMs: number,
+  etiquette: typeof CAPTURE_ETIQUETTE = CAPTURE_ETIQUETTE,
+): number {
+  const oneRateLimit = 1 + Math.ceil((etiquette.rateLimitBackoffS * 1000) / intervalMs)
+  return Math.max(Math.floor(etiquette.maxMissingRate * frameCount), oneRateLimit)
 }

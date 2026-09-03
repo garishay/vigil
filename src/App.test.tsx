@@ -184,8 +184,8 @@ describe('App shell', () => {
     // holds the plan and samples it, so that clock will drive `injectTracksAt` with no rewiring.
     render(<App schedule={never} />)
     expect(planScenario).toHaveBeenCalledWith({
-      frameCount: READY.status === 'ready' ? READY.capture.frames.length : 0,
       intervalMs: 15000,
+      frameTimesMs: READY.status === 'ready' ? READY.capture.frames.map((frame) => frame.tMs) : [],
     })
   })
 

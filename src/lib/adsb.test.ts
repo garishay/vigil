@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   CAPTURE_ETIQUETTE,
+  backoffOutlastsWindow,
   captureRadiusNm,
   decideAfterFailure,
+  gapBudget,
   isWithinBbox,
   normalizeAircraft,
   normalizeResponse,
@@ -489,5 +491,49 @@ describe('scheduleNextFrame', () => {
     for (const elapsed of [0, 7_000, 15_000, 61_000, 600_000]) {
       expect(after(4, slot(4) + elapsed).waitMs).toBeGreaterThanOrEqual(0)
     }
+  })
+})
+
+describe('backoffOutlastsWindow', () => {
+  const STARTED = Date.parse('2026-08-29T21:00:00Z')
+  const INTERVAL = 15_000
+  const FRAMES = 80
+  const slot = (i: number) => STARTED + i * INTERVAL
+  const outlasts = (attempted: number, backOffS: number, nowMs = slot(attempted) + 500) =>
+    backoffOutlastsWindow(
+      { attempted, startedAt: STARTED, intervalMs: INTERVAL },
+      backOffS,
+      FRAMES,
+      nowMs,
+    )
+
+  it('stops a run whose backoff ends past its last slot, before the sleep', () => {
+    // The #41 case: Retry-After 3600 on frame 5 of 80 was slept through in full, to no purpose.
+    expect(outlasts(4, 3600)).toBe(true)
+    // Frame 79 is the last slot; a 60 s backoff from frame 78 runs past it.
+    expect(outlasts(78, 60)).toBe(true)
+  })
+
+  it('lets a backoff that leaves slots ahead run', () => {
+    expect(outlasts(4, 30)).toBe(false)
+    expect(outlasts(4, 60)).toBe(false)
+    // A backoff ending just inside the window still has the last slot to capture.
+    expect(outlasts(4, (79 - 4) * 15 - 1)).toBe(false)
+  })
+})
+
+describe('gapBudget', () => {
+  it('keeps the rate for a long capture — eighty frames allow eight, as before', () => {
+    expect(gapBudget(80, 15_000)).toBe(8)
+    expect(gapBudget(400, 15_000)).toBe(40)
+  })
+
+  it('floors a short capture at the cost of the one 429 the etiquette tolerates', () => {
+    // `--minutes 5`: twenty frames, a rate budget of two, and a tolerated 429 costing five — the
+    // failed request plus the four slots a 60 s backoff runs past. The floor is that five, so
+    // the event the rules permit no longer discards the run (#36 [3]).
+    expect(gapBudget(20, 15_000)).toBe(5)
+    // At the 10 s floor the same backoff runs past six slots.
+    expect(gapBudget(20, 10_000)).toBe(7)
   })
 })
