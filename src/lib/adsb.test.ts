@@ -536,4 +536,15 @@ describe('gapBudget', () => {
     // At the 10 s floor the same backoff runs past six slots.
     expect(gapBudget(20, 10_000)).toBe(7)
   })
+
+  it('never allows the whole run — a window shorter than the floor keeps at least one frame', () => {
+    // `--minutes 1` is four frames, under the five-frame floor. Unclamped, one 429 stopped the
+    // run with nothing captured and 4 > 5 was false, so the committed recording was overwritten
+    // with an empty one — the case #42 documents as the guard's reason to exist (#85 review).
+    expect(gapBudget(4, 15_000)).toBe(3)
+    expect(gapBudget(1, 15_000)).toBe(0)
+    for (let frames = 1; frames <= 12; frames++) {
+      expect(gapBudget(frames, 15_000)).toBeLessThan(frames)
+    }
+  })
 })

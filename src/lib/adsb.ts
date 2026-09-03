@@ -443,6 +443,10 @@ export function backoffOutlastsWindow(
  * permit (#36 [3]). The floor is that event's cost at the fallback backoff: the budget is never
  * smaller than what the etiquette itself allows, and a long capture keeps the rate, which is
  * larger.
+ *
+ * Never the whole run, though: a window shorter than the floor — `--minutes 1` is four frames —
+ * must not be allowed to miss every frame it has, or one 429 would overwrite the committed
+ * recording with an empty one, the regression #42's guard exists to stop (#85 review).
  */
 export function gapBudget(
   frameCount: number,
@@ -450,5 +454,8 @@ export function gapBudget(
   etiquette: typeof CAPTURE_ETIQUETTE = CAPTURE_ETIQUETTE,
 ): number {
   const oneRateLimit = 1 + Math.ceil((etiquette.rateLimitBackoffS * 1000) / intervalMs)
-  return Math.max(Math.floor(etiquette.maxMissingRate * frameCount), oneRateLimit)
+  return Math.max(
+    Math.floor(etiquette.maxMissingRate * frameCount),
+    Math.min(oneRateLimit, frameCount - 1),
+  )
 }

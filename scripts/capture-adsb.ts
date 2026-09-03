@@ -219,6 +219,10 @@ async function main(): Promise<void> {
         // Decided before the sleep: a Retry-After longer than what is left of the window used to
         // be slept through in full, for a run that was already lost (#41).
         const schedule = { attempted: i, startedAt, intervalMs }
+        // On the last slot there is nothing left to wait for and nothing was cut short: the
+        // projection is trivially true there, so it would name a reason for a run that
+        // completed (#85 review). No sleep either — the window is over.
+        if (i + 1 >= frameCount) break
         if (backoffOutlastsWindow(schedule, decision.backOffS, frameCount)) {
           stoppedEarly = `a ${decision.backOffS}s backoff outlasts the capture window`
           break
