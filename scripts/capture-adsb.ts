@@ -21,8 +21,10 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { AO } from '../src/config/ao.ts'
 import {
   CAPTURE_ETIQUETTE,
+  backoffOutlastsWindow,
   captureRadiusNm,
   decideAfterFailure,
+  gapBudget,
   normalizeResponse,
   scheduleNextFrame,
 } from '../src/lib/adsb.ts'
@@ -39,8 +41,6 @@ const DEFAULT_MINUTES = 20
 const DEFAULT_INTERVAL_S = 15
 const DEFAULT_OUT = 'public/adsb-phl.json'
 const REQUEST_TIMEOUT_MS = 15_000
-/** Abandon the capture rather than commit a fixture riddled with gaps. */
-const MAX_FAILURE_RATE = 0.1
 
 interface Options {
   minutes: number
@@ -108,6 +108,8 @@ export function parseArgs(argv: string[]): Options {
       `--minutes ${options.minutes} --interval ${options.intervalS} gives ${frames} frames`,
     )
   }
+  // A floor and no ceiling, by ruling (#44, scope §5.1): the window's length is the operator's
+  // to choose. The etiquette risk is rate, which the check below floors whatever the length.
   if (options.intervalS < CAPTURE_ETIQUETTE.minIntervalS) {
     throw new Error(
       `--interval must be at least ${CAPTURE_ETIQUETTE.minIntervalS}s; adsb.lol is a free service`,
@@ -188,6 +190,8 @@ async function main(): Promise<void> {
   // Not a `for` step: a backoff can run the clock past whole slots, and the next frame is then
   // the next one still ahead of us rather than the one after this (#29).
   let i = 0
+  // Set when the run stops before its last slot; printed beside the shortfall it left.
+  let stoppedEarly: string | undefined
   while (i < frameCount) {
     const snapshot = await fetchSnapshot(url)
 
@@ -212,6 +216,17 @@ async function main(): Promise<void> {
       const decision = decideAfterFailure(snapshot, { rateLimits, consecutiveFailures })
       if (decision.action === 'abort') throw new Error(decision.reason)
       if (decision.backOffS > 0) {
+        // Decided before the sleep: a Retry-After longer than what is left of the window used to
+        // be slept through in full, for a run that was already lost (#41).
+        const schedule = { attempted: i, startedAt, intervalMs }
+        // On the last slot there is nothing left to wait for and nothing was cut short: the
+        // projection is trivially true there, so it would name a reason for a run that
+        // completed (#85 review). No sleep either — the window is over.
+        if (i + 1 >= frameCount) break
+        if (backoffOutlastsWindow(schedule, decision.backOffS, frameCount)) {
+          stoppedEarly = `a ${decision.backOffS}s backoff outlasts the capture window`
+          break
+        }
         console.warn(`  backing off ${decision.backOffS}s before the next request`)
         await sleep(decision.backOffS * 1000)
       }
@@ -225,10 +240,16 @@ async function main(): Promise<void> {
 
   // Measured as gaps rather than as failures: a slot skipped to hold the etiquette floor after a
   // backoff (#29) leaves the same hole in the recording as a frame that failed outright, and this
-  // guard exists for the hole, not for its cause.
+  // guard exists for the hole, not for its cause. A run that stopped early is judged on the same
+  // count — its shortfall is trailing, which leaves `tMs` contiguous from 0 and harms nothing
+  // (#39) — and the budget is a rate with a floor under it (#36 [3]).
   const missing = frameCount - frames.length
-  if (missing / frameCount > MAX_FAILURE_RATE) {
-    throw new Error(`${missing}/${frameCount} frames missing — not writing a fixture this gappy`)
+  const budget = gapBudget(frameCount, intervalMs)
+  if (missing > budget) {
+    const why = stoppedEarly ? ` — ${stoppedEarly}` : ''
+    throw new Error(
+      `${missing}/${frameCount} frames missing${why} — not writing a fixture this gappy`,
+    )
   }
 
   const capture: AdsbCapture = {
@@ -245,7 +266,10 @@ async function main(): Promise<void> {
   const counts = frames.map((frame) => frame.records.length)
   const total = counts.reduce((sum, n) => sum + n, 0)
   console.log(`\nWrote ${out}`)
-  console.log(`  ${frames.length} frames, ${missing} missing (${failures} of them failed)`)
+  if (stoppedEarly) console.log(`  stopped early: ${stoppedEarly}`)
+  console.log(
+    `  ${frames.length} frames, ${missing} missing of ${budget} allowed (${failures} failed)`,
+  )
   console.log(
     `  tracks per frame: min ${Math.min(...counts)}, ` +
       `max ${Math.max(...counts)}, mean ${(total / counts.length).toFixed(1)}`,

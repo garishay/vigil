@@ -4,7 +4,7 @@ import type { TrackHistory } from './patterns'
 import { AO } from '../config/ao'
 import { SCORING } from '../config/scoring'
 import { destinationPoint } from './geo'
-import { injectTracksAt, planScenario } from './injects'
+import { gridTimeline, injectTracksAt, planScenario } from './injects'
 import { historyAt, type ReplayIndex } from './replay'
 
 const CONFIG = SCORING.pattern
@@ -175,7 +175,7 @@ describe('detectPattern', () => {
 describe('the golden scenario as the answer key (ruled on #5, note 1)', () => {
   // The generator's `behavior` is the oracle these expectations are derived from; the detector
   // is fed positions and nothing else, sampled as the app samples them.
-  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const plan = planScenario(gridTimeline(80, 15000))
   const noRecording: ReplayIndex = { durationS: 0, samples: new Map() }
   const EXPECTED = {
     loiter: 'loiter',

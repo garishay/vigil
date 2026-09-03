@@ -14,7 +14,7 @@ import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/phot
 import { useCapture } from './data/useCapture'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
 import { simClock } from './lib/display'
-import { injectTracksAt, planScenario } from './lib/injects'
+import { injectTracksAt, planScenario, timelineOf } from './lib/injects'
 import {
   STATUSES,
   STATUS_LABEL,
@@ -132,11 +132,10 @@ export default function App({
    * of its own, so one clock drives `injectTracksAt` and the ADS-B interpolator together. The
    * generator is pure and synchronous; it never reads the capture itself.
    */
-  const plan = useMemo(() => {
-    if (capture.status !== 'ready') return null
-    const { frames, intervalMs } = capture.capture
-    return planScenario({ frameCount: frames.length, intervalMs })
-  }, [capture])
+  const plan = useMemo(
+    () => (capture.status === 'ready' ? planScenario(timelineOf(capture.capture)) : null),
+    [capture],
+  )
   const injects = useMemo(() => (plan ? injectTracksAt(plan, tSec) : []), [plan, tSec])
 
   // One list for the Queue and the scorer: neither knows which layer a track came from.

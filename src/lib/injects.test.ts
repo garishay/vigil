@@ -4,8 +4,10 @@ import {
   REMOTE_ID_STATES,
   UA_TYPES,
   generateScenario,
+  gridTimeline,
   injectTracksAt,
   planScenario,
+  timelineOf,
 } from './injects'
 import type { InjectScenario } from './injects'
 import { AO } from '../config/ao'
@@ -21,7 +23,7 @@ const capture = JSON.parse(captureRaw) as AdsbCapture
 const golden = JSON.parse(goldenRaw) as InjectScenario
 
 /** The timeline the committed recording actually has — read, not assumed. */
-const TIMELINE = { frameCount: capture.frames.length, intervalMs: capture.intervalMs }
+const TIMELINE = timelineOf(capture)
 
 const allTracks = (scenario: InjectScenario) => scenario.frames.flatMap((frame) => frame.tracks)
 
@@ -70,8 +72,8 @@ describe('determinism', () => {
   it('is a function of seed and config alone — the timeline samples it, never reshapes it', () => {
     // A recapture one frame longer must add a frame to every inject, not replace the scenario:
     // every drawn parameter is identical, and the dropout chain is the old one plus one entry.
-    const short = planScenario({ frameCount: 80, intervalMs: 15000 })
-    const long = planScenario({ frameCount: 81, intervalMs: 15000 })
+    const short = planScenario(gridTimeline(80, 15000))
+    const long = planScenario(gridTimeline(81, 15000))
     expect(long.specs.map((spec) => ({ ...spec, heard: spec.heard.slice(0, 80) }))).toEqual(
       short.specs,
     )
@@ -93,6 +95,26 @@ describe('timeline alignment', () => {
     )
     expect(scenario.frameCount).toBe(capture.frames.length)
     expect(scenario.intervalMs).toBe(capture.intervalMs)
+  })
+
+  it('reads the frame times a recording has — a hole is a hole in both layers, not a stale offset', () => {
+    // #39: the timeline used to be rebuilt from an index, so every frame after a hole paired
+    // the real picture with inject positions one gap stale. Frames 10–14 are missing here, the
+    // hole a tolerated 429 leaves; the plan is the contiguous one — the dropout chain is drawn
+    // on the span, not the count — and every kept frame is sampled at its own instant.
+    const contiguous = gridTimeline(80, 15000)
+    const holed = {
+      intervalMs: 15000,
+      frameTimesMs: contiguous.frameTimesMs.filter((tMs) => tMs < 150_000 || tMs >= 225_000),
+    }
+    expect(holed.frameTimesMs).toHaveLength(75)
+    expect(planScenario(holed)).toEqual(planScenario(contiguous))
+    const whole = generateScenario(contiguous)
+    const gappy = generateScenario(holed)
+    expect(gappy.frames.map((frame) => frame.tMs)).toEqual(holed.frameTimesMs)
+    for (const frame of gappy.frames) {
+      expect(frame).toEqual(whole.frames.find((other) => other.tMs === frame.tMs))
+    }
   })
 
   it('carries the same track ids in every frame', () => {

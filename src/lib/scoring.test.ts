@@ -793,11 +793,11 @@ describe('determinism', () => {
 
 describe('scoreFromSnapshot (06b)', () => {
   it('rebuilds the breakdown the operator saw from the record alone, for every golden inject', async () => {
-    const { injectTracksAt, planScenario } = await import('./injects')
+    const { gridTimeline, injectTracksAt, planScenario } = await import('./injects')
     const { rankTracks } = await import('./ranking')
     const { observedSnapshot } = await import('./lifecycle')
     const { PHL } = await import('../config/ao')
-    const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+    const plan = planScenario(gridTimeline(80, 15000))
     const ranked = rankTracks(injectTracksAt(plan, 300), PHL.protectedSites, {
       tSec: 300,
       minuteOfDay: 155,

@@ -12,7 +12,7 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { generateScenario } from '../src/lib/injects.ts'
+import { generateScenario, timelineOf } from '../src/lib/injects.ts'
 import type { InjectScenario } from '../src/lib/injects.ts'
 import { SCENARIO } from '../src/config/scenario.ts'
 import type { AdsbCapture } from '../src/lib/adsb.ts'
@@ -32,13 +32,10 @@ function serialize(scenario: InjectScenario): string {
 }
 
 async function main(): Promise<void> {
-  // The inject timeline is the capture's timeline. Reading it here rather than hardcoding it is
-  // what keeps the two layers on one frame grid through a recapture (see the alignment test).
+  // The inject timeline is the capture's own frame times. Reading them here rather than assuming
+  // a grid is what keeps the two layers on one timeline through a recapture, holes included.
   const capture = JSON.parse(await readFile(CAPTURE, 'utf8')) as AdsbCapture
-  const scenario = generateScenario({
-    frameCount: capture.frames.length,
-    intervalMs: capture.intervalMs,
-  })
+  const scenario = generateScenario(timelineOf(capture))
 
   await writeFile(OUT, serialize(scenario), 'utf8')
 

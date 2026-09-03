@@ -6,7 +6,7 @@ import { SCORING } from '../config/scoring'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture } from './adsb'
 import { destinationPoint, distanceMeters } from './geo'
-import { injectTracksAt, planScenario, type InjectScenario } from './injects'
+import { gridTimeline, injectTracksAt, planScenario, type InjectScenario } from './injects'
 import { historiesAt, memoryAt, type ReplayIndex } from './replay'
 import { minuteOfDay, type ScoringContext } from './scoring'
 import type { AdsbTrack, Identity, InjectTrack, Track } from './tracks'
@@ -242,7 +242,7 @@ describe('determinism', () => {
 })
 
 describe('pattern of life in the order (05a acceptance)', () => {
-  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const plan = planScenario(gridTimeline(80, 15000))
   const noRecording: ReplayIndex = { durationS: 0, samples: new Map() }
   const injectsAt = (t: number) => {
     const tracks = injectTracksAt(plan, t)

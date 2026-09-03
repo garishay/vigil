@@ -4,7 +4,7 @@ import { PHL } from '../config/ao'
 import { SCENARIO } from '../config/scenario'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture, CaptureRecord } from './adsb'
-import { injectTracksAt, planScenario } from './injects'
+import { gridTimeline, injectTracksAt, planScenario } from './injects'
 import {
   historiesAt,
   historyAt,
@@ -170,7 +170,7 @@ describe('interpolateHeading', () => {
 })
 
 describe('memoryAt', () => {
-  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const plan = planScenario(gridTimeline(80, 15000))
   const sample = (t: number) => injectTracksAt(plan, t)
 
   it('equals the frame-by-frame fold, so playing to an instant and seeking to it agree', () => {
@@ -212,7 +212,7 @@ describe('pictureAt — the coast window is one clock in both branches (#73 revi
 })
 
 describe('trailAt (06b)', () => {
-  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const plan = planScenario(gridTimeline(80, 15000))
   const samples = [...Array(8)].map((_, i) => ({
     tMs: i * 15000,
     records: [{ ...A0, position: [-75.2 + i * 0.01, 39.8] as [number, number] }],
@@ -257,7 +257,7 @@ describe('trailAt (06b)', () => {
 })
 
 describe('trailAt — a held track (#75 review)', () => {
-  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const plan = planScenario(gridTimeline(80, 15000))
   const index = indexCapture(
     capture(
       [...Array(8)].map((_, i) => ({
@@ -278,7 +278,7 @@ describe('trailAt — a held track (#75 review)', () => {
 })
 
 describe('historyAt and historiesAt (05a)', () => {
-  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const plan = planScenario(gridTimeline(80, 15000))
   const index = indexCapture(
     capture(
       [...Array(8)].map((_, i) => ({
@@ -324,7 +324,7 @@ describe('historyAt and historiesAt (05a)', () => {
 })
 
 describe('historyAt across a hole in the recording (#80 review)', () => {
-  const plan = planScenario({ frameCount: 80, intervalMs: 15000 })
+  const plan = planScenario(gridTimeline(80, 15000))
   // Three samples, six minutes of nothing, then two more: the aggregator would have dropped
   // the track through that hole, and so does pictureAt.
   const index = indexCapture(
