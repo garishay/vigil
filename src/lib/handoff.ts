@@ -105,7 +105,7 @@ export function handoffText({
     ...(score.capped ? [`  ${capLine(score)}`] : []),
     'Timeline:',
     ...log.map(
-      (event) => `  ${clock(event.tSec)}  ${describeEvent(event, contacts, dispositions)}`,
+      (event) => `  ${clock(event.tSec)}  ${describeEvent(event, contacts, dispositions, clock)}`,
     ),
   ].join('\n')
 }

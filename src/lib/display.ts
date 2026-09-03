@@ -131,12 +131,16 @@ export const roundHeading = (headingDeg: number) => Math.round(headingDeg) % 360
  * learner (§8.3b); names are looked up only here, at display time. A band crossing names the
  * band entered and the one left, up or down, in the words of the one band table (06b, #66). A
  * pattern change names what began and what ended; a track first seen with a pattern already
- * named carries the word on its first line, so a cold open still hands off with it (05b).
+ * named carries the word on its first line, so a cold open still hands off with it (05b). A
+ * loss names the sim time the recording last heard the track, printed by the same clock that
+ * marks the line — the fact the next operator needs, true whenever the line was stamped (#71,
+ * #36 [11]).
  */
 export function describeEvent(
   event: TrackEvent,
   contacts: readonly Contact[],
   dispositions: readonly Disposition[],
+  clock: (tSec: number) => string,
 ): string {
   switch (event.action) {
     case 'first-seen':
@@ -146,6 +150,10 @@ export function describeEvent(
       if (to) return `${PATTERN_LABEL[to]} — began${from ? `, ${patternWord(from)} ended` : ''}`
       return from ? `${PATTERN_LABEL[from]} — ended` : 'Pattern — ended'
     }
+    case 'lost':
+      return event.lost ? `Lost — last heard ${clock(event.lost.lastHeardTSec)}` : 'Lost'
+    case 'regained':
+      return 'Regained'
     case 'band': {
       const { from, to } = event.band ?? { from: 'calm', to: 'calm' }
       const direction = BANDS.indexOf(to) > BANDS.indexOf(from) ? 'up' : 'down'
