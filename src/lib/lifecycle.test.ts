@@ -587,8 +587,8 @@ describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
     })
     const held = observedSnapshot(withScore(84, 'loiter'))
 
-    it('logs Lost at sim time with the held picture and the coast it was judged under, status carried', () => {
-      const log = lost(claimed, held, at, 121, 90)!
+    it('logs Lost at sim time with the held picture and the time last heard, status carried', () => {
+      const log = lost(claimed, held, at, 121, 30)!
       expect(log).toHaveLength(3)
       expect(log[2]).toMatchObject({
         seq: 3,
@@ -596,7 +596,7 @@ describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
         action: 'lost',
         from: 'assessing',
         to: 'assessing',
-        lost: { coastS: 90 },
+        lost: { lastHeardTSec: 30 },
         observed: held,
       })
       expect(statusOf(log)).toBe('assessing')
@@ -604,23 +604,23 @@ describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
     })
 
     it('logs nothing on a terminal record, twice, or behind the frontier', () => {
-      expect(lost(dismissedAt(60), held, at, 121, 90)).toBeNull()
+      expect(lost(dismissedAt(60), held, at, 121, 30)).toBeNull()
       const resolved = appendEvent(
         appendEvent(claimed, 'escalate', { at, tSec: 40, observed: held, recipient: 'phl-tower' }),
         'resolve',
         { at, tSec: 50, observed: held, disposition: 'benign' },
       )
-      expect(lost(resolved, held, at, 121, 90)).toBeNull()
-      const once = lost(claimed, held, at, 121, 90)!
-      expect(lost(once, held, at, 200, 90)).toBeNull()
+      expect(lost(resolved, held, at, 121, 30)).toBeNull()
+      const once = lost(claimed, held, at, 121, 30)!
+      expect(lost(once, held, at, 200, 30)).toBeNull()
       // Rewound to before first sight, the picture shows the track absent: not a loss.
-      expect(lost(openedWith(null, 600), held, at, 300, 90)).toBeNull()
+      expect(lost(openedWith(null, 600), held, at, 300, 30)).toBeNull()
       expect(canLose(openedWith(null, 600), 300)).toBe(false)
-      expect(() => lost([], held, at, 1, 90)).toThrow(/firstSeen/)
+      expect(() => lost([], held, at, 1, 30)).toThrow(/firstSeen/)
     })
 
     it('logs Regained with the return picture, only on a record that ends on Lost and forward of it', () => {
-      const gone = lost(claimed, held, at, 121, 90)!
+      const gone = lost(claimed, held, at, 121, 30)!
       const back = regained(gone, withScore(20, null), at, 180)!
       expect(back).toHaveLength(4)
       expect(back[3]).toMatchObject({

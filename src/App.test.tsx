@@ -825,7 +825,7 @@ describe('App replay clock (06a)', () => {
     expect(lines).toEqual([
       '02:30:00New — first seen',
       '02:30:00Assessing — claimed',
-      '02:31:31Lost — not heard for 90 s',
+      '02:31:31Lost — last heard 02:30:00',
     ])
     expect(
       within(screen.getByText('Status').parentElement as HTMLElement).getByText('Assessing'),
@@ -864,7 +864,7 @@ describe('App replay clock (06a)', () => {
     open('dddddd')
     expect(lines()).toEqual([
       '02:30:00New — first seen',
-      '02:31:31Lost — not heard for 90 s',
+      '02:31:31Lost — last heard 02:30:00',
       '02:31:45Regained',
     ])
   })

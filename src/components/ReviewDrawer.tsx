@@ -406,7 +406,7 @@ export function ReviewDrawer({
           {log.map((event) => (
             <li className="drawer__event" key={event.seq}>
               <span className="drawer__eventclock">{clock(event.tSec)}</span>
-              <span>{describeEvent(event, contacts, dispositions)}</span>
+              <span>{describeEvent(event, contacts, dispositions, clock)}</span>
             </li>
           ))}
         </ol>

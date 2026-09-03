@@ -10,6 +10,7 @@ import {
   historyAt,
   indexCapture,
   interpolateHeading,
+  lastHeardBefore,
   memoryAt,
   pictureAt,
   trailAt,
@@ -349,5 +350,25 @@ describe('historyAt across a hole in the recording (#80 review)', () => {
     const tracks = injectTracksAt(plan, t)
     const all = historiesAt(index, plan, tracks, t, 420)
     for (const track of tracks) expect(all[track.id]).toEqual(historyAt(index, plan, track, t, 420))
+  })
+})
+
+describe('lastHeardBefore (#71, #36 [11])', () => {
+  const index = indexCapture(
+    capture([
+      { tMs: 0, records: [A0] },
+      { tMs: 15000, records: [{ ...A1, lastSeenSec: 2 }] },
+      { tMs: 300000, records: [A0] },
+    ]),
+  )
+
+  it('is the last message at or before the clock — the sample less the age it carried — and null without one', () => {
+    expect(lastHeardBefore(index, 'adsb-a00001', 10)).toBe(0)
+    expect(lastHeardBefore(index, 'adsb-a00001', 15)).toBe(13)
+    // A seek across a hole reads the sample before the clock, not the picture as last drawn.
+    expect(lastHeardBefore(index, 'adsb-a00001', 200)).toBe(13)
+    expect(lastHeardBefore(index, 'adsb-a00001', 300)).toBe(300)
+    expect(lastHeardBefore(index, 'adsb-a00001', -1)).toBeNull()
+    expect(lastHeardBefore(index, 'inject-05', 10)).toBeNull()
   })
 })

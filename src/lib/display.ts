@@ -132,12 +132,15 @@ export const roundHeading = (headingDeg: number) => Math.round(headingDeg) % 360
  * band entered and the one left, up or down, in the words of the one band table (06b, #66). A
  * pattern change names what began and what ended; a track first seen with a pattern already
  * named carries the word on its first line, so a cold open still hands off with it (05b). A
- * loss prints the coast window from its own payload, not the live config (#71).
+ * loss names the sim time the recording last heard the track, printed by the same clock that
+ * marks the line — the fact the next operator needs, true whenever the line was stamped (#71,
+ * #36 [11]).
  */
 export function describeEvent(
   event: TrackEvent,
   contacts: readonly Contact[],
   dispositions: readonly Disposition[],
+  clock: (tSec: number) => string,
 ): string {
   switch (event.action) {
     case 'first-seen':
@@ -148,7 +151,7 @@ export function describeEvent(
       return from ? `${PATTERN_LABEL[from]} — ended` : 'Pattern — ended'
     }
     case 'lost':
-      return event.lost ? `Lost — not heard for ${event.lost.coastS} s` : 'Lost'
+      return event.lost ? `Lost — last heard ${clock(event.lost.lastHeardTSec)}` : 'Lost'
     case 'regained':
       return 'Regained'
     case 'band': {

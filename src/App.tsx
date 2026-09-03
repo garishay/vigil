@@ -37,7 +37,14 @@ import {
   type TrackEvent,
 } from './lib/lifecycle'
 import { rankTracks, type RankedTrack } from './lib/ranking'
-import { historiesAt, indexCapture, memoryAt, pictureAt, trailAt } from './lib/replay'
+import {
+  historiesAt,
+  indexCapture,
+  lastHeardBefore,
+  memoryAt,
+  pictureAt,
+  trailAt,
+} from './lib/replay'
 import { minuteOfDay } from './lib/scoring'
 import type { Track } from './lib/tracks'
 
@@ -154,13 +161,13 @@ export default function App({
       rankTracks(tracks, AO.protectedSites, { tSec, minuteOfDay: clockMinute, memory, history }),
     [tracks, tSec, clockMinute, memory, history],
   )
-  // The picture as last committed, by track — what a Lost line snapshots (#71), since the track
-  // it records is no longer in `ranked` to be read. Written after commit, read on the render
-  // that finds the track gone.
-  const lastDrawn = useRef(new Map<string, RankedTrack>())
+  // The picture as last committed, by track, with the tick it was drawn at — what a Lost line
+  // snapshots (#71), since the track it records is no longer in `ranked` to be read. Written
+  // after commit, read on the render that finds the track gone.
+  const lastDrawn = useRef(new Map<string, { entry: RankedTrack; tSec: number }>())
   useEffect(() => {
-    lastDrawn.current = new Map(ranked.map((entry) => [entry.track.id, entry]))
-  }, [ranked])
+    lastDrawn.current = new Map(ranked.map((entry) => [entry.track.id, { entry, tSec }]))
+  }, [ranked, tSec])
 
   // Filtered for display; ranks stay global, so a filtered list shows what it hid. The two chip
   // rows compose: a row must pass both. An unstored log is an untouched track — statusOf reads
@@ -297,13 +304,19 @@ export default function App({
       if (settled)
         for (const [id, log] of Object.entries(next)) {
           if (inPicture.has(id)) continue
+          // Last heard as the recording has it — the last sample before the clock, less the
+          // age it carried — so the line is true under a seek across the loss too (#36 [11]);
+          // failing a recording sample, the drawn picture's own claim.
           const drawn = lastDrawn.current.get(id)
+          const heard =
+            (index && lastHeardBefore(index, id, tSec)) ??
+            (drawn ? drawn.tSec - drawn.entry.track.lastSeenSec : log[log.length - 1].tSec)
           const gone = lost(
             log,
-            drawn ? observedSnapshot(drawn) : log[log.length - 1].observed,
+            drawn ? observedSnapshot(drawn.entry) : log[log.length - 1].observed,
             at,
             tSec,
-            REPLAY.coastS,
+            heard,
           )
           if (gone) {
             next[id] = gone

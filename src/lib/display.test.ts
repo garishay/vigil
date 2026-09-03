@@ -16,6 +16,9 @@ import type { TrackEvent } from './lifecycle'
 import type { RankedTrack } from './ranking'
 import type { AdsbTrack, InjectTrack, Track } from './tracks'
 
+/** The record's clock, as the drawer and the handoff supply it. */
+const clock = (tSec: number) => simClock('02:30', tSec)
+
 const SCORE: Score = {
   composite: 82,
   weighted: 65.58,
@@ -171,9 +174,13 @@ describe('describeEvent — band crossings (06b)', () => {
     }) as const
 
   it('names the band entered and the one left, up or down, in the one table’s words (#66)', () => {
-    expect(describeEvent(crossing('calm', 'caution'), [], [])).toBe('Caution — up from calm')
-    expect(describeEvent(crossing('caution', 'warning'), [], [])).toBe('Warning — up from caution')
-    expect(describeEvent(crossing('warning', 'calm'), [], [])).toBe('Calm — down from warning')
+    expect(describeEvent(crossing('calm', 'caution'), [], [], clock)).toBe('Caution — up from calm')
+    expect(describeEvent(crossing('caution', 'warning'), [], [], clock)).toBe(
+      'Warning — up from caution',
+    )
+    expect(describeEvent(crossing('warning', 'calm'), [], [], clock)).toBe(
+      'Calm — down from warning',
+    )
   })
 })
 
@@ -221,28 +228,28 @@ describe('describeEvent — pattern entries and the first-seen word (05b)', () =
   })
 
   it('names what began and what ended, from the one word table', () => {
-    expect(describeEvent(change(null, 'loiter'), [], [])).toBe('Loitering — began')
-    expect(describeEvent(change('loiter', null), [], [])).toBe('Loitering — ended')
-    expect(describeEvent(change('loiter', 'orbit'), [], [])).toBe(
+    expect(describeEvent(change(null, 'loiter'), [], [], clock)).toBe('Loitering — began')
+    expect(describeEvent(change('loiter', null), [], [], clock)).toBe('Loitering — ended')
+    expect(describeEvent(change('loiter', 'orbit'), [], [], clock)).toBe(
       'Orbiting — began, loitering ended',
     )
-    expect(describeEvent(change(null, 'revisit'), [], [])).toBe('Revisiting — began')
+    expect(describeEvent(change(null, 'revisit'), [], [], clock)).toBe('Revisiting — began')
   })
 
   it('carries the word on a first-seen entry when the track opens with a pattern named', () => {
     const opened: TrackEvent = { ...base, seq: 1, action: 'first-seen', from: null }
-    expect(describeEvent(opened, [], [])).toBe('New — first seen')
-    expect(describeEvent({ ...opened, observed: { ...observed, pattern: 'loiter' } }, [], [])).toBe(
-      'New — first seen, loitering',
-    )
+    expect(describeEvent(opened, [], [], clock)).toBe('New — first seen')
+    expect(
+      describeEvent({ ...opened, observed: { ...observed, pattern: 'loiter' } }, [], [], clock),
+    ).toBe('New — first seen, loitering')
   })
 
-  it('prints a loss with the coast from its own payload, and a return bare (ruled on #71)', () => {
-    expect(describeEvent({ ...base, action: 'lost', lost: { coastS: 90 } }, [], [])).toBe(
-      'Lost — not heard for 90 s',
-    )
-    expect(describeEvent({ ...base, action: 'lost' }, [], [])).toBe('Lost')
-    expect(describeEvent({ ...base, action: 'regained' }, [], [])).toBe('Regained')
+  it('prints a loss with the time last heard from its own payload, and a return bare (#71, #36 [11])', () => {
+    expect(
+      describeEvent({ ...base, action: 'lost', lost: { lastHeardTSec: 120 } }, [], [], clock),
+    ).toBe('Lost — last heard 02:32:00')
+    expect(describeEvent({ ...base, action: 'lost' }, [], [], clock)).toBe('Lost')
+    expect(describeEvent({ ...base, action: 'regained' }, [], [], clock)).toBe('Regained')
   })
 })
 

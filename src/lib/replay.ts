@@ -57,6 +57,24 @@ export function indexCapture(capture: AdsbCapture): ReplayIndex {
   return { durationS: frames.length > 0 ? frames[frames.length - 1].tMs / 1000 : 0, samples }
 }
 
+/**
+ * The sim time the recording last heard an aircraft at or before `tSec`: its last sample not
+ * past the clock, less the age that sample already carried — the message time, the same one
+ * `pictureAt` measures the coast from. Null for a track the recording holds no sample of. What
+ * a Lost line carries (#71, #36 [11]): read off the recording rather than the picture as last
+ * drawn, since under a seek that commit can predate later samples.
+ */
+export function lastHeardBefore(index: ReplayIndex, trackId: string, tSec: number): number | null {
+  const samples = index.samples.get(trackId)
+  if (!samples) return null
+  let last: Sample | null = null
+  for (const sample of samples) {
+    if (sample.tSec > tSec) break
+    last = sample
+  }
+  return last ? round(last.tSec - last.track.lastSeenSec, 1) : null
+}
+
 const lerp = (a: number, b: number, f: number) => a + (b - a) * f
 
 /** Both readings, or the earlier one when the later is missing — a null is a gap, not a zero. */

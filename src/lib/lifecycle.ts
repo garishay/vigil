@@ -24,8 +24,8 @@
  *
  * **Lost and Regained** (ruled on #71): a track with a non-terminal status that coasts out of
  * the picture logs one line, **Lost**, at sim time, carrying the picture as the operator last
- * saw it and the coast window it was judged under — the record's own doctrine, as the snapshot
- * carries its weights (#64). A terminal track logs nothing: its record is closed. A lost track
+ * saw it and the sim time the recording last heard it — the fact the next operator needs, true
+ * whenever the line is stamped (#36 [11]). A terminal track logs nothing: its record is closed. A lost track
  * heard again logs **Regained** with the return picture, and the crossing and pattern change of
  * that pass are read against the record before it, so what moved across the hole is written
  * down rather than absorbed. Both are observations: statuses carried, forward-only.
@@ -157,11 +157,11 @@ export interface TrackEvent {
   /** The change, on a `pattern` entry only: the pattern the record last saw and the one now. */
   pattern?: { from: PatternKind | null; to: PatternKind | null }
   /**
-   * On a `lost` entry only: the coast window, in seconds, the loss was judged under — doctrine
-   * of its time, kept on the record as the weights are (#64), so the line prints the number the
-   * operator's picture used rather than whatever the config says later.
+   * On a `lost` entry only: the sim time, in seconds, the recording last heard the track — the
+   * last message before the loss, not the tick the fold noticed the absence, so the line reads
+   * true whether the entry was stamped by play or by a seek across the loss (#36 [11]).
    */
-  lost?: { coastS: number }
+  lost?: { lastHeardTSec: number }
   observed: ObservedSnapshot
 }
 
@@ -324,7 +324,7 @@ export function lost(
   lastDrawn: ObservedSnapshot,
   at: string,
   tSec: number,
-  coastS: number,
+  lastHeardTSec: number,
 ): TrackEvent[] | null {
   if (log.length === 0) throw new Error('lost needs a log opened by firstSeen')
   if (!canLose(log, tSec)) return null
@@ -339,7 +339,7 @@ export function lost(
       action: 'lost',
       from: status,
       to: status,
-      lost: { coastS },
+      lost: { lastHeardTSec },
       observed: lastDrawn,
     },
   ]
