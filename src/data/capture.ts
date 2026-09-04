@@ -11,12 +11,17 @@
 
 import { AO } from '../config/ao'
 import type { AreaOfOperations } from '../config/ao'
+import type { RecordingEntry } from '../config/recordings'
 import { toTrack } from '../lib/adsb'
 import type { AdsbCapture, CaptureFrame } from '../lib/adsb'
 import type { AdsbTrack } from '../lib/tracks'
 
-/** Served from `public/`, so the path is relative to whatever base the app is deployed under. */
-export const CAPTURE_URL = `${import.meta.env.BASE_URL}adsb-phl.json`
+/**
+ * A recording's url: served from `public/`, so the path is relative to whatever base the app is
+ * deployed under. Which file is the registry's to say (`config/recordings.ts`, #84).
+ */
+export const captureUrl = (recording: Pick<RecordingEntry, 'file'>) =>
+  `${import.meta.env.BASE_URL}${recording.file}`
 
 /**
  * Rejects a recording that does not belong to this AO.
@@ -32,11 +37,17 @@ export function assertCaptureMatchesAo(capture: AdsbCapture, ao: AreaOfOperation
   if (!Array.isArray(capture.frames) || capture.frames.length === 0) {
     throw new Error('capture contains no frames')
   }
+  // Load-bearing since #84: the Recording field's date and a captured clock's hour are read
+  // from it at render, where `Intl` would throw on a value `Date` cannot parse. Refused here,
+  // so the hook's error state says so instead of an error boundary (#98 review).
+  if (typeof capture.capturedAt !== 'string' || Number.isNaN(Date.parse(capture.capturedAt))) {
+    throw new Error(`capture has no readable capturedAt: "${String(capture.capturedAt)}"`)
+  }
 }
 
-/** Fetches and validates the recording. `fetcher` is injectable so tests need no network. */
+/** Fetches and validates a recording. `fetcher` is injectable so tests need no network. */
 export async function loadCapture(
-  url: string = CAPTURE_URL,
+  url: string,
   fetcher: typeof fetch = fetch,
   ao: AreaOfOperations = AO,
 ): Promise<AdsbCapture> {

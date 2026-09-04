@@ -14,10 +14,12 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { generateScenario, timelineOf } from '../src/lib/injects.ts'
 import type { InjectScenario } from '../src/lib/injects.ts'
+import { DEFAULT_RECORDING } from '../src/config/recordings.ts'
 import { SCENARIO } from '../src/config/scenario.ts'
 import type { AdsbCapture } from '../src/lib/adsb.ts'
 
-const CAPTURE = 'public/adsb-phl.json'
+/** The golden is 001's, whatever else the registry holds (R5 on #84). */
+const CAPTURE = `public/${DEFAULT_RECORDING.file}`
 const OUT = `src/lib/__fixtures__/injects-${SCENARIO.seed}.json`
 
 /** One track per line, so a regeneration diffs as data rather than as reflowed whitespace. */

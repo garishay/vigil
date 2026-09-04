@@ -8,12 +8,15 @@
 
 import type { Contact } from '../config/contacts.ts'
 import type { Disposition } from '../config/dispositions.ts'
-import type { ProtectedSite, SiteRecord } from '../config/ao.ts'
+import { AO } from '../config/ao.ts'
+import type { AreaOfOperations, ProtectedSite, SiteRecord } from '../config/ao.ts'
+import type { RecordingEntry } from '../config/recordings.ts'
 import { BANDS, BAND_LABEL, PATTERN_LABEL } from '../config/scoring.ts'
+import type { AdsbCapture } from './adsb.ts'
 import { distanceMeters } from './geo.ts'
 import type { TrackEvent } from './lifecycle.ts'
 import type { RankedTrack } from './ranking.ts'
-import { formatClock, minuteOfDay, type Factor, type Score } from './scoring.ts'
+import { formatClock, minuteOfDay, zonedParts, type Factor, type Score } from './scoring.ts'
 import type { SessionSite } from './sites.ts'
 import type { Track } from './tracks.ts'
 
@@ -215,6 +218,23 @@ export function describeEvent(
  */
 export const simClock = (startLocal: string, tSec: number) =>
   `${formatClock(minuteOfDay(startLocal, tSec))}:${String(Math.floor(tSec) % 60).padStart(2, '0')}`
+
+/** An instant's calendar date in a zone, `YYYY-MM-DD` — the recording's day where it was flown. */
+export function localDate(iso: string, timeZone: string): string {
+  const { year, month, day } = zonedParts(iso, timeZone)
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * The strip's Recording field (#84, ruled): the recording's id and the date it was captured, in
+ * the AO's zone. 001 reads its own capture date beside its configured 02:30 clock — the date is
+ * provenance, the clock is the scenario's hour — which is honest.
+ */
+export const recordingLabel = (
+  recording: RecordingEntry,
+  capture: Pick<AdsbCapture, 'capturedAt'>,
+  ao: Pick<AreaOfOperations, 'timeZone'> = AO,
+) => `${recording.id} · ${localDate(capture.capturedAt, ao.timeZone)}`
 
 /** Replay position as `MM:SS` — minutes unbounded, so a long recording never wraps. */
 export const formatElapsed = (tSec: number) => {

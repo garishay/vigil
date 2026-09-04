@@ -3,6 +3,8 @@ import {
   describeEvent,
   formatElapsed,
   formatScore,
+  localDate,
+  recordingLabel,
   roundHeading,
   scoreSummary,
   reasonTag,
@@ -15,6 +17,7 @@ import {
 } from './display'
 import { scoreTrack, type Score, type ScoringContext } from './scoring'
 import { AO } from '../config/ao'
+import { DEFAULT_RECORDING, recordingNamed } from '../config/recordings'
 import { destinationPoint } from './geo'
 import type { TrackEvent } from './lifecycle'
 import type { RankedTrack } from './ranking'
@@ -128,6 +131,27 @@ describe('simClock', () => {
     expect(simClock('23:59', 61)).toBe('00:00:01')
     // A fractional tick never prints a fraction.
     expect(simClock('02:30', 7.9)).toBe('02:30:07')
+  })
+})
+
+describe('recordingLabel', () => {
+  const ny = { timeZone: 'America/New_York' }
+
+  it('is the recording’s id and its capture date in the AO’s zone (#84)', () => {
+    const captured = recordingNamed('vigil-phl-002')
+    expect(recordingLabel(captured, { capturedAt: '2026-09-04T22:02:11.000Z' }, ny)).toBe(
+      'vigil-phl-002 · 2026-09-04',
+    )
+    // 001's own capture date beside its configured clock: the date is provenance.
+    expect(recordingLabel(DEFAULT_RECORDING, { capturedAt: '2026-08-31T14:26:47.528Z' }, ny)).toBe(
+      'vigil-phl-001 · 2026-08-31',
+    )
+  })
+
+  it('dates the recording where it was flown, not in UTC', () => {
+    // 03:10Z on the 5th is still the evening of the 4th in Philadelphia.
+    expect(localDate('2026-09-05T03:10:00.000Z', 'America/New_York')).toBe('2026-09-04')
+    expect(localDate('2026-09-05T03:10:00.000Z', 'UTC')).toBe('2026-09-05')
   })
 })
 

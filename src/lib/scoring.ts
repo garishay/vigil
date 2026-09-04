@@ -35,8 +35,10 @@
  * for the snapshot and the frozen handoff.
  */
 
-import type { FriendlyArea, ProtectedSite, SiteRecord } from '../config/ao.ts'
+import { AO } from '../config/ao.ts'
+import type { AreaOfOperations, FriendlyArea, ProtectedSite, SiteRecord } from '../config/ao.ts'
 import { KINEMATIC_CLASS } from '../config/airframes.ts'
+import type { RecordingEntry } from '../config/recordings.ts'
 import {
   SCORING,
   type Band,
@@ -44,6 +46,7 @@ import {
   type PatternKind,
   type ScoringConfig,
 } from '../config/scoring.ts'
+import type { AdsbCapture } from './adsb.ts'
 import { closestApproach, distanceMeters } from './geo.ts'
 import { detectPattern, type TrackHistories } from './patterns.ts'
 import type { Track } from './tracks.ts'
@@ -194,6 +197,47 @@ export function parseClock(hhmm: string): number {
 export function minuteOfDay(startLocal: string, tSec: number): number {
   const minutes = parseClock(startLocal) + Math.floor(tSec / 60)
   return ((minutes % 1440) + 1440) % 1440
+}
+
+/**
+ * An instant's wall-clock parts in a zone, each two digits (the year four) — the one `Intl` read
+ * behind the clock start here and the recording's date in `lib/display.ts`. DST is the zone's
+ * business, not ours. The instant is validated at load (`data/capture.ts`), so a part is never
+ * missing here; the fallback is for the type, not for a case.
+ */
+export function zonedParts(iso: string, timeZone: string): Record<string, string> {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso))
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]))
+}
+
+/** An instant as `HH:MM` on the wall clock of a zone. */
+export function localClock(iso: string, timeZone: string): string {
+  const { hour, minute } = zonedParts(iso, timeZone)
+  return `${hour}:${minute}`
+}
+
+/**
+ * The hour a recording's picture opens at (#84, ruled): the entry's configured `HH:MM`, or —
+ * for a recording whose clock is `'captured'` — its `capturedAt` read in the AO's time zone, so
+ * an evening bank opens in the evening and the off-hours factor reads inside operating hours.
+ * Derived at load, never stamped at capture: the header already holds the fact.
+ */
+export function clockStartOf(
+  recording: RecordingEntry,
+  capture: Pick<AdsbCapture, 'capturedAt'>,
+  ao: Pick<AreaOfOperations, 'timeZone'> = AO,
+): string {
+  return recording.clock === 'captured'
+    ? localClock(capture.capturedAt, ao.timeZone)
+    : recording.clock.startLocal
 }
 
 /** `HH:MM` for a minute of day — the strip's sim clock and the off-hours detail line. */

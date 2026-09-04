@@ -35,6 +35,11 @@ describe('area of operations config', () => {
     expect(PHL.basemapStyleUrl).not.toMatch(/api[_-]?key|access[_-]?token/i)
   })
 
+  it('keeps its clock in a zone Intl knows, so a captured clock start can be read in it (#84)', () => {
+    expect(() => new Intl.DateTimeFormat('en-US', { timeZone: PHL.timeZone })).not.toThrow()
+    expect(PHL.timeZone).toBe('America/New_York')
+  })
+
   it('exports PHL as the active AO', () => {
     expect(AO).toBe(PHL)
   })
