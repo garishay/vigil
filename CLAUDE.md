@@ -46,8 +46,9 @@ CI runs lint, typecheck, test, and format:check on every PR push. Red CI is a st
   rebased: it updates by merging `main`, and the squash absorbs the merge commit — the hook refuses
   the force push a rebase would need.
 - Size: ~400 implementation lines is a gate-time estimate check, not a rule at open. The gate estimate
-  lists App wiring and CSS as their own rows, states the estimate-to-actual ratio of the last three
-  merged feature PRs, and scales its total by it; the ~400 check runs on the scaled number.
+  lists App wiring and CSS as their own rows, states the actual-to-estimate ratio of the last three
+  merged feature PRs — actual ÷ estimate, about 2 at revision 2 — and scales its total by it; the
+  ~400 check runs on the scaled number.
   Implementation is counted one way at the gate and at open — insertions in non-test source,
   comments and blanks excluded, new files included. At open the PR reports raw / implementation /
   tests, the deltas by file, and a reading order. Growth past the scaled cap mid-build is a budget

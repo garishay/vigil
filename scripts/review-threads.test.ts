@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { report, unresolvedThreads, type ThreadsPayload } from './review-threads.ts'
+import { readThreads, report, type ThreadsPayload } from './review-threads.ts'
 
 const thread = (
   isResolved: boolean,
@@ -14,13 +14,13 @@ const thread = (
   comments: { nodes: [{ author: login === null ? null : { login }, body }] },
 })
 
-const payload = (nodes: ReturnType<typeof thread>[]): ThreadsPayload => ({
-  data: { repository: { pullRequest: { reviewThreads: { nodes } } } },
+const payload = (nodes: ReturnType<typeof thread>[], hasNextPage = false): ThreadsPayload => ({
+  data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage }, nodes } } } },
 })
 
 describe('review-threads (#45 [G28])', () => {
   it('lists only the unresolved threads, in order, with the first line of the first comment', () => {
-    const threads = unresolvedThreads(
+    const reading = readThreads(
       payload([
         thread(true, 'src/App.tsx', 12, '**Fixed already.**\nMore.'),
         thread(
@@ -32,26 +32,42 @@ describe('review-threads (#45 [G28])', () => {
         thread(false, 'README.md', null, 'The diagram gained this edge but not the module.', null),
       ]),
     )
-    expect(threads).toEqual([
-      {
-        path: 'src/lib/scoring.ts',
-        line: 315,
-        author: 'claude',
-        summary: '**The `not moving` early return**',
-      },
-      {
-        path: 'README.md',
-        line: null,
-        author: 'unknown',
-        summary: 'The diagram gained this edge but not the module.',
-      },
-    ])
+    expect(reading).toEqual({
+      more: false,
+      threads: [
+        {
+          path: 'src/lib/scoring.ts',
+          line: 315,
+          author: 'claude',
+          summary: '**The `not moving` early return**',
+        },
+        {
+          path: 'README.md',
+          line: null,
+          author: 'unknown',
+          summary: 'The diagram gained this edge but not the module.',
+        },
+      ],
+    })
   })
 
-  it('reads an empty or missing payload as clean rather than crashing', () => {
-    expect(unresolvedThreads({})).toEqual([])
-    expect(unresolvedThreads({ data: { repository: { pullRequest: null } } })).toEqual([])
-    expect(unresolvedThreads(payload([thread(true, 'a.ts', 1, 'done')]))).toEqual([])
+  it('reads a PR with only resolved threads as clean', () => {
+    expect(readThreads(payload([thread(true, 'a.ts', 1, 'done')]))).toEqual({
+      threads: [],
+      more: false,
+    })
+    expect(readThreads(payload([]))).toEqual({ threads: [], more: false })
+  })
+
+  it('refuses to read an absent PR as clean — a wrong number is a null, not an error (#97 review)', () => {
+    expect(readThreads({})).toBeNull()
+    expect(readThreads({ data: { repository: { pullRequest: null } } })).toBeNull()
+    expect(readThreads({ data: { repository: null } })).toBeNull()
+  })
+
+  it('says when a page was left unread rather than claiming clean over one page (#97 review)', () => {
+    const reading = readThreads(payload([thread(true, 'a.ts', 1, 'done')], true))
+    expect(reading).toEqual({ threads: [], more: true })
   })
 
   it('reports one line per open thread, and the clean claim when there are none', () => {
