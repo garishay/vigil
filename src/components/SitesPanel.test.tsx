@@ -73,15 +73,24 @@ describe('SitesPanel (08a)', () => {
       'true',
     )
     fireEvent.change(within(editor).getByLabelText('Name'), { target: { value: 'Stadium' } })
-    expect(props.onUpdate).toHaveBeenLastCalledWith('site-2', { name: 'Stadium', radiusM: 1000 })
+    expect(props.onUpdate).toHaveBeenLastCalledWith('site-2', { name: 'Stadium' })
     // A radius under the floor is shown and explained, and the set is not asked to hold it.
     vi.mocked(props.onUpdate).mockClear()
     fireEvent.change(within(editor).getByLabelText('Radius'), { target: { value: '50' } })
     expect(props.onUpdate).not.toHaveBeenCalled()
     expect(within(editor).getByRole('status')).toHaveTextContent('Radius is 100–20,000 m')
+    // A legal intermediate value is not committed either: 150 on the way to 1500 would re-score
+    // the picture and write a crossing at a ring nobody meant (#87 review). Blur or Enter commits.
+    fireEvent.change(within(editor).getByLabelText('Radius'), { target: { value: '150' } })
+    expect(props.onUpdate).not.toHaveBeenCalled()
     fireEvent.change(within(editor).getByLabelText('Radius'), { target: { value: '1500' } })
-    expect(props.onUpdate).toHaveBeenLastCalledWith('site-2', { name: 'Stadium', radiusM: 1500 })
+    expect(props.onUpdate).not.toHaveBeenCalled()
     expect(within(editor).getByRole('status')).toHaveTextContent('')
+    fireEvent.blur(within(editor).getByLabelText('Radius'))
+    expect(props.onUpdate).toHaveBeenLastCalledWith('site-2', { radiusM: 1500 })
+    fireEvent.change(within(editor).getByLabelText('Radius'), { target: { value: '2000' } })
+    fireEvent.keyDown(within(editor).getByLabelText('Radius'), { key: 'Enter' })
+    expect(props.onUpdate).toHaveBeenLastCalledWith('site-2', { radiusM: 2000 })
     // The tier applies directly.
     fireEvent.click(within(editor).getByRole('radio', { name: '2' }))
     expect(props.onUpdate).toHaveBeenLastCalledWith('site-2', { tier: 2 })

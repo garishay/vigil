@@ -257,6 +257,31 @@ describe('closing geometry', () => {
     ).toBe("0.8 km — inside Inner's ring, closest approach is now")
   })
 
+  it('keeps the inside-ring 100 for a hovering track when another site reads not moving (#87 review)', () => {
+    // A helicopter holding position inside the airfield ring, airborne, with a second site the
+    // operator placed 40 km off: the far site's CPA is undefined at zero speed, and that must be
+    // a candidate for that site, never a verdict for the track.
+    const decoy: ProtectedSite = {
+      id: 'decoy',
+      name: 'Decoy',
+      center: at(40_000, 90),
+      radiusM: 1000,
+      tier: 1,
+    }
+    const hovering = inject({ groundSpeedKt: 0, headingDeg: 90 })
+    expect(
+      scoreTrack(hovering, [SITE, decoy], NIGHT).factors.find((f) => f.id === 'closing'),
+    ).toMatchObject({
+      value: 100,
+      detail: "1.0 km — inside PHL Airfield's ring, closest approach is now",
+    })
+    // Alone and outside every ring, not moving still reads as it did.
+    expect(factor({ ...hovering, position: at(6000) }, 'closing')).toMatchObject({
+      value: 0,
+      detail: 'not moving',
+    })
+  })
+
   it('takes the worst case across protected sites', () => {
     const decoy: ProtectedSite = {
       id: 'decoy',

@@ -312,7 +312,12 @@ function closing(
       track.groundSpeedKt * KT_TO_MS,
       site.center,
     )
-    if (approach === null) return { value: 0, detail: 'not moving' }
+    // A candidate, never a return: a hovering track inside another site's ring keeps its 100
+    // (#87 review).
+    if (approach === null) {
+      candidates.push({ value: 0, detail: 'not moving', rangeM })
+      continue
+    }
     const { cpaM, tcpaS } = approach
     candidates.push(
       tcpaS <= 0

@@ -44,9 +44,15 @@ function SiteEditor({
   const [name, setName] = useState(site.name)
   const [radius, setRadius] = useState(String(site.radiusM))
   const problem = siteProblem({ name, radiusM: Number(radius), center: site.center }, ao)
-  const apply = (next: { name?: string; radius?: string }) => {
-    const draft = { name: next.name ?? name, radiusM: Number(next.radius ?? radius) }
-    if (siteProblem({ ...draft, center: site.center }, ao) === null) onUpdate(draft)
+  // Each field commits only itself: a name keystroke never carries a half-typed radius along.
+  const commitName = (value: string) => {
+    if (siteProblem({ name: value, radiusM: site.radiusM, center: site.center }, ao) === null)
+      onUpdate({ name: value })
+  }
+  const commitRadius = () => {
+    const radiusM = Number(radius)
+    if (siteProblem({ name: site.name, radiusM, center: site.center }, ao) === null)
+      onUpdate({ radiusM })
   }
   return (
     <div className="sites__editor" role="group" aria-label={`Edit ${site.name}`}>
@@ -59,7 +65,7 @@ function SiteEditor({
           maxLength={SITE_LIMITS.nameMax}
           onChange={(event) => {
             setName(event.target.value)
-            apply({ name: event.target.value })
+            commitName(event.target.value)
           }}
         />
       </div>
@@ -87,9 +93,13 @@ function SiteEditor({
           min={SITE_LIMITS.radiusMinM}
           max={SITE_LIMITS.radiusMaxM}
           step={50}
-          onChange={(event) => {
-            setRadius(event.target.value)
-            apply({ radius: event.target.value })
+          // Shown and explained on every keystroke, committed only when the operator is done:
+          // `150` on the way to `1500` would otherwise re-score the picture and write a
+          // crossing into the record at a ring nobody meant (#87 review).
+          onChange={(event) => setRadius(event.target.value)}
+          onBlur={commitRadius}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') commitRadius()
           }}
         />
         <span>m</span>

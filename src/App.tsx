@@ -389,6 +389,10 @@ export default function App({
     ...Object.values(eventLogs).map((log) => log[log.length - 1].tSec),
   )
   const sitesRewound = tSec < recordFrontier
+  // Seeking behind the frontier disarms the map (#87 review): an armed click that no-ops with
+  // the crosshair on and the hint still inviting it explains nothing; the rewound line does.
+  // Guarded set-during-render, the derived-state pattern the record fold uses below.
+  if (sitesRewound && placing !== null) setPlacing(null)
   const editSites = (change: (set: SiteSet) => SiteSet): boolean => {
     if (sitesRewound) return false
     try {
@@ -616,12 +620,19 @@ export default function App({
               onUpdate={(id, patch: SitePatch) =>
                 editSites((set) => updateSite(set, id, patch, tSec, AO))
               }
+              // A move armed on a site that is then removed or reset away must not outlive it
+              // (#87 review): both clear the selection and disarm the map.
               onRemove={(id) => {
-                if (editSites((set) => removeSite(set, id, tSec))) setSelectedSiteId(null)
+                if (editSites((set) => removeSite(set, id, tSec))) {
+                  setSelectedSiteId(null)
+                  setPlacing(null)
+                }
               }}
               onReset={() => {
-                if (editSites((set) => resetSites(set, AO.protectedSites, tSec)))
+                if (editSites((set) => resetSites(set, AO.protectedSites, tSec))) {
                   setSelectedSiteId(null)
+                  setPlacing(null)
+                }
               }}
             />
           )}

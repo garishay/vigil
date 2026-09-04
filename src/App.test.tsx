@@ -1421,6 +1421,26 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     expect(chips()).toEqual(before)
   })
 
+  it('disarms a move when its site is removed or the set is reset (#87 review)', () => {
+    render(<App schedule={never} />)
+    fireEvent.click(action('Sites'))
+    placeTarget.center = silentInject().position
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    fireEvent.click(action('Move on map'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'true')
+    fireEvent.click(action('Remove'))
+    expect(siteRows()).toHaveLength(1)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
+    expect(screen.queryByText(/Click the map/)).not.toBeInTheDocument()
+    // The same through Reset.
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    fireEvent.click(action('Move on map'))
+    fireEvent.click(action('Reset to config'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
+  })
+
   it('refuses a placement the rules refuse, saying why, and keeps the map armed', () => {
     render(<App schedule={never} />)
     fireEvent.click(action('Sites'))
@@ -1445,8 +1465,13 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     fireEvent.click(action('+ Protected site'))
     fireEvent.click(screen.getByTestId('map-place'))
     expect(siteRows()[1]).toHaveTextContent('1.0 km ring · 02:31:00')
+    // Armed, then rewound: the map disarms with the editor, so no click no-ops unexplained.
+    fireEvent.click(action('+ Protected site'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'true')
 
     seek('30')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
+    expect(screen.queryByText(/Click the map/)).not.toBeInTheDocument()
     expect(
       screen.getByText('Rewound — the workflow acts at the record’s frontier'),
     ).toBeInTheDocument()
