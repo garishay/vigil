@@ -84,7 +84,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'sites',
     label: 'Sites',
     title: 'Sites',
-    body: 'Protected sites and friendly launch areas the picture is scored against — this session only; reload returns to config.',
+    body: 'Protected sites the picture is scored against — this session only; reload returns to config.',
   },
 ]
 
