@@ -244,7 +244,7 @@ describe('determinism', () => {
 
 describe('pattern of life in the order (05a acceptance)', () => {
   const plan = planScenario(gridTimeline(80, 15000))
-  const noRecording: ReplayIndex = { durationS: 0, samples: new Map() }
+  const noRecording: ReplayIndex = { startS: 0, durationS: 0, samples: new Map() }
   const injectsAt = (t: number) => {
     const tracks = injectTracksAt(plan, t)
     return rankTracks(tracks, SITES, {

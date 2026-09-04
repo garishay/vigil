@@ -174,6 +174,34 @@ describe('MapView', () => {
     expect(line?.[0].paint['line-width']).toEqual(['case', ['get', 'selected'], 3, 1.5])
   })
 
+  it('draws a friendly launch area dashed in the cooperative blue, in the same source (08b)', () => {
+    const area = {
+      id: 'area-2',
+      name: 'Pad',
+      center: [-75.3, 39.85] as [number, number],
+      radiusM: 500,
+    }
+    render(<MapView ao={AO} sites={AO.protectedSites} areas={[area]} selectedSiteId="area-2" />)
+    const rings = dataFor('protected-sites').features
+    expect(rings.map((ring) => [ring.properties.kind, ring.properties.selected])).toEqual([
+      ['protected', false],
+      ['friendly', true],
+    ])
+    const layers = mapInstance.addLayer.mock.calls.map(([layer]) => layer)
+    const friendly = layers.find((layer) => layer.id === 'protected-sites-friendly')
+    expect(friendly.filter).toEqual(['==', ['get', 'kind'], 'friendly'])
+    expect(friendly.paint['line-dasharray']).toEqual([2, 2])
+    expect(friendly.paint['line-color']).toBe(IDENTITY_COLOR.cooperative)
+    // The protected line and fill leave the friendly ring alone: no volume to keep things out of.
+    for (const id of ['protected-sites-line', 'protected-sites-fill']) {
+      expect(layers.find((layer) => layer.id === id).filter).toEqual([
+        '==',
+        ['get', 'kind'],
+        'protected',
+      ])
+    }
+  })
+
   it('places a site on the armed click and does not select a track under it (08a)', () => {
     const onPlace = vi.fn()
     const onSelect = vi.fn()
@@ -208,7 +236,8 @@ describe('MapView', () => {
     const [selectId, selectSource] = mapInstance.addSource.mock.calls[4]
     expect(selectId).toBe('selected-track')
     expect(selectSource.data.features).toEqual([])
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(8)
+    // 08b adds the friendly ring layer beside the protected line.
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(9)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.indexOf('selected-trail-line')).toBeLessThan(order.indexOf('inject-tracks-halo'))
     expect(order.at(-1)).toBe('selected-track-ring')

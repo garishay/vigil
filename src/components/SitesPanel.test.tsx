@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { SitesPanel, type Placing } from './SitesPanel'
 import { AO } from '../config/ao'
 import { simClock } from '../lib/display'
-import { addSite, fromConfig, type SiteSet } from '../lib/sites'
+import { addSite, fromConfig, sitePlanText, type SiteSet } from '../lib/sites'
 
 const clock = (tSec: number) => simClock('02:30', tSec)
 const CONFIG = AO.protectedSites
@@ -32,6 +32,7 @@ function renderPanel(
     onUpdate: vi.fn(),
     onRemove: vi.fn(),
     onReset: vi.fn(),
+    onLoad: vi.fn(() => null),
     ...over,
   }
   render(<SitesPanel {...props} />)
@@ -119,9 +120,9 @@ describe('SitesPanel (08a)', () => {
     const props = renderPanel(fromConfig(CONFIG))
     expect(document.querySelector('.sites__hint')).toHaveTextContent('')
     fireEvent.click(screen.getByRole('button', { name: '+ Protected site' }))
-    expect(props.onPlacing).toHaveBeenCalledWith({ kind: 'add' })
+    expect(props.onPlacing).toHaveBeenCalledWith({ kind: 'add', site: 'protected' })
     // Armed: the button reads Cancel and the hint says what the click does.
-    const placing: Placing = { kind: 'add' }
+    const placing: Placing = { kind: 'add', site: 'protected' }
     vi.mocked(props.onPlacing).mockClear()
     render(<SitesPanel {...props} placing={placing} />)
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-pressed', 'true')
@@ -134,7 +135,7 @@ describe('SitesPanel (08a)', () => {
 
   it('prints a refused placement’s reason in the live line, over the hint', () => {
     renderPanel(fromConfig(CONFIG), {
-      placing: { kind: 'add' },
+      placing: { kind: 'add', site: 'protected' },
       notice: 'Centre is outside the AO',
     })
     expect(screen.getByText('Centre is outside the AO')).toBeInTheDocument()
@@ -167,5 +168,61 @@ describe('SitesPanel (08a)', () => {
     const props = renderPanel(grown())
     fireEvent.click(screen.getByRole('button', { name: 'Reset to config' }))
     expect(props.onReset).toHaveBeenCalled()
+  })
+})
+
+describe('SitesPanel — friendly launch areas and the site plan (08b)', () => {
+  it('arms the map for a friendly area from its own button, and lists it without a tier', () => {
+    const props = renderPanel(addSite(fromConfig(CONFIG), INSIDE, 720, AO, 'friendly'), {
+      selectedId: 'area-2',
+    })
+    fireEvent.click(screen.getByRole('button', { name: '+ Friendly launch area' }))
+    expect(props.onPlacing).toHaveBeenCalledWith({ kind: 'add', site: 'friendly' })
+    const row = rows()[1]
+    expect(row).toHaveTextContent('Launch area 2')
+    expect(row).toHaveTextContent('Friendly launch area')
+    expect(row).toHaveTextContent('1.0 km ring · 02:42:00')
+    expect(row).toHaveClass('sites__row--friendly')
+    const editor = screen.getByRole('group', { name: 'Edit Launch area 2' })
+    expect(within(editor).queryByRole('radio')).not.toBeInTheDocument()
+    expect(within(editor).getByRole('button', { name: 'Remove' })).toBeEnabled()
+    expect(screen.getByText('2 sites · edited from config')).toBeInTheDocument()
+  })
+
+  it('copies the plan with the handoff’s mechanics, filling the plan field first', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+    const set = grown()
+    renderPanel(set)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy site plan' }))
+    expect(writeText).toHaveBeenCalledWith(sitePlanText(set, AO))
+    expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument()
+    expect((screen.getByLabelText('Load site plan') as HTMLTextAreaElement).value).toBe(
+      sitePlanText(set, AO),
+    )
+    vi.unstubAllGlobals()
+  })
+
+  it('loads a pasted plan, prints the reason when refused, and refuses nothing behind the frontier', () => {
+    const onLoad = vi.fn((text: string) => (text.includes('bad') ? 'Plan is not JSON' : null))
+    renderPanel(fromConfig(CONFIG), { onLoad })
+    const field = screen.getByLabelText('Load site plan')
+    const load = screen.getByRole('button', { name: 'Load' })
+    expect(load).toBeDisabled()
+    fireEvent.change(field, { target: { value: 'bad' } })
+    fireEvent.click(load)
+    expect(onLoad).toHaveBeenCalledWith('bad')
+    expect(screen.getByText('Plan is not JSON')).toBeInTheDocument()
+    fireEvent.change(field, { target: { value: '{"ao":"phl"}' } })
+    expect(screen.queryByText('Plan is not JSON')).not.toBeInTheDocument()
+    fireEvent.click(load)
+    expect(onLoad).toHaveBeenLastCalledWith('{"ao":"phl"}')
+  })
+
+  it('disables the plan field and Load while rewound', () => {
+    renderPanel(grown(), { rewound: true, tSec: 30, frontier: 600 })
+    expect(screen.getByLabelText('Load site plan')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Load' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '+ Friendly launch area' })).toBeDisabled()
   })
 })

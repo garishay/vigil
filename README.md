@@ -46,11 +46,11 @@ flowchart LR
       gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
     ao["config/ao.ts<br/>AO: center · bbox · protected sites with their tier"]
-    sites["lib/sites.ts<br/>the session's site set: add · update · remove · reset, stamped at sim time<br/>the rules a site meets · the last protected site stays"]
+    sites["lib/sites.ts<br/>the session's site set: protected sites and friendly launch areas<br/>add · update · remove · reset, stamped at sim time · the rules a site meets · the last protected site stays<br/>the site plan: JSON out, a pasted plan back in"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
-    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · closing complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
+    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · the friendly launch cap · closing complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
     life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings, pattern changes, loss and return logged at sim time, statuses carried · re-surface read off the log<br/>the sites in force on every snapshot"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · the site line from the record · timeline live"]
@@ -67,6 +67,7 @@ flowchart LR
     scorecfg --> patterns
     patterns --> score
     replay -- histories at t --> score
+    replay -- origins: first sample, first frame --> score
     frames -- kinematic box --> score
     score --> rank
     model --> airframe

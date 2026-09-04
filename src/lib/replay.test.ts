@@ -14,6 +14,7 @@ import {
   memoryAt,
   pictureAt,
   trailAt,
+  originsOf,
 } from './replay'
 import { rememberIdentities, type IdentityMemory } from './scoring'
 
@@ -370,5 +371,42 @@ describe('lastHeardBefore (#71, #36 [11])', () => {
     expect(lastHeardBefore(index, 'adsb-a00001', 300)).toBe(300)
     expect(lastHeardBefore(index, 'adsb-a00001', -1)).toBeNull()
     expect(lastHeardBefore(index, 'inject-05', 10)).toBeNull()
+  })
+})
+
+describe('originsOf (08b, ruled on #86)', () => {
+  it("reads an aircraft's first sample and an inject's first frame off the data, never the session", () => {
+    const real = JSON.parse(captureRaw) as AdsbCapture
+    const index = indexCapture(real)
+    const plan = planScenario(gridTimeline(real.frames.length, real.intervalMs))
+    const origins = originsOf(index, plan)
+    for (const [id, samples] of index.samples)
+      expect(origins[id]).toEqual(samples[0].track.position)
+    // An inject's origin is where the picture first showed it — the first frame's instant.
+    for (const inject of injectTracksAt(plan, index.startS)) {
+      expect(origins[inject.id]).toEqual(inject.position)
+    }
+    expect(Object.keys(origins)).toHaveLength(index.samples.size + plan.specs.length)
+    // Pure in the data: the same map however the session was played or seeked.
+    expect(originsOf(index, plan)).toEqual(origins)
+    expect(origins['adsb-nope']).toBeUndefined()
+    // No plan: aircraft only.
+    expect(Object.keys(originsOf(index, null)).every((id) => id.startsWith('adsb-'))).toBe(true)
+  })
+
+  it("takes the recording's first frame, not frame 0, for an inject (A2 on #86)", () => {
+    // A recording whose first frame is at 15 s: the injects are first in the picture then.
+    const index = indexCapture(
+      capture([
+        { tMs: 15000, records: [A0] },
+        { tMs: 30000, records: [A0] },
+      ]),
+    )
+    expect(index.startS).toBe(15)
+    const plan = planScenario(gridTimeline(3, 15000))
+    const origins = originsOf(index, plan)
+    const [first] = injectTracksAt(plan, 15)
+    expect(origins[first.id]).toEqual(first.position)
+    expect(origins[first.id]).not.toEqual(injectTracksAt(plan, 0)[0].position)
   })
 })

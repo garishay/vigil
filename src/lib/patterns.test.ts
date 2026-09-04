@@ -176,7 +176,7 @@ describe('the golden scenario as the answer key (ruled on #5, note 1)', () => {
   // The generator's `behavior` is the oracle these expectations are derived from; the detector
   // is fed positions and nothing else, sampled as the app samples them.
   const plan = planScenario(gridTimeline(80, 15000))
-  const noRecording: ReplayIndex = { durationS: 0, samples: new Map() }
+  const noRecording: ReplayIndex = { startS: 0, durationS: 0, samples: new Map() }
   const EXPECTED = {
     loiter: 'loiter',
     orbit: 'orbit',

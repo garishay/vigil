@@ -35,7 +35,7 @@
  * for the snapshot and the frozen handoff.
  */
 
-import type { ProtectedSite, SiteRecord } from '../config/ao.ts'
+import type { FriendlyArea, ProtectedSite, SiteRecord } from '../config/ao.ts'
 import { KINEMATIC_CLASS } from '../config/airframes.ts'
 import {
   SCORING,
@@ -75,6 +75,13 @@ export interface ScoringContext {
   memory: IdentityMemory
   /** Each track's position history at `tSec` (05a); a track absent here has no history yet. */
   history?: TrackHistories
+  /**
+   * The session's friendly launch areas and every track's observed first-seen position (08b):
+   * the two halves of the friendly condition, beside the memory that holds the third — whether
+   * the ident is heard. A track absent from `origins` has no known origin and no cap.
+   */
+  friendly?: readonly FriendlyArea[]
+  origins?: Readonly<Record<string, [number, number]>>
   config?: ScoringConfig
 }
 
@@ -106,8 +113,14 @@ export interface Score {
   totalWeight: number
   /** 0–100, before the ceiling — equal to `composite` unless `capped`. */
   uncapped: number
-  /** True when the ADS-B ceiling bound; the display prints the cap as its own line. */
+  /** True when a cap bound — the ADS-B ceiling or the friendly cap; the display prints it as its own line. */
   capped: boolean
+  /**
+   * The friendly-launch condition holds (08b): first seen inside a friendly launch area and heard
+   * on Remote ID now or within the dwell. The reason tag leads with it, the cap line names it, and
+   * the never-re-surface guard keys on it — the condition, not on the cap having bound.
+   */
+  friendly: boolean
   band: Band
   factors: Factor[]
   /**
@@ -364,16 +377,52 @@ function proximity(
   )
 }
 
-/** The set as the record carries it: the fields the operator saw, and the kind (08a). */
-const siteRecords = (sites: readonly ProtectedSite[]): SiteRecord[] =>
-  sites.map(({ id, name, tier, center, radiusM }) => ({
+/** The set as the record carries it: the fields the operator saw, and the kind (08a, 08b). */
+const siteRecords = (
+  sites: readonly ProtectedSite[],
+  friendly: readonly FriendlyArea[],
+): SiteRecord[] => [
+  ...sites.map(({ id, name, tier, center, radiusM }): SiteRecord => ({
     id,
     name,
     kind: 'protected',
     tier,
     center,
     radiusM,
-  }))
+  })),
+  ...friendly.map(({ id, name, center, radiusM }): SiteRecord => ({
+    id,
+    name,
+    kind: 'friendly',
+    center,
+    radiusM,
+  })),
+]
+
+/**
+ * The friendly-launch condition (08b, ruled on #86): the track's observed first-seen position
+ * lies inside a friendly launch area, and its ident is heard — this frame, or within the dwell
+ * the Identity factor already holds a heard ident for, so the cap and the factor agree on what
+ * "heard" means (a per-frame read would flicker an intermittent ident's cap 22 times across the
+ * recording; "ever heard" would keep capping a drone that fell silent for good). Two
+ * observations, no label: a silent track first seen inside the area reads false.
+ */
+function friendlyLaunch(
+  track: ObservedTrack,
+  context: ScoringContext,
+  config: ScoringConfig['cooperativity'],
+): boolean {
+  if (track.source !== 'inject' || !context.friendly?.length) return false
+  const origin = context.origins?.[track.id]
+  if (!origin) return false
+  const inside = context.friendly.some(
+    (area) => distanceMeters(area.center, origin) <= area.radiusM,
+  )
+  if (!inside) return false
+  if (track.identity === 'cooperative') return true
+  const lastHeard = context.memory[track.id]?.lastHeardTSec ?? null
+  return lastHeard !== null && context.tSec - lastHeard <= config.dwellS
+}
 
 function kinematic(
   track: ObservedTrack,
@@ -457,15 +506,20 @@ export function scoreTrack(
   // 65.6 by 80 lands on the same whole number and the same band as the chip, always.
   const total = Math.round(weighted * 10) / 10
   const uncapped = (total / totalWeight) * 100
-  const capped = track.source === 'adsb' && uncapped > config.adsbCeiling
-  const composite = capped ? config.adsbCeiling : uncapped
+  // The ceiling first, on the observed source; then the friendly cap, its own value, on the
+  // friendly condition (08b). Both are caps below the caution band; the display names which.
+  const friendly = friendlyLaunch(track, context, config.cooperativity)
+  const ceilinged = track.source === 'adsb' && uncapped > config.adsbCeiling
+  const friendlyCapped = friendly && uncapped > config.friendlyCap
+  const composite = ceilinged ? config.adsbCeiling : friendlyCapped ? config.friendlyCap : uncapped
   return {
     composite,
     weighted,
     total,
     totalWeight,
     uncapped,
-    capped,
+    capped: ceilinged || friendlyCapped,
+    friendly,
     // Banded on the whole number the chip and the handoff print, so a 69.6 that prints as 70
     // reads warning, not caution: the word and the number beside it can never disagree (#63).
     band: bandOf(Math.round(composite), config.bands),
@@ -473,7 +527,7 @@ export function scoreTrack(
     pattern: pattern.kind,
     rangeM: nearest.rangeM,
     siteId: nearest.site.id,
-    sites: siteRecords(sites),
+    sites: siteRecords(sites, context.friendly ?? []),
   }
 }
 
@@ -495,6 +549,7 @@ export function scoreFromSnapshot(
     siteId: string
     pattern: PatternKind | null
     sites: readonly SiteRecord[]
+    friendly: boolean
   },
   config: ScoringConfig = SCORING,
 ): Score {
@@ -519,6 +574,7 @@ export function scoreFromSnapshot(
     totalWeight,
     uncapped: observed.uncapped,
     capped: observed.score < observed.uncapped,
+    friendly: observed.friendly,
     band: bandOf(Math.round(observed.score), config.bands),
     factors,
     pattern: observed.pattern,

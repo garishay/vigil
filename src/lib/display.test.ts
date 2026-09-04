@@ -11,6 +11,7 @@ import {
   siteKindLine,
   siteLine,
   siteOriginLine,
+  capLine,
 } from './display'
 import { scoreTrack, type Score, type ScoringContext } from './scoring'
 import { AO } from '../config/ao'
@@ -35,6 +36,7 @@ const SCORE: Score = {
   rangeM: 7200.2,
   siteId: 'phl-airfield',
   sites: PHL_SITES,
+  friendly: false,
   factors: [
     {
       id: 'cooperativity',
@@ -154,6 +156,7 @@ describe('describeEvent — band crossings (06b)', () => {
         rangeM: 7200.2,
         siteId: 'phl-airfield',
         sites: PHL_SITES,
+        friendly: false,
         altitudeFt: 63,
         groundSpeedKt: 19.1,
         headingDeg: 345.6,
@@ -196,6 +199,7 @@ describe('describeEvent — pattern entries and the first-seen word (05b)', () =
     rangeM: 3000,
     siteId: 'phl-airfield',
     sites: PHL_SITES,
+    friendly: false,
     altitudeFt: 230,
     groundSpeedKt: 6,
     headingDeg: 270,
@@ -399,7 +403,7 @@ describe('the site lines (08a)', () => {
 
   it('prints the row’s kind and tier line, and its ring and origin line', () => {
     expect(siteKindLine(record)).toBe('Protected · tier 1')
-    expect(siteKindLine({ tier: 2 })).toBe('Protected · tier 2')
+    expect(siteKindLine({ kind: 'protected', tier: 2 })).toBe('Protected · tier 2')
     expect(siteOriginLine({ ...AO.protectedSites[0], addedTSec: null }, clock)).toBe(
       '5.0 km ring · config',
     )
@@ -412,5 +416,76 @@ describe('the site lines (08a)', () => {
     expect(siteLine(record)).toBe('PHL Airfield · protected · tier 1 · 5.0 km')
     const widest = siteLine({ ...record, name: 'x'.repeat(20), tier: 2, radiusM: 12_000 })
     expect(`  ${widest}`).toHaveLength(53)
+  })
+})
+
+describe('the friendly launch cap on the row and in the record (08b, ruled on #86)', () => {
+  const friendly: Score = {
+    ...SCORE,
+    composite: 30,
+    uncapped: 80,
+    capped: true,
+    band: 'calm',
+    friendly: true,
+  }
+
+  it('prints the cap line with the number it held back, and the hover leads with it', () => {
+    expect(capLine(friendly)).toBe('Friendly launch — capped at 30 (uncapped 80)')
+    expect(capLine({ ...SCORE, composite: 30, capped: true })).toBe(
+      'Capped at 30 — cooperative aircraft',
+    )
+    expect(scoreSummary(friendly)).toMatch(/^Friendly launch — capped at 30 \(uncapped 80\) · /)
+  })
+
+  it('leads the reason tag with Friendly launch, the pattern after it', () => {
+    const SITE = AO.protectedSites[0]
+    const drone: InjectTrack = {
+      id: 'inject-02',
+      source: 'inject',
+      behavior: 'orbit',
+      remoteId: 'broadcasting',
+      uaType: null,
+      identity: 'cooperative',
+      callsign: 'UAS-A341',
+      position: destinationPoint(SITE.center, 0, 3000),
+      altitudeFt: 230,
+      onGround: false,
+      groundSpeedKt: 6,
+      headingDeg: 270,
+      verticalRateFpm: 0,
+      lastSeenSec: 0,
+    }
+    const score = scoreTrack(drone, AO.protectedSites, { tSec: 0, minuteOfDay: 150, memory: {} })
+    const entry: RankedTrack = {
+      track: drone,
+      rank: 1,
+      rangeM: score.rangeM,
+      siteId: score.siteId,
+      score,
+    }
+    const tagged = { ...entry, score: { ...entry.score, friendly: true } }
+    expect(reasonTag(tagged, AO.protectedSites)).toMatch(/^Friendly launch, /)
+    const patterned = { ...tagged, score: { ...tagged.score, pattern: 'orbit' as const } }
+    expect(reasonTag(patterned, AO.protectedSites)).toMatch(/^Friendly launch, orbiting/)
+    // A real aircraft's row is untouched by the flag: Cooperative aircraft and nothing else.
+    expect(
+      reasonTag(
+        { ...tagged, track: { ...tagged.track, source: 'adsb' } } as RankedTrack,
+        AO.protectedSites,
+      ),
+    ).toBe('Cooperative aircraft')
+  })
+
+  it("prints a friendly area's row and record lines", () => {
+    expect(siteKindLine({ kind: 'friendly' })).toBe('Friendly launch area')
+    expect(
+      siteLine({
+        id: 'area-2',
+        name: 'Drone unit pad',
+        kind: 'friendly',
+        center: [0, 0],
+        radiusM: 500,
+      }),
+    ).toBe('Drone unit pad · friendly · 0.5 km')
   })
 })

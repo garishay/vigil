@@ -110,6 +110,14 @@ export interface ScoringConfig {
    * escape it (ruled A3 on #4).
    */
   adsbCeiling: number
+  /**
+   * The friendly launch cap (08b, ruled on #86): the composite of a track whose observed
+   * first-seen position lies inside a friendly launch area *and* which is heard on Remote ID —
+   * now, or within the identity dwell — is capped here, its own value that defaults to the
+   * ceiling, and prints as its own line. Keyed on two observations, never on a label: a silent
+   * track first seen inside the area gets no cap, and the cap lifts when the ident lapses.
+   */
+  friendlyCap: number
 }
 
 export const SCORING: ScoringConfig = {
@@ -129,4 +137,5 @@ export const SCORING: ScoringConfig = {
   operatingHours: { open: '06:00', close: '22:00' },
   bands: { caution: 40, warning: 70 },
   adsbCeiling: 30,
+  friendlyCap: 30,
 }

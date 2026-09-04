@@ -7,6 +7,7 @@ import type { CaptureState } from './data/useCapture'
 import type { Schedule } from './data/usePlayback'
 import { trackIdent } from './lib/display'
 import { gridTimeline, injectTracksAt, planScenario as planInjects } from './lib/injects'
+import { addSite, fromConfig, sitePlanText } from './lib/sites'
 
 // Every `terminalIds` the map was handed, in order — the array *identities*, not their contents,
 // because the map re-pushes its whole source when that prop changes and the ruling on #61 is that
@@ -1488,5 +1489,110 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     expect(screen.queryByText(/^Rewound — /)).not.toBeInTheDocument()
     expect(action('+ Protected site')).toBeEnabled()
     expect(action('Reset to config')).toBeEnabled()
+  })
+})
+
+describe('App friendly launch areas and the site plan (08b, ruled on #86)', () => {
+  const action = (name: string) => screen.getByRole('button', { name })
+  const rows = () =>
+    within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+  const siteRows = () =>
+    within(screen.getByRole('list', { name: 'Site set' })).getAllByRole('listitem')
+  const chips = () =>
+    rows().map(
+      (row) =>
+        `${row.querySelector('.queue__ident')?.textContent}:${row.querySelector('.queue__score')?.textContent}`,
+    )
+  const injectsAtOpen = () => injectTracksAt(planInjects(gridTimeline(1, 15000)), 0)
+  const rowFor = (ident: string) => rows().find((r) => within(r).queryByText(ident)) as HTMLElement
+  const seek = (value: string) =>
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value } })
+
+  it('caps a heard inject first seen inside a friendly area, and leaves a silent one alone — the demo moment', () => {
+    render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
+    const heard = injectsAtOpen().find((inject) => inject.identity === 'cooperative')!
+    const silent = injectsAtOpen().find((inject) => inject.identity === 'non-cooperative')!
+    fireEvent.click(action('Queue'))
+    const before = chips()
+    expect(rowFor(trackIdent(heard))).not.toHaveTextContent('Friendly launch')
+
+    // A friendly area over the heard inject's first-seen position: its row drops with the line.
+    fireEvent.click(action('Sites'))
+    placeTarget.center = heard.position
+    fireEvent.click(action('+ Friendly launch area'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    expect(siteRows()[1]).toHaveTextContent('Launch area 2')
+    expect(siteRows()[1]).toHaveTextContent('Friendly launch area')
+    fireEvent.click(action('Queue'))
+    const row = rowFor(trackIdent(heard))
+    expect(Number(row.querySelector('.queue__score')?.textContent)).toBeLessThanOrEqual(30)
+    expect(row.querySelector('.queue__score')).toHaveAttribute('data-band', 'calm')
+    expect(row.querySelector('.queue__reason')).toHaveTextContent(/^Friendly launch/)
+    fireEvent.click(within(row).getByRole('button'))
+    expect(screen.getByLabelText('Score breakdown')).toHaveTextContent(
+      /Friendly launch — capped at \d+ \(uncapped \d+\)/,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Close review' }))
+
+    // A friendly area over the silent inject's first-seen position: no cap, nothing moves.
+    fireEvent.click(action('Sites'))
+    const afterHeard = chips.length
+    void afterHeard
+    fireEvent.click(action('Queue'))
+    const withHeardCapped = chips()
+    fireEvent.click(action('Sites'))
+    placeTarget.center = silent.position
+    fireEvent.click(action('+ Friendly launch area'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    fireEvent.click(action('Queue'))
+    expect(chips()).toEqual(withHeardCapped)
+    expect(rowFor(trackIdent(silent))).not.toHaveTextContent('Friendly launch')
+
+    // Every ADS-B row is untouched by either area.
+    for (const r of rows()) {
+      if (within(r).queryByText('ADS-B')) expect(r).toHaveTextContent('Cooperative aircraft')
+    }
+    // Reset returns the config picture.
+    fireEvent.click(action('Sites'))
+    fireEvent.click(action('Reset to config'))
+    fireEvent.click(action('Queue'))
+    expect(chips()).toEqual(before)
+  })
+
+  it('loads a pasted plan as one edit, and refuses one behind the frontier with the rewound reason', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    const heard = injectsAtOpen().find((inject) => inject.identity === 'cooperative')!
+    const plan = sitePlanText(
+      addSite(
+        addSite(fromConfig(AO.protectedSites), heard.position, 0, AO, 'friendly'),
+        [-75.3, 39.85],
+        0,
+        AO,
+      ),
+      AO,
+    )
+    fireEvent.click(action('Sites'))
+    fireEvent.change(screen.getByLabelText('Load site plan'), { target: { value: plan } })
+    fireEvent.click(action('Load'))
+    expect(siteRows()).toHaveLength(3)
+    expect(siteRows().map((r) => r.textContent)).toEqual([
+      expect.stringContaining('PHL Airfield'),
+      expect.stringContaining('Site 3'),
+      expect.stringContaining('Launch area 2'),
+    ])
+    expect(screen.getByText('3 sites · edited from config')).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield,site-3')
+    // The load was an edit: the frontier is where it landed, and a rewind refuses the next one.
+    seek('60')
+    fireEvent.change(screen.getByLabelText('Load site plan'), { target: { value: plan } })
+    fireEvent.click(action('Load'))
+    seek('30')
+    expect(screen.getByLabelText('Load site plan')).toBeDisabled()
+    expect(action('Load')).toBeDisabled()
+    expect(
+      screen.getByText('Rewound — the workflow acts at the record’s frontier'),
+    ).toBeInTheDocument()
   })
 })

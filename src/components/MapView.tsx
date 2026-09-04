@@ -4,7 +4,7 @@ import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
 import { IdentityLegend } from './IdentityDot'
-import type { AreaOfOperations, ProtectedSite } from '../config/ao'
+import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao'
 import { circlePolygon } from '../lib/geo'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
@@ -18,21 +18,33 @@ const TRAIL_SOURCE = 'selected-trail'
 /** One frozen empty array, so the default prop is not a new identity every render. */
 const NO_TERMINAL: readonly string[] = []
 const NO_SITES: readonly ProtectedSite[] = []
+const NO_AREAS: readonly FriendlyArea[] = []
 
 /**
- * The protection rings as polygons (08a): the session's sites, re-pushed whenever the set or the
- * selection changes, the selected site's ring drawn heavier so the editor's row and the map agree.
+ * The rings as polygons (08a, 08b): the session's protected sites and friendly launch areas in
+ * one source, each feature carrying its kind so the two line layers split them — a friendly ring
+ * draws dashed in the cooperative blue, since it vouches rather than protects — re-pushed
+ * whenever the set or the selection changes, the selected ring drawn heavier so the editor's
+ * row and the map agree.
  */
-function siteFeatures(sites: readonly ProtectedSite[], selectedSiteId: string | null) {
+function siteFeatures(
+  sites: readonly ProtectedSite[],
+  areas: readonly FriendlyArea[],
+  selectedSiteId: string | null,
+) {
+  const ring = (site: FriendlyArea, kind: 'protected' | 'friendly') =>
+    circlePolygon(site.center, site.radiusM, {
+      id: site.id,
+      name: site.name,
+      kind,
+      selected: site.id === selectedSiteId,
+    })
   return {
     type: 'FeatureCollection' as const,
-    features: sites.map((site) =>
-      circlePolygon(site.center, site.radiusM, {
-        id: site.id,
-        name: site.name,
-        selected: site.id === selectedSiteId,
-      }),
-    ),
+    features: [
+      ...sites.map((site) => ring(site, 'protected')),
+      ...areas.map((area) => ring(area, 'friendly')),
+    ],
   }
 }
 
@@ -137,6 +149,7 @@ function injectFeatures(tracks: InjectTrack[], terminalIds: readonly string[]) {
 export function MapView({
   ao,
   sites = NO_SITES,
+  areas = NO_AREAS,
   selectedSiteId = null,
   placing = false,
   onPlace,
@@ -151,6 +164,8 @@ export function MapView({
   ao: AreaOfOperations
   /** The session's protected sites (08a): the rings, re-pushed as a source when the set changes. */
   sites?: readonly ProtectedSite[]
+  /** The session's friendly launch areas (08b): dashed rings in the same source. */
+  areas?: readonly FriendlyArea[]
   /** The site whose ring draws heavier — the row open in the Sites editor. */
   selectedSiteId?: string | null
   /**
@@ -216,21 +231,37 @@ export function MapView({
     map.on('load', () => {
       // Added empty and fed by the sites effect below (08a): the rings are the session's, not
       // the AO's, and a set change re-pushes the source rather than rebuilding the layer.
-      map.addSource(SITES_SOURCE, { type: 'geojson', data: siteFeatures([], null) })
+      map.addSource(SITES_SOURCE, { type: 'geojson', data: siteFeatures([], [], null) })
       map.addLayer({
         id: `${SITES_SOURCE}-fill`,
         type: 'fill',
         source: SITES_SOURCE,
+        filter: ['==', ['get', 'kind'], 'protected'],
         paint: { 'fill-color': RING_COLOR, 'fill-opacity': 0.08 },
       })
       map.addLayer({
         id: `${SITES_SOURCE}-line`,
         type: 'line',
         source: SITES_SOURCE,
+        filter: ['==', ['get', 'kind'], 'protected'],
         paint: {
           'line-color': RING_COLOR,
           'line-width': ['case', ['get', 'selected'], 3, 1.5],
           'line-opacity': ['case', ['get', 'selected'], 0.95, 0.7],
+        },
+      })
+      // A friendly launch area (08b): dashed, in the identity blue a heard drone already wears,
+      // and no fill — it is not a volume to keep things out of.
+      map.addLayer({
+        id: `${SITES_SOURCE}-friendly`,
+        type: 'line',
+        source: SITES_SOURCE,
+        filter: ['==', ['get', 'kind'], 'friendly'],
+        paint: {
+          'line-color': IDENTITY_COLOR.cooperative,
+          'line-width': ['case', ['get', 'selected'], 3, 1.5],
+          'line-opacity': ['case', ['get', 'selected'], 0.95, 0.7],
+          'line-dasharray': [2, 2],
         },
       })
 
@@ -355,8 +386,8 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    map.getSource<GeoJSONSource>(SITES_SOURCE)?.setData(siteFeatures(sites, selectedSiteId))
-  }, [sites, selectedSiteId, styleReady])
+    map.getSource<GeoJSONSource>(SITES_SOURCE)?.setData(siteFeatures(sites, areas, selectedSiteId))
+  }, [sites, areas, selectedSiteId, styleReady])
 
   // A crosshair says the map is armed; cleared when the placement lands or is cancelled.
   useEffect(() => {

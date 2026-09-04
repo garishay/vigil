@@ -43,6 +43,7 @@ import {
   indexCapture,
   lastHeardBefore,
   memoryAt,
+  originsOf,
   pictureAt,
   trailAt,
 } from './lib/replay'
@@ -50,6 +51,7 @@ import { minuteOfDay } from './lib/scoring'
 import {
   addSite,
   fromConfig,
+  parseSitePlan,
   removeSite,
   resetSites,
   updateSite,
@@ -84,7 +86,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'sites',
     label: 'Sites',
     title: 'Sites',
-    body: 'Protected sites the picture is scored against — this session only; reload returns to config.',
+    body: 'Protected sites and friendly launch areas the picture is scored against — this session only; reload returns to config.',
   },
 ]
 
@@ -134,7 +136,9 @@ export default function App({
   // The session's site set (08a, ruled on #86): the operator's protected sites, seeded from
   // config and scored against on every tick. Session state only — a reload returns to config;
   // the golden and every pinned test run on the config set.
-  const [siteSet, setSiteSet] = useState<SiteSet>(() => fromConfig(AO.protectedSites))
+  const [siteSet, setSiteSet] = useState<SiteSet>(() =>
+    fromConfig(AO.protectedSites, AO.friendlyAreas),
+  )
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
   // What the next map click does while the Sites editor has the map armed, and the reason the
   // last placement was refused, if it was.
@@ -182,9 +186,21 @@ export default function App({
     [index, plan, tracks, tSec],
   )
   const sites = siteSet.sites
+  const areas = siteSet.areas
+  // Every track's observed first-seen position (08b): the recording's first sample, the inject's
+  // first frame — once per recording, seek-independent, the friendly condition's first half.
+  const origins = useMemo(() => (index ? originsOf(index, plan) : {}), [index, plan])
   const ranked = useMemo(
-    () => rankTracks(tracks, sites, { tSec, minuteOfDay: clockMinute, memory, history }),
-    [tracks, sites, tSec, clockMinute, memory, history],
+    () =>
+      rankTracks(tracks, sites, {
+        tSec,
+        minuteOfDay: clockMinute,
+        memory,
+        history,
+        friendly: areas,
+        origins,
+      }),
+    [tracks, sites, areas, tSec, clockMinute, memory, history, origins],
   )
   // The picture as last committed, by track, with the tick it was drawn at — what a Lost line
   // snapshots (#71), since the track it records is no longer in `ranked` to be read. Written
@@ -224,17 +240,22 @@ export default function App({
   // is read off the picture — the key is recomputed per tick, but its string, and so the array's
   // identity, still changes only with the set.
   const sourceOf = useMemo(() => new Map(tracks.map((track) => [track.id, track.source])), [tracks])
+  // The friendly condition per track, read off the picture as the source is (08b).
+  const friendlyOf = useMemo(
+    () => new Map(ranked.map((entry) => [entry.track.id, entry.score.friendly])),
+    [ranked],
+  )
   const terminalKey = useMemo(
     () =>
       Object.keys(eventLogs)
         .filter(
           (id) =>
             isTerminal(statusOf(eventLogs[id])) &&
-            !resurfaced(eventLogs[id], sourceOf.get(id) ?? 'adsb'),
+            !resurfaced(eventLogs[id], sourceOf.get(id) ?? 'adsb', friendlyOf.get(id) ?? false),
         )
         .sort()
         .join(' '),
-    [eventLogs, sourceOf],
+    [eventLogs, sourceOf, friendlyOf],
   )
   const terminalIds = useMemo(
     () => (terminalKey === '' ? [] : terminalKey.split(' ')),
@@ -409,14 +430,16 @@ export default function App({
     const target = placing
     const applied = editSites((set) =>
       target.kind === 'add'
-        ? addSite(set, center, tSec, AO)
+        ? addSite(set, center, tSec, AO, target.site)
         : updateSite(set, target.id, { center }, tSec, AO),
     )
     // A refused placement keeps the map armed for another try; a landed one disarms it and
     // selects the site just placed, so its fields are open to refine.
     if (!applied) return
     setPlacing(null)
-    if (target.kind === 'add') setSelectedSiteId(`site-${siteSet.nextId}`)
+    if (target.kind === 'add') {
+      setSelectedSiteId(`${target.site === 'friendly' ? 'area' : 'site'}-${siteSet.nextId}`)
+    }
   }
   const changeSurface = (id: SurfaceId) => {
     setSurfaceId(id)
@@ -579,7 +602,9 @@ export default function App({
                 selectedId={selectedId}
                 restoreFocus={keyboardClose}
                 statusFor={(id) => statusOf(eventLogs[id])}
-                resurfacedFor={(entry) => resurfaced(eventLogs[entry.track.id], entry.track.source)}
+                resurfacedFor={(entry) =>
+                  resurfaced(eventLogs[entry.track.id], entry.track.source, entry.score.friendly)
+                }
                 sites={sites}
                 onSelect={setSelectedId}
               />
@@ -628,8 +653,23 @@ export default function App({
                   setPlacing(null)
                 }
               }}
+              onLoad={(text) => {
+                // A load the module refuses is not applied; its reason goes back to the panel's
+                // load line rather than the placement hint.
+                if (sitesRewound) return 'Rewound — the workflow acts at the record’s frontier'
+                try {
+                  setSiteSet(parseSitePlan(text, AO, siteSet, tSec))
+                  setSelectedSiteId(null)
+                  setPlacing(null)
+                  return null
+                } catch (error) {
+                  return error instanceof Error ? error.message : String(error)
+                }
+              }}
               onReset={() => {
-                if (editSites((set) => resetSites(set, AO.protectedSites, tSec))) {
+                if (
+                  editSites((set) => resetSites(set, AO.protectedSites, tSec, AO.friendlyAreas))
+                ) {
                   setSelectedSiteId(null)
                   setPlacing(null)
                 }
@@ -641,6 +681,7 @@ export default function App({
         <MapView
           ao={AO}
           sites={sites}
+          areas={areas}
           selectedSiteId={surfaceId === 'sites' ? selectedSiteId : null}
           placing={placing !== null}
           onPlace={place}

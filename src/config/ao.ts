@@ -20,20 +20,36 @@ export interface ProtectedSite {
   tier: SiteTier
 }
 
-/** The kinds of site an operator can declare; the friendly launch area arrives in 08b. */
-export type SiteKind = 'protected'
+/** The kinds of site an operator can declare (08a, 08b). */
+export type SiteKind = 'protected' | 'friendly'
+
+/**
+ * A friendly launch area (08b, ruled on #86): a declared launch zone — a department's own drone
+ * unit's pad. A track whose observed first-seen position lies inside one *and* which is heard
+ * on Remote ID is capped like a cooperative aircraft (`friendlyCap` in `config/scoring.ts`); a
+ * silent track first seen inside one gets no cap — the origin is observed, the identity is not.
+ * The condition reads the picture, never the generator's launch points. A circle, like a site;
+ * no tier — it protects nothing, it vouches.
+ */
+export interface FriendlyArea {
+  id: string
+  name: string
+  center: [number, number]
+  radiusM: number
+}
 
 /**
  * A site as the record carries it (08a, ruled on #86): the set the operator saw when a track
- * was scored, on the score and on every event's snapshot — id, kind, tier, centre, radius, and
- * the name, so a site removed later is still named where the record prints it. Operator-typed
- * configuration, never a person.
+ * was scored, on the score and on every event's snapshot — id, kind, tier for a protected site,
+ * centre, radius, and the name, so a site removed later is still named where the record prints
+ * it. Operator-typed configuration, never a person.
  */
 export interface SiteRecord {
   id: string
   name: string
   kind: SiteKind
-  tier: SiteTier
+  /** Protected sites only; a friendly area carries none. */
+  tier?: SiteTier
   center: [number, number]
   radiusM: number
 }
@@ -50,6 +66,8 @@ export interface AreaOfOperations {
   /** MapLibre style document. Keyless and dark; see the PR 01 basemap decision. */
   basemapStyleUrl: string
   protectedSites: ProtectedSite[]
+  /** The default friendly launch areas — none: a department declares its own, per session (08b). */
+  friendlyAreas: FriendlyArea[]
 }
 
 /**
@@ -75,6 +93,7 @@ export const PHL: AreaOfOperations = {
       tier: 1,
     },
   ],
+  friendlyAreas: [],
 }
 
 /** The AO Vigil currently watches. */
