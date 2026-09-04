@@ -219,6 +219,25 @@ describe('SitesPanel — friendly launch areas and the site plan (08b)', () => {
     expect(onLoad).toHaveBeenLastCalledWith('{"ao":"phl"}')
   })
 
+  it('measures edited against the configured areas, so a shipped default pad reads config (#95 review)', () => {
+    const pad = { id: 'area-1', name: 'Drone unit pad', center: INSIDE, radiusM: 500 }
+    renderPanel(fromConfig(CONFIG, [pad]), { configAreas: [pad] })
+    expect(screen.getByText('2 sites · config')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reset to config' })).toBeDisabled()
+  })
+
+  it('clears a stale load refusal when Copy refills the field (#95 review)', () => {
+    renderPanel(fromConfig(CONFIG), { onLoad: () => 'Plan is not JSON' })
+    fireEvent.change(screen.getByLabelText('Load site plan'), { target: { value: 'bad' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Load' }))
+    expect(screen.getByText('Plan is not JSON')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Copy site plan' }))
+    expect(screen.queryByText('Plan is not JSON')).not.toBeInTheDocument()
+    expect((screen.getByLabelText('Load site plan') as HTMLTextAreaElement).value).toMatch(
+      /"ao": "phl"/,
+    )
+  })
+
   it('disables the plan field and Load while rewound', () => {
     renderPanel(grown(), { rewound: true, tSec: 30, frontier: 600 })
     expect(screen.getByLabelText('Load site plan')).toBeDisabled()

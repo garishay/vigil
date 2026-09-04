@@ -1451,6 +1451,17 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     expect(screen.getByText('Centre is outside the AO')).toBeInTheDocument()
     expect(siteRows()).toHaveLength(1)
     expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'true')
+    // A plan loaded while the refusal stands is an edit like the others: the refusal goes with
+    // it (#95 review).
+    fireEvent.change(screen.getByLabelText('Load site plan'), {
+      target: {
+        value: sitePlanText(addSite(fromConfig(AO.protectedSites), [-75.3, 39.85], 0, AO), AO),
+      },
+    })
+    fireEvent.click(action('Load'))
+    expect(siteRows()).toHaveLength(2)
+    expect(screen.queryByText('Centre is outside the AO')).not.toBeInTheDocument()
+    fireEvent.click(action('+ Protected site'))
     // Leaving the surface disarms the map: a click on Home must not place a site.
     fireEvent.click(action('Home'))
     expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
@@ -1535,10 +1546,6 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
     fireEvent.click(screen.getByRole('button', { name: 'Close review' }))
 
     // A friendly area over the silent inject's first-seen position: no cap, nothing moves.
-    fireEvent.click(action('Sites'))
-    const afterHeard = chips.length
-    void afterHeard
-    fireEvent.click(action('Queue'))
     const withHeardCapped = chips()
     fireEvent.click(action('Sites'))
     placeTarget.center = silent.position

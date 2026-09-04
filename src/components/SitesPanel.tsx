@@ -213,6 +213,8 @@ export function SitesPanel({
   const plan = sitePlanText(set, ao)
   const copyPlan = () => {
     setPlanDraft(plan)
+    // The field now holds a plan the module accepts; a refusal of what it held before is gone.
+    setLoadProblem(null)
     if (planRef.current) planRef.current.value = plan
     void copy(plan)
   }

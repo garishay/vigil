@@ -87,7 +87,10 @@ flowchart LR
     map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count"]
     clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick<br/>scheduler injected, so no test waits on time"]
-    panel["components/SitesPanel.tsx<br/>the Sites surface: rows, the inline editor, placement armed on the map<br/>refused behind the record's frontier"]
+    panel["components/SitesPanel.tsx<br/>the Sites surface: protected sites and friendly launch areas as rows, the inline editor, placement armed on the map<br/>the site plan: copy out, load back · refused behind the record's frontier"]
+    copy["components/useCopy.ts<br/>copy with the clipboard, fall back to the textarea's selection<br/>'Copied' only for the text actually copied"]
+    copy -- handoff --> review
+    copy -- site plan --> panel
     app --> queue
     app --> map
     app -- selected track: drawer --> review

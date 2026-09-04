@@ -629,6 +629,7 @@ export default function App({
             <SitesPanel
               set={siteSet}
               config={AO.protectedSites}
+              configAreas={AO.friendlyAreas}
               ao={AO}
               selectedId={selectedSiteId}
               placing={placing}
@@ -661,6 +662,8 @@ export default function App({
                   setSiteSet(parseSitePlan(text, AO, siteSet, tSec))
                   setSelectedSiteId(null)
                   setPlacing(null)
+                  // A load is an edit like the others: a placement's stale refusal clears with it.
+                  setSiteNotice(null)
                   return null
                 } catch (error) {
                   return error instanceof Error ? error.message : String(error)
