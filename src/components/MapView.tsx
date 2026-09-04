@@ -4,7 +4,7 @@ import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
 import { IdentityLegend } from './IdentityDot'
-import type { AreaOfOperations } from '../config/ao'
+import type { AreaOfOperations, ProtectedSite } from '../config/ao'
 import { circlePolygon } from '../lib/geo'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
@@ -17,6 +17,24 @@ const TRAIL_SOURCE = 'selected-trail'
 
 /** One frozen empty array, so the default prop is not a new identity every render. */
 const NO_TERMINAL: readonly string[] = []
+const NO_SITES: readonly ProtectedSite[] = []
+
+/**
+ * The protection rings as polygons (08a): the session's sites, re-pushed whenever the set or the
+ * selection changes, the selected site's ring drawn heavier so the editor's row and the map agree.
+ */
+function siteFeatures(sites: readonly ProtectedSite[], selectedSiteId: string | null) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: sites.map((site) =>
+      circlePolygon(site.center, site.radiusM, {
+        id: site.id,
+        name: site.name,
+        selected: site.id === selectedSiteId,
+      }),
+    ),
+  }
+}
 
 /** Zero or one point: the selected track's position, or an empty collection. */
 function selectionFeature(position: [number, number] | null) {
@@ -118,6 +136,10 @@ function injectFeatures(tracks: InjectTrack[], terminalIds: readonly string[]) {
  */
 export function MapView({
   ao,
+  sites = NO_SITES,
+  selectedSiteId = null,
+  placing = false,
+  onPlace,
   tracks = [],
   injects = [],
   selectedId = null,
@@ -127,6 +149,16 @@ export function MapView({
   onSelect,
 }: {
   ao: AreaOfOperations
+  /** The session's protected sites (08a): the rings, re-pushed as a source when the set changes. */
+  sites?: readonly ProtectedSite[]
+  /** The site whose ring draws heavier — the row open in the Sites editor. */
+  selectedSiteId?: string | null
+  /**
+   * Armed by the Sites editor: the next map click reports its position to `onPlace` instead of
+   * selecting a track, and the cursor is a crosshair while it waits.
+   */
+  placing?: boolean
+  onPlace?: (center: [number, number]) => void
   tracks?: AdsbTrack[]
   injects?: InjectTrack[]
   selectedId?: string | null
@@ -158,6 +190,14 @@ export function MapView({
   useEffect(() => {
     onSelectRef.current = onSelect
   }, [onSelect])
+  // The placement click reads the same way: registered once, reading the current arm and
+  // callback, so arming the map never rebuilds it.
+  const placingRef = useRef(placing)
+  const onPlaceRef = useRef(onPlace)
+  useEffect(() => {
+    placingRef.current = placing
+    onPlaceRef.current = onPlace
+  }, [placing, onPlace])
   // Ease only when the selection itself changes — not when the same track's data refreshes.
   const easedIdRef = useRef<string | null>(null)
 
@@ -174,15 +214,9 @@ export function MapView({
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
 
     map.on('load', () => {
-      map.addSource(SITES_SOURCE, {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: ao.protectedSites.map((site) =>
-            circlePolygon(site.center, site.radiusM, { id: site.id, name: site.name }),
-          ),
-        },
-      })
+      // Added empty and fed by the sites effect below (08a): the rings are the session's, not
+      // the AO's, and a set change re-pushes the source rather than rebuilding the layer.
+      map.addSource(SITES_SOURCE, { type: 'geojson', data: siteFeatures([], null) })
       map.addLayer({
         id: `${SITES_SOURCE}-fill`,
         type: 'fill',
@@ -193,7 +227,11 @@ export function MapView({
         id: `${SITES_SOURCE}-line`,
         type: 'line',
         source: SITES_SOURCE,
-        paint: { 'line-color': RING_COLOR, 'line-width': 1.5, 'line-opacity': 0.7 },
+        paint: {
+          'line-color': RING_COLOR,
+          'line-width': ['case', ['get', 'selected'], 3, 1.5],
+          'line-opacity': ['case', ['get', 'selected'], 0.95, 0.7],
+        },
       })
 
       // Added empty and fed by the effect below, so track updates never rebuild the layer.
@@ -291,10 +329,17 @@ export function MapView({
         'click',
         [`${ADSB_SOURCE}-hit`, `${ADSB_SOURCE}-dot`, `${INJECT_SOURCE}-halo`],
         (event) => {
+          // An armed map is placing a site, not selecting a track (08a).
+          if (placingRef.current) return
           const id = event.features?.[0]?.properties?.id as unknown
           if (typeof id === 'string') onSelectRef.current?.(id)
         },
       )
+      // The placement click (08a): anywhere on the map, dot or not, while the editor has it armed.
+      map.on('click', (event) => {
+        if (!placingRef.current) return
+        onPlaceRef.current?.([event.lngLat.lng, event.lngLat.lat])
+      })
 
       setStyleReady(true)
     })
@@ -306,6 +351,19 @@ export function MapView({
       map.remove()
     }
   }, [ao])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    map.getSource<GeoJSONSource>(SITES_SOURCE)?.setData(siteFeatures(sites, selectedSiteId))
+  }, [sites, selectedSiteId, styleReady])
+
+  // A crosshair says the map is armed; cleared when the placement lands or is cancelled.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    map.getCanvas().style.cursor = placing ? 'crosshair' : ''
+  }, [placing, styleReady])
 
   useEffect(() => {
     const map = mapRef.current

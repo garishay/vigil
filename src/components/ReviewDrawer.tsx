@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { IdentityDot } from './IdentityDot'
+import { Rewound } from './Rewound'
 import { ScoreBreakdown } from './ScoreBreakdown'
 import { TrackVisuals } from './TrackVisuals'
 import type { ProtectedSite } from '../config/ao'
@@ -110,7 +111,7 @@ export function ReviewDrawer({
   trail,
 }: {
   entry: RankedTrack
-  sites: ProtectedSite[]
+  sites: readonly ProtectedSite[]
   log: readonly TrackEvent[]
   contacts: readonly { id: ContactId; name: string }[]
   dispositions: readonly { id: DispositionId; label: string }[]
@@ -238,7 +239,7 @@ export function ReviewDrawer({
   const escalation = log.findLast((event) => event.action === 'escalate')
   const recipient = escalation && contacts.find((contact) => contact.id === escalation.recipient)
   const handoff = recipient
-    ? handoffText({ entry, sites, recipient, log, contacts, dispositions, clock })
+    ? handoffText({ entry, recipient, log, contacts, dispositions, clock })
     : null
 
   const copy = async () => {
@@ -338,21 +339,16 @@ export function ReviewDrawer({
         ))}
       </div>
 
-      {/* The reason, in place: buttons that go grey without one read as a bug (§4.3, #77).
-          The live region announces the *state*, never the clock (ruled on #79): its line is
-          static, so seeking behind the frontier announces once and scrubbing announces nothing
-          further — the times move in their own element beside it, outside the region. Mounted
-          always with only the text toggling, as `rail__empty` is: a region inserted in the same
-          commit as its text is one some screen readers never announce (#51 review), and here
-          that is the announcement that matters most. */}
-      <p className="drawer__rewound" id="drawer-rewound-state" role="status">
-        {rewound ? 'Rewound — the workflow acts at the record’s frontier' : null}
-      </p>
-      {rewound && (
-        <p className="drawer__rewound-times" id="drawer-rewound-times">
-          Clock {clock(tSec)} · record {clock(frontier)}
-        </p>
-      )}
+      {/* The reason, in place: buttons that go grey without one read as a bug (§4.3, #77);
+          the state line and the times beside it, shared with the Sites editor (08a). */}
+      <Rewound
+        base="drawer__rewound"
+        idPrefix="drawer-rewound"
+        rewound={rewound}
+        clock={clock}
+        tSec={tSec}
+        frontier={frontier}
+      />
 
       {pending === 'escalate' && (
         <Picker

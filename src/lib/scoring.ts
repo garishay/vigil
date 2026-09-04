@@ -26,9 +26,16 @@
  * track inside a protected site's ring — the closest approach to the volume is now — where the
  * CPA/TCPA geometry, built for the approach, otherwise answers a question that no longer applies
  * and reads whichever way the nose happens to point. Outside the ring it is unchanged.
+ *
+ * **The site set is an input, and the score carries it** (08a, ruled on #86). The sites are the
+ * session's — the operator's, seeded from config — and each protected site's tier scales its
+ * closing and proximity value before the worst case across sites is taken, so the contribution
+ * stays `value / 100 × weight` and the record keeps reconciling. The set as scored rides on the
+ * score as `sites`, the way the weights ride on each factor: doctrine in force at the moment,
+ * for the snapshot and the frozen handoff.
  */
 
-import type { ProtectedSite } from '../config/ao.ts'
+import type { ProtectedSite, SiteRecord } from '../config/ao.ts'
 import { KINEMATIC_CLASS } from '../config/airframes.ts'
 import {
   SCORING,
@@ -111,6 +118,8 @@ export interface Score {
   /** Range to the nearest protected site, meters, and which site — shared with the Queue row. */
   rangeM: number
   siteId: string
+  /** The site set the track was scored against — what the operator saw (08a, ruled on #86). */
+  sites: readonly SiteRecord[]
 }
 
 /** The §6 table's UI labels and intent text, keyed by factor, in breakdown order. */
@@ -238,56 +247,93 @@ function cooperativity(
 
 const ON_GROUND = { value: 0, detail: 'on ground — not in the airspace' }
 
+type Tiers = ScoringConfig['tierMultiplier']
+
+/** The tier on the detail line when it scaled the value — ` · tier 2 × 0.5` — and nothing at 1. */
+const tierNote = (site: ProtectedSite, tiers: Tiers) =>
+  tiers[site.tier] === 1 ? '' : ` · tier ${site.tier} × ${tiers[site.tier]}`
+
+interface Candidate {
+  value: number
+  detail: string
+  rangeM: number
+}
+
+/**
+ * The worst case across sites: the highest per-site value, and at a tie the nearer centre —
+ * inside two rings the nearer enclosing site is named (#80 review), so the row's lines never
+ * quote a range to a site they do not say.
+ */
+function worstCase(candidates: readonly Candidate[]): { value: number; detail: string } {
+  let best: Candidate | null = null
+  for (const candidate of candidates) {
+    if (
+      best === null ||
+      candidate.value > best.value ||
+      (candidate.value === best.value && candidate.rangeM < best.rangeM)
+    ) {
+      best = candidate
+    }
+  }
+  return best
+    ? { value: best.value, detail: best.detail }
+    : { value: 0, detail: 'no protected site' }
+}
+
 function closing(
   track: ObservedTrack,
   sites: readonly ProtectedSite[],
   config: ScoringConfig['closing'],
+  tiers: Tiers,
 ): { value: number; detail: string } {
   if (track.onGround) return ON_GROUND
-  // Inside a ring the approach is complete, whichever way the track points (ruled on #5). The
-  // nearest enclosing site governs and is named as proximity names it, so the row's lines never
-  // quote a range to a site they do not say (#80 review).
-  let enclosing: { site: ProtectedSite; rangeM: number } | null = null
+  const candidates: Candidate[] = []
   for (const site of sites) {
     const rangeM = distanceMeters(site.center, track.position)
-    if (rangeM <= site.radiusM && (enclosing === null || rangeM < enclosing.rangeM)) {
-      enclosing = { site, rangeM }
+    const scale = tiers[site.tier]
+    const note = tierNote(site, tiers)
+    // Inside a ring the approach is complete, whichever way the track points (ruled on #5).
+    if (rangeM <= site.radiusM) {
+      const ring = sites.length > 1 ? `${site.name}'s ring` : 'the ring'
+      candidates.push({
+        value: 100 * scale,
+        detail: `${km(rangeM)} — inside ${ring}, closest approach is now${note}`,
+        rangeM,
+      })
+      continue
     }
-  }
-  if (enclosing) {
-    const ring = sites.length > 1 ? `${enclosing.site.name}'s ring` : 'the ring'
-    return {
-      value: 100,
-      detail: `${km(enclosing.rangeM)} — inside ${ring}, closest approach is now`,
+    if (track.groundSpeedKt === null || track.headingDeg === null) {
+      candidates.push({ value: 0, detail: 'speed or heading not observed', rangeM })
+      continue
     }
-  }
-  if (track.groundSpeedKt === null || track.headingDeg === null) {
-    return { value: 0, detail: 'speed or heading not observed' }
-  }
-  // Worst case across sites: the approach that scores highest is the one worth showing.
-  let best: { value: number; detail: string } | null = null
-  for (const site of sites) {
     const approach = closestApproach(
       track.position,
       track.headingDeg,
       track.groundSpeedKt * KT_TO_MS,
       site.center,
     )
-    if (approach === null) return { value: 0, detail: 'not moving' }
+    // A candidate, never a return: a hovering track inside another site's ring keeps its 100
+    // (#87 review).
+    if (approach === null) {
+      candidates.push({ value: 0, detail: 'not moving', rangeM })
+      continue
+    }
     const { cpaM, tcpaS } = approach
-    const candidate =
+    candidates.push(
       tcpaS <= 0
-        ? { value: 0, detail: 'opening — closest approach already passed' }
+        ? { value: 0, detail: 'opening — closest approach already passed', rangeM }
         : {
             value:
-              (rolloff(cpaM, site.radiusM, site.radiusM * config.cpaRolloffRadii) *
+              ((rolloff(cpaM, site.radiusM, site.radiusM * config.cpaRolloffRadii) *
                 rolloff(tcpaS / 60, config.tcpaFullMin, config.tcpaZeroMin)) /
-              100,
-            detail: `CPA ${km(cpaM)} in ${Math.round(tcpaS / 60)} min`,
-          }
-    if (best === null || candidate.value > best.value) best = candidate
+                100) *
+              scale,
+            detail: `CPA ${km(cpaM)} in ${Math.round(tcpaS / 60)} min${note}`,
+            rangeM,
+          },
+    )
   }
-  return best ?? { value: 0, detail: 'no protected site' }
+  return worstCase(candidates)
 }
 
 /**
@@ -299,21 +345,35 @@ function proximity(
   track: ObservedTrack,
   sites: readonly ProtectedSite[],
   config: ScoringConfig['proximity'],
+  tiers: Tiers,
 ): { value: number; detail: string } {
   if (track.onGround) return ON_GROUND
-  let best: { value: number; detail: string } | null = null
-  for (const site of sites) {
-    const rangeM = distanceMeters(site.center, track.position)
-    const inside = rangeM <= site.radiusM
-    const ring = `${sites.length > 1 ? `${site.name}'s ` : 'the '}${km(site.radiusM)} ring`
-    const candidate = {
-      value: inside ? 100 : rolloff(rangeM, site.radiusM, site.radiusM * config.rolloffRadii),
-      detail: `${km(rangeM)} — ${inside ? 'inside' : 'outside'} ${ring}`,
-    }
-    if (best === null || candidate.value > best.value) best = candidate
-  }
-  return best ?? { value: 0, detail: 'no protected site' }
+  return worstCase(
+    sites.map((site) => {
+      const rangeM = distanceMeters(site.center, track.position)
+      const inside = rangeM <= site.radiusM
+      const ring = `${sites.length > 1 ? `${site.name}'s ` : 'the '}${km(site.radiusM)} ring`
+      return {
+        value:
+          (inside ? 100 : rolloff(rangeM, site.radiusM, site.radiusM * config.rolloffRadii)) *
+          tiers[site.tier],
+        detail: `${km(rangeM)} — ${inside ? 'inside' : 'outside'} ${ring}${tierNote(site, tiers)}`,
+        rangeM,
+      }
+    }),
+  )
 }
+
+/** The set as the record carries it: the fields the operator saw, and the kind (08a). */
+const siteRecords = (sites: readonly ProtectedSite[]): SiteRecord[] =>
+  sites.map(({ id, name, tier, center, radiusM }) => ({
+    id,
+    name,
+    kind: 'protected',
+    tier,
+    center,
+    radiusM,
+  }))
 
 function kinematic(
   track: ObservedTrack,
@@ -381,8 +441,8 @@ export function scoreTrack(
   const pattern = patternOfLife(track, context.history, config.pattern)
   const raw: Record<FactorId, { value: number; detail: string }> = {
     cooperativity: cooperativity(track, context, config.cooperativity),
-    closing: closing(track, sites, config.closing),
-    proximity: proximity(track, sites, config.proximity),
+    closing: closing(track, sites, config.closing, config.tierMultiplier),
+    proximity: proximity(track, sites, config.proximity, config.tierMultiplier),
     pattern: { value: pattern.value, detail: pattern.detail },
     kinematic: kinematic(track, config.kinematic),
     time: timeContext(context.minuteOfDay, config.operatingHours),
@@ -413,6 +473,7 @@ export function scoreTrack(
     pattern: pattern.kind,
     rangeM: nearest.rangeM,
     siteId: nearest.site.id,
+    sites: siteRecords(sites),
   }
 }
 
@@ -421,8 +482,8 @@ export function scoreTrack(
  * the same breakdown the operator saw, over the record's own doctrine rather than the live
  * config — the case #64 kept the weights for. The composite and its uncapped twin are the
  * snapshot's own; capped is their inequality. Factor detail lines are not in the record, and
- * say so. The range, the site it was measured to, and the named pattern are the snapshot's too
- * (#75 review; 05b).
+ * say so. The range, the site it was measured to, the named pattern, and the site set in force
+ * are the snapshot's too (#75 review; 05b; 08a).
  */
 export function scoreFromSnapshot(
   observed: {
@@ -433,6 +494,7 @@ export function scoreFromSnapshot(
     rangeM: number
     siteId: string
     pattern: PatternKind | null
+    sites: readonly SiteRecord[]
   },
   config: ScoringConfig = SCORING,
 ): Score {
@@ -462,5 +524,6 @@ export function scoreFromSnapshot(
     pattern: observed.pattern,
     rangeM: observed.rangeM,
     siteId: observed.siteId,
+    sites: observed.sites,
   }
 }

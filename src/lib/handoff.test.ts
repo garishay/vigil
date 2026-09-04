@@ -55,7 +55,6 @@ const walkToEscalated = (ranked: RankedTrack) => {
 const text = (ranked: RankedTrack, log = walkToEscalated(ranked)) =>
   handoffText({
     entry: ranked,
-    sites: AO.protectedSites,
     recipient: PHL_TOWER,
     log,
     contacts: CONTACTS,
@@ -73,6 +72,8 @@ describe('handoffText', () => {
         'Track TRK-05 · Non-cooperative · synthetic inject',
         'Range 7.2 km to PHL Airfield at 02:30:00',
         '  63 ft · 19.1 kt · hdg 346',
+        // The site the range was measured to, as the record carries it (08a).
+        '  PHL Airfield · protected · tier 1 · 5.0 km',
         // The factor lines sum to the total on the Score line within rounding (25 + 9 + 12 + 0
         // + 10 + 10 = 66 ≈ 65.6); the total reproduces the score — 65.6 / 95 = 69 % — which a sum
         // of rounded parts would not (66 / 95 = 69.5 %) (ruled on #63, rounds 1 and 2). No
@@ -93,13 +94,19 @@ describe('handoffText', () => {
     // 53 characters is the measured fit of the drawer's handoff block at 26 rem in 12 px mono
     // (re-measured with the Z-marked clock). This pin is what keeps the re-gate closed: a longer
     // contact name, site name, new disposition, or a PR 04 factor line that overflows the column
-    // fails here, not on screen. Sites sweep the AO config too — the range line carries them.
+    // fails here, not on screen. The site name sweeps the editor's cap (08a): a 20-character name
+    // at the widest suffix — protected, tier 2, a 12.0 km ring — lands the site line on 53 exactly.
     const MAX_LINE = 53
-    for (const site of AO.protectedSites) {
+    const widest = { id: 'phl-airfield', name: 'x'.repeat(20), kind: 'protected' as const }
+    const siteSets = [
+      AO.protectedSites.map((site) => ({ ...site, kind: 'protected' as const })),
+      [{ ...AO.protectedSites[0], ...widest, tier: 2 as const, radiusM: 12_000 }],
+    ]
+    for (const sites of siteSets) {
       for (const contact of CONTACTS) {
         for (const disposition of DISPOSITIONS) {
           const ranked = entry(INJECT)
-          const observed = observedSnapshot(ranked)
+          const observed = { ...observedSnapshot(ranked), sites }
           let log = firstSeen(ranked.track.id, observed, '2026-09-01T12:04:31.000Z')
           log = appendEvent(log, 'assess', { at: '2026-09-01T12:06:02.000Z', tSec: 0, observed })
           log = appendEvent(log, 'escalate', {
@@ -116,7 +123,6 @@ describe('handoffText', () => {
           })
           const summary = handoffText({
             entry: { ...ranked, rangeM: 19700.4 },
-            sites: [{ id: 'phl-airfield', name: site.name }],
             recipient: contact,
             log,
             contacts: CONTACTS,
@@ -240,10 +246,6 @@ describe('handoffText — the evidence block is the escalation’s (06b)', () =>
     const drifted: RankedTrack = { ...then, siteId: 'decoy', rangeM: 900 }
     const summary = handoffText({
       entry: drifted,
-      sites: [
-        { id: 'decoy', name: 'Decoy Stadium' },
-        { id: 'phl-airfield', name: 'PHL Airfield' },
-      ],
       recipient: PHL_TOWER,
       log,
       contacts: CONTACTS,
@@ -252,6 +254,32 @@ describe('handoffText — the evidence block is the escalation’s (06b)', () =>
     })
     expect(summary).toContain('Range 7.2 km to PHL Airfield at 02:30:00')
     expect(summary).not.toContain('Decoy')
+  })
+
+  it('names the site from the snapshot, so one removed after the escalation is still named (08a)', () => {
+    // Escalated against a session site; the live picture no longer has it. The snapshot's own
+    // site set carries the name and the ring, and the evidence block prints both.
+    const fence = {
+      id: 'site-2',
+      name: 'Approach fence',
+      kind: 'protected' as const,
+      tier: 1 as const,
+      center: [-75.302, 39.8451] as [number, number],
+      radiusM: 1500,
+    }
+    const then = entry(INJECT)
+    const observed = { ...observedSnapshot(then), siteId: fence.id, rangeM: 900, sites: [fence] }
+    let log = firstSeen(then.track.id, observed, '2026-09-01T12:04:31.000Z')
+    log = appendEvent(log, 'assess', { at: '2026-09-01T12:06:02.000Z', tSec: 0, observed })
+    log = appendEvent(log, 'escalate', {
+      at: '2026-09-01T12:07:45.000Z',
+      tSec: 0,
+      observed,
+      recipient: 'phl-tower',
+    })
+    const summary = text({ ...then, siteId: 'phl-airfield', rangeM: 7200.2 }, log)
+    expect(summary).toContain('Range 0.9 km to Approach fence at 02:30:00')
+    expect(summary).toContain('\n  Approach fence · protected · tier 1 · 1.5 km\n')
   })
 
   it('carries a band crossing in the timeline, marked in sim time', () => {

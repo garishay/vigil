@@ -29,10 +29,12 @@ import type { InjectTrack } from './tracks'
 import { AO } from '../config/ao'
 import { SCORING, type FactorId, type PatternKind } from '../config/scoring'
 
+const PHL_SITES = AO.protectedSites.map((site) => ({ ...site, kind: 'protected' as const }))
 const OBSERVED: ObservedSnapshot = {
   identity: 'non-cooperative',
   rangeM: 7200.2,
   siteId: 'phl-airfield',
+  sites: PHL_SITES,
   altitudeFt: 63,
   groundSpeedKt: 19.1,
   headingDeg: 345.6,
@@ -193,6 +195,7 @@ describe('learner-ready shape (§8.3b)', () => {
       identity: 'non-cooperative',
       rangeM: 7200.2,
       siteId: 'phl-airfield',
+      sites: PHL_SITES,
       altitudeFt: 63,
       groundSpeedKt: null,
       headingDeg: track.headingDeg,
@@ -274,6 +277,7 @@ describe('learner-ready shape (§8.3b)', () => {
         'rangeM',
         'score',
         'siteId',
+        'sites',
         'uncapped',
         'weights',
       ])
@@ -327,6 +331,7 @@ describe('band crossings (06b)', () => {
       pattern: null,
       rangeM: 7200.2,
       siteId: 'phl-airfield',
+      sites: PHL_SITES,
     },
   })
   const openedAt = (score: number) =>
@@ -422,6 +427,7 @@ describe('band crossings are forward only (#75 review)', () => {
       pattern: null,
       rangeM: 7200.2,
       siteId: 'phl-airfield',
+      sites: PHL_SITES,
     },
   })
 

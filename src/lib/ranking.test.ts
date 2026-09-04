@@ -163,6 +163,7 @@ describe('rankTracks', () => {
       name: 'Other',
       center: at(20_000, 90),
       radiusM: 1000,
+      tier: 1,
     }
     const nearOther = adsb('a00001', 0, { position: at(19_000, 90) })
     const [entry] = rankTracks([nearOther], [SITE, other])

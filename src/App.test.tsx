@@ -5,6 +5,8 @@ import { AO } from './config/ao'
 import { SCENARIO } from './config/scenario'
 import type { CaptureState } from './data/useCapture'
 import type { Schedule } from './data/usePlayback'
+import { trackIdent } from './lib/display'
+import { gridTimeline, injectTracksAt, planScenario as planInjects } from './lib/injects'
 
 // Every `terminalIds` the map was handed, in order — the array *identities*, not their contents,
 // because the map re-pushes its whole source when that prop changes and the ruling on #61 is that
@@ -15,8 +17,17 @@ const { terminalIdsSeen } = vi.hoisted(() => ({
 
 // The map itself is covered by MapView.test.tsx; here it is stubbed so these tests stay about
 // layout, navigation, and what the picture status strip reports.
+// Where the stub map's placement click lands (08a); a test sets it before pressing map-place.
+const { placeTarget } = vi.hoisted(() => ({
+  placeTarget: { center: [-75.3, 39.85] as [number, number] },
+}))
+
 vi.mock('./components/MapView', () => ({
   MapView: ({
+    sites = [],
+    selectedSiteId = null,
+    placing = false,
+    onPlace,
     tracks,
     injects,
     selectedId,
@@ -25,6 +36,10 @@ vi.mock('./components/MapView', () => ({
     terminalIds = [],
     onSelect,
   }: {
+    sites?: readonly { id: string }[]
+    selectedSiteId?: string | null
+    placing?: boolean
+    onPlace?: (center: [number, number]) => void
     tracks?: { id: string }[]
     injects?: { id: string }[]
     selectedId?: string | null
@@ -43,12 +58,21 @@ vi.mock('./components/MapView', () => ({
         data-selection-shown={String(selectionShown)}
         data-trail={trail.length}
         data-terminal={[...terminalIds].join(',')}
+        data-sites={sites.map((site) => site.id).join(',')}
+        data-selected-site={selectedSiteId ?? ''}
+        data-placing={String(placing)}
       >
         {/* Stands in for a dot click: selects the first inject, like the real map would. */}
         <button
           type="button"
           data-testid="map-select"
           onClick={() => injects?.[0] && onSelect?.(injects[0].id)}
+        />
+        {/* Stands in for the placement click (08a): reports the test's target position. */}
+        <button
+          type="button"
+          data-testid="map-place"
+          onClick={() => onPlace?.(placeTarget.center)}
         />
       </div>
     )
@@ -1313,5 +1337,156 @@ describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', 
     fireEvent.click(screen.getByRole('button', { name: 'Active' }))
     expect(rows().some((row) => within(row).queryByText('TRK-06'))).toBe(false)
     expect(rows().some((row) => within(row).queryByText('TRK-03'))).toBe(false)
+  })
+})
+
+describe('App Sites surface (08a, ruled on #86)', () => {
+  const action = (name: string) => screen.getByRole('button', { name })
+  const rows = () =>
+    within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+  const siteRows = () =>
+    within(screen.getByRole('list', { name: 'Site set' })).getAllByRole('listitem')
+  const logLines = () =>
+    within(screen.getByLabelText('Event log'))
+      .getAllByRole('listitem')
+      .map((line) => line.textContent ?? '')
+  /** Each row's ident and chip, in queue order — the picture as the operator reads it. */
+  const chips = () =>
+    rows().map(
+      (row) =>
+        `${row.querySelector('.queue__ident')?.textContent}:${row.querySelector('.queue__score')?.textContent}`,
+    )
+  const seek = (value: string) =>
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value } })
+
+  /** A silent inject at its first-seen position, from the plan App holds for the stub recording. */
+  const silentInject = () =>
+    injectTracksAt(planInjects(gridTimeline(1, 15000)), 0).find(
+      (inject) => inject.identity === 'non-cooperative',
+    )!
+
+  it('opens on the config set, and a placed site re-scores the queue and logs the crossing at sim time', () => {
+    render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(action('Queue'))
+    const before = chips()
+    fireEvent.click(action('Sites'))
+    expect(screen.getByRole('heading', { name: 'Sites' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Sites in the set')).toHaveTextContent('1')
+    expect(siteRows()).toHaveLength(1)
+    expect(siteRows()[0]).toHaveTextContent('PHL Airfield')
+    expect(screen.getByText('1 site · config')).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield')
+
+    // Place a ring on a silent inject's first-seen position: it is inside the ring at once.
+    const target = silentInject()
+    placeTarget.center = target.position
+    fireEvent.click(action('+ Protected site'))
+    expect(screen.getByText('Click the map to place the centre')).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'true')
+    fireEvent.click(screen.getByTestId('map-place'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
+    expect(siteRows()).toHaveLength(2)
+    expect(siteRows()[1]).toHaveTextContent('Site 2')
+    expect(siteRows()[1]).toHaveTextContent('1.0 km ring · 02:30:00')
+    // Selected for editing, and the map draws it heavier.
+    expect(screen.getByRole('group', { name: 'Edit Site 2' })).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected-site', 'site-2')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield,site-2')
+    expect(screen.getByText('2 sites · edited from config')).toBeInTheDocument()
+
+    // The queue re-scored against the session set: the inject sits inside the new ring and
+    // reads warning; its record logs the crossing at sim time, after its first-seen line.
+    fireEvent.click(action('Queue'))
+    expect(chips()).not.toEqual(before)
+    const row = rows().find((r) => within(r).queryByText(trackIdent(target))) as HTMLElement
+    expect(row.querySelector('.queue__score')).toHaveAttribute('data-band', 'warning')
+    fireEvent.click(within(row).getByRole('button'))
+    expect(logLines()).toEqual([
+      expect.stringMatching(/^02:30:00New — first seen/),
+      '02:30:00Warning — up from caution',
+    ])
+    // Every ADS-B row is still capped and cooperative: a site never makes a real aircraft the threat.
+    for (const r of rows()) {
+      if (within(r).queryByText('ADS-B')) {
+        expect(r.querySelector('.queue__score')).toHaveAttribute('data-band', 'calm')
+        expect(r).toHaveTextContent('Cooperative aircraft')
+      }
+    }
+
+    // Reset returns the config picture exactly.
+    fireEvent.click(action('Sites'))
+    fireEvent.click(action('Reset to config'))
+    expect(screen.getByText('1 site · config')).toBeInTheDocument()
+    fireEvent.click(action('Queue'))
+    expect(chips()).toEqual(before)
+  })
+
+  it('disarms a move when its site is removed or the set is reset (#87 review)', () => {
+    render(<App schedule={never} />)
+    fireEvent.click(action('Sites'))
+    placeTarget.center = silentInject().position
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    fireEvent.click(action('Move on map'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'true')
+    fireEvent.click(action('Remove'))
+    expect(siteRows()).toHaveLength(1)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
+    expect(screen.queryByText(/Click the map/)).not.toBeInTheDocument()
+    // The same through Reset.
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    fireEvent.click(action('Move on map'))
+    fireEvent.click(action('Reset to config'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
+  })
+
+  it('refuses a placement the rules refuse, saying why, and keeps the map armed', () => {
+    render(<App schedule={never} />)
+    fireEvent.click(action('Sites'))
+    placeTarget.center = [0, 0]
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    expect(screen.getByText('Centre is outside the AO')).toBeInTheDocument()
+    expect(siteRows()).toHaveLength(1)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'true')
+    // Leaving the surface disarms the map: a click on Home must not place a site.
+    fireEvent.click(action('Home'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
+  })
+
+  it('refuses site edits behind the record’s frontier — its own last edit included — and re-enables at it', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(action('Sites'))
+    seek('60')
+    placeTarget.center = silentInject().position
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    expect(siteRows()[1]).toHaveTextContent('1.0 km ring · 02:31:00')
+    // Armed, then rewound: the map disarms with the editor, so no click no-ops unexplained.
+    fireEvent.click(action('+ Protected site'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'true')
+
+    seek('30')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
+    expect(screen.queryByText(/Click the map/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Rewound — the workflow acts at the record’s frontier'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Clock 02:30:30 · record 02:31:00')).toBeInTheDocument()
+    expect(action('+ Protected site')).toBeDisabled()
+    expect(action('Reset to config')).toBeDisabled()
+    expect(screen.getByLabelText('Radius')).toBeDisabled()
+    expect(screen.getByRole('group', { name: 'Add a site' })).toHaveAttribute(
+      'aria-describedby',
+      'sites-rewound-state sites-rewound-times',
+    )
+
+    seek('60')
+    expect(screen.queryByText(/^Rewound — /)).not.toBeInTheDocument()
+    expect(action('+ Protected site')).toBeEnabled()
+    expect(action('Reset to config')).toBeEnabled()
   })
 })

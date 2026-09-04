@@ -31,6 +31,7 @@
  * down rather than absorbed. Both are observations: statuses carried, forward-only.
  */
 
+import type { SiteRecord } from '../config/ao.ts'
 import type { ContactId } from '../config/contacts.ts'
 import type { DispositionId } from '../config/dispositions.ts'
 import {
@@ -137,6 +138,13 @@ export interface ObservedSnapshot {
    * picture from a scoring bug (ruled on #36 [8], #64).
    */
   weights: Record<FactorId, number>
+  /**
+   * The site set the track was scored against — id, kind, tier, centre, radius, and the name
+   * (08a, ruled on #86): what the operator saw, by the same reasoning as the weights, so the
+   * frozen handoff still names a site removed after the escalation and a learner knows which
+   * geometry produced the label.
+   */
+  sites: readonly SiteRecord[]
 }
 
 export interface TrackEvent {
@@ -189,6 +197,7 @@ export const observedSnapshot = ({
     FactorId,
     number
   >,
+  sites: score.sites,
 })
 
 /** Every track starts New: a log opens with its synthetic first-seen entry. */

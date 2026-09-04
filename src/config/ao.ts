@@ -3,6 +3,12 @@
  * to any other region is an edit to this file — no component reads a coordinate of its own.
  */
 
+/**
+ * A site's tier (08a, ruled on #86): 1 is protected in full; 2 scales the geometry factors by
+ * `tierMultiplier` in `config/scoring.ts` — attend, not act, until the track behaves.
+ */
+export type SiteTier = 1 | 2
+
 /** A site Vigil scores tracks against. Point plus radius; schedules are a later phase. */
 export interface ProtectedSite {
   id: string
@@ -10,6 +16,25 @@ export interface ProtectedSite {
   /** [longitude, latitude] — GeoJSON order, which is also MapLibre's order. */
   center: [number, number]
   /** Protection ring radius in meters. */
+  radiusM: number
+  tier: SiteTier
+}
+
+/** The kinds of site an operator can declare; the friendly launch area arrives in 08b. */
+export type SiteKind = 'protected'
+
+/**
+ * A site as the record carries it (08a, ruled on #86): the set the operator saw when a track
+ * was scored, on the score and on every event's snapshot — id, kind, tier, centre, radius, and
+ * the name, so a site removed later is still named where the record prints it. Operator-typed
+ * configuration, never a person.
+ */
+export interface SiteRecord {
+  id: string
+  name: string
+  kind: SiteKind
+  tier: SiteTier
+  center: [number, number]
   radiusM: number
 }
 
@@ -47,6 +72,7 @@ export const PHL: AreaOfOperations = {
       center: [-75.2411, 39.8721],
       // Demonstration value, not a published boundary — tuned when scoring lands in PR 04.
       radiusM: 5000,
+      tier: 1,
     },
   ],
 }

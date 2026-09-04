@@ -30,6 +30,7 @@ const golden = JSON.parse(goldenRaw) as InjectScenario
 
 const SITE = AO.protectedSites[0]
 const SITES = AO.protectedSites
+const PHL_SITES = AO.protectedSites.map((site) => ({ ...site, kind: 'protected' as const }))
 
 /** A point `rangeM` from the protected site, due north unless told otherwise. */
 const at = (rangeM: number, bearingDeg = 0) => destinationPoint(SITE.center, bearingDeg, rangeM)
@@ -236,6 +237,7 @@ describe('closing geometry', () => {
       name: 'Decoy',
       center: at(40_000, 90),
       radiusM: 1000,
+      tier: 1,
     }
     const score = scoreTrack(inject(), [decoy, SITE], NIGHT)
     expect(score.factors.find((f) => f.id === 'closing')).toMatchObject({
@@ -243,10 +245,41 @@ describe('closing geometry', () => {
       detail: "1.0 km — inside PHL Airfield's ring, closest approach is now",
     })
     // Inside two rings, the nearer centre governs.
-    const nested: ProtectedSite = { id: 'inner', name: 'Inner', center: at(200), radiusM: 1000 }
+    const nested: ProtectedSite = {
+      id: 'inner',
+      name: 'Inner',
+      center: at(200),
+      radiusM: 1000,
+      tier: 1,
+    }
     expect(
       scoreTrack(inject(), [SITE, nested], NIGHT).factors.find((f) => f.id === 'closing')?.detail,
     ).toBe("0.8 km — inside Inner's ring, closest approach is now")
+  })
+
+  it('keeps the inside-ring 100 for a hovering track when another site reads not moving (#87 review)', () => {
+    // A helicopter holding position inside the airfield ring, airborne, with a second site the
+    // operator placed 40 km off: the far site's CPA is undefined at zero speed, and that must be
+    // a candidate for that site, never a verdict for the track.
+    const decoy: ProtectedSite = {
+      id: 'decoy',
+      name: 'Decoy',
+      center: at(40_000, 90),
+      radiusM: 1000,
+      tier: 1,
+    }
+    const hovering = inject({ groundSpeedKt: 0, headingDeg: 90 })
+    expect(
+      scoreTrack(hovering, [SITE, decoy], NIGHT).factors.find((f) => f.id === 'closing'),
+    ).toMatchObject({
+      value: 100,
+      detail: "1.0 km — inside PHL Airfield's ring, closest approach is now",
+    })
+    // Alone and outside every ring, not moving still reads as it did.
+    expect(factor({ ...hovering, position: at(6000) }, 'closing')).toMatchObject({
+      value: 0,
+      detail: 'not moving',
+    })
   })
 
   it('takes the worst case across protected sites', () => {
@@ -255,6 +288,7 @@ describe('closing geometry', () => {
       name: 'Decoy',
       center: at(40_000, 90),
       radiusM: 1000,
+      tier: 1,
     }
     const straightIn = inject()
     expect(factor(straightIn, 'closing').value).toBe(100)
@@ -291,6 +325,7 @@ describe('proximity', () => {
       name: 'Stadium',
       center: at(500),
       radiusM: 500,
+      tier: 1,
     }
     const drone = inject({ position: at(4000) })
     const score = scoreTrack(drone, [stadium, SITE], NIGHT)
@@ -843,6 +878,7 @@ describe('scoreFromSnapshot (06b)', () => {
       },
       rangeM: 1200,
       siteId: 'phl-airfield',
+      sites: PHL_SITES,
     }
     const score = scoreFromSnapshot(observed)
     expect(score.siteId).toBe('phl-airfield')
@@ -854,5 +890,74 @@ describe('scoreFromSnapshot (06b)', () => {
     expect(score.factors.map((factor) => factor.detail)).toContain(
       'as recorded when the operator acted',
     )
+  })
+})
+
+describe('the site tier (08a, ruled on #86)', () => {
+  const tier2: ProtectedSite = { ...SITE, id: 'stadium', name: 'Stadium', tier: 2 }
+  const value = (score: Score, id: FactorId) => score.factors.find((f) => f.id === id)!
+
+  it('scales the per-site closing and proximity value, not the weight, and names it on the detail', () => {
+    const drone = inject()
+    const full = scoreTrack(drone, [SITE], NIGHT)
+    const scaled = scoreTrack(drone, [tier2], NIGHT)
+    for (const id of ['closing', 'proximity'] as const) {
+      expect(value(full, id).value).toBe(100)
+      expect(value(scaled, id).value).toBe(50)
+      expect(value(scaled, id).weight).toBe(value(full, id).weight)
+      expect(value(scaled, id).contribution).toBe(value(full, id).contribution / 2)
+      expect(value(scaled, id).detail).toMatch(/ · tier 2 × 0\.5$/)
+      expect(value(full, id).detail).not.toMatch(/tier/)
+    }
+    for (const id of ['cooperativity', 'pattern', 'kinematic', 'time'] as const) {
+      expect(value(scaled, id)).toEqual(value(full, id))
+    }
+    // The gate's arithmetic: a silent low-and-slow drone inside a tier-2 ring reads caution
+    // where tier 1 reads warning; loitering inside it reads warning.
+    expect(full.composite).toBeCloseTo((80 / 95) * 100, 6)
+    expect(full.band).toBe('warning')
+    expect(scaled.composite).toBeCloseTo((62.5 / 95) * 100, 6)
+    expect(scaled.band).toBe('caution')
+  })
+
+  it('takes the worst case across sites after the tier scales each — a tier-1 ring far off outranks a tier-2 ring nearby', () => {
+    // Inside the tier-2 stadium ring (50) and 10 km from the tier-1 airfield, whose proximity
+    // rolls off to 50 there: a tie, and the nearer centre is named. Move the airfield to 9 km
+    // and its 60 wins over the ring the drone is standing in.
+    const stadium: ProtectedSite = { ...tier2, center: at(0) }
+    const drone = inject({ position: at(0), headingDeg: 0 })
+    const airfield9: ProtectedSite = { ...SITE, center: at(9000) }
+    const score = scoreTrack(drone, [stadium, airfield9], NIGHT)
+    expect(value(score, 'proximity').value).toBeCloseTo(60, 6)
+    expect(value(score, 'proximity').detail).toBe("9.0 km — outside PHL Airfield's 5.0 km ring")
+    // The record's arithmetic still reconciles: contributions are value × weight over the sum.
+    const weighted = score.factors.reduce((sum, f) => sum + (f.value / 100) * f.weight, 0)
+    expect(score.weighted).toBeCloseTo(weighted, 9)
+  })
+
+  it('carries the site set it scored against, as the record needs it, and rebuilds with it', () => {
+    const score = scoreTrack(inject(), [tier2, SITE], NIGHT)
+    expect(score.sites).toEqual([
+      { ...tier2, kind: 'protected' },
+      { ...SITE, kind: 'protected' },
+    ])
+    const rebuilt = scoreFromSnapshot({
+      score: score.composite,
+      uncapped: score.uncapped,
+      pattern: score.pattern,
+      factors: Object.fromEntries(score.factors.map((f) => [f.id, f.value])) as Record<
+        FactorId,
+        number
+      >,
+      weights: Object.fromEntries(score.factors.map((f) => [f.id, f.weight])) as Record<
+        FactorId,
+        number
+      >,
+      rangeM: score.rangeM,
+      siteId: score.siteId,
+      sites: score.sites,
+    })
+    expect(rebuilt.sites).toBe(score.sites)
+    expect(rebuilt.composite).toBe(score.composite)
   })
 })
