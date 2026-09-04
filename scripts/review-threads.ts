@@ -8,7 +8,8 @@
  *   node scripts/review-threads.ts <pr-number>
  *
  * The reading is a pure function of the GraphQL payload, so the test feeds it payloads and
- * never reaches the network; the one call is `gh`'s, made only by `main`. The clean claim is
+ * never reaches the network; the two calls — `gh` for the repository's name, then for the
+ * threads — are made only by `main` (closure on #97). The clean claim is
  * refused rather than faked (#97 review): a PR the API does not return — a wrong number, or one
  * the token cannot read — and a PR with more threads than the one page read both exit 2 and say
  * so, since a computed "clean" over a payload that never described the PR is the failure the
