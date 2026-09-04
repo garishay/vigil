@@ -55,6 +55,18 @@ describe('assertCaptureMatchesAo', () => {
   it('rejects a recording with no frames', () => {
     expect(() => assertCaptureMatchesAo({ ...CAPTURE, frames: [] }, PHL)).toThrow(/no frames/)
   })
+
+  // #84 made `capturedAt` load-bearing at render — the Recording field's date, a captured
+  // clock's hour — so a value `Date` cannot read is refused at load, where the hook's error
+  // state says so, rather than thrown out of render by `Intl` (#98 review).
+  it('rejects a recording whose capturedAt is not a date', () => {
+    expect(() => assertCaptureMatchesAo({ ...CAPTURE, capturedAt: 'yesterday' }, PHL)).toThrow(
+      /capturedAt.*"yesterday"/,
+    )
+    expect(() =>
+      assertCaptureMatchesAo({ ...CAPTURE, capturedAt: undefined as unknown as string }, PHL),
+    ).toThrow(/capturedAt/)
+  })
 })
 
 describe('loadCapture', () => {

@@ -71,6 +71,7 @@ flowchart LR
     replay -- origins: first sample, first frame --> score
     frames -- kinematic box --> score
     score --> rank
+    recs -- the default's hour, for a caller without a clock --> rank
     model --> airframe
     frames --> airframe
     workcfg --> hand
@@ -102,6 +103,7 @@ flowchart LR
   ao -- center · zoom · basemap: map, strip · default sites --> app
   sites -- session set: scorer, map, panel --> app
   cfg -- seed: strip --> app
+  recs -- ?recording= selection · the default --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot --> app
   life -- log · status · re-surface: drawer, state filter, row --> app
   workcfg -- pickers: drawer --> app

@@ -16,7 +16,7 @@ import type { AdsbCapture } from './adsb.ts'
 import { distanceMeters } from './geo.ts'
 import type { TrackEvent } from './lifecycle.ts'
 import type { RankedTrack } from './ranking.ts'
-import { formatClock, minuteOfDay, type Factor, type Score } from './scoring.ts'
+import { formatClock, minuteOfDay, zonedParts, type Factor, type Score } from './scoring.ts'
 import type { SessionSite } from './sites.ts'
 import type { Track } from './tracks.ts'
 
@@ -221,14 +221,8 @@ export const simClock = (startLocal: string, tSec: number) =>
 
 /** An instant's calendar date in a zone, `YYYY-MM-DD` — the recording's day where it was flown. */
 export function localDate(iso: string, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date(iso))
-  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '00'
-  return `${part('year')}-${part('month')}-${part('day')}`
+  const { year, month, day } = zonedParts(iso, timeZone)
+  return `${year}-${month}-${day}`
 }
 
 /**

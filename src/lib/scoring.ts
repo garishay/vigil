@@ -199,16 +199,29 @@ export function minuteOfDay(startLocal: string, tSec: number): number {
   return ((minutes % 1440) + 1440) % 1440
 }
 
-/** An instant as `HH:MM` on the wall clock of a zone — DST is the zone's business, not ours. */
-export function localClock(iso: string, timeZone: string): string {
+/**
+ * An instant's wall-clock parts in a zone, each two digits (the year four) — the one `Intl` read
+ * behind the clock start here and the recording's date in `lib/display.ts`. DST is the zone's
+ * business, not ours. The instant is validated at load (`data/capture.ts`), so a part is never
+ * missing here; the fallback is for the type, not for a case.
+ */
+export function zonedParts(iso: string, timeZone: string): Record<string, string> {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(new Date(iso))
-  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '00'
-  return `${part('hour')}:${part('minute')}`
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]))
+}
+
+/** An instant as `HH:MM` on the wall clock of a zone. */
+export function localClock(iso: string, timeZone: string): string {
+  const { hour, minute } = zonedParts(iso, timeZone)
+  return `${hour}:${minute}`
 }
 
 /**

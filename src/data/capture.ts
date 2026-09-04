@@ -37,6 +37,12 @@ export function assertCaptureMatchesAo(capture: AdsbCapture, ao: AreaOfOperation
   if (!Array.isArray(capture.frames) || capture.frames.length === 0) {
     throw new Error('capture contains no frames')
   }
+  // Load-bearing since #84: the Recording field's date and a captured clock's hour are read
+  // from it at render, where `Intl` would throw on a value `Date` cannot parse. Refused here,
+  // so the hook's error state says so instead of an error boundary (#98 review).
+  if (typeof capture.capturedAt !== 'string' || Number.isNaN(Date.parse(capture.capturedAt))) {
+    throw new Error(`capture has no readable capturedAt: "${String(capture.capturedAt)}"`)
+  }
 }
 
 /** Fetches and validates a recording. `fetcher` is injectable so tests need no network. */

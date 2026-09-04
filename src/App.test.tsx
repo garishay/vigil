@@ -201,6 +201,17 @@ describe('App shell', () => {
     )
     expect(screen.getByText('Sim clock').nextSibling).toHaveTextContent('18:02:00')
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
+    // And the scorer agrees with the strip (#98 review): no inject row is tagged off-hours, and
+    // the breakdown's Off-hours row reads the same hour, inside the window, at 0.
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
+    const queue = screen.getByRole('list', { name: 'Ranked queue' })
+    const rows = within(queue).getAllByRole('listitem')
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows)
+      expect(row.querySelector('.queue__reason')).not.toHaveTextContent('off-hours')
+    fireEvent.click(within(rows[0]).getByRole('button'))
+    expect(screen.getByText('18:02 local — within 06:00–22:00')).toBeInTheDocument()
   })
 
   it('holds the Recording field back with the counts until the recording is in (#84)', () => {
