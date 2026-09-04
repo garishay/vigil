@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   FACTORS,
   bandOf,
+  clockStartOf,
   formatClock,
+  localClock,
   minuteOfDay,
   parseClock,
   rememberIdentities,
@@ -15,6 +17,7 @@ import {
 } from './scoring'
 import { AO } from '../config/ao'
 import type { ProtectedSite } from '../config/ao'
+import { DEFAULT_RECORDING, recordingNamed } from '../config/recordings'
 import { SCORING, type FactorId } from '../config/scoring'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture } from './adsb'
@@ -437,6 +440,26 @@ describe('the clock helpers', () => {
     expect(minuteOfDay('02:30', 0)).toBe(150)
     expect(minuteOfDay('02:30', 599)).toBe(159)
     expect(minuteOfDay('23:30', 3600)).toBe(30)
+  })
+
+  // #84, A3 as ruled: the clock start is derived at load from the header the file already
+  // holds, in the AO's zone — with a summer and a winter instant, so DST is pinned.
+  it('opens a captured-clock recording at its wall time in the AO’s zone, DST included', () => {
+    const ny = { timeZone: 'America/New_York' }
+    const captured = recordingNamed('vigil-phl-002')
+    // EDT, UTC−4: 22:02Z is 18:02.
+    expect(clockStartOf(captured, { capturedAt: '2026-09-04T22:02:11.000Z' }, ny)).toBe('18:02')
+    // EST, UTC−5: the same wall instant in January is 17:02.
+    expect(clockStartOf(captured, { capturedAt: '2026-01-15T22:02:11.000Z' }, ny)).toBe('17:02')
+    // Past midnight UTC is still the evening before, locally — and the hour never prints as 24.
+    expect(clockStartOf(captured, { capturedAt: '2026-09-05T04:00:00.000Z' }, ny)).toBe('00:00')
+    expect(localClock('2026-09-05T03:10:00.000Z', 'America/New_York')).toBe('23:10')
+  })
+
+  it('opens a configured-clock recording at its configured hour, whatever the capture says', () => {
+    expect(clockStartOf(DEFAULT_RECORDING, { capturedAt: '2026-09-04T22:02:11.000Z' })).toBe(
+      '02:30',
+    )
   })
 
   it('formats a minute of day as the strip and the detail line print it', () => {

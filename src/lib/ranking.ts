@@ -8,7 +8,7 @@
  */
 
 import type { ProtectedSite } from '../config/ao.ts'
-import { SCENARIO } from '../config/scenario.ts'
+import { DEFAULT_RECORDING } from '../config/recordings.ts'
 import { IDENTITIES } from './identity.ts'
 import { minuteOfDay, scoreTrack, type Score, type ScoringContext } from './scoring.ts'
 import type { Track } from './tracks.ts'
@@ -24,10 +24,14 @@ export interface RankedTrack {
   score: Score
 }
 
-/** Frame 0 at the scenario's clock start, nothing yet heard — what a caller without a clock gets. */
+/**
+ * Frame 0 at the default recording's configured clock start, nothing yet heard — what a caller
+ * without a clock gets. The default is typed as its literal, so a default whose clock is
+ * `'captured'` would fail to compile here rather than score at an hour nobody chose (#84).
+ */
 const FRAME_ZERO: ScoringContext = {
   tSec: 0,
-  minuteOfDay: minuteOfDay(SCENARIO.clock.startLocal, 0),
+  minuteOfDay: minuteOfDay(DEFAULT_RECORDING.clock.startLocal, 0),
   memory: {},
 }
 

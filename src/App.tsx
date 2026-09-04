@@ -8,13 +8,14 @@ import { SitesPanel, type Placing } from './components/SitesPanel'
 import { AO } from './config/ao'
 import { CONTACTS, type ContactId } from './config/contacts'
 import { DISPOSITIONS, type DispositionId } from './config/dispositions'
+import { DEFAULT_RECORDING } from './config/recordings'
 import { REPLAY } from './config/replay'
 import { SCENARIO } from './config/scenario'
 import { SCORING } from './config/scoring'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useCapture } from './data/useCapture'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
-import { simClock } from './lib/display'
+import { recordingLabel, simClock } from './lib/display'
 import { injectTracksAt, planScenario, timelineOf } from './lib/injects'
 import {
   STATUSES,
@@ -47,7 +48,7 @@ import {
   pictureAt,
   trailAt,
 } from './lib/replay'
-import { minuteOfDay } from './lib/scoring'
+import { clockStartOf, minuteOfDay } from './lib/scoring'
 import {
   addSite,
   fromConfig,
@@ -171,14 +172,22 @@ export default function App({
   // One list for the Queue and the scorer: neither knows which layer a track came from.
   const tracks = useMemo<Track[]>(() => [...adsb, ...injects], [adsb, injects])
   // The identity memory — when each inject's ident was last heard — is a pure fold over the
-  // frame grid up to the clock, so play and seek agree on it (06a). The hour is the scenario's
-  // configured clock start plus the clock (ruled D2 on #4), and the strip shows the same number
-  // the breakdown scores against.
+  // frame grid up to the clock, so play and seek agree on it (06a). The hour is the recording's
+  // clock start plus the clock (#84, after D2 on #4): 001's configured 02:30, 002's capture wall
+  // time in the AO's zone — and the strip shows the same number the breakdown scores against.
+  // Until the recording is in nothing is scored, so the default's hour stands in.
   const memory = useMemo(
     () => (plan ? memoryAt((t) => injectTracksAt(plan, t), plan.intervalS, tSec) : {}),
     [plan, tSec],
   )
-  const clockMinute = minuteOfDay(SCENARIO.clock.startLocal, tSec)
+  const startLocal = useMemo(
+    () =>
+      capture.status === 'ready'
+        ? clockStartOf(capture.recording, capture.capture, AO)
+        : DEFAULT_RECORDING.clock.startLocal,
+    [capture],
+  )
+  const clockMinute = minuteOfDay(startLocal, tSec)
   // Each track's position history over the pattern window (05a), sampled at the clock as the
   // trail is — pure in t, so a seek reads the same history play would, and scores the same.
   const history = useMemo(
@@ -373,7 +382,7 @@ export default function App({
     })
   }
   // Sim time as the record prints it — the event log and the handoff timeline (06b).
-  const clock = (t: number) => simClock(SCENARIO.clock.startLocal, t)
+  const clock = (t: number) => simClock(startLocal, t)
   // The selected track's history trail: pure in the clock, drawn behind its dot (06b).
   const trail = useMemo(
     () => (index && selected ? trailAt(index, plan, selected.track, tSec) : []),
@@ -454,7 +463,19 @@ export default function App({
     { label: 'Cooperative', value: count(adsb.length) },
     { label: 'Injects', value: count(injects.length) },
     { label: 'Seed', value: SCENARIO.seed },
-    { label: 'Sim clock', value: simClock(SCENARIO.clock.startLocal, tSec) },
+    // The recording and the day it was flown (#84, ruled), and the clock it opens: held back with
+    // the counts until the recording is in, since all three are read off the loaded file.
+    {
+      label: 'Recording',
+      value:
+        capture.status === 'ready'
+          ? recordingLabel(capture.recording, capture.capture, AO)
+          : pending,
+    },
+    {
+      label: 'Sim clock',
+      value: capture.status === 'ready' ? simClock(startLocal, tSec) : pending,
+    },
   ]
 
   // On Review the Queue is unmounted, so its row-focus return has nothing to land on: the close

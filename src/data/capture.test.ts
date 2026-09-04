@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { assertCaptureMatchesAo, frameTracks, loadCapture } from './capture'
+import { assertCaptureMatchesAo, captureUrl, frameTracks, loadCapture } from './capture'
 import type { AdsbCapture } from '../lib/adsb'
 import { PHL } from '../config/ao'
+import { DEFAULT_RECORDING, recordingNamed } from '../config/recordings'
 
 const CAPTURE: AdsbCapture = {
   ao: 'phl',
@@ -30,6 +31,13 @@ const CAPTURE: AdsbCapture = {
 
 const respondWith = (body: unknown, ok = true, status = 200) =>
   vi.fn(async () => ({ ok, status, json: async () => body }) as unknown as Response)
+
+describe('captureUrl', () => {
+  it('serves each registry entry’s file from the app’s base (#84)', () => {
+    expect(captureUrl(DEFAULT_RECORDING)).toBe('/adsb-phl.json')
+    expect(captureUrl(recordingNamed('vigil-phl-002'))).toBe('/adsb-phl-002.json')
+  })
+})
 
 describe('assertCaptureMatchesAo', () => {
   it('accepts a recording made over this AO', () => {

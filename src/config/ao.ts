@@ -63,6 +63,11 @@ export interface AreaOfOperations {
   zoom: number
   /** [west, south, east, north] — the ADS-B capture window the PR 02 script will pull. */
   bbox: [number, number, number, number]
+  /**
+   * The IANA zone the AO keeps its clock in (#84). A recording whose clock opens at its capture
+   * wall time reads `capturedAt` in this zone, so relocating the AO relocates its clock.
+   */
+  timeZone: string
   /** MapLibre style document. Keyless and dark; see the PR 01 basemap decision. */
   basemapStyleUrl: string
   protectedSites: ProtectedSite[]
@@ -82,6 +87,7 @@ export const PHL: AreaOfOperations = {
   center: [-75.2411, 39.8721],
   zoom: 10,
   bbox: [-76.05, 39.27, -74.43, 40.47],
+  timeZone: 'America/New_York',
   basemapStyleUrl: DARK_MATTER,
   protectedSites: [
     {

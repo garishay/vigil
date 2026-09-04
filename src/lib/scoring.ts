@@ -35,8 +35,10 @@
  * for the snapshot and the frozen handoff.
  */
 
-import type { FriendlyArea, ProtectedSite, SiteRecord } from '../config/ao.ts'
+import { AO } from '../config/ao.ts'
+import type { AreaOfOperations, FriendlyArea, ProtectedSite, SiteRecord } from '../config/ao.ts'
 import { KINEMATIC_CLASS } from '../config/airframes.ts'
+import type { RecordingEntry } from '../config/recordings.ts'
 import {
   SCORING,
   type Band,
@@ -44,6 +46,7 @@ import {
   type PatternKind,
   type ScoringConfig,
 } from '../config/scoring.ts'
+import type { AdsbCapture } from './adsb.ts'
 import { closestApproach, distanceMeters } from './geo.ts'
 import { detectPattern, type TrackHistories } from './patterns.ts'
 import type { Track } from './tracks.ts'
@@ -194,6 +197,34 @@ export function parseClock(hhmm: string): number {
 export function minuteOfDay(startLocal: string, tSec: number): number {
   const minutes = parseClock(startLocal) + Math.floor(tSec / 60)
   return ((minutes % 1440) + 1440) % 1440
+}
+
+/** An instant as `HH:MM` on the wall clock of a zone — DST is the zone's business, not ours. */
+export function localClock(iso: string, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso))
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '00'
+  return `${part('hour')}:${part('minute')}`
+}
+
+/**
+ * The hour a recording's picture opens at (#84, ruled): the entry's configured `HH:MM`, or —
+ * for a recording whose clock is `'captured'` — its `capturedAt` read in the AO's time zone, so
+ * an evening bank opens in the evening and the off-hours factor reads inside operating hours.
+ * Derived at load, never stamped at capture: the header already holds the fact.
+ */
+export function clockStartOf(
+  recording: RecordingEntry,
+  capture: Pick<AdsbCapture, 'capturedAt'>,
+  ao: Pick<AreaOfOperations, 'timeZone'> = AO,
+): string {
+  return recording.clock === 'captured'
+    ? localClock(capture.capturedAt, ao.timeZone)
+    : recording.clock.startLocal
 }
 
 /** `HH:MM` for a minute of day — the strip's sim clock and the off-hours detail line. */

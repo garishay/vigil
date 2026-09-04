@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
+import { DEFAULT_RECORDING, recordingNamed } from './config/recordings'
 import { SCENARIO } from './config/scenario'
 import type { CaptureState } from './data/useCapture'
 import type { Schedule } from './data/usePlayback'
@@ -100,6 +101,7 @@ vi.mock('./data/useCapture', () => ({ useCapture }))
 
 const READY: CaptureState = {
   status: 'ready',
+  recording: DEFAULT_RECORDING,
   capture: {
     ao: 'phl',
     source: 'adsb.lol v2',
@@ -168,10 +170,44 @@ describe('App shell', () => {
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
   })
 
-  it('shows the sim clock at the scenario’s configured start — the hour the picture is scored at (04a)', () => {
+  it('shows the sim clock at the recording’s configured start — the hour the picture is scored at (04a)', () => {
     // Ruled with D2 on #4: the breakdown names a time the strip must not deny. PR 06 makes it tick.
+    // From #84 the hour is the recording's; 001 keeps 02:30 by config, for §13.
     render(<App schedule={never} />)
-    expect(screen.getByText('Sim clock').nextSibling).toHaveTextContent(SCENARIO.clock.startLocal)
+    expect(screen.getByText('Sim clock').nextSibling).toHaveTextContent('02:30:00')
+  })
+
+  it('names the loaded recording and its capture date beside the seed (#84)', () => {
+    render(<App schedule={never} />)
+    // 001's own date, in the AO's zone, beside its configured clock — the date is provenance.
+    expect(screen.getByText('Recording').nextSibling).toHaveTextContent(
+      'vigil-phl-001 · 2026-08-29',
+    )
+    expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
+  })
+
+  // R4 on #84: a recording whose clock is 'captured' opens at its capture wall time in the AO's
+  // zone, and the off-hours factor reads it — 22:02Z on 4 September is 18:02 in Philadelphia,
+  // inside operating hours, where 001's 02:30 is not.
+  it('opens a captured-clock recording at its wall time, inside operating hours (#84)', () => {
+    useCapture.mockReturnValue({
+      ...READY,
+      recording: recordingNamed('vigil-phl-002'),
+      capture: { ...READY.capture, capturedAt: '2026-09-04T22:02:11.000Z' },
+    } as CaptureState)
+    render(<App schedule={never} />)
+    expect(screen.getByText('Recording').nextSibling).toHaveTextContent(
+      'vigil-phl-002 · 2026-09-04',
+    )
+    expect(screen.getByText('Sim clock').nextSibling).toHaveTextContent('18:02:00')
+    expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
+  })
+
+  it('holds the Recording field back with the counts until the recording is in (#84)', () => {
+    useCapture.mockReturnValue({ status: 'loading' })
+    render(<App schedule={never} />)
+    expect(screen.getByText('Recording').nextSibling).toHaveTextContent('…')
+    expect(screen.getByText('Sim clock').nextSibling).toHaveTextContent('…')
   })
 
   it('scores every row, with the ADS-B block held under the ceiling (04a)', () => {
@@ -686,6 +722,7 @@ function manualClock() {
  */
 const MOVING: CaptureState = {
   status: 'ready',
+  recording: DEFAULT_RECORDING,
   capture: {
     ao: 'phl',
     source: 'adsb.lol v2',
@@ -918,6 +955,7 @@ describe('App replay clock (06a)', () => {
 /** The full recording's length with one parked aircraft, so the injects run their whole script. */
 const LONG: CaptureState = {
   status: 'ready',
+  recording: DEFAULT_RECORDING,
   capture: {
     ao: 'phl',
     source: 'adsb.lol v2',
