@@ -35,6 +35,7 @@ const OBSERVED: ObservedSnapshot = {
   rangeM: 7200.2,
   siteId: 'phl-airfield',
   sites: PHL_SITES,
+  friendly: false,
   altitudeFt: 63,
   groundSpeedKt: 19.1,
   headingDeg: 345.6,
@@ -196,6 +197,7 @@ describe('learner-ready shape (§8.3b)', () => {
       rangeM: 7200.2,
       siteId: 'phl-airfield',
       sites: PHL_SITES,
+      friendly: false,
       altitudeFt: 63,
       groundSpeedKt: null,
       headingDeg: track.headingDeg,
@@ -270,6 +272,7 @@ describe('learner-ready shape (§8.3b)', () => {
       expect(Object.keys(event.observed).sort()).toEqual([
         'altitudeFt',
         'factors',
+        'friendly',
         'groundSpeedKt',
         'headingDeg',
         'identity',
@@ -332,6 +335,7 @@ describe('band crossings (06b)', () => {
       rangeM: 7200.2,
       siteId: 'phl-airfield',
       sites: PHL_SITES,
+      friendly: false,
     },
   })
   const openedAt = (score: number) =>
@@ -428,6 +432,7 @@ describe('band crossings are forward only (#75 review)', () => {
       rangeM: 7200.2,
       siteId: 'phl-airfield',
       sites: PHL_SITES,
+      friendly: false,
     },
   })
 
@@ -654,5 +659,58 @@ describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
       expect(canRegain(back, 200)).toBe(false)
       expect(() => regained([], withScore(20, null), at, 1)).toThrow(/firstSeen/)
     })
+  })
+})
+
+describe('the friendly-launch guard on re-surface (08b, ruled on #86)', () => {
+  const at = '2026-09-01T12:06:02.000Z'
+  const track: InjectTrack = {
+    id: 'inject-02',
+    source: 'inject',
+    behavior: 'orbit',
+    remoteId: 'broadcasting',
+    uaType: null,
+    identity: 'cooperative',
+    callsign: 'UAS-A341',
+    position: [-75.2819, 39.7859],
+    altitudeFt: 230,
+    onGround: false,
+    groundSpeedKt: 20,
+    headingDeg: 90,
+    verticalRateFpm: 0,
+    lastSeenSec: 0,
+  }
+  const entry = (score: number): RankedTrack => ({
+    track,
+    rank: 1,
+    rangeM: 4700,
+    siteId: 'phl-airfield',
+    score: {
+      composite: score,
+      weighted: 0,
+      total: 0,
+      totalWeight: 95,
+      uncapped: score,
+      capped: false,
+      friendly: false,
+      band: bandOf(score, SCORING.bands),
+      factors: [],
+      pattern: null,
+      rangeM: 4700,
+      siteId: 'phl-airfield',
+      sites: PHL_SITES,
+    },
+  })
+
+  it('never re-surfaces a track under the condition, and lifts once the ident lapses', () => {
+    // Dismissed calm, then a crossing up to warning since: re-surfaces as a drone, not as a
+    // friendly one — keyed on the condition, never on the cap having bound.
+    const calm = firstSeen('inject-02', { ...OBSERVED, score: 30, uncapped: 30 }, at)
+    const dismissed = appendEvent(calm, 'dismiss', { at, tSec: 0, observed: calm[0].observed })
+    const crossed = bandCrossing(dismissed, entry(84), at, 5)!
+    expect(resurfaced(crossed, 'inject')).toBe(true)
+    expect(resurfaced(crossed, 'inject', false)).toBe(true)
+    expect(resurfaced(crossed, 'inject', true)).toBe(false)
+    expect(resurfaced(crossed, 'adsb', false)).toBe(false)
   })
 })

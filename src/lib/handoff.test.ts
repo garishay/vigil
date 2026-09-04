@@ -354,3 +354,23 @@ describe('handoffText — the word rides the timeline (05b, ruled on #5)', () =>
     for (const line of summary.split('\n')) expect(line.length).toBeLessThanOrEqual(53)
   })
 })
+
+describe('the friendly cap in the frozen evidence block (08b)', () => {
+  it('prints the friendly line from the snapshot, never the ceiling wording', () => {
+    const then = entry(INJECT)
+    const observed = { ...observedSnapshot(then), score: 30, uncapped: 80, friendly: true }
+    let log = firstSeen(then.track.id, observed, '2026-09-01T12:04:31.000Z')
+    log = appendEvent(log, 'assess', { at: '2026-09-01T12:06:02.000Z', tSec: 0, observed })
+    log = appendEvent(log, 'escalate', {
+      at: '2026-09-01T12:07:45.000Z',
+      tSec: 0,
+      observed,
+      recipient: 'phl-tower',
+    })
+    const summary = text(then, log)
+    expect(summary).toContain('Score: 30 (calm) — capped, ')
+    expect(summary).toContain('\n  Friendly launch — capped at 30 (uncapped 80)\n')
+    expect(summary).not.toContain('cooperative aircraft')
+    for (const line of summary.split('\n')) expect(line.length).toBeLessThanOrEqual(53)
+  })
+})

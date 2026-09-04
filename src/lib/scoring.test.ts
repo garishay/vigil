@@ -879,6 +879,7 @@ describe('scoreFromSnapshot (06b)', () => {
       rangeM: 1200,
       siteId: 'phl-airfield',
       sites: PHL_SITES,
+      friendly: false,
     }
     const score = scoreFromSnapshot(observed)
     expect(score.siteId).toBe('phl-airfield')
@@ -956,8 +957,107 @@ describe('the site tier (08a, ruled on #86)', () => {
       rangeM: score.rangeM,
       siteId: score.siteId,
       sites: score.sites,
+      friendly: score.friendly,
     })
     expect(rebuilt.sites).toBe(score.sites)
     expect(rebuilt.composite).toBe(score.composite)
+  })
+})
+
+describe('the friendly launch cap (08b, ruled on #86)', () => {
+  const area = { id: 'area-2', name: 'Drone unit pad', center: at(9000), radiusM: 500 }
+  /** First seen inside the area — the observed origin the condition reads. */
+  const launched = at(9000)
+  const heard = () =>
+    inject({ identity: 'cooperative', callsign: 'UAS-0001', remoteId: 'broadcasting' })
+  const ctx = (over: Partial<ScoringContext> = {}): ScoringContext => ({
+    ...NIGHT,
+    friendly: [area],
+    origins: { 'inject-01': launched },
+    ...over,
+  })
+
+  it('caps a track first seen inside a friendly area and heard, at its own value, calm', () => {
+    const score = scoreTrack(heard(), SITES, ctx())
+    expect(score.friendly).toBe(true)
+    expect(score.capped).toBe(true)
+    expect(score.composite).toBe(SCORING.friendlyCap)
+    expect(score.uncapped).toBeGreaterThan(SCORING.friendlyCap)
+    expect(score.band).toBe('calm')
+    // The factors are untouched — the cap is after the sum, as the ceiling is.
+    expect(score.factors).toEqual(scoreTrack(heard(), SITES, NIGHT).factors)
+    // Its own config value: raise it and the cap follows, the ceiling does not.
+    const raised = scoreTrack(heard(), SITES, ctx({ config: { ...SCORING, friendlyCap: 50 } }))
+    expect(raised.composite).toBe(50)
+  })
+
+  it('is two observations — origin inside, and heard — and each alone is nothing', () => {
+    // Inside, silent: the origin is observed, the identity is not.
+    const silent = scoreTrack(inject(), SITES, ctx())
+    expect(silent.friendly).toBe(false)
+    expect(silent.composite).toBe(scoreTrack(inject(), SITES, NIGHT).composite)
+    // Heard, first seen outside; heard with no known origin; heard with no areas.
+    expect(scoreTrack(heard(), SITES, ctx({ origins: { 'inject-01': at(20_000) } })).friendly).toBe(
+      false,
+    )
+    expect(scoreTrack(heard(), SITES, ctx({ origins: {} })).friendly).toBe(false)
+    expect(scoreTrack(heard(), SITES, ctx({ friendly: [] })).friendly).toBe(false)
+    // Inside and heard, but under the cap already: the condition holds, nothing binds.
+    const calm = scoreTrack(heard(), SITES, ctx({ config: { ...SCORING, friendlyCap: 90 } }))
+    expect(calm.friendly).toBe(true)
+    expect(calm.capped).toBe(false)
+  })
+
+  it('holds for the identity dwell after the last ident, and lapses with it (A4 on #86)', () => {
+    const quiet = inject({ identity: 'unknown', remoteId: 'intermittent' })
+    const at = (last: number | null, tSec: number) =>
+      scoreTrack(quiet, SITES, ctx({ tSec, memory: { 'inject-01': { lastHeardTSec: last } } }))
+    const { dwellS } = SCORING.cooperativity
+    expect(at(100, 100 + dwellS).friendly).toBe(true)
+    expect(at(100, 100 + dwellS + 1).friendly).toBe(false)
+    expect(at(null, 500).friendly).toBe(false)
+  })
+
+  it('scores two tracks differing only in the label identically under a friendly area (ruled on #4)', () => {
+    const a = heard()
+    const b: InjectTrack = { ...heard(), remoteId: 'intermittent', behavior: 'loiter' }
+    expect(scoreTrack(a, SITES, ctx())).toEqual(scoreTrack(b, SITES, ctx()))
+  })
+
+  it('never applies to a real aircraft, whatever its origin: the ceiling is its cap', () => {
+    const aircraft = frameTracks(capture.frames[0]).find((track) => !track.onGround)!
+    const over = { ...area, center: aircraft.position }
+    const score = scoreTrack(aircraft, SITES, {
+      ...NIGHT,
+      friendly: [over],
+      origins: { [aircraft.id]: aircraft.position },
+    })
+    expect(score.friendly).toBe(false)
+    expect(score.composite).toBeLessThanOrEqual(SCORING.adsbCeiling)
+  })
+
+  it('carries the friendly areas on the score with their kind, and rebuilds the cap from the snapshot', () => {
+    const score = scoreTrack(heard(), SITES, ctx())
+    expect(score.sites.at(-1)).toEqual({ ...area, kind: 'friendly' })
+    const rebuilt = scoreFromSnapshot({
+      score: score.composite,
+      uncapped: score.uncapped,
+      pattern: score.pattern,
+      factors: Object.fromEntries(score.factors.map((f) => [f.id, f.value])) as Record<
+        FactorId,
+        number
+      >,
+      weights: Object.fromEntries(score.factors.map((f) => [f.id, f.weight])) as Record<
+        FactorId,
+        number
+      >,
+      rangeM: score.rangeM,
+      siteId: score.siteId,
+      sites: score.sites,
+      friendly: score.friendly,
+    })
+    expect(rebuilt.friendly).toBe(true)
+    expect(rebuilt.capped).toBe(true)
+    expect(rebuilt.composite).toBe(SCORING.friendlyCap)
   })
 })

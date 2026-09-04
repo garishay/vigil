@@ -145,6 +145,12 @@ export interface ObservedSnapshot {
    * geometry produced the label.
    */
   sites: readonly SiteRecord[]
+  /**
+   * The friendly-launch condition at the moment (08b): first seen inside a friendly area and
+   * heard. Derived from two observations, and seen — it is the word the tag leads with and the
+   * line the cap prints — so it is part of the moment, and the frozen handoff prints its cap.
+   */
+  friendly: boolean
 }
 
 export interface TrackEvent {
@@ -198,6 +204,7 @@ export const observedSnapshot = ({
     number
   >,
   sites: score.sites,
+  friendly: score.friendly,
 })
 
 /** Every track starts New: a log opens with its synthetic first-seen entry. */
@@ -389,13 +396,16 @@ export function regained(
  * shows an upward band crossing or a pattern onset. Read off the log — the status stays
  * Dismissed and the §7.1 table gains nothing — and never true of a real aircraft, keyed on the
  * observed source exactly as the ceiling is (#82 review): an airliner under the ceiling is not
- * capped, and on a cooperative aircraft a pattern is ordered, not surfaced (4A).
+ * capped, and on a cooperative aircraft a pattern is ordered, not surfaced (4A). Never a track
+ * under the friendly-launch condition either (08b, ruled on #86) — keyed on the condition, not on
+ * the cap having bound, as the cooperative rule is; once the ident lapses the guard lifts with it.
  */
 export function resurfaced(
   log: readonly TrackEvent[] | undefined,
   source: Track['source'],
+  friendly = false,
 ): boolean {
-  if (source === 'adsb' || !log || statusOf(log) !== 'dismissed') return false
+  if (source === 'adsb' || friendly || !log || statusOf(log) !== 'dismissed') return false
   const dismissedAt = log.findLastIndex((event) => event.action === 'dismiss')
   return log
     .slice(dismissedAt + 1)

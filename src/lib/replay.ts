@@ -36,6 +36,8 @@ interface Sample {
 
 /** The recording re-keyed by aircraft, so the clock can ask for one track's neighbours. */
 export interface ReplayIndex {
+  /** The first frame's time, seconds — the instant an inject is first in the picture (08b). */
+  startS: number
   /** The last frame's time, seconds — where the clock stops. */
   durationS: number
   samples: ReadonlyMap<string, readonly Sample[]>
@@ -54,7 +56,31 @@ export function indexCapture(capture: AdsbCapture): ReplayIndex {
       samples.set(track.id, list)
     }
   }
-  return { durationS: frames.length > 0 ? frames[frames.length - 1].tMs / 1000 : 0, samples }
+  return {
+    startS: frames.length > 0 ? frames[0].tMs / 1000 : 0,
+    durationS: frames.length > 0 ? frames[frames.length - 1].tMs / 1000 : 0,
+    samples,
+  }
+}
+
+/**
+ * Every track's observed first-seen position, by id (08b, ruled on #86): an aircraft's first
+ * sample off the index, an inject's position at the recording's first frame — read from the
+ * data, never from what the session has rendered, so a session opened at a seek reads the same
+ * origin a session played from the start would (the determinism criterion), and a live feed has
+ * the same fact in a track's first message. Nothing here reads the generator's launch points:
+ * an inject's origin is where the picture first showed it. Built once per recording; the
+ * friendly-launch condition in the scorer reads it as `origins`.
+ */
+export function originsOf(
+  index: ReplayIndex,
+  plan: InjectPlan | null,
+): Readonly<Record<string, [number, number]>> {
+  const origins: Record<string, [number, number]> = {}
+  for (const [id, samples] of index.samples) origins[id] = samples[0].track.position
+  if (plan)
+    for (const inject of injectTracksAt(plan, index.startS)) origins[inject.id] = inject.position
+  return origins
 }
 
 /**

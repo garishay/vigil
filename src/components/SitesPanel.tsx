@@ -1,30 +1,43 @@
 import { useEffect, useRef, useState } from 'react'
 import { Rewound } from './Rewound'
-import type { AreaOfOperations, ProtectedSite, SiteTier } from '../config/ao'
+import { useCopy } from './useCopy'
+import type {
+  AreaOfOperations,
+  FriendlyArea,
+  ProtectedSite,
+  SiteKind,
+  SiteTier,
+} from '../config/ao'
 import { siteKindLine, siteOriginLine } from '../lib/display'
 import {
   SITE_LIMITS,
   canAdd,
   canRemove,
   edited,
+  sitePlanText,
   siteProblem,
+  type SessionArea,
   type SessionSite,
   type SitePatch,
   type SiteSet,
 } from '../lib/sites'
 
-/** What the next map click does: place a new site, or move the centre of an existing one. */
-export type Placing = { kind: 'add' } | { kind: 'move'; id: string } | null
+/** What the next map click does: place a new site of a kind, or move the centre of one. */
+export type Placing = { kind: 'add'; site: SiteKind } | { kind: 'move'; id: string } | null
+
+/** A row of the list: a protected site or a friendly area, each carrying its kind. */
+type Row = (SessionSite & { kind: 'protected' }) | (SessionArea & { kind: 'friendly' })
 
 /** `39.84510, −75.30200` — latitude first, as a person reads a position, with a real minus. */
 const formatCentre = ([lon, lat]: [number, number]) =>
   `${lat.toFixed(5)}, ${lon.toFixed(5)}`.replace(/-/g, '−')
 
 /**
- * One site's inline editor: name, tier, radius, the centre read-only with Move re-arming the map
- * click, and Remove. Drafts are local so a half-typed radius is shown and explained rather than
- * applied: the set only ever holds a site the rules allow, and the reason a field is refused
- * prints under it in the module's own words. Keyed by site id by the caller.
+ * One site's inline editor: name, tier (a protected site only), radius, the centre read-only
+ * with Move re-arming the map click, and Remove. Drafts are local so a half-typed radius is
+ * shown and explained rather than applied — and committed only on blur or Enter, since `150`
+ * on the way to `1500` would re-score the picture and write a crossing at a ring nobody meant
+ * (#87 review); each field commits itself alone. Keyed by site id by the caller.
  */
 function SiteEditor({
   site,
@@ -34,7 +47,7 @@ function SiteEditor({
   onMove,
   onRemove,
 }: {
-  site: SessionSite
+  site: Row
   ao: AreaOfOperations
   removable: boolean
   onUpdate: (patch: SitePatch) => void
@@ -44,7 +57,6 @@ function SiteEditor({
   const [name, setName] = useState(site.name)
   const [radius, setRadius] = useState(String(site.radiusM))
   const problem = siteProblem({ name, radiusM: Number(radius), center: site.center }, ao)
-  // Each field commits only itself: a name keystroke never carries a half-typed radius along.
   const commitName = (value: string) => {
     if (siteProblem({ name: value, radiusM: site.radiusM, center: site.center }, ao) === null)
       onUpdate({ name: value })
@@ -69,21 +81,23 @@ function SiteEditor({
           }}
         />
       </div>
-      <fieldset className="sites__tier">
-        <legend>Tier</legend>
-        {([1, 2] as SiteTier[]).map((tier) => (
-          <label className="drawer__option" key={tier}>
-            <input
-              type="radio"
-              name={`tier-${site.id}`}
-              value={tier}
-              checked={site.tier === tier}
-              onChange={() => onUpdate({ tier })}
-            />
-            {tier}
-          </label>
-        ))}
-      </fieldset>
+      {site.kind === 'protected' && (
+        <fieldset className="sites__tier">
+          <legend>Tier</legend>
+          {([1, 2] as SiteTier[]).map((tier) => (
+            <label className="drawer__option" key={tier}>
+              <input
+                type="radio"
+                name={`tier-${site.id}`}
+                value={tier}
+                checked={site.tier === tier}
+                onChange={() => onUpdate({ tier })}
+              />
+              {tier}
+            </label>
+          ))}
+        </fieldset>
+      )}
       <div className="sites__field">
         <label htmlFor={`${site.id}-radius`}>Radius</label>
         <input
@@ -93,9 +107,6 @@ function SiteEditor({
           min={SITE_LIMITS.radiusMinM}
           max={SITE_LIMITS.radiusMaxM}
           step={50}
-          // Shown and explained on every keystroke, committed only when the operator is done:
-          // `150` on the way to `1500` would otherwise re-score the picture and write a
-          // crossing into the record at a ring nobody meant (#87 review).
           onChange={(event) => setRadius(event.target.value)}
           onBlur={commitRadius}
           onKeyDown={(event) => {
@@ -130,17 +141,20 @@ function SiteEditor({
 }
 
 /**
- * The Sites surface's rail (08a, ruled on #86): the session's protected sites as a list of
- * three-line rows in the Queue row's style — the name; the kind and tier; the ring and where it
- * came from — with the selected row's editor expanded beneath it. A site is placed by a map
- * click: *+ Protected site* arms the map and the hint says so; the click makes a whole site at
- * the defaults, selected for editing. Every edit is a workflow action and refuses behind the
- * record's frontier with the drawer's own reason (#77); the status line says whether the set
- * is still config's, and Reset returns it. Session state only — a reload returns to config.
+ * The Sites surface's rail (08a, 08b, ruled on #86): the session's protected sites and friendly
+ * launch areas as a list of three-line rows in the Queue row's style — the name; the kind and
+ * tier; the ring and where it came from — with the selected row's editor expanded beneath it. A
+ * site is placed by a map click: *+ Protected site* or *+ Friendly launch area* arms the map and
+ * the hint says so; the click makes a whole site at the defaults, selected for editing. Every
+ * edit is a workflow action and refuses behind the record's frontier with the drawer's own
+ * reason (#77); the status line says whether the set is still config's, Reset returns it, and
+ * the site plan copies out and loads back in with the handoff's mechanics — copy only, nothing
+ * transmitted. Session state only — a reload returns to config.
  */
 export function SitesPanel({
   set,
   config,
+  configAreas = [],
   ao,
   selectedId,
   placing,
@@ -154,10 +168,12 @@ export function SitesPanel({
   onUpdate,
   onRemove,
   onReset,
+  onLoad,
 }: {
   set: SiteSet
-  /** The configured set — what "edited" is measured against. */
+  /** The configured sites and areas — what "edited" is measured against. */
   config: readonly ProtectedSite[]
+  configAreas?: readonly FriendlyArea[]
   ao: AreaOfOperations
   selectedId: string | null
   placing: Placing
@@ -172,6 +188,8 @@ export function SitesPanel({
   onUpdate: (id: string, patch: SitePatch) => void
   onRemove: (id: string) => void
   onReset: () => void
+  /** Applies a pasted plan as one edit; returns the reason it was refused, or null. */
+  onLoad: (text: string) => string | null
 }) {
   const listRef = useRef<HTMLOListElement>(null)
   // Escape cancels a placement, as the button does — the map is armed and the operator may be
@@ -185,10 +203,35 @@ export function SitesPanel({
     return () => window.removeEventListener('keydown', onKey)
   }, [placing, onPlacing])
 
-  const adding = placing?.kind === 'add'
-  const isEdited = edited(set, config)
+  // The plan: copied with the handoff's mechanics from an element of its own — the fallback
+  // selects the hidden textarea that always holds the current plan — and loaded from the Load
+  // field, which is the operator's and keeps what they pasted (closure on #95); the module's
+  // reason prints under it when a load is refused.
+  const copyRef = useRef<HTMLTextAreaElement>(null)
+  const { copy, copied } = useCopy(copyRef)
+  const [planDraft, setPlanDraft] = useState('')
+  const [loadProblem, setLoadProblem] = useState<string | null>(null)
+  const plan = sitePlanText(set, ao)
+
+  const adding = placing?.kind === 'add' ? placing.site : null
+  const isEdited = edited(set, config, configAreas)
+  const rows: Row[] = [
+    ...set.sites.map((site): Row => ({ ...site, kind: 'protected' })),
+    ...set.areas.map((area): Row => ({ ...area, kind: 'friendly' })),
+  ]
   // The ids of the reason above, for every control the rewound state disables (#79 review).
   const describedBy = rewound ? 'sites-rewound-state sites-rewound-times' : undefined
+  const addButton = (kind: SiteKind, label: string) => (
+    <button
+      type="button"
+      className="sites__button"
+      disabled={rewound || (adding !== kind && !canAdd(set))}
+      aria-pressed={adding === kind}
+      onClick={() => onPlacing(adding === kind ? null : { kind: 'add', site: kind })}
+    >
+      {adding === kind ? 'Cancel' : label}
+    </button>
+  )
   return (
     <>
       <div
@@ -197,15 +240,8 @@ export function SitesPanel({
         aria-label="Add a site"
         aria-describedby={describedBy}
       >
-        <button
-          type="button"
-          className="sites__button"
-          disabled={rewound || (!adding && !canAdd(set))}
-          aria-pressed={adding}
-          onClick={() => onPlacing(adding ? null : { kind: 'add' })}
-        >
-          {adding ? 'Cancel' : '+ Protected site'}
-        </button>
+        {addButton('protected', '+ Protected site')}
+        {addButton('friendly', '+ Friendly launch area')}
       </div>
       {/* One live line for the placement hint and a refused placement's reason; mounted always
           with only the text toggling, as `rail__empty` is (#51 review). */}
@@ -226,14 +262,13 @@ export function SitesPanel({
         frontier={frontier}
       />
       <ol className="sites" aria-label="Site set" ref={listRef} tabIndex={-1}>
-        {set.sites.map((site) => {
+        {rows.map((site) => {
           const selected = site.id === selectedId
+          const classes = ['sites__row']
+          if (selected) classes.push('sites__row--selected')
+          if (site.kind === 'friendly') classes.push('sites__row--friendly')
           return (
-            <li
-              key={site.id}
-              className={`sites__row${selected ? ' sites__row--selected' : ''}`}
-              data-id={site.id}
-            >
+            <li key={site.id} className={classes.join(' ')} data-id={site.id}>
               <button
                 type="button"
                 className="sites__rowbutton"
@@ -262,7 +297,7 @@ export function SitesPanel({
                     key={site.id}
                     site={site}
                     ao={ao}
-                    removable={canRemove(set)}
+                    removable={canRemove(set, site.id)}
                     onUpdate={(patch) => onUpdate(site.id, patch)}
                     onMove={() => onPlacing({ kind: 'move', id: site.id })}
                     onRemove={() => {
@@ -279,7 +314,7 @@ export function SitesPanel({
         })}
       </ol>
       <p className="sites__status">
-        {set.sites.length} {set.sites.length === 1 ? 'site' : 'sites'} ·{' '}
+        {rows.length} {rows.length === 1 ? 'site' : 'sites'} ·{' '}
         {isEdited ? 'edited from config' : 'config'}
       </p>
       <div
@@ -288,6 +323,19 @@ export function SitesPanel({
         aria-label="Site set"
         aria-describedby={describedBy}
       >
+        <button type="button" className="sites__button" onClick={() => void copy(plan)}>
+          {copied(plan) ? 'Copied' : 'Copy site plan'}
+        </button>
+        {/* The copy fallback's own selection: the current plan, off screen, never the operator's
+            field. Read-only and out of the tab order; the button is the control. */}
+        <textarea
+          ref={copyRef}
+          className="sites__plancopy"
+          readOnly
+          tabIndex={-1}
+          aria-hidden="true"
+          value={plan}
+        />
         <button
           type="button"
           className="sites__button"
@@ -296,6 +344,33 @@ export function SitesPanel({
         >
           Reset to config
         </button>
+      </div>
+      <div className="sites__plan">
+        <label htmlFor="sites-plan">Load site plan</label>
+        <textarea
+          id="sites-plan"
+          className="sites__plantext"
+          value={planDraft}
+          disabled={rewound}
+          aria-describedby={describedBy}
+          onChange={(event) => {
+            setPlanDraft(event.target.value)
+            setLoadProblem(null)
+          }}
+        />
+        <div className="drawer__actions" role="group" aria-label="Site plan">
+          <button
+            type="button"
+            className="sites__button"
+            disabled={rewound || planDraft.trim() === ''}
+            onClick={() => setLoadProblem(onLoad(planDraft))}
+          >
+            Load
+          </button>
+        </div>
+        <p className="sites__problem" role="status">
+          {loadProblem}
+        </p>
       </div>
     </>
   )

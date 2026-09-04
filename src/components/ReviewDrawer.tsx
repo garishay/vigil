@@ -3,6 +3,7 @@ import { IdentityDot } from './IdentityDot'
 import { Rewound } from './Rewound'
 import { ScoreBreakdown } from './ScoreBreakdown'
 import { TrackVisuals } from './TrackVisuals'
+import { useCopy } from './useCopy'
 import type { ProtectedSite } from '../config/ao'
 import type { ContactId } from '../config/contacts'
 import type { DispositionId } from '../config/dispositions'
@@ -144,10 +145,9 @@ export function ReviewDrawer({
   const rewound = tSec < frontier
   // Escalate and Resolve gather a required field before they act; the other two fire directly.
   const [pending, setPending] = useState<'escalate' | 'resolve' | null>(null)
-  // "Copied" is a claim about the current text: an event appended after the copy regenerates the
-  // handoff, and the button honestly reverts to "Copy".
-  const [copiedText, setCopiedText] = useState<string | null>(null)
   const handoffRef = useRef<HTMLTextAreaElement>(null)
+  // The copy's mechanics and its honest "Copied" claim, shared with the site plan (08b).
+  const { copy, copied } = useCopy(handoffRef)
   const asideRef = useRef<HTMLElement>(null)
 
   // A keyboard operator must not be dropped on document.body mid-walk: the activated action
@@ -241,29 +241,6 @@ export function ReviewDrawer({
   const handoff = recipient
     ? handoffText({ entry, recipient, log, contacts, dispositions, clock })
     : null
-
-  const copy = async () => {
-    if (handoff === null) return
-    let copied: boolean
-    try {
-      await navigator.clipboard.writeText(handoff)
-      copied = true
-    } catch {
-      // No clipboard API (or permission refused): select the visible textarea and copy that.
-      // The selection stands either way, so a manual Ctrl+C works when even this path fails —
-      // including on engines that refuse (or throw from) execCommand outside the original
-      // gesture (#47 round 5).
-      handoffRef.current?.select()
-      try {
-        copied = document.execCommand?.('copy') ?? false
-      } catch {
-        copied = false
-      }
-    }
-    // "Copied" only when a copy actually happened — a false claim here puts stale clipboard
-    // content into an escalation (review finding on #47).
-    setCopiedText(copied ? handoff : null)
-  }
 
   return (
     // The capture-phase handler only sniffs input modality; the aside handles no interaction.
@@ -381,8 +358,8 @@ export function ReviewDrawer({
         <section className="drawer__handoff" aria-label="Handoff summary">
           <div className="drawer__subhead">
             <h4 className="drawer__subtitle">Handoff — copyable</h4>
-            <button type="button" className="drawer__action" onClick={() => void copy()}>
-              {copiedText === handoff ? 'Copied' : 'Copy'}
+            <button type="button" className="drawer__action" onClick={() => void copy(handoff)}>
+              {copied(handoff) ? 'Copied' : 'Copy'}
             </button>
           </div>
           <textarea

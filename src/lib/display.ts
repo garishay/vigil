@@ -35,14 +35,21 @@ export const LAYER_BADGE: Record<Track['source'], string> = { adsb: 'ADS-B', inj
 /** Range to the protected site's center, km to one decimal (§7). */
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
 
-/** The site row's second line (08a): the kind and the tier — `Protected · tier 1`. */
-export const siteKindLine = (site: Pick<SiteRecord, 'tier'>) => `Protected · tier ${site.tier}`
+/**
+ * The site row's second line (08a, 08b): the kind and, for a protected site, the tier —
+ * `Protected · tier 1`, `Friendly launch area`.
+ */
+export const siteKindLine = (site: Pick<SiteRecord, 'kind' | 'tier'>) =>
+  site.kind === 'friendly' ? 'Friendly launch area' : `Protected · tier ${site.tier}`
 
 /**
  * The site row's third line (08a): the ring, and where the site came from — `config`, or the
  * sim time the operator added it, printed by the record's clock.
  */
-export const siteOriginLine = (site: SessionSite, clock: (tSec: number) => string) =>
+export const siteOriginLine = (
+  site: Pick<SessionSite, 'radiusM' | 'addedTSec'>,
+  clock: (tSec: number) => string,
+) =>
   `${formatRangeKm(site.radiusM)} ring · ${site.addedTSec === null ? 'config' : clock(site.addedTSec)}`
 
 /**
@@ -51,7 +58,9 @@ export const siteOriginLine = (site: SessionSite, clock: (tSec: number) => strin
  * lands the line on the drawer's 53-character fit exactly (#36 [5]).
  */
 export const siteLine = (site: SiteRecord) =>
-  `${site.name} · ${site.kind} · tier ${site.tier} · ${formatRangeKm(site.radiusM)}`
+  site.kind === 'friendly'
+    ? `${site.name} · friendly · ${formatRangeKm(site.radiusM)}`
+    : `${site.name} · ${site.kind} · tier ${site.tier} · ${formatRangeKm(site.radiusM)}`
 
 /** The composite as the chip and the handoff print it: a whole number, 0–100. */
 export const formatScore = (score: Score) => String(Math.round(score.composite))
@@ -69,8 +78,14 @@ export const scoreTotal = (score: Score) => {
   return score.capped ? `${over} → ${Math.round(score.uncapped)}` : over
 }
 
-/** The cap as its own line — the handoff's and the hover's, one wording (ruled A3 on #4). */
-export const capLine = (score: Score) => `Capped at ${formatScore(score)} — cooperative aircraft`
+/**
+ * The cap as its own line — the handoff's and the hover's, one wording (ruled A3 on #4); the
+ * friendly cap names itself and the number it held back (08b, ruled on #86).
+ */
+export const capLine = (score: Score) =>
+  score.friendly
+    ? `Friendly launch — capped at ${formatScore(score)} (uncapped ${Math.round(score.uncapped)})`
+    : `Capped at ${formatScore(score)} — cooperative aircraft`
 
 /**
  * The chip's hover: the three largest contributions and the total they are part of, so a row
@@ -132,6 +147,9 @@ export function reasonTag(entry: RankedTrack, sites: readonly ProtectedSite[]): 
   const words = score.pattern
     ? [patternWord(score.pattern), ...others.slice(0, 2)]
     : others.slice(0, 3)
+  // The friendly condition leads the tag (08b, ruled on #86): the cap is the first thing the
+  // row has to explain, and the pattern still prints after it, as it does under the ceiling.
+  if (score.friendly) words.unshift('friendly launch')
   if (words.length === 0) return '—'
   const tag = words.join(', ')
   return tag[0].toUpperCase() + tag.slice(1)

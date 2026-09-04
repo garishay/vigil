@@ -46,11 +46,11 @@ flowchart LR
       gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
     ao["config/ao.ts<br/>AO: center · bbox · protected sites with their tier"]
-    sites["lib/sites.ts<br/>the session's site set: add · update · remove · reset, stamped at sim time<br/>the rules a site meets · the last protected site stays"]
+    sites["lib/sites.ts<br/>the session's site set: protected sites and friendly launch areas<br/>add · update · remove · reset, stamped at sim time · the rules a site meets · the last protected site stays<br/>the site plan: JSON out, a pasted plan back in"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
-    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · closing complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
+    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · the friendly launch cap · closing complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
     life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings, pattern changes, loss and return logged at sim time, statuses carried · re-surface read off the log<br/>the sites in force on every snapshot"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · the site line from the record · timeline live"]
@@ -67,6 +67,7 @@ flowchart LR
     scorecfg --> patterns
     patterns --> score
     replay -- histories at t --> score
+    replay -- origins: first sample, first frame --> score
     frames -- kinematic box --> score
     score --> rank
     model --> airframe
@@ -86,7 +87,10 @@ flowchart LR
     map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count"]
     clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick<br/>scheduler injected, so no test waits on time"]
-    panel["components/SitesPanel.tsx<br/>the Sites surface: rows, the inline editor, placement armed on the map<br/>refused behind the record's frontier"]
+    panel["components/SitesPanel.tsx<br/>the Sites surface: protected sites and friendly launch areas as rows, the inline editor, placement armed on the map<br/>the site plan: copy out, load back · refused behind the record's frontier"]
+    copy["components/useCopy.ts<br/>copy with the clipboard, fall back to the textarea's selection<br/>'Copied' only for the text actually copied"]
+    copy -- handoff --> review
+    copy -- site plan --> panel
     app --> queue
     app --> map
     app -- selected track: drawer --> review

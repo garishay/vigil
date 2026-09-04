@@ -11,6 +11,10 @@ import {
   resetSites,
   siteProblem,
   updateSite,
+  kindOf,
+  parseSitePlan,
+  sitePlanText,
+  siteRecords,
 } from './sites'
 
 const CONFIG = AO.protectedSites
@@ -101,11 +105,11 @@ describe('the session site set (08a)', () => {
 
   it('removes a site, but never the last protected site', () => {
     const two = addSite(fromConfig(CONFIG), INSIDE, 0, AO)
-    expect(canRemove(two)).toBe(true)
+    expect(canRemove(two, two.sites.at(-1)!.id)).toBe(true)
     const one = removeSite(two, two.sites.at(-1)!.id, 90)
     expect(one.sites.map((site) => site.id)).toEqual(CONFIG.map((site) => site.id))
     expect(one.lastEditTSec).toBe(90)
-    expect(canRemove(one)).toBe(false)
+    expect(canRemove(one, CONFIG[0].id)).toBe(false)
     expect(() => removeSite(one, CONFIG[0].id, 0)).toThrow('The last protected site stays')
     expect(() => removeSite(two, 'site-99', 0)).toThrow(/no site/)
   })
@@ -137,5 +141,106 @@ describe('the session site set (08a)', () => {
       AO,
     )
     expect(edited(roundTrip, CONFIG)).toBe(false)
+  })
+})
+
+describe('friendly launch areas and the site plan (08b, ruled on #86)', () => {
+  it('adds a friendly area from a placement — its own id and name, no tier, removable always', () => {
+    const set = addSite(fromConfig(CONFIG), INSIDE, 600, AO, 'friendly')
+    expect(set.areas).toEqual([
+      { id: 'area-2', name: 'Launch area 2', center: INSIDE, radiusM: 1000, addedTSec: 600 },
+    ])
+    expect(set.sites).toHaveLength(CONFIG.length)
+    expect(set.nextId).toBe(3)
+    expect(kindOf(set, 'area-2')).toBe('friendly')
+    expect(kindOf(set, 'site-9')).toBeNull()
+    expect(canRemove(set, 'area-2')).toBe(true)
+    expect(canRemove(set, CONFIG[0].id)).toBe(false)
+    expect(edited(set, CONFIG)).toBe(true)
+    // A tier in an area's patch is dropped; the other fields apply.
+    const renamed = updateSite(
+      set,
+      'area-2',
+      { name: 'Drone unit pad', radiusM: 500, tier: 2 },
+      610,
+      AO,
+    )
+    expect(renamed.areas[0]).toEqual({
+      id: 'area-2',
+      name: 'Drone unit pad',
+      center: INSIDE,
+      radiusM: 500,
+      addedTSec: 600,
+    })
+    expect(() => updateSite(set, 'area-2', { radiusM: 5 }, 0, AO)).toThrow(/Radius/)
+    expect(removeSite(renamed, 'area-2', 620).areas).toEqual([])
+    expect(resetSites(renamed, CONFIG, 630).areas).toEqual([])
+    expect(edited(fromConfig(CONFIG, []), CONFIG, [])).toBe(false)
+  })
+
+  it('counts both kinds against the limit', () => {
+    let set = fromConfig(CONFIG)
+    while (canAdd(set)) set = addSite(set, INSIDE, 0, AO, 'friendly')
+    expect(set.sites.length + set.areas.length).toBe(SITE_LIMITS.maxSites)
+    expect(() => addSite(set, INSIDE, 0, AO)).toThrow(/at most 20 sites/)
+  })
+
+  it('copies the set as a plan and loads it back as one edit', () => {
+    const set = updateSite(
+      addSite(addSite(fromConfig(CONFIG), INSIDE, 0, AO), INSIDE, 30, AO, 'friendly'),
+      'site-2',
+      { tier: 2, name: 'Stadium' },
+      40,
+      AO,
+    )
+    const text = sitePlanText(set, AO)
+    const plan = JSON.parse(text) as {
+      ao: string
+      sites: { id: string; kind: string; tier?: number }[]
+    }
+    expect(plan.ao).toBe(AO.id)
+    expect(plan.sites.map((site) => [site.id, site.kind, site.tier])).toEqual([
+      [CONFIG[0].id, 'protected', 1],
+      ['site-2', 'protected', 2],
+      ['area-3', 'friendly', undefined],
+    ])
+    const loaded = parseSitePlan(text, AO, fromConfig(CONFIG), 900)
+    expect(siteRecords(loaded)).toEqual(siteRecords(set))
+    expect(loaded.areas[0].addedTSec).toBe(900)
+    expect(loaded.lastEditTSec).toBe(900)
+    // The counter runs on past every id the plan carried.
+    expect(loaded.nextId).toBe(4)
+  })
+
+  it('refuses a plan that is not one, in its own words, applying nothing', () => {
+    const base = fromConfig(CONFIG)
+    const load = (text: string) => () => parseSitePlan(text, AO, base, 0)
+    const good = {
+      id: 'site-9',
+      kind: 'protected',
+      name: 'Ok',
+      tier: 1,
+      center: INSIDE,
+      radiusM: 500,
+    }
+    const plan = (sites: unknown[]) => JSON.stringify({ ao: AO.id, sites })
+    expect(load('nope')).toThrow('Plan is not JSON')
+    expect(load('[]')).toThrow('Plan is not a site plan')
+    expect(load('{"ao":"dfw","sites":[]}')).toThrow('Plan is for AO "dfw", not "phl"')
+    expect(load('{"ao":"phl"}')).toThrow('Plan has no sites list')
+    expect(load(plan([]))).toThrow('Plan needs at least one protected site')
+    expect(load(plan([{ ...good, kind: 'friendly' }]))).toThrow('at least one protected site')
+    expect(load(plan([good, { ...good }]))).toThrow('Site 2 repeats id "site-9"')
+    expect(load(plan([{ ...good, tier: 3 }]))).toThrow('Site 1 needs tier 1 or 2')
+    expect(load(plan([{ ...good, kind: 'corridor' }]))).toThrow('Site 1 has an unknown kind')
+    expect(load(plan([{ ...good, radiusM: 5 }]))).toThrow('Site 1: Radius is 100–20,000 m')
+    expect(load(plan([{ ...good, center: [0] }]))).toThrow('Site 1 has no centre')
+    expect(load(plan([{ ...good, name: 7 }]))).toThrow('Site 1 has no name')
+    expect(load(plan(['x']))).toThrow('Site 1 is not a site')
+    expect(
+      load(plan(Array.from({ length: 21 }, (_, i) => ({ ...good, id: `site-${i}` })))),
+    ).toThrow('at most 20 sites')
+    // A loaded plan whose ids sit above the counter moves the counter past them.
+    expect(parseSitePlan(plan([{ ...good, id: 'site-40' }]), AO, base, 0).nextId).toBe(41)
   })
 })
