@@ -69,7 +69,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'home',
     label: 'Home',
     title: 'Picture summary',
-    body: 'Both layers are counted in the strip above and ranked in the Queue by score. The sim clock starts at the scenario’s configured hour and ticks with playback.',
+    body: 'Both layers are counted in the strip above and ranked in the Queue by score. The sim clock opens at the recording’s clock start and ticks with playback.',
   },
   {
     id: 'queue',
