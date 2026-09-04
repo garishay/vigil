@@ -3,7 +3,11 @@
  *
  * Run by hand, never at runtime:
  *
- *   npm run capture:adsb -- --minutes 20 --interval 15
+ *   npm run capture:adsb -- --minutes 20 --interval 15 --out public/adsb-phl-003.json
+ *
+ * The output is named on every run and must not exist yet (ruled on #99): the committed
+ * recordings — 001, the golden's and every pinned test's; 002 beside it — are never overwritten
+ * by a default. A new recording is then an entry in `src/config/recordings.ts`.
  *
  * Vigil replays a recording rather than polling a live feed, which is what keeps tests
  * deterministic, demos reproducible, and the MVP clear of rate limits, CORS, and outage risk.
@@ -13,7 +17,7 @@
  * `src/lib/adsb.ts`, where it is unit-tested without a network.
  */
 
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -36,10 +40,9 @@ const USER_AGENT = 'vigil-capture (educational demo; github.com/garishay/vigil)'
 const DEFAULT_MINUTES = 20
 /**
  * 15, not the etiquette floor of 10: both real captures used 15 s, and a default below the floor
- * made the bare `npm run capture:adsb` throw on the script's own etiquette check (#27).
+ * made a run that named only its output throw on the script's own etiquette check (#27).
  */
 const DEFAULT_INTERVAL_S = 15
-const DEFAULT_OUT = 'public/adsb-phl.json'
 const REQUEST_TIMEOUT_MS = 15_000
 
 interface Options {
@@ -55,11 +58,14 @@ function isKnownFlag(arg: string): arg is Flag {
   return (FLAGS as readonly string[]).includes(arg)
 }
 
-export function parseArgs(argv: string[]): Options {
-  const options: Options = {
+/**
+ * `exists` is the filesystem seam: the suite parses with a stub, and the one test that reaches the
+ * real one pins that both committed recordings are refused by name.
+ */
+export function parseArgs(argv: string[], exists: (path: string) => boolean = existsSync): Options {
+  const options: Omit<Options, 'out'> & { out?: string } = {
     minutes: DEFAULT_MINUTES,
     intervalS: DEFAULT_INTERVAL_S,
-    out: DEFAULT_OUT,
   }
   for (let i = 0; i < argv.length; i += 2) {
     const flag = argv[i]
@@ -115,7 +121,17 @@ export function parseArgs(argv: string[]): Options {
       `--interval must be at least ${CAPTURE_ETIQUETTE.minIntervalS}s; adsb.lol is a free service`,
     )
   }
-  return options
+  // Last, after the window is known good, so a run wrong in two ways hears about the window
+  // first — and before any request, so a refused run costs the service nothing (#99).
+  // Falsy, not undefined: `--out "$OUT"` with the variable unset is an empty name that would
+  // parse, spend the whole window on the service, and fail on open('') (#100 review).
+  if (!options.out) {
+    throw new Error('--out is required: name the file to write; there is no default')
+  }
+  if (exists(options.out)) {
+    throw new Error(`${options.out} already exists — a committed recording is never overwritten`)
+  }
+  return { ...options, out: options.out }
 }
 
 /**
@@ -167,6 +183,16 @@ function serialize(capture: AdsbCapture): string {
   const headerJson = JSON.stringify(header).slice(1, -1)
   const frameLines = frames.map((frame) => JSON.stringify(frame)).join(',\n')
   return `{${headerJson},\n"frames": [\n${frameLines}\n]}\n`
+}
+
+/**
+ * Creates the recording — never replaces one. `parseArgs` refused a path that existed at the
+ * start; this holds the same rule at the write, twenty minutes later, so two runs aimed at one
+ * fresh name cannot have the second truncate the first (`wx`: exclusive create; #100 review).
+ */
+export async function writeRecording(out: string, capture: AdsbCapture): Promise<void> {
+  await mkdir(dirname(out), { recursive: true })
+  await writeFile(out, serialize(capture), { encoding: 'utf8', flag: 'wx' })
 }
 
 async function main(): Promise<void> {
@@ -260,8 +286,7 @@ async function main(): Promise<void> {
     bbox: AO.bbox,
     frames,
   }
-  await mkdir(dirname(out), { recursive: true })
-  await writeFile(out, serialize(capture), 'utf8')
+  await writeRecording(out, capture)
 
   const counts = frames.map((frame) => frame.records.length)
   const total = counts.reduce((sum, n) => sum + n, 0)

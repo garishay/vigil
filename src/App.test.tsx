@@ -150,6 +150,16 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { name: 'Picture summary' })).toBeInTheDocument()
   })
 
+  it('says the sim clock opens at the recording’s clock start — true under every recording (#36 [14])', () => {
+    // From #84 the hour is the recording's, not the scenario's; the body copy says so.
+    render(<App schedule={never} />)
+    expect(
+      screen.getByText(
+        /The sim clock opens at the recording’s clock start and ticks with playback\./,
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('reports the cooperative track count once the recording loads', async () => {
     render(<App schedule={never} />)
     await waitFor(() => expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2'))
