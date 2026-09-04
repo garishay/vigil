@@ -123,7 +123,9 @@ export function parseArgs(argv: string[], exists: (path: string) => boolean = ex
   }
   // Last, after the window is known good, so a run wrong in two ways hears about the window
   // first — and before any request, so a refused run costs the service nothing (#99).
-  if (options.out === undefined) {
+  // Falsy, not undefined: `--out "$OUT"` with the variable unset is an empty name that would
+  // parse, spend the whole window on the service, and fail on open('') (#100 review).
+  if (!options.out) {
     throw new Error('--out is required: name the file to write; there is no default')
   }
   if (exists(options.out)) {
@@ -181,6 +183,16 @@ function serialize(capture: AdsbCapture): string {
   const headerJson = JSON.stringify(header).slice(1, -1)
   const frameLines = frames.map((frame) => JSON.stringify(frame)).join(',\n')
   return `{${headerJson},\n"frames": [\n${frameLines}\n]}\n`
+}
+
+/**
+ * Creates the recording — never replaces one. `parseArgs` refused a path that existed at the
+ * start; this holds the same rule at the write, twenty minutes later, so two runs aimed at one
+ * fresh name cannot have the second truncate the first (`wx`: exclusive create; #100 review).
+ */
+export async function writeRecording(out: string, capture: AdsbCapture): Promise<void> {
+  await mkdir(dirname(out), { recursive: true })
+  await writeFile(out, serialize(capture), { encoding: 'utf8', flag: 'wx' })
 }
 
 async function main(): Promise<void> {
@@ -274,8 +286,7 @@ async function main(): Promise<void> {
     bbox: AO.bbox,
     frames,
   }
-  await mkdir(dirname(out), { recursive: true })
-  await writeFile(out, serialize(capture), 'utf8')
+  await writeRecording(out, capture)
 
   const counts = frames.map((frame) => frame.records.length)
   const total = counts.reduce((sum, n) => sum + n, 0)

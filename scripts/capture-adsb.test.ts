@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -25,7 +27,7 @@ const fetchSpy = vi.fn()
 vi.stubGlobal('fetch', fetchSpy)
 const logSpy = vi.spyOn(console, 'log')
 const errorSpy = vi.spyOn(console, 'error')
-const { entryPathsMatch, parseArgs } = await import('./capture-adsb.ts')
+const { entryPathsMatch, parseArgs, writeRecording } = await import('./capture-adsb.ts')
 
 afterAll(() => {
   logSpy.mockRestore()
@@ -118,6 +120,9 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--minutes', '20', '--interval', '15'], never)).toThrow(
       /--out is required/,
     )
+    // An empty name — `--out "$OUT"` with the variable unset — used to parse, run the whole
+    // window against the service, and then fail the write on open('') (#100 review).
+    expect(() => parseArgs(['--out', ''], never)).toThrow(/--out is required/)
   })
 
   it('refuses a path that already exists — the committed recordings are never overwritten (#99)', () => {
@@ -134,12 +139,14 @@ describe('parseArgs', () => {
   it('accepts the usage example actually written in the header', () => {
     // Read from the file and anchored to the header block's ` *   ` prefix, so this matches the
     // usage example and never a prose mention elsewhere — reverting the doc to a below-floor
-    // example is the documentation half of #27, and this is the test that guards it. The
-    // existence check is stubbed: the example names a file that must not exist, by design.
+    // example is the documentation half of #27, and this is the test that guards it. Parsed
+    // against the real filesystem on purpose: the example has to name a file that does not
+    // exist, and this is the line that fails the day the header names a committed recording
+    // (#100 review).
     const source = readFileSync(scriptPath, 'utf8')
     const example = /^ \*\s+npm run capture:adsb -- (.+)$/m.exec(source)
     expect(example).not.toBeNull()
-    expect(() => parseArgs(example![1].trim().split(/\s+/), never)).not.toThrow()
+    expect(() => parseArgs(example![1].trim().split(/\s+/))).not.toThrow()
   })
 
   it('still refuses an interval below the etiquette floor', () => {
@@ -194,5 +201,29 @@ describe('parseArgs', () => {
     // `--help` is the flag a person reaches for first and the one this script does not have.
     // It used to be met with `Missing value for --help`, which describes neither problem (#30).
     expect(() => parseArgs(['--help'])).toThrow(/Unknown argument --help/)
+  })
+})
+
+describe('writeRecording', () => {
+  // The rule holds at the write, not only at the parse (#100 review): two runs aimed at one
+  // fresh name both pass the parse-time check, and the second used to truncate the first's
+  // recording twenty minutes later. The write is exclusive — create, never replace.
+  it('creates the file, and refuses to replace one that appeared since the parse', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vigil-capture-'))
+    const out = join(dir, 'nested', 'adsb-phl-new.json')
+    const capture = {
+      ao: 'phl',
+      source: 'first run',
+      capturedAt: '2026-09-04T22:02:21.403Z',
+      intervalMs: 15000,
+      bbox: [0, 0, 1, 1] as [number, number, number, number],
+      frames: [],
+    }
+    await writeRecording(out, capture)
+    expect(JSON.parse(await readFile(out, 'utf8'))).toEqual(capture)
+    await expect(writeRecording(out, { ...capture, source: 'second run' })).rejects.toThrow(
+      /EEXIST/,
+    )
+    expect(JSON.parse(await readFile(out, 'utf8')).source).toBe('first run')
   })
 })
