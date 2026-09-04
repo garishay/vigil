@@ -19,7 +19,7 @@ const MEAN_EARTH_RADIUS_M = 6371008.8
 export function circlePolygon(
   center: [number, number],
   radiusM: number,
-  properties: Record<string, string> = {},
+  properties: Record<string, string | boolean> = {},
   steps = 72,
 ): Feature<Polygon> {
   const [lon, lat] = center

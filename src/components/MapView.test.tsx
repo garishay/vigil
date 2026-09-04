@@ -82,11 +82,13 @@ const { mapInstance, setData, clickHandlers, MapConstructor, NavigationControl }
     const setDataFn = vi.fn()
     // Layer-scoped click handlers, captured so a test can simulate a dot click (03a).
     const clicks: Record<string, (event: unknown) => void> = {}
+    const canvas = { style: { cursor: '' } }
     const instance = {
       addControl: vi.fn(),
       addSource: vi.fn(),
       addLayer: vi.fn(),
       easeTo: vi.fn(),
+      getCanvas: vi.fn(() => canvas),
       // The source id travels with the data, so a test can say *which* layer it is asserting on.
       getSource: vi.fn((id: string) => ({ setData: (data: unknown) => setDataFn(id, data) })),
       remove: vi.fn(),
@@ -96,6 +98,9 @@ const { mapInstance, setData, clickHandlers, MapConstructor, NavigationControl }
           clicks[arg2] = arg3 as (event: unknown) => void
         if (event === 'click' && Array.isArray(arg2))
           for (const layerId of arg2 as string[]) clicks[layerId] = arg3 as (event: unknown) => void
+        // The map-wide click is the placement click (08a), keyed by its own name.
+        if (event === 'click' && typeof arg2 === 'function')
+          clicks.map = arg2 as (event: unknown) => void
       }),
     }
     return {
@@ -139,12 +144,52 @@ describe('MapView', () => {
     expect(mapInstance.addControl).toHaveBeenCalled()
   })
 
-  it('draws one protection ring per configured protected site', () => {
-    render(<MapView ao={AO} />)
+  it('draws one protection ring per site in the session set, pushed as a source (08a)', () => {
+    // Added empty at load: the rings are the session's, not the AO's, and a set change re-pushes
+    // the source rather than rebuilding the layer.
+    const { rerender } = render(<MapView ao={AO} sites={AO.protectedSites} />)
     const [sourceId, source] = mapInstance.addSource.mock.calls[0]
     expect(sourceId).toBe('protected-sites')
-    expect(source.data.features).toHaveLength(AO.protectedSites.length)
-    expect(source.data.features[0].properties).toMatchObject({ id: AO.protectedSites[0].id })
+    expect(source.data.features).toEqual([])
+    expect(dataFor('protected-sites').features).toHaveLength(AO.protectedSites.length)
+    expect(dataFor('protected-sites').features[0].properties).toMatchObject({
+      id: AO.protectedSites[0].id,
+      selected: false,
+    })
+    const fence = {
+      id: 'site-2',
+      name: 'Fence',
+      center: [-75.3, 39.85] as [number, number],
+      radiusM: 1500,
+      tier: 1 as const,
+    }
+    rerender(<MapView ao={AO} sites={[...AO.protectedSites, fence]} selectedSiteId="site-2" />)
+    const rings = dataFor('protected-sites').features
+    expect(rings).toHaveLength(2)
+    // The selected site's ring draws heavier: the paint reads the property.
+    expect(rings.map((ring) => ring.properties.selected)).toEqual([false, true])
+    const line = mapInstance.addLayer.mock.calls.find(
+      (call) => call[0].id === 'protected-sites-line',
+    )
+    expect(line?.[0].paint['line-width']).toEqual(['case', ['get', 'selected'], 3, 1.5])
+  })
+
+  it('places a site on the armed click and does not select a track under it (08a)', () => {
+    const onPlace = vi.fn()
+    const onSelect = vi.fn()
+    const { rerender } = render(
+      <MapView ao={AO} injects={INJECTS} onSelect={onSelect} onPlace={onPlace} />,
+    )
+    // Unarmed: the map-wide click places nothing and the cursor is the map's own.
+    clickHandlers.map({ lngLat: { lng: -75.3, lat: 39.85 } })
+    expect(onPlace).not.toHaveBeenCalled()
+    expect(mapInstance.getCanvas().style.cursor).toBe('')
+    rerender(<MapView ao={AO} injects={INJECTS} onSelect={onSelect} onPlace={onPlace} placing />)
+    expect(mapInstance.getCanvas().style.cursor).toBe('crosshair')
+    clickHandlers['inject-tracks-halo']({ features: [{ properties: { id: 'inject-01' } }] })
+    clickHandlers.map({ lngLat: { lng: -75.3, lat: 39.85 } })
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(onPlace).toHaveBeenCalledWith([-75.3, 39.85])
   })
 
   it('adds the track layers empty, so updates never rebuild them', () => {
@@ -185,7 +230,10 @@ describe('MapView', () => {
     render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} onSelect={onSelect} />)
     // A single array-form listener covers both containing layers, so an overlap is one dispatch
     // with the top-rendered feature first — never two handlers overwriting each other.
-    const clickRegistrations = mapInstance.on.mock.calls.filter(([event]) => event === 'click')
+    const clickRegistrations = mapInstance.on.mock.calls.filter(
+      // The map-wide placement click (08a) is its own registration; the track click is one.
+      ([event, target]) => event === 'click' && Array.isArray(target),
+    )
     expect(clickRegistrations).toHaveLength(1)
     // The dot layer rides in the array for the ground traffic the filtered hit layer excludes.
     expect(clickRegistrations[0][1]).toEqual([

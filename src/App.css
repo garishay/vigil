@@ -809,3 +809,189 @@
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * The Sites surface (08a, ruled on #86): the session's site set as a list of three-line rows in
+ * the Queue row's style — name, kind and tier, ring and origin — with the selected row's editor
+ * expanded beneath it. The rail keeps its 22 rem; the widest line is the editor's centre.
+ */
+.sites {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  outline: none;
+}
+
+.sites__row {
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+}
+
+.sites__row--selected {
+  background: var(--accent-soft);
+}
+
+.sites__rowbutton {
+  display: grid;
+  row-gap: 0.15rem;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0.45rem 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sites__name {
+  color: var(--text);
+}
+
+.sites__chevron {
+  display: inline-block;
+  width: 1rem;
+  color: var(--faint);
+}
+
+.sites__kind,
+.sites__origin {
+  padding-left: 1rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.sites__origin {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The editor: a fieldset so the whole thing greys together while rewound (#79 review). */
+.sites__fieldset {
+  margin: 0 0 0.5rem;
+  border: none;
+  padding: 0 0 0 1rem;
+}
+
+.sites__editor {
+  display: grid;
+  row-gap: 0.35rem;
+  font-size: 0.8125rem;
+}
+
+.sites__field {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr auto;
+  align-items: center;
+  column-gap: 0.4rem;
+  margin: 0;
+  color: var(--muted);
+}
+
+.sites__field input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.2rem 0.4rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.sites__field input:disabled {
+  color: var(--faint);
+}
+
+.sites__centre {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.sites__tier {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  border: none;
+  padding: 0;
+  color: var(--muted);
+}
+
+.sites__tier legend {
+  float: left;
+  width: 3.5rem;
+  padding: 0;
+}
+
+/* A refused field's reason, in the module's own words; empty holds no margin. */
+.sites__problem {
+  margin: 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+.sites__problem:empty {
+  display: none;
+}
+
+.sites__hint {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.sites__hint:empty {
+  margin: 0;
+}
+
+.sites__status {
+  margin: 0.75rem 0 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+/* The editor's buttons wear the drawer's action style; one rule, two names. */
+.sites__button {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  padding: 0.25rem 0.7rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sites__button:not(:disabled):hover {
+  border-color: var(--accent);
+}
+
+.sites__button:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.sites__button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* The rewound reason, the drawer's voice (#77): the state line and the times under it. */
+.sites__rewound {
+  margin: 0.5rem 0 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.sites__rewound:empty {
+  margin: 0;
+}
+
+.sites__rewound-times {
+  margin: 0.125rem 0 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}

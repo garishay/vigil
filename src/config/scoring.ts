@@ -9,6 +9,8 @@
  * class already reads from `airframes.ts`. Nothing here encodes a work system's doctrine.
  */
 
+import type { SiteTier } from './ao.ts'
+
 /** The factors, in the order the breakdown lists them: the five of 04a and the pattern row of 05a. */
 export type FactorId = 'cooperativity' | 'closing' | 'proximity' | 'pattern' | 'kinematic' | 'time'
 
@@ -63,6 +65,15 @@ export interface ScoringConfig {
   /** Proximity: 100 inside the ring, rolling off to 0 at `rolloffRadii` ring radii. */
   proximity: { rolloffRadii: number }
   /**
+   * The site tier as arithmetic (08a, ruled on #86): each protected site's closing and
+   * proximity value is scaled by its tier's multiplier before the worst case across sites is
+   * taken, so a tier-1 ring far off still outranks a tier-2 ring nearby, and the contribution
+   * stays `value / 100 × weight` — the record keeps reconciling with its own factors. At 0.5 a
+   * silent low-and-slow drone inside a tier-2 ring reads 66 (caution) where tier 1 reads 84
+   * (warning), and 82 (warning) once it loiters: attend, not act, until it behaves.
+   */
+  tierMultiplier: Record<SiteTier, number>
+  /**
    * Pattern of life (05a, ruled on #5): three detectors over a track's position history — the
    * frame-grid instants of the last `windowS` seconds — and the factor is the strongest of them.
    * Loiter dwell: the longest trailing run of positions that all lie within `radiusM` of their
@@ -106,6 +117,7 @@ export const SCORING: ScoringConfig = {
   cooperativity: { adsb: 5, heard: 25, unknown: 70, silent: 100, dwellS: 30, decayS: 120 },
   closing: { cpaRolloffRadii: 3, tcpaFullMin: 2, tcpaZeroMin: 20 },
   proximity: { rolloffRadii: 3 },
+  tierMultiplier: { 1: 1, 2: 0.5 },
   pattern: {
     windowS: 420,
     loiter: { radiusM: 450, minS: 150, fullS: 300 },

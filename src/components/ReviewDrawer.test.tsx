@@ -47,8 +47,8 @@ const PARKED: AdsbTrack = {
 
 // Two sites, decoy first: the drawer must name the site the range was measured to, not `[0]`.
 const SITES: ProtectedSite[] = [
-  { id: 'decoy', name: 'Decoy Stadium', center: [-75.17, 39.9], radiusM: 1000 },
-  { id: 'phl-airfield', name: 'PHL Airfield', center: [-75.2411, 39.8721], radiusM: 5000 },
+  { id: 'decoy', name: 'Decoy Stadium', center: [-75.17, 39.9], radiusM: 1000, tier: 1 },
+  { id: 'phl-airfield', name: 'PHL Airfield', center: [-75.2411, 39.8721], radiusM: 5000, tier: 1 },
 ]
 
 const entry = (track: InjectTrack | AdsbTrack, rank: number, rangeM: number): RankedTrack => ({

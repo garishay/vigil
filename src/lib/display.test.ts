@@ -8,6 +8,9 @@ import {
   reasonTag,
   scoreTotal,
   simClock,
+  siteKindLine,
+  siteLine,
+  siteOriginLine,
 } from './display'
 import { scoreTrack, type Score, type ScoringContext } from './scoring'
 import { AO } from '../config/ao'
@@ -19,6 +22,7 @@ import type { AdsbTrack, InjectTrack, Track } from './tracks'
 /** The record's clock, as the drawer and the handoff supply it. */
 const clock = (tSec: number) => simClock('02:30', tSec)
 
+const PHL_SITES = AO.protectedSites.map((site) => ({ ...site, kind: 'protected' as const }))
 const SCORE: Score = {
   composite: 82,
   weighted: 65.58,
@@ -30,6 +34,7 @@ const SCORE: Score = {
   pattern: null,
   rangeM: 7200.2,
   siteId: 'phl-airfield',
+  sites: PHL_SITES,
   factors: [
     {
       id: 'cooperativity',
@@ -148,6 +153,7 @@ describe('describeEvent — band crossings (06b)', () => {
         identity: 'non-cooperative',
         rangeM: 7200.2,
         siteId: 'phl-airfield',
+        sites: PHL_SITES,
         altitudeFt: 63,
         groundSpeedKt: 19.1,
         headingDeg: 345.6,
@@ -189,6 +195,7 @@ describe('describeEvent — pattern entries and the first-seen word (05b)', () =
     identity: 'non-cooperative',
     rangeM: 3000,
     siteId: 'phl-airfield',
+    sites: PHL_SITES,
     altitudeFt: 230,
     groundSpeedKt: 6,
     headingDeg: 270,
@@ -328,6 +335,7 @@ describe('reasonTag (05b, ruled on #5)', () => {
       name: 'Decoy',
       center: destinationPoint(at(3000), 90, 2000),
       radiusM: 1000,
+      tier: 1 as const,
     }
     const entry = ranked(silent(at(3000)))
     const twoSites = [AO.protectedSites[0], decoy]
@@ -383,5 +391,26 @@ describe('reasonTag (05b, ruled on #5)', () => {
     expect(reasonTag(ranked(heard, { ...NIGHT, minuteOfDay: 600 }), AO.protectedSites)).toBe(
       'Low and slow',
     )
+  })
+})
+
+describe('the site lines (08a)', () => {
+  const record = { ...AO.protectedSites[0], kind: 'protected' as const }
+
+  it('prints the row’s kind and tier line, and its ring and origin line', () => {
+    expect(siteKindLine(record)).toBe('Protected · tier 1')
+    expect(siteKindLine({ tier: 2 })).toBe('Protected · tier 2')
+    expect(siteOriginLine({ ...AO.protectedSites[0], addedTSec: null }, clock)).toBe(
+      '5.0 km ring · config',
+    )
+    expect(siteOriginLine({ ...AO.protectedSites[0], radiusM: 1500, addedTSec: 600 }, clock)).toBe(
+      '1.5 km ring · 02:40:00',
+    )
+  })
+
+  it('prints the handoff’s site line, which fits the 26 rem drawer at the name cap (#36 [5])', () => {
+    expect(siteLine(record)).toBe('PHL Airfield · protected · tier 1 · 5.0 km')
+    const widest = siteLine({ ...record, name: 'x'.repeat(20), tier: 2, radiusM: 12_000 })
+    expect(`  ${widest}`).toHaveLength(53)
   })
 })

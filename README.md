@@ -45,14 +45,15 @@ flowchart LR
       cfg["config/scenario.ts<br/>seed · envelope · launch points"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 behaviors · 3 Remote ID states · UA type"]
       gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
-    ao["config/ao.ts<br/>AO: center · bbox · protected sites"]
+    ao["config/ao.ts<br/>AO: center · bbox · protected sites with their tier"]
+    sites["lib/sites.ts<br/>the session's site set: add · update · remove · reset, stamped at sim time<br/>the rules a site meets · the last protected site stays"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
-    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · closing complete inside the ring<br/>per-factor breakdown retained · input type strips the answer key"]
+    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · closing complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
-    life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings, pattern changes, loss and return logged at sim time, statuses carried · re-surface read off the log"]
-    hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · timeline live"]
+    life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings, pattern changes, loss and return logged at sim time, statuses carried · re-surface read off the log<br/>the sites in force on every snapshot"]
+    hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · the site line from the record · timeline live"]
     workcfg["config/contacts.ts + dispositions.ts<br/>recipients · outcome labels"]
     frames["config/airframes.ts<br/>emitter categories · type codes · kinematic envelope"]
     airframe["lib/airframe.ts<br/>classify: silhouette class + its basis<br/>type code → category → UA type → envelope"]
@@ -85,13 +86,16 @@ flowchart LR
     map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count"]
     clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick<br/>scheduler injected, so no test waits on time"]
+    panel["components/SitesPanel.tsx<br/>the Sites surface: rows, the inline editor, placement armed on the map<br/>refused behind the record's frontier"]
     app --> queue
     app --> map
     app -- selected track: drawer --> review
+    app -- site set · placing --> panel
     clock -- t --> app
   end
   model -- adsb + injects: map, strip --> app
-  ao -- center · zoom · basemap · sites: map, strip --> app
+  ao -- center · zoom · basemap: map, strip · default sites --> app
+  sites -- session set: scorer, map, panel --> app
   cfg -- seed: strip --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot --> app
   life -- log · status · re-surface: drawer, state filter, row --> app

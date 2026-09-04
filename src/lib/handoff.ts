@@ -8,8 +8,11 @@
  * the moment the notification was made — and the Range line names that moment. The score is
  * rebuilt from the snapshot's factor values and weights, so the arithmetic on the page is the
  * record's, not the live picture's, and the Range line is captioned with the site the frozen
- * range was measured to. The Timeline stays live from the log, so a later Resolve still
- * appends. The ident is the track's name and prints live; the identity is the snapshot's.
+ * range was measured to — resolved from the snapshot's own site set (08a), so a site removed
+ * after the escalation is still named, and described on its own line under the kinematics for
+ * a recipient who has never heard of it. The Timeline stays live from the log, so a later
+ * Resolve still appends. The ident is the track's name and prints live; the identity is the
+ * snapshot's.
  *
  * The layer is disclosed in the Track line because the recipient must know a synthetic track is
  * synthetic. An absent kinematic renders as `—`, never as a zero (#35). The score block is the
@@ -30,6 +33,7 @@ import {
   formatScore,
   roundHeading,
   scoreTotal,
+  siteLine,
   trackIdent,
 } from './display.ts'
 import { IDENTITY_LABEL } from './identity.ts'
@@ -49,7 +53,6 @@ const dash = <T>(value: T | null, render: (value: T) => string) =>
 
 export function handoffText({
   entry,
-  sites,
   recipient,
   log,
   contacts,
@@ -57,8 +60,6 @@ export function handoffText({
   clock,
 }: {
   entry: RankedTrack
-  /** The configured sites: the frozen range is captioned with the one it was measured to. */
-  sites: readonly { id: string; name: string }[]
   recipient: Contact
   /** Must hold the escalation whose snapshot the evidence block prints. */
   log: readonly TrackEvent[]
@@ -72,8 +73,10 @@ export function handoffText({
   const { track } = entry
   const observed = escalation.observed
   const score = scoreFromSnapshot(observed)
-  // The site the frozen range was measured to, not whichever is nearest now (#75 review).
-  const siteName = sites.find((site) => site.id === observed.siteId)?.name ?? observed.siteId
+  // The site the frozen range was measured to, not whichever is nearest now (#75 review), read
+  // off the snapshot's own set so a removed site is still named (08a).
+  const site = observed.sites.find((candidate) => candidate.id === observed.siteId)
+  const siteName = site?.name ?? observed.siteId
   const kinematics = [
     dash(observed.altitudeFt, (v) => `${v} ft`),
     dash(observed.groundSpeedKt, (v) => `${v} kt`),
@@ -100,6 +103,7 @@ export function handoffText({
     `Track ${trackIdent(track)} · ${IDENTITY_LABEL[observed.identity]} · ${LAYER_DISCLOSURE[track.source]}`,
     `Range ${formatRangeKm(observed.rangeM)} to ${siteName} at ${clock(escalation.tSec)}`,
     `  ${kinematics}`,
+    ...(site ? [`  ${siteLine(site)}`] : []),
     `Score: ${formatScore(score)} (${score.band}) — ${score.capped ? 'capped, ' : ''}${scoreTotal(score)}`,
     ...factorLines,
     ...(score.capped ? [`  ${capLine(score)}`] : []),

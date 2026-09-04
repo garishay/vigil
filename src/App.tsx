@@ -4,6 +4,7 @@ import { MapView } from './components/MapView'
 import { Playback } from './components/Playback'
 import { Queue } from './components/Queue'
 import { ReviewDrawer } from './components/ReviewDrawer'
+import { SitesPanel, type Placing } from './components/SitesPanel'
 import { AO } from './config/ao'
 import { CONTACTS, type ContactId } from './config/contacts'
 import { DISPOSITIONS, type DispositionId } from './config/dispositions'
@@ -46,9 +47,18 @@ import {
   trailAt,
 } from './lib/replay'
 import { minuteOfDay } from './lib/scoring'
+import {
+  addSite,
+  fromConfig,
+  removeSite,
+  resetSites,
+  updateSite,
+  type SitePatch,
+  type SiteSet,
+} from './lib/sites'
 import type { Track } from './lib/tracks'
 
-type SurfaceId = 'home' | 'queue' | 'review'
+type SurfaceId = 'home' | 'queue' | 'review' | 'sites'
 type LayerFilter = 'all' | 'adsb' | 'inject'
 
 const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] = [
@@ -69,6 +79,12 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     label: 'Review',
     title: 'Track review',
     body: 'Everything known about the selected track. Every lifecycle action lands in its event log.',
+  },
+  {
+    id: 'sites',
+    label: 'Sites',
+    title: 'Sites',
+    body: 'Protected sites and friendly launch areas the picture is scored against — this session only; reload returns to config.',
   },
 ]
 
@@ -115,6 +131,16 @@ export default function App({
   // sighting fold below — and is kept if the track leaves the picture and returns.
   const [eventLogs, setEventLogs] = useState<Record<string, TrackEvent[]>>({})
 
+  // The session's site set (08a, ruled on #86): the operator's protected sites, seeded from
+  // config and scored against on every tick. Session state only — a reload returns to config;
+  // the golden and every pinned test run on the config set.
+  const [siteSet, setSiteSet] = useState<SiteSet>(() => fromConfig(AO.protectedSites))
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
+  // What the next map click does while the Sites editor has the map armed, and the reason the
+  // last placement was refused, if it was.
+  const [placing, setPlacing] = useState<Placing>(null)
+  const [siteNotice, setSiteNotice] = useState<string | null>(null)
+
   // The recording, re-keyed by aircraft for the interpolator; the clock runs to its last frame.
   const index = useMemo(
     () => (capture.status === 'ready' ? indexCapture(capture.capture) : null),
@@ -155,10 +181,10 @@ export default function App({
     () => (index ? historiesAt(index, plan, tracks, tSec, SCORING.pattern.windowS) : {}),
     [index, plan, tracks, tSec],
   )
+  const sites = siteSet.sites
   const ranked = useMemo(
-    () =>
-      rankTracks(tracks, AO.protectedSites, { tSec, minuteOfDay: clockMinute, memory, history }),
-    [tracks, tSec, clockMinute, memory, history],
+    () => rankTracks(tracks, sites, { tSec, minuteOfDay: clockMinute, memory, history }),
+    [tracks, sites, tSec, clockMinute, memory, history],
   )
   // The picture as last committed, by track, with the tick it was drawn at — what a Lost line
   // snapshots (#71), since the track it records is no longer in `ranked` to be read. Written
@@ -354,6 +380,46 @@ export default function App({
     }))
   }
 
+  // A site edit is a workflow action (#77): refused while the clock is behind the record's
+  // frontier — the latest sim time any track's record holds, Lost lines included, or the last
+  // edit's — so an edit's crossings always land at or past every track's own frontier. An edit
+  // the module refuses is not applied; its reason goes to the panel's live line.
+  const recordFrontier = Math.max(
+    siteSet.lastEditTSec ?? 0,
+    ...Object.values(eventLogs).map((log) => log[log.length - 1].tSec),
+  )
+  const sitesRewound = tSec < recordFrontier
+  const editSites = (change: (set: SiteSet) => SiteSet): boolean => {
+    if (sitesRewound) return false
+    try {
+      setSiteSet(change(siteSet))
+      setSiteNotice(null)
+      return true
+    } catch (error) {
+      setSiteNotice(error instanceof Error ? error.message : String(error))
+      return false
+    }
+  }
+  const place = (center: [number, number]) => {
+    if (!placing) return
+    const target = placing
+    const applied = editSites((set) =>
+      target.kind === 'add'
+        ? addSite(set, center, tSec, AO)
+        : updateSite(set, target.id, { center }, tSec, AO),
+    )
+    // A refused placement keeps the map armed for another try; a landed one disarms it and
+    // selects the site just placed, so its fields are open to refine.
+    if (!applied) return
+    setPlacing(null)
+    if (target.kind === 'add') setSelectedSiteId(`site-${siteSet.nextId}`)
+  }
+  const changeSurface = (id: SurfaceId) => {
+    setSurfaceId(id)
+    // Leaving the Sites surface disarms the map: a click on Home must not place a site.
+    if (id !== 'sites') setPlacing(null)
+  }
+
   const pending = capture.status === 'loading' ? '…' : '—'
   const count = (n: number) => (capture.status === 'ready' ? String(n) : pending)
 
@@ -393,7 +459,7 @@ export default function App({
       // Keyed by track, so picker and copied state never leak from one track to the next.
       key={selected.track.id}
       entry={selected}
-      sites={AO.protectedSites}
+      sites={sites}
       log={logFor(selected)}
       contacts={CONTACTS}
       dispositions={DISPOSITIONS}
@@ -429,7 +495,7 @@ export default function App({
               type="button"
               className="nav__item"
               aria-current={s.id === surfaceId ? 'page' : undefined}
-              onClick={() => setSurfaceId(s.id)}
+              onClick={() => changeSurface(s.id)}
             >
               {s.label}
             </button>
@@ -461,6 +527,11 @@ export default function App({
             {surfaceId === 'queue' && (
               <span className="rail__count" aria-label="Tracks in queue">
                 {count(visible.length)}
+              </span>
+            )}
+            {surfaceId === 'sites' && (
+              <span className="rail__count" aria-label="Sites in the set">
+                {sites.length}
               </span>
             )}
           </div>
@@ -505,7 +576,7 @@ export default function App({
                 restoreFocus={keyboardClose}
                 statusFor={(id) => statusOf(eventLogs[id])}
                 resurfacedFor={(entry) => resurfaced(eventLogs[entry.track.id], entry.track.source)}
-                sites={AO.protectedSites}
+                sites={sites}
                 onSelect={setSelectedId}
               />
             </>
@@ -525,10 +596,43 @@ export default function App({
           </p>
           {surfaceId === 'review' &&
             (drawer ?? <p className="rail__empty">Select a track from the Queue.</p>)}
+          {surfaceId === 'sites' && (
+            <SitesPanel
+              set={siteSet}
+              config={AO.protectedSites}
+              ao={AO}
+              selectedId={selectedSiteId}
+              placing={placing}
+              notice={siteNotice}
+              rewound={sitesRewound}
+              clock={clock}
+              tSec={tSec}
+              frontier={recordFrontier}
+              onSelect={setSelectedSiteId}
+              onPlacing={(next) => {
+                setPlacing(next)
+                setSiteNotice(null)
+              }}
+              onUpdate={(id, patch: SitePatch) =>
+                editSites((set) => updateSite(set, id, patch, tSec, AO))
+              }
+              onRemove={(id) => {
+                if (editSites((set) => removeSite(set, id, tSec))) setSelectedSiteId(null)
+              }}
+              onReset={() => {
+                if (editSites((set) => resetSites(set, AO.protectedSites, tSec)))
+                  setSelectedSiteId(null)
+              }}
+            />
+          )}
         </section>
         {drawerColumn}
         <MapView
           ao={AO}
+          sites={sites}
+          selectedSiteId={surfaceId === 'sites' ? selectedSiteId : null}
+          placing={placing !== null}
+          onPlace={place}
           tracks={adsb}
           injects={injects}
           // Ruled A2 on #3: the selection persists across surface switches, but Home's map is
