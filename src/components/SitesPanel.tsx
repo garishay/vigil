@@ -203,21 +203,15 @@ export function SitesPanel({
     return () => window.removeEventListener('keydown', onKey)
   }, [placing, onPlacing])
 
-  // The plan: copied with the handoff's mechanics — the textarea below is the fallback's
-  // selection, so a copy fills it with the current plan first — and loaded from whatever was
-  // pasted into it, with the module's reason printed under it when refused.
-  const planRef = useRef<HTMLTextAreaElement>(null)
-  const { copy, copied } = useCopy(planRef)
+  // The plan: copied with the handoff's mechanics from an element of its own — the fallback
+  // selects the hidden textarea that always holds the current plan — and loaded from the Load
+  // field, which is the operator's and keeps what they pasted (closure on #95); the module's
+  // reason prints under it when a load is refused.
+  const copyRef = useRef<HTMLTextAreaElement>(null)
+  const { copy, copied } = useCopy(copyRef)
   const [planDraft, setPlanDraft] = useState('')
   const [loadProblem, setLoadProblem] = useState<string | null>(null)
   const plan = sitePlanText(set, ao)
-  const copyPlan = () => {
-    setPlanDraft(plan)
-    // The field now holds a plan the module accepts; a refusal of what it held before is gone.
-    setLoadProblem(null)
-    if (planRef.current) planRef.current.value = plan
-    void copy(plan)
-  }
 
   const adding = placing?.kind === 'add' ? placing.site : null
   const isEdited = edited(set, config, configAreas)
@@ -329,9 +323,19 @@ export function SitesPanel({
         aria-label="Site set"
         aria-describedby={describedBy}
       >
-        <button type="button" className="sites__button" onClick={copyPlan}>
+        <button type="button" className="sites__button" onClick={() => void copy(plan)}>
           {copied(plan) ? 'Copied' : 'Copy site plan'}
         </button>
+        {/* The copy fallback's own selection: the current plan, off screen, never the operator's
+            field. Read-only and out of the tab order; the button is the control. */}
+        <textarea
+          ref={copyRef}
+          className="sites__plancopy"
+          readOnly
+          tabIndex={-1}
+          aria-hidden="true"
+          value={plan}
+        />
         <button
           type="button"
           className="sites__button"
@@ -345,7 +349,6 @@ export function SitesPanel({
         <label htmlFor="sites-plan">Load site plan</label>
         <textarea
           id="sites-plan"
-          ref={planRef}
           className="sites__plantext"
           value={planDraft}
           disabled={rewound}

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SitesPanel, type Placing } from './SitesPanel'
 import { AO } from '../config/ao'
@@ -189,17 +189,34 @@ describe('SitesPanel — friendly launch areas and the site plan (08b)', () => {
     expect(screen.getByText('2 sites · edited from config')).toBeInTheDocument()
   })
 
-  it('copies the plan with the handoff’s mechanics, filling the plan field first', async () => {
+  it('copies the plan with the handoff’s mechanics from its own element, leaving the Load field alone', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
     const set = grown()
     renderPanel(set)
+    const field = screen.getByLabelText('Load site plan') as HTMLTextAreaElement
+    fireEvent.change(field, { target: { value: 'the operator’s draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Copy site plan' }))
     expect(writeText).toHaveBeenCalledWith(sitePlanText(set, AO))
     expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument()
-    expect((screen.getByLabelText('Load site plan') as HTMLTextAreaElement).value).toBe(
-      sitePlanText(set, AO),
-    )
+    // The Load field is the operator's (closure on #95); the fallback's element holds the plan.
+    expect(field.value).toBe('the operator’s draft')
+    const own = document.querySelector('.sites__plancopy') as HTMLTextAreaElement
+    expect(own.value).toBe(sitePlanText(set, AO))
+    expect(own).toHaveAttribute('aria-hidden', 'true')
+    vi.unstubAllGlobals()
+  })
+
+  it('selects its own element on the clipboard fallback, never the Load field', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: undefined })
+    const set = grown()
+    renderPanel(set)
+    const field = screen.getByLabelText('Load site plan') as HTMLTextAreaElement
+    fireEvent.change(field, { target: { value: 'kept' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy site plan' }))
+    const own = document.querySelector('.sites__plancopy') as HTMLTextAreaElement
+    await waitFor(() => expect(own.selectionEnd).toBe(own.value.length))
+    expect(field.value).toBe('kept')
     vi.unstubAllGlobals()
   })
 
@@ -226,16 +243,15 @@ describe('SitesPanel — friendly launch areas and the site plan (08b)', () => {
     expect(screen.getByRole('button', { name: 'Reset to config' })).toBeDisabled()
   })
 
-  it('clears a stale load refusal when Copy refills the field (#95 review)', () => {
+  it('leaves a load refusal standing over the text it describes when Copy runs (closure on #95)', () => {
     renderPanel(fromConfig(CONFIG), { onLoad: () => 'Plan is not JSON' })
     fireEvent.change(screen.getByLabelText('Load site plan'), { target: { value: 'bad' } })
     fireEvent.click(screen.getByRole('button', { name: 'Load' }))
     expect(screen.getByText('Plan is not JSON')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Copy site plan' }))
-    expect(screen.queryByText('Plan is not JSON')).not.toBeInTheDocument()
-    expect((screen.getByLabelText('Load site plan') as HTMLTextAreaElement).value).toMatch(
-      /"ao": "phl"/,
-    )
+    // The field still reads `bad`, so the refusal is still true and still shown.
+    expect((screen.getByLabelText('Load site plan') as HTMLTextAreaElement).value).toBe('bad')
+    expect(screen.getByText('Plan is not JSON')).toBeInTheDocument()
   })
 
   it('disables the plan field and Load while rewound', () => {

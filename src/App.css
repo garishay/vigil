@@ -1022,3 +1022,15 @@
   line-height: 1.4;
   resize: vertical;
 }
+
+/* The copy fallback's own element (closure on #95): present for `select()`, invisible, no room. */
+.sites__plancopy {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
