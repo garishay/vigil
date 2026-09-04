@@ -42,12 +42,19 @@ CI runs lint, typecheck, test, and format:check on every PR push. Red CI is a st
   cleanup PRs bundle owner-routed Issues. An agent-filed Issue declares its origin in its first line;
   the owner's routing comment makes it bundle-eligible.
 - Branch `feat/pr-02-scenario-data` — kind, PR number, short slug. Conventional-ish commit subjects,
-  imperative mood. Squash-merge and branch deletion are repo settings.
+  imperative mood. Squash-merge and branch deletion are repo settings. A pushed branch is never
+  rebased: it updates by merging `main`, and the squash absorbs the merge commit — the hook refuses
+  the force push a rebase would need.
 - Size: ~400 implementation lines is a gate-time estimate check, not a rule at open. The gate estimate
-  lists App wiring and CSS as their own rows. At open the PR reports raw / implementation / tests, the
-  deltas by file, and a reading order. Growth past the cap mid-build is a budget change: stop and
-  re-gate. Once built and verified, reviewability decides; no post-hoc split.
-- One test per behavior change. No dead code, no `console` noise.
+  lists App wiring and CSS as their own rows, states the estimate-to-actual ratio of the last three
+  merged feature PRs, and scales its total by it; the ~400 check runs on the scaled number.
+  Implementation is counted one way at the gate and at open — insertions in non-test source,
+  comments and blanks excluded, new files included. At open the PR reports raw / implementation /
+  tests, the deltas by file, and a reading order. Growth past the scaled cap mid-build is a budget
+  change: stop and re-gate. Once built and verified, reviewability decides; no post-hoc split.
+- One test per behavior change. A test paired with a fix is shown failing on the pre-fix code, and
+  the PR or the thread reply says so; a test that cannot tell the fix from the code before it is
+  disclosed as pinning the shape instead. No dead code, no `console` noise.
 - Update the README architecture diagram when a PR adds or removes a module or an edge, including
   un-dashing a box already reserved for it.
 - A change that cannot test itself carries only the fix, no cleanup: the review action skips a run
@@ -60,13 +67,18 @@ CI runs lint, typecheck, test, and format:check on every PR push. Red CI is a st
 Every PR is planned and approved before it is built. Read the notes on every open Issue, not just the
 target — rulings get parked on the Issue they will land in — and mark each as a **ruling** or an
 **assumption**, saying which when parking a note of your own. User-visible work brings a mockup; the
-mockup in the plan comment on the PR's Issue is the referent for what is approved. A cleanup PR
+mockup in the plan comment on the PR's Issue is the referent for what is approved. A gate checks
+every invariant it claims against its own mockup's numbers before it posts — the bars against the
+chip, the lines against the fit, the arithmetic against the table — and shows the check. A cleanup PR
 bundling owner-routed Issues at ≤50 implementation lines is pre-approved by those Issues, mockup
 included; one that outgrows its cap stops and queues, with the split or a raised cap as the options.
 
 Mid-build, judge a deviation by what it touches. One that changes neither the approved design nor the
 budget: flag it, keep going, disclose it at open. One that changes either: stop and re-gate on the
-adjudication queue with the conflict, the proposed change, and the revised estimate.
+adjudication queue with the conflict, the proposed change, and the revised estimate. A ruling names
+an outcome and a means: when the ruled means cannot meet the ruled outcome, the lane builds the
+smallest change that does, discloses it with the alternative and an opt-out, and proceeds; a change
+that moves the outcome stops and re-gates.
 
 ## Decision rights
 
@@ -76,7 +88,10 @@ Plan gates, closure declarations, and merges are the owner's alone.
 closure declaration; a rule naming the case; the proceed list; the stop-and-queue list. A case
 nothing above matches is queued.
 
-**Proceed without asking — log it on the PR thread:** review-round triage; thread reconciliation;
+**Proceed without asking — log it on the PR thread:** review-round triage, read from the PR's inline
+review threads as well as its comments — the comment view misses the threads, an unresolved one
+blocks the merge, and `node scripts/review-threads.ts <pr>` lists them before a round is reported
+clean; thread reconciliation;
 filing follow-up Issues; branch updates and changelog conflicts in the known ordering; retriggering
 CI; fixes to factual errors within the approved design and budget; cleanup PRs of routed Issues at
 ≤50 lines.
@@ -94,9 +109,11 @@ findings become follow-up Issues — except a factual error (a broken requiremen
 which is fixed in the PR that finds it when it lies in that PR's files, still blocking its merge, and
 otherwise filed as a blocking follow-up the owning lane takes next.
 
-**Thread resolution:** the lane resolves a thread it answered with a fix once CI is green, and any
-thread whose reply cites an owner ruling by ID; a later requested review round can reopen. Won't-fix
-and no-code-change judgment threads are the owner's to resolve.
+**Thread resolution:** the lane resolves a thread it answered with a fix once a CI run on that head
+exists and passed — a conflicting branch runs none, and "no checks reported" is not green — and any
+thread whose reply cites an owner ruling by ID. The round that produced the fix is the last round
+unless the owner calls another, and a called round can reopen. Won't-fix and no-code-change
+judgment threads are the owner's to resolve.
 
 **Cadence:** governance text is revised in batches. Findings against it that are not factual errors
 file to the standing Governance revisions Issue, **#45**, and land in the next governance PR, never
@@ -104,7 +121,8 @@ per-round; a factual error follows the factual-error rule.
 
 ## Lanes
 
-One session and one git worktree per lane; one open PR per lane. Surfaces are disjoint by default —
+One session and one git worktree per lane; one open PR per lane. A session's first act is to check
+out `main` and pull: the hook and the rulebook are the checkout's. Surfaces are disjoint by default —
 features to Lane A, scripts and docs to Lane B — but routing beats default: the lane holding an Issue
 owns every file its fix touches for the life of that PR, unless the other lane has an open PR touching
 that file, in which case the file is claimed on the queue. New files belong to the PR that creates
@@ -130,5 +148,7 @@ error.
 
 `main` is branch-protected: PR required, checks required, no bypass. A PreToolUse hook in
 `.claude/settings.json` blocks pushes to `main`, force pushes, and dependency adds — a dependency is
-asked for on the queue. Secret scanning with push protection is on. If a hook blocks something you
-believe is right, stop and queue it; do not work around it.
+asked for on the queue. Secret scanning with push protection is on. `scripts/review-threads.ts`
+lists a PR's unresolved inline review threads and exits non-zero while any remain, so "clean" is a
+computed claim. If a hook blocks something you believe is right, stop and queue it; do not work
+around it.
