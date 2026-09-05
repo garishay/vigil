@@ -2,6 +2,10 @@
 
 **Explainable airspace triage for the PHL area.**
 
+**Live at <https://garishay.github.io/vigil/>** — the default recording; the evening arrivals bank
+is [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002). Open
+one, press Play, read the Queue. Every merge to `main` redeploys it.
+
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
 small-UAS tracks (the injects) — scores every track against a protected site using transparent,
@@ -150,6 +154,9 @@ the scoring model, the PR sequence, and the process contract.
 ## Stack
 
 Vite · React · TypeScript · MapLibre GL · Vitest · ESLint · Prettier
+
+Basemap: CARTO Dark Matter — © CARTO, © OpenStreetMap contributors — the attribution the map
+itself draws.
 
 ## Commands
 
