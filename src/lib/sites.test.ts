@@ -287,6 +287,20 @@ describe('the stored plan (#90, ruled)', () => {
     expect(removeSite(set, 'area-3', 20).stored).toBe(true)
   })
 
+  it('does not mark a stored plan that equals config as stored — the flag agrees with edited (#108 review)', () => {
+    // The app never writes such a plan, but a config tuned after the write can make one of a
+    // plan already held; the rows then read config, as the status line and Reset do.
+    const { set, problem } = fromStore(
+      sitePlanText(fromConfig(CONFIG, AREAS), AO),
+      CONFIG,
+      AREAS,
+      AO,
+    )
+    expect(problem).toBeNull()
+    expect(edited(set, CONFIG, AREAS)).toBe(false)
+    expect(set.stored).toBe(false)
+  })
+
   it('opens on config when nothing is stored, and on config with the reason when the text is not a plan — never a throw', () => {
     const none = fromStore(null, CONFIG, AREAS, AO)
     expect(none).toEqual({ set: fromConfig(CONFIG, AREAS), problem: null })

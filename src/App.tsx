@@ -110,13 +110,6 @@ const STATE_FILTERS: { id: StateFilter; label: string }[] = [
 const matchesState = (status: Status, filter: StateFilter): boolean =>
   filter === 'all' || (filter === 'active' ? !isTerminal(status) : status === filter)
 
-/**
- * `now` is the wall-clock seam: lifecycle events take `at` as an input, App supplies it, and
- * tests fix it. `schedule` is the replay clock's seam (06a): the tick is scheduled through it,
- * so a test drives the clock by hand and never waits on real time. `lookupPhoto` is the network
- * seam (03d): the one runtime third-party call, injected the way the capture's fetcher is, so no
- * test reaches the network.
- */
 /** Where this browser keeps an edited site plan between sessions (#90) — the plan's own text. */
 const SITE_PLAN_KEY = 'vigil.site-plan'
 
@@ -129,6 +122,13 @@ const readStoredPlan = (): string | null => {
   }
 }
 
+/**
+ * `now` is the wall-clock seam: lifecycle events take `at` as an input, App supplies it, and
+ * tests fix it. `schedule` is the replay clock's seam (06a): the tick is scheduled through it,
+ * so a test drives the clock by hand and never waits on real time. `lookupPhoto` is the network
+ * seam (03d): the one runtime third-party call, injected the way the capture's fetcher is, so no
+ * test reaches the network.
+ */
 export default function App({
   now = () => new Date().toISOString(),
   schedule = intervalSchedule,
@@ -151,13 +151,18 @@ export default function App({
   // The session's site set (08a, ruled on #86): the operator's protected sites, seeded from
   // config and scored against on every tick. An edited set is kept in this browser as its plan
   // (#90) and restored here, before the first frame, unstamped — the frontier rule never sees
-  // it; a plan the parser refuses leaves config in place with one line said. The golden and
-  // every pinned test run on the config set.
+  // it; a plan the parser refuses leaves config in place with one line said. A held plan that
+  // equals config records no difference, so it is forgotten here rather than kept unclearable
+  // (#108 review). The golden and every pinned test run on the config set.
   const [siteSet, setSiteSet] = useState<SiteSet>(() => {
-    const { set, problem } = fromStore(readStoredPlan(), AO.protectedSites, AO.friendlyAreas, AO)
+    const text = readStoredPlan()
+    const { set, problem } = fromStore(text, AO.protectedSites, AO.friendlyAreas, AO)
     if (problem !== null) console.warn(`Stored site plan ignored — ${problem}; using config`)
+    else if (text !== null && !set.stored) localStorage.removeItem(SITE_PLAN_KEY)
     return set
   })
+  // Whether the browser's refusal to store the plan has been said — once, not per edit.
+  const storageWarned = useRef(false)
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
   // What the next map click does while the Sites editor has the map armed, and the reason the
   // last placement was refused, if it was.
@@ -468,7 +473,8 @@ export default function App({
   // Storage holds the plan only while the set differs from config (ruled on #90): an accepted
   // edit writes the plan's text, and one whose set equals config — Reset to config included —
   // removes the key and clears `stored`, so the rows read config again. A write the browser
-  // refuses is said once; the session continues on the set.
+  // refuses is said once for the session — the name field commits per keystroke (#108 review) —
+  // and the session continues on the set.
   const commitSites = (next: SiteSet): void => {
     const kept = edited(next, AO.protectedSites, AO.friendlyAreas)
     setSiteSet(kept ? next : { ...next, stored: false })
@@ -476,6 +482,8 @@ export default function App({
       if (kept) localStorage.setItem(SITE_PLAN_KEY, sitePlanText(next, AO))
       else localStorage.removeItem(SITE_PLAN_KEY)
     } catch (error) {
+      if (storageWarned.current) return
+      storageWarned.current = true
       console.warn(`Site plan not stored — ${error instanceof Error ? error.message : error}`)
     }
   }

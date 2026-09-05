@@ -333,7 +333,9 @@ export function parseSitePlan(
  * The set a session opens on when this browser holds a plan (#90): the stored plan as the set,
  * unstamped — nothing was added or edited this session, so the frontier rule never sees a
  * restore — or config with the parser's reason when the text is not a plan it accepts. Null
- * text is no plan: config, no problem. Never throws.
+ * text is no plan: config, no problem. Never throws. `stored` agrees with `edited`: a held plan
+ * that equals config — one the app never writes, but a config tuned after the write can make —
+ * reads config, as the status line and Reset do (#108 review).
  */
 export function fromStore(
   text: string | null,
@@ -345,16 +347,14 @@ export function fromStore(
   if (text === null) return { set: base, problem: null }
   try {
     const loaded = parseSitePlan(text, ao, base, 0)
-    return {
-      set: {
-        sites: loaded.sites.map((site) => ({ ...site, addedTSec: null })),
-        areas: loaded.areas.map((area) => ({ ...area, addedTSec: null })),
-        nextId: loaded.nextId,
-        lastEditTSec: null,
-        stored: true,
-      },
-      problem: null,
+    const set: SiteSet = {
+      sites: loaded.sites.map((site) => ({ ...site, addedTSec: null })),
+      areas: loaded.areas.map((area) => ({ ...area, addedTSec: null })),
+      nextId: loaded.nextId,
+      lastEditTSec: null,
+      stored: false,
     }
+    return { set: { ...set, stored: edited(set, config, areas) }, problem: null }
   } catch (error) {
     return { set: base, problem: error instanceof Error ? error.message : String(error) }
   }

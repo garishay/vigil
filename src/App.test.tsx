@@ -1604,6 +1604,38 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     warn.mockRestore()
   })
 
+  it('forgets a stored plan that equals config at load, so the key never outlives the difference it records (#108 review)', () => {
+    localStorage.setItem(STORE_KEY, sitePlanText(fromConfig(AO.protectedSites), AO))
+    render(<App schedule={never} />)
+    fireEvent.click(action('Sites'))
+    expect(screen.getByText('1 site · config')).toBeInTheDocument()
+    expect(siteRows()[0]).toHaveTextContent('5.0 km ring · config')
+    expect(action('Reset to config')).toBeDisabled()
+    expect(localStorage.getItem(STORE_KEY)).toBeNull()
+  })
+
+  it('says once that the browser refuses to store the plan, however many edits follow (#108 review)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    render(<App schedule={never} />)
+    fireEvent.click(action('Sites'))
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    // The name field commits per keystroke: three accepted edits, one line.
+    const name = screen.getByLabelText('Name')
+    fireEvent.change(name, { target: { value: 'Fence' } })
+    fireEvent.change(name, { target: { value: 'Fence A' } })
+    expect(setItem).toHaveBeenCalledTimes(3)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith('Site plan not stored — QuotaExceededError')
+    // The set itself is kept: the session runs on, unstored.
+    expect(siteRows()[1]).toHaveTextContent('Fence A')
+    setItem.mockRestore()
+    warn.mockRestore()
+  })
+
   it('disarms a move when its site is removed or the set is reset (#87 review)', () => {
     render(<App schedule={never} />)
     fireEvent.click(action('Sites'))
