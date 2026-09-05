@@ -69,8 +69,13 @@ describe('BAND_COLOR (#96)', () => {
   it('mirrors --caution and --warning in the stylesheet exactly, so the map and the chip agree', () => {
     // MapLibre cannot read a CSS variable, so the map paints a literal; this is the one place the
     // literal is held to the token (ruled A5 on #96) — a palette change that misses one fails here.
-    const token = (name: string) => css.match(new RegExp(`--${name}: (#[0-9a-f]{6});`))?.[1]
-    expect(token('caution')).toBeDefined()
+    // Any value the token is given counts — MapLibre takes the same literal — read from the last
+    // declaration, so a later override is the one held.
+    const token = (name: string) => {
+      const declared = [...css.matchAll(new RegExp(`--${name}:\\s*([^;]+);`, 'g'))].at(-1)?.[1]
+      if (declared === undefined) throw new Error(`--${name} is not declared in index.css`)
+      return declared.trim()
+    }
     expect(BAND_COLOR).toEqual({ caution: token('caution'), warning: token('warning') })
   })
 })

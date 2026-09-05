@@ -11,6 +11,6 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.ts'],
     // Stylesheets resolve empty under test by default; the theme is let through so a test can
     // hold a MapLibre literal to its CSS token (#96).
-    css: { include: [/index\.css/] },
+    css: { include: [/\/src\/index\.css(\?|$)/] },
   },
 })
