@@ -8,8 +8,8 @@ on:
   push:
     branches: [main]
 
-# One deploy at a time; a queued one finishes rather than being cancelled, so the newest push is
-# what ends up live either way.
+# One deploy at a time. The in-progress run is never cancelled, so a deploy always completes; a
+# run left pending behind it is superseded by the next push, which is what ends up live.
 concurrency:
   group: pages
   cancel-in-progress: false
