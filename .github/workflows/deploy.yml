@@ -1,0 +1,51 @@
+name: Deploy
+
+# Every merge to main ships (#106): build, upload the dist artifact, deploy it with the Pages
+# actions. The artifact flow, not a gh-pages branch — there is no second push target for the
+# tool-guard and branch protection to reason about. The repository's Pages source is GitHub
+# Actions, set by hand.
+on:
+  push:
+    branches: [main]
+
+# One deploy at a time. The in-progress run is never cancelled, so a deploy always completes; a
+# run left pending behind it is superseded by the next push, which is what ends up live.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # `base` from the repository name, read in vite.config.ts: the site lives at /<repo>/.
+      - run: npm run build
+        env:
+          PAGES_BASE: /${{ github.event.repository.name }}/
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    # These two and nothing else. No secrets exist and none are added; the token is the job's.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

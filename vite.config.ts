@@ -3,6 +3,9 @@ import { defineConfig } from 'vitest/config'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // The Pages deploy (#106) serves the site from /<repository>/; the workflow passes the path.
+  // Dev, tests, and a bare build stay at `/`, so nothing that pins a URL moves.
+  base: process.env.PAGES_BASE ?? '/',
   plugins: [react()],
   test: {
     environment: 'jsdom',
