@@ -15,7 +15,7 @@ import { SCORING } from './config/scoring'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useCapture } from './data/useCapture'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
-import { recordingLabel, simClock } from './lib/display'
+import { recordingLabel, simClock, type WarmBand } from './lib/display'
 import { injectTracksAt, planScenario, timelineOf } from './lib/injects'
 import {
   STATUSES,
@@ -269,6 +269,30 @@ export default function App({
   const terminalIds = useMemo(
     () => (terminalKey === '' ? [] : terminalKey.split(' ')),
     [terminalKey],
+  )
+  // The warm bands for the map's fill (#96), in the same two-step shape and for the same reason:
+  // a new identity here re-pushes the inject source, so the key folds first and the Map is
+  // rebuilt only when some inject's band moved — a site edit with the clock paused (the band
+  // moves, the picture does not), never a tick with no crossing. The band is the score's own
+  // word, the one the chip prints; nothing is computed here. Calm is absent, so the map reads it
+  // as the default, and only injects are keyed: both caps hold a real aircraft below caution.
+  const bandKey = useMemo(
+    () =>
+      ranked
+        .filter((entry) => entry.track.source === 'inject' && entry.score.band !== 'calm')
+        .map((entry) => `${entry.track.id}:${entry.score.band}`)
+        .sort()
+        .join(' '),
+    [ranked],
+  )
+  const bands = useMemo(
+    () =>
+      new Map<string, WarmBand>(
+        bandKey === ''
+          ? []
+          : bandKey.split(' ').map((pair) => pair.split(':') as [string, WarmBand]),
+      ),
+    [bandKey],
   )
 
   const selected = selectedId
@@ -719,6 +743,7 @@ export default function App({
           selectionShown={surfaceId !== 'home'}
           trail={trail}
           terminalIds={terminalIds}
+          bands={bands}
           onSelect={(id) => {
             setSelectedId(id)
             // The other direction of the same ruling: a selection is an intent to review, so one

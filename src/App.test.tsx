@@ -16,6 +16,11 @@ import { addSite, fromConfig, sitePlanText } from './lib/sites'
 const { terminalIdsSeen } = vi.hoisted(() => ({
   terminalIdsSeen: [] as (readonly string[])[],
 }))
+// The same for `bands` (#96): the map identities, so a tick with no crossing can be shown to hand
+// the map the same map.
+const { bandsSeen } = vi.hoisted(() => ({
+  bandsSeen: [] as ReadonlyMap<string, string>[],
+}))
 
 // The map itself is covered by MapView.test.tsx; here it is stubbed so these tests stay about
 // layout, navigation, and what the picture status strip reports.
@@ -36,6 +41,7 @@ vi.mock('./components/MapView', () => ({
     selectionShown = true,
     trail = [],
     terminalIds = [],
+    bands = new Map<string, string>(),
     onSelect,
   }: {
     sites?: readonly { id: string }[]
@@ -48,9 +54,11 @@ vi.mock('./components/MapView', () => ({
     selectionShown?: boolean
     trail?: unknown[]
     terminalIds?: readonly string[]
+    bands?: ReadonlyMap<string, string>
     onSelect?: (id: string) => void
   }) => {
     terminalIdsSeen.push(terminalIds as readonly string[])
+    bandsSeen.push(bands)
     return (
       <div
         data-testid="map"
@@ -60,6 +68,7 @@ vi.mock('./components/MapView', () => ({
         data-selection-shown={String(selectionShown)}
         data-trail={trail.length}
         data-terminal={[...terminalIds].join(',')}
+        data-bands={[...bands].map(([id, band]) => `${id}:${band}`).join(',')}
         data-sites={sites.map((site) => site.id).join(',')}
         data-selected-site={selectedSiteId ?? ''}
         data-placing={String(placing)}
@@ -1272,6 +1281,41 @@ describe('App rewound actions (#77)', () => {
     expect(screen.getByTestId('map')).toHaveAttribute('data-terminal', 'adsb-a06461')
   })
 
+  it('hands the map one bands identity until some band moves, and never an ADS-B id (#96)', () => {
+    useCapture.mockReturnValue(MOVING)
+    const replay = manualClock()
+    bandsSeen.length = 0
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    fireEvent.click(action('Queue'))
+
+    // Ten ticks: `ranked` is new on every one (#76), so a map memoised on it would be new too.
+    // The map may only change identity when its content does — and a run of ticks with no
+    // crossing must hand the same map over and over.
+    replay.tick(10)
+    const content = (bands: ReadonlyMap<string, string>) =>
+      [...bands]
+        .map(([id, band]) => `${id}:${band}`)
+        .sort()
+        .join(' ')
+    let repeats = 0
+    for (let i = 1; i < bandsSeen.length; i++) {
+      if (content(bandsSeen[i]) === content(bandsSeen[i - 1])) {
+        expect(bandsSeen[i]).toBe(bandsSeen[i - 1])
+        repeats++
+      } else {
+        expect(bandsSeen[i]).not.toBe(bandsSeen[i - 1])
+      }
+    }
+    expect(repeats).toBeGreaterThan(0)
+    // The band is the score's own word for each inject; a real aircraft has none on the map.
+    for (const bands of bandsSeen) {
+      for (const [id, band] of bands) {
+        expect(id).toMatch(/^inject-/)
+        expect(['caution', 'warning']).toContain(band)
+      }
+    }
+  })
+
   it('announces the state once, not the clock — scrubbing while rewound says nothing more', () => {
     claimedAtSixty()
     const region = () => document.querySelector('.drawer__rewound') as HTMLElement
@@ -1585,6 +1629,10 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
     fireEvent.click(action('Queue'))
     const before = chips()
     expect(rowFor(trackIdent(heard))).not.toHaveTextContent('Friendly launch')
+    // The map's fill reads the chip's band, so the demo moment is one step there too (#96): the
+    // heard inject's dot is warm before the area, and calm — absent from the map — after it.
+    const mapBands = () => screen.getByTestId('map').getAttribute('data-bands') ?? ''
+    expect(mapBands()).toMatch(new RegExp(`${heard.id}:(caution|warning)`))
 
     // A friendly area over the heard inject's first-seen position: its row drops with the line.
     fireEvent.click(action('Sites'))
@@ -1593,6 +1641,9 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
     fireEvent.click(screen.getByTestId('map-place'))
     expect(siteRows()[1]).toHaveTextContent('Launch area 2')
     expect(siteRows()[1]).toHaveTextContent('Friendly launch area')
+    // The clock never ran: the picture is unmoved, and the map still got the new band.
+    expect(mapBands()).not.toContain(heard.id)
+    expect(mapBands()).not.toContain('adsb-')
     fireEvent.click(action('Queue'))
     const row = rowFor(trackIdent(heard))
     expect(Number(row.querySelector('.queue__score')?.textContent)).toBeLessThanOrEqual(30)

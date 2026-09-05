@@ -1,9 +1,14 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MapView } from './MapView'
 import { AO } from '../config/ao'
+import { BAND_COLOR } from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
+
+/** jsdom serialises an inline hex background as `rgb(r, g, b)`. */
+const rgb = (hex: string) =>
+  `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
 
 const TRACKS: AdsbTrack[] = [
   {
@@ -374,6 +379,18 @@ describe('MapView', () => {
     expect(screen.getByRole('application').parentElement).toContainElement(legend)
   })
 
+  it('names the two warm bands beside the identity entries, in the fill the marker wears (#96)', () => {
+    render(<MapView ao={AO} />)
+    const legend = screen.getByRole('group', { name: 'Map legend' })
+    expect(legend).toContainElement(screen.getByRole('list', { name: 'Identity legend' }))
+    const bands = within(legend).getByRole('list', { name: 'Band legend' })
+    const items = within(bands).getAllByRole('listitem')
+    expect(items.map((item) => item.textContent)).toEqual(['Caution', 'Warning'])
+    expect(
+      items.map((item) => (item.querySelector('.band-dot') as HTMLElement).style.background),
+    ).toEqual([BAND_COLOR.caution, BAND_COLOR.warning].map(rgb))
+  })
+
   it('feeds injects to their own layer, carrying observed identity and nothing assigned', () => {
     render(<MapView ao={AO} injects={INJECTS} />)
     const collection = dataFor('inject-tracks')
@@ -392,7 +409,76 @@ describe('MapView', () => {
     for (const feature of collection.features) {
       expect(feature.properties).not.toHaveProperty('behavior')
       expect(feature.properties).not.toHaveProperty('remoteId')
+      // No inject feature carries a ground state: the generator flies every inject, so the band
+      // expression reads `terminal` alone and ruling 4's ground half rests on the ADS-B layer
+      // carrying no band (#96). A ground phase for injects trips this, and writes the union then.
+      expect(feature.properties).not.toHaveProperty('onGround')
     }
+  })
+
+  it('stamps the band it is handed on inject features, calm when absent, none on ADS-B (#96)', () => {
+    render(
+      <MapView
+        ao={AO}
+        tracks={TRACKS}
+        injects={INJECTS}
+        bands={new Map([['inject-02', 'warning' as const]])}
+      />,
+    )
+    const bandOf = (sourceId: string) =>
+      Object.fromEntries(
+        dataFor(sourceId).features.map((f) => [f.properties.id, f.properties.band]),
+      )
+    expect(bandOf('inject-tracks')).toEqual({ 'inject-01': 'calm', 'inject-02': 'warning' })
+    // A real aircraft has no fill channel to spend and both caps hold it below caution: the ADS-B
+    // layer carries no band at all, rather than a band that is always calm.
+    for (const feature of dataFor('adsb-tracks').features) {
+      expect(feature.properties).not.toHaveProperty('band')
+    }
+  })
+
+  it('fills from the band in the chip tokens, terminal first, and keeps identity on the stroke (#96)', () => {
+    render(<MapView ao={AO} />)
+    const [layer] = mapInstance.addLayer.mock.calls.find(([l]) => l.id === 'inject-tracks-dot')!
+    // The one paint change: a dimmed track paints no band, whatever band it is in; then the
+    // score's word picks the token, and anything else — calm — is the neutral fill.
+    expect(layer.paint['circle-color']).toEqual([
+      'case',
+      ['get', 'terminal'],
+      '#f2f6fc',
+      [
+        'match',
+        ['get', 'band'],
+        'caution',
+        BAND_COLOR.caution,
+        'warning',
+        BAND_COLOR.warning,
+        '#f2f6fc',
+      ],
+    ])
+    // The two encodings never share a channel: the stroke still reads identity, nothing else.
+    expect(layer.paint['circle-stroke-color'][1]).toEqual(['get', 'identity'])
+    expect(JSON.stringify(layer.paint['circle-stroke-color'])).not.toContain('band')
+  })
+
+  it('re-pushes the inject source when a band moves with the picture unmoved, and only that source (#96)', () => {
+    const { rerender } = render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} />)
+    expect(dataFor('inject-tracks').features[0].properties.band).toBe('calm')
+    const adsbPushes = setData.mock.calls.filter((call) => call[0] === 'adsb-tracks').length
+
+    // Same tracks, same positions — a site edit with the clock paused moves the score and nothing
+    // else. The fill must still arrive, which is why `bands` is in the inject effect's deps; the
+    // ADS-B effect does not read it, so that source is left alone.
+    rerender(
+      <MapView
+        ao={AO}
+        tracks={TRACKS}
+        injects={INJECTS}
+        bands={new Map([['inject-01', 'caution' as const]])}
+      />,
+    )
+    expect(dataFor('inject-tracks').features[0].properties.band).toBe('caution')
+    expect(setData.mock.calls.filter((call) => call[0] === 'adsb-tracks')).toHaveLength(adsbPushes)
   })
 
   it('stamps terminal on both layers, for the ids it is given and no others (#61)', () => {
