@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { AO } from '../config/ao'
 import {
+  PLAN_SCHEMA,
   SITE_LIMITS,
   addSite,
   canAdd,
   canRemove,
   edited,
   fromConfig,
+  fromStore,
   removeSite,
   resetSites,
   siteProblem,
@@ -29,6 +31,7 @@ describe('the session site set (08a)', () => {
     expect(set.sites.every((site) => site.addedTSec === null)).toBe(true)
     expect(set.nextId).toBe(CONFIG.length + 1)
     expect(set.lastEditTSec).toBeNull()
+    expect(set.stored).toBe(false)
     expect(edited(set, CONFIG)).toBe(false)
     // The config set is untouched by construction: the session holds copies.
     expect(set.sites[0]).not.toBe(CONFIG[0])
@@ -116,9 +119,11 @@ describe('the session site set (08a)', () => {
 
   it('resets to config as an edit: the sites are config’s again, the counter and frontier carry on', () => {
     const grown = addSite(addSite(fromConfig(CONFIG), INSIDE, 0, AO), INSIDE, 30, AO)
-    const reset = resetSites(grown, CONFIG, 120)
+    const reset = resetSites({ ...grown, stored: true }, CONFIG, 120)
     expect(reset.sites.map((site) => site.id)).toEqual(CONFIG.map((site) => site.id))
     expect(edited(reset, CONFIG)).toBe(false)
+    // Config's set again, whatever the set it replaced came from (#90).
+    expect(reset.stored).toBe(false)
     // Ids are never reused within a session: a site added after a reset gets a fresh one.
     expect(reset.nextId).toBe(grown.nextId)
     expect(reset.lastEditTSec).toBe(120)
@@ -195,9 +200,13 @@ describe('friendly launch areas and the site plan (08b, ruled on #86)', () => {
     )
     const text = sitePlanText(set, AO)
     const plan = JSON.parse(text) as {
+      schema: string
       ao: string
       sites: { id: string; kind: string; tier?: number }[]
     }
+    // The schema is the plan's first field (#90), so a reader sees the format before the data.
+    expect(Object.keys(plan)[0]).toBe('schema')
+    expect(plan.schema).toBe(PLAN_SCHEMA)
     expect(plan.ao).toBe(AO.id)
     expect(plan.sites.map((site) => [site.id, site.kind, site.tier])).toEqual([
       [CONFIG[0].id, 'protected', 1],
@@ -208,6 +217,8 @@ describe('friendly launch areas and the site plan (08b, ruled on #86)', () => {
     expect(siteRecords(loaded)).toEqual(siteRecords(set))
     expect(loaded.areas[0].addedTSec).toBe(900)
     expect(loaded.lastEditTSec).toBe(900)
+    // A pasted plan is the operator's edit, not a restore.
+    expect(loaded.stored).toBe(false)
     // The counter runs on past every id the plan carried.
     expect(loaded.nextId).toBe(4)
   })
@@ -223,11 +234,18 @@ describe('friendly launch areas and the site plan (08b, ruled on #86)', () => {
       center: INSIDE,
       radiusM: 500,
     }
-    const plan = (sites: unknown[]) => JSON.stringify({ ao: AO.id, sites })
+    const plan = (sites: unknown[]) => JSON.stringify({ schema: PLAN_SCHEMA, ao: AO.id, sites })
     expect(load('nope')).toThrow('Plan is not JSON')
     expect(load('[]')).toThrow('Plan is not a site plan')
-    expect(load('{"ao":"dfw","sites":[]}')).toThrow('Plan is for AO "dfw", not "phl"')
-    expect(load('{"ao":"phl"}')).toThrow('Plan has no sites list')
+    // The schema is checked before anything the plan says (#90): none, or another format.
+    expect(load('{"ao":"phl","sites":[]}')).toThrow('Plan schema is not vigil-site-plan/1')
+    expect(load('{"schema":"vigil-site-plan/2","ao":"phl","sites":[]}')).toThrow(
+      'Plan schema is not vigil-site-plan/1',
+    )
+    expect(load(`{"schema":"${PLAN_SCHEMA}","ao":"dfw","sites":[]}`)).toThrow(
+      'Plan is for AO "dfw", not "phl"',
+    )
+    expect(load(`{"schema":"${PLAN_SCHEMA}","ao":"phl"}`)).toThrow('Plan has no sites list')
     expect(load(plan([]))).toThrow('Plan needs at least one protected site')
     expect(load(plan([{ ...good, kind: 'friendly' }]))).toThrow('at least one protected site')
     expect(load(plan([good, { ...good }]))).toThrow('Site 2 repeats id "site-9"')
@@ -242,5 +260,53 @@ describe('friendly launch areas and the site plan (08b, ruled on #86)', () => {
     ).toThrow('at most 20 sites')
     // A loaded plan whose ids sit above the counter moves the counter past them.
     expect(parseSitePlan(plan([{ ...good, id: 'site-40' }]), AO, base, 0).nextId).toBe(41)
+  })
+})
+
+describe('the stored plan (#90, ruled)', () => {
+  const AREAS = AO.friendlyAreas
+
+  it('opens on the stored plan — unstamped, marked stored, the counter past its ids — and an edit carries the mark', () => {
+    const lastSession = addSite(
+      addSite(fromConfig(CONFIG), INSIDE, 600, AO),
+      INSIDE,
+      630,
+      AO,
+      'friendly',
+    )
+    const { set, problem } = fromStore(sitePlanText(lastSession, AO), CONFIG, AREAS, AO)
+    expect(problem).toBeNull()
+    expect(siteRecords(set)).toEqual(siteRecords(lastSession))
+    // Nothing was added or edited this session: the frontier rule has nothing to see.
+    expect([...set.sites, ...set.areas].every((site) => site.addedTSec === null)).toBe(true)
+    expect(set.lastEditTSec).toBeNull()
+    expect(set.stored).toBe(true)
+    expect(set.nextId).toBe(4)
+    expect(edited(set, CONFIG, AREAS)).toBe(true)
+    expect(updateSite(set, 'site-2', { tier: 2 }, 10, AO).stored).toBe(true)
+    expect(removeSite(set, 'area-3', 20).stored).toBe(true)
+  })
+
+  it('opens on config when nothing is stored, and on config with the reason when the text is not a plan — never a throw', () => {
+    const none = fromStore(null, CONFIG, AREAS, AO)
+    expect(none).toEqual({ set: fromConfig(CONFIG, AREAS), problem: null })
+    const refused: [string, string][] = [
+      ['nope', 'Plan is not JSON'],
+      ['{"ao":"phl","sites":[]}', 'Plan schema is not vigil-site-plan/1'],
+      [
+        JSON.stringify({ schema: PLAN_SCHEMA, ao: 'dfw', sites: [] }),
+        'Plan is for AO "dfw", not "phl"',
+      ],
+      [
+        JSON.stringify({ schema: PLAN_SCHEMA, ao: AO.id, sites: [] }),
+        'Plan needs at least one protected site',
+      ],
+    ]
+    for (const [text, reason] of refused) {
+      expect(fromStore(text, CONFIG, AREAS, AO)).toEqual({
+        set: fromConfig(CONFIG, AREAS),
+        problem: reason,
+      })
+    }
   })
 })

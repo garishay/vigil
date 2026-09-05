@@ -51,10 +51,12 @@ import {
 import { clockStartOf, minuteOfDay } from './lib/scoring'
 import {
   addSite,
-  fromConfig,
+  edited,
+  fromStore,
   parseSitePlan,
   removeSite,
   resetSites,
+  sitePlanText,
   updateSite,
   type SitePatch,
   type SiteSet,
@@ -87,7 +89,7 @@ const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] 
     id: 'sites',
     label: 'Sites',
     title: 'Sites',
-    body: 'Protected sites and friendly launch areas the picture is scored against — this session only; reload returns to config.',
+    body: 'Protected sites and friendly launch areas the picture is scored against — kept in this browser between sessions; Reset to config forgets them.',
   },
 ]
 
@@ -115,6 +117,18 @@ const matchesState = (status: Status, filter: StateFilter): boolean =>
  * seam (03d): the one runtime third-party call, injected the way the capture's fetcher is, so no
  * test reaches the network.
  */
+/** Where this browser keeps an edited site plan between sessions (#90) — the plan's own text. */
+const SITE_PLAN_KEY = 'vigil.site-plan'
+
+/** The stored plan, or null when none is held or the browser refuses storage — never a throw. */
+const readStoredPlan = (): string | null => {
+  try {
+    return localStorage.getItem(SITE_PLAN_KEY)
+  } catch {
+    return null
+  }
+}
+
 export default function App({
   now = () => new Date().toISOString(),
   schedule = intervalSchedule,
@@ -135,11 +149,15 @@ export default function App({
   const [eventLogs, setEventLogs] = useState<Record<string, TrackEvent[]>>({})
 
   // The session's site set (08a, ruled on #86): the operator's protected sites, seeded from
-  // config and scored against on every tick. Session state only — a reload returns to config;
-  // the golden and every pinned test run on the config set.
-  const [siteSet, setSiteSet] = useState<SiteSet>(() =>
-    fromConfig(AO.protectedSites, AO.friendlyAreas),
-  )
+  // config and scored against on every tick. An edited set is kept in this browser as its plan
+  // (#90) and restored here, before the first frame, unstamped — the frontier rule never sees
+  // it; a plan the parser refuses leaves config in place with one line said. The golden and
+  // every pinned test run on the config set.
+  const [siteSet, setSiteSet] = useState<SiteSet>(() => {
+    const { set, problem } = fromStore(readStoredPlan(), AO.protectedSites, AO.friendlyAreas, AO)
+    if (problem !== null) console.warn(`Stored site plan ignored — ${problem}; using config`)
+    return set
+  })
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
   // What the next map click does while the Sites editor has the map armed, and the reason the
   // last placement was refused, if it was.
@@ -447,10 +465,24 @@ export default function App({
   // the crosshair on and the hint still inviting it explains nothing; the rewound line does.
   // Guarded set-during-render, the derived-state pattern the record fold uses below.
   if (sitesRewound && placing !== null) setPlacing(null)
+  // Storage holds the plan only while the set differs from config (ruled on #90): an accepted
+  // edit writes the plan's text, and one whose set equals config — Reset to config included —
+  // removes the key and clears `stored`, so the rows read config again. A write the browser
+  // refuses is said once; the session continues on the set.
+  const commitSites = (next: SiteSet): void => {
+    const kept = edited(next, AO.protectedSites, AO.friendlyAreas)
+    setSiteSet(kept ? next : { ...next, stored: false })
+    try {
+      if (kept) localStorage.setItem(SITE_PLAN_KEY, sitePlanText(next, AO))
+      else localStorage.removeItem(SITE_PLAN_KEY)
+    } catch (error) {
+      console.warn(`Site plan not stored — ${error instanceof Error ? error.message : error}`)
+    }
+  }
   const editSites = (change: (set: SiteSet) => SiteSet): boolean => {
     if (sitesRewound) return false
     try {
-      setSiteSet(change(siteSet))
+      commitSites(change(siteSet))
       setSiteNotice(null)
       return true
     } catch (error) {
@@ -704,7 +736,7 @@ export default function App({
                 // load line rather than the placement hint.
                 if (sitesRewound) return 'Rewound — the workflow acts at the record’s frontier'
                 try {
-                  setSiteSet(parseSitePlan(text, AO, siteSet, tSec))
+                  commitSites(parseSitePlan(text, AO, siteSet, tSec))
                   setSelectedSiteId(null)
                   setPlacing(null)
                   // A load is an edit like the others: a placement's stale refusal clears with it.

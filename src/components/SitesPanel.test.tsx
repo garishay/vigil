@@ -53,6 +53,15 @@ describe('SitesPanel (08a)', () => {
     expect(screen.getByText('2 sites · edited from config')).toBeInTheDocument()
   })
 
+  it('reads stored on an unstamped row of a set restored from storage; the status line still measures against config (#90)', () => {
+    renderPanel({ ...grown(), stored: true })
+    expect(rows()[0]).toHaveTextContent('5.0 km ring · stored')
+    expect(rows()[1]).toHaveTextContent('1.0 km ring · 02:40:00')
+    expect(screen.getByText('2 sites · edited from config')).toBeInTheDocument()
+    renderPanel({ ...fromConfig(CONFIG), stored: true })
+    expect(screen.getByText('1 site · config')).toBeInTheDocument()
+  })
+
   it('reads config on the untouched set, with Reset disabled', () => {
     renderPanel(fromConfig(CONFIG))
     expect(screen.getByText('1 site · config')).toBeInTheDocument()

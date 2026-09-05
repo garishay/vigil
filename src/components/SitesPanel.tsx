@@ -149,7 +149,8 @@ function SiteEditor({
  * edit is a workflow action and refuses behind the record's frontier with the drawer's own
  * reason (#77); the status line says whether the set is still config's, Reset returns it, and
  * the site plan copies out and loads back in with the handoff's mechanics — copy only, nothing
- * transmitted. Session state only — a reload returns to config.
+ * transmitted. An edited set is kept in this browser between sessions (#90); a row restored from
+ * it reads `stored` where a config row reads `config`.
  */
 export function SitesPanel({
   set,
@@ -283,7 +284,7 @@ export function SitesPanel({
                   {site.name}
                 </span>
                 <span className="sites__kind">{siteKindLine(site)}</span>
-                <span className="sites__origin">{siteOriginLine(site, clock)}</span>
+                <span className="sites__origin">{siteOriginLine(site, clock, set.stored)}</span>
               </button>
               {selected && (
                 // Disabled as a whole while rewound: every field and button goes grey together,

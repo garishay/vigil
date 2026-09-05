@@ -1525,6 +1525,85 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     expect(chips()).toEqual(before)
   })
 
+  const STORE_KEY = 'vigil.site-plan'
+
+  it('opens on the stored plan before the first frame — scored against it, unstamped, rows reading stored — and forgets it once an edit returns the set to config (#90)', () => {
+    const target = silentInject()
+    localStorage.setItem(
+      STORE_KEY,
+      sitePlanText(addSite(fromConfig(AO.protectedSites), target.position, 600, AO), AO),
+    )
+    render(<App schedule={never} />)
+    // The first picture is the restored set's: the inject inside last session's ring reads
+    // warning with nothing pressed, and the map was handed both sites.
+    fireEvent.click(action('Queue'))
+    const row = rows().find((r) => within(r).queryByText(trackIdent(target))) as HTMLElement
+    expect(row.querySelector('.queue__score')).toHaveAttribute('data-band', 'warning')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield,site-2')
+    fireEvent.click(action('Sites'))
+    expect(siteRows()).toHaveLength(2)
+    expect(siteRows()[0]).toHaveTextContent('5.0 km ring · stored')
+    expect(siteRows()[1]).toHaveTextContent('1.0 km ring · stored')
+    expect(screen.getByText('2 sites · edited from config')).toBeInTheDocument()
+    // No edit was stamped: the frontier is the record's, nothing is rewound.
+    expect(screen.queryByText(/^Rewound/)).not.toBeInTheDocument()
+    expect(action('+ Protected site')).toBeEnabled()
+
+    // Removing last session's site returns the set to config: the key goes, the mark clears, and
+    // the airfield's row reads config again.
+    fireEvent.click(within(siteRows()[1]).getByRole('button', { name: /Site 2/ }))
+    fireEvent.click(action('Remove'))
+    expect(localStorage.getItem(STORE_KEY)).toBeNull()
+    expect(screen.getByText('1 site · config')).toBeInTheDocument()
+    expect(siteRows()[0]).toHaveTextContent('5.0 km ring · config')
+  })
+
+  it('keeps the plan in storage while the set differs from config — every accepted edit writes, a refused load does not, Reset to config removes it (#90)', () => {
+    render(<App schedule={never} />)
+    fireEvent.click(action('Sites'))
+    expect(localStorage.getItem(STORE_KEY)).toBeNull()
+    placeTarget.center = silentInject().position
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    const stored = localStorage.getItem(STORE_KEY)
+    const plan = JSON.parse(stored ?? '') as { schema: string; ao: string; sites: { id: string }[] }
+    expect(plan.schema).toBe('vigil-site-plan/1')
+    expect(plan.ao).toBe('phl')
+    expect(plan.sites.map((site) => site.id)).toEqual(['phl-airfield', 'site-2'])
+    // A refused load applies nothing and writes nothing.
+    fireEvent.change(screen.getByLabelText('Load site plan'), { target: { value: 'nope' } })
+    fireEvent.click(action('Load'))
+    expect(screen.getByText('Plan is not JSON')).toBeInTheDocument()
+    expect(localStorage.getItem(STORE_KEY)).toBe(stored)
+    // An accepted edit replaces the text — the placed site is still selected for editing.
+    fireEvent.click(screen.getByRole('radio', { name: '2' }))
+    expect(localStorage.getItem(STORE_KEY)).not.toBe(stored)
+    expect(localStorage.getItem(STORE_KEY)).toContain('"tier": 2')
+    // Reset to config is the edit that equals config: the key is removed.
+    fireEvent.click(action('Reset to config'))
+    expect(localStorage.getItem(STORE_KEY)).toBeNull()
+    expect(screen.getByText('1 site · config')).toBeInTheDocument()
+  })
+
+  it('opens on config with one line said when the stored plan is not one, leaving it in place until an accepted edit replaces it (#90)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const stale = '{"ao":"phl","sites":[]}'
+    localStorage.setItem(STORE_KEY, stale)
+    render(<App schedule={never} />)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith(
+      'Stored site plan ignored — Plan schema is not vigil-site-plan/1; using config',
+    )
+    fireEvent.click(action('Sites'))
+    expect(screen.getByText('1 site · config')).toBeInTheDocument()
+    expect(siteRows()[0]).toHaveTextContent('5.0 km ring · config')
+    expect(localStorage.getItem(STORE_KEY)).toBe(stale)
+    fireEvent.click(action('+ Protected site'))
+    fireEvent.click(screen.getByTestId('map-place'))
+    expect(localStorage.getItem(STORE_KEY)).toContain('"schema": "vigil-site-plan/1"')
+    warn.mockRestore()
+  })
+
   it('disarms a move when its site is removed or the set is reset (#87 review)', () => {
     render(<App schedule={never} />)
     fireEvent.click(action('Sites'))

@@ -47,7 +47,7 @@ flowchart LR
       gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
     ao["config/ao.ts<br/>AO: center · bbox · time zone · protected sites with their tier"]
-    sites["lib/sites.ts<br/>the session's site set: protected sites and friendly launch areas<br/>add · update · remove · reset, stamped at sim time · the rules a site meets · the last protected site stays<br/>the site plan: JSON out, a pasted plan back in"]
+    sites["lib/sites.ts<br/>the session's site set: protected sites and friendly launch areas<br/>add · update · remove · reset, stamped at sim time · the rules a site meets · the last protected site stays<br/>the site plan: JSON out, a pasted plan back in · restored from this browser's storage at load, held while the set differs from config"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
@@ -89,7 +89,7 @@ flowchart LR
     map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count"]
     clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick<br/>scheduler injected, so no test waits on time"]
-    panel["components/SitesPanel.tsx<br/>the Sites surface: protected sites and friendly launch areas as rows, the inline editor, placement armed on the map<br/>the site plan: copy out, load back · refused behind the record's frontier"]
+    panel["components/SitesPanel.tsx<br/>the Sites surface: protected sites and friendly launch areas as rows, the inline editor, placement armed on the map<br/>the site plan: copy out, load back · refused behind the record's frontier · a restored row reads stored"]
     copy["components/useCopy.ts<br/>copy with the clipboard, fall back to the textarea's selection<br/>'Copied' only for the text actually copied"]
     copy -- handoff --> review
     copy -- site plan --> panel

@@ -451,6 +451,14 @@ describe('the site lines (08a)', () => {
     expect(siteOriginLine({ ...AO.protectedSites[0], radiusM: 1500, addedTSec: 600 }, clock)).toBe(
       '1.5 km ring · 02:40:00',
     )
+    // A set restored from this browser's storage (#90): an unstamped row came from the plan, a
+    // stamped one was added this session.
+    expect(siteOriginLine({ ...AO.protectedSites[0], addedTSec: null }, clock, true)).toBe(
+      '5.0 km ring · stored',
+    )
+    expect(
+      siteOriginLine({ ...AO.protectedSites[0], radiusM: 1500, addedTSec: 600 }, clock, true),
+    ).toBe('1.5 km ring · 02:40:00')
   })
 
   it('prints the handoff’s site line, which fits the 26 rem drawer at the name cap (#36 [5])', () => {

@@ -6,10 +6,12 @@
  * drives, exactly as the lifecycle takes it.
  *
  * Config's site set is the default and the golden: the set opens as `fromConfig(...)`, every
- * recording and every test plays against it unless a session edits it, and edits are session
- * state — a reload returns to config. A site edit is a workflow action (#77): the set keeps the
- * sim time of its last edit as the editor's own frontier, so a later edit cannot land behind an
- * earlier one any more than an action can land behind the record.
+ * recording and every test plays against it unless a session edits it. An edited set outlives
+ * the session as its plan in the browser's storage (#90): the set opens as `fromStore(...)` when
+ * a plan is held, and config again once the set is edited back to it. A site edit is a workflow
+ * action (#77): the set keeps the sim time of its last edit as the editor's own frontier, so a
+ * later edit cannot land behind an earlier one any more than an action can land behind the
+ * record.
  *
  * The operations throw on what the rules refuse — a full set, a name too long, a ring outside
  * the AO, the last protected site, a plan that is not one — as `appendEvent` refuses an illegal
@@ -43,7 +45,15 @@ export interface SiteSet {
   nextId: number
   /** The sim time of the last edit — the editor's frontier (#77) — or null before any edit. */
   lastEditTSec: number | null
+  /**
+   * Whether the set came from the browser's storage (#90): true from `fromStore`, carried by
+   * edits, false from config and cleared once the set equals config and nothing is stored.
+   */
+  stored: boolean
 }
+
+/** The plan's format, its first field: a stored or pasted plan with another value is refused. */
+export const PLAN_SCHEMA = 'vigil-site-plan/1'
 
 /** The rules a site has to meet, in one place so the panel and the module agree. */
 export const SITE_LIMITS = {
@@ -66,6 +76,7 @@ export const fromConfig = (
   areas: areas.map((area) => ({ ...area, addedTSec: null })),
   nextId: sites.length + areas.length + 1,
   lastEditTSec: null,
+  stored: false,
 })
 
 export type SitePatch = Partial<Pick<SessionSite, 'name' | 'tier' | 'radiusM' | 'center'>>
@@ -250,7 +261,7 @@ export const siteRecords = (set: SiteSet): SiteRecord[] => [
  * and one entry per site with its kind. Copy only; nothing is transmitted.
  */
 export const sitePlanText = (set: SiteSet, ao: AreaOfOperations): string =>
-  JSON.stringify({ ao: ao.id, sites: siteRecords(set) }, null, 2)
+  JSON.stringify({ schema: PLAN_SCHEMA, ao: ao.id, sites: siteRecords(set) }, null, 2)
 
 const isPair = (value: unknown): value is [number, number] =>
   Array.isArray(value) &&
@@ -259,9 +270,10 @@ const isPair = (value: unknown): value is [number, number] =>
 
 /**
  * A pasted plan back into a set, or a throw saying why not — the panel prints the reason and
- * applies nothing. Checked in order: JSON, the AO, the list and its size, each entry's fields
- * and kind, unique ids, the rules every site meets, at least one protected site. A load is an
- * edit: every entry is stamped at `tSec`, and the counter runs on past every id it dealt or read.
+ * applies nothing. Checked in order: JSON, the schema, the AO, the list and its size, each
+ * entry's fields and kind, unique ids, the rules every site meets, at least one protected site.
+ * A load is an edit: every entry is stamped at `tSec`, and the counter runs on past every id it
+ * dealt or read.
  */
 export function parseSitePlan(
   text: string,
@@ -278,7 +290,8 @@ export function parseSitePlan(
   if (typeof plan !== 'object' || plan === null || Array.isArray(plan)) {
     throw new Error('Plan is not a site plan')
   }
-  const { ao: planAo, sites } = plan as { ao?: unknown; sites?: unknown }
+  const { schema, ao: planAo, sites } = plan as { schema?: unknown; ao?: unknown; sites?: unknown }
+  if (schema !== PLAN_SCHEMA) throw new Error(`Plan schema is not ${PLAN_SCHEMA}`)
   if (planAo !== ao.id) throw new Error(`Plan is for AO "${String(planAo)}", not "${ao.id}"`)
   if (!Array.isArray(sites)) throw new Error('Plan has no sites list')
   if (sites.length > SITE_LIMITS.maxSites) {
@@ -313,5 +326,36 @@ export function parseSitePlan(
     }
   })
   if (nextSites.length === 0) throw new Error('Plan needs at least one protected site')
-  return { sites: nextSites, areas: nextAreas, nextId: maxN + 1, lastEditTSec: tSec }
+  return { sites: nextSites, areas: nextAreas, nextId: maxN + 1, lastEditTSec: tSec, stored: false }
+}
+
+/**
+ * The set a session opens on when this browser holds a plan (#90): the stored plan as the set,
+ * unstamped — nothing was added or edited this session, so the frontier rule never sees a
+ * restore — or config with the parser's reason when the text is not a plan it accepts. Null
+ * text is no plan: config, no problem. Never throws.
+ */
+export function fromStore(
+  text: string | null,
+  config: readonly ProtectedSite[],
+  areas: readonly FriendlyArea[],
+  ao: AreaOfOperations,
+): { set: SiteSet; problem: string | null } {
+  const base = fromConfig(config, areas)
+  if (text === null) return { set: base, problem: null }
+  try {
+    const loaded = parseSitePlan(text, ao, base, 0)
+    return {
+      set: {
+        sites: loaded.sites.map((site) => ({ ...site, addedTSec: null })),
+        areas: loaded.areas.map((area) => ({ ...area, addedTSec: null })),
+        nextId: loaded.nextId,
+        lastEditTSec: null,
+        stored: true,
+      },
+      problem: null,
+    }
+  } catch (error) {
+    return { set: base, problem: error instanceof Error ? error.message : String(error) }
+  }
 }
