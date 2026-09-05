@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { IdentityDot, IdentityLegend } from './IdentityDot'
+import { BandDot, IdentityDot, IdentityLegend } from './IdentityDot'
+import { BAND_COLOR } from '../lib/display'
 import { IDENTITIES, IDENTITY_COLOR, IDENTITY_LABEL } from '../lib/identity'
 
 describe('IdentityDot', () => {
@@ -10,6 +11,17 @@ describe('IdentityDot', () => {
     expect(dot).toHaveAttribute('aria-hidden', 'true')
     expect(dot).toHaveAttribute('data-identity', 'unknown')
     expect(dot.style.background).not.toBe('')
+  })
+})
+
+describe('BandDot (#96)', () => {
+  it('is decorative too, and wears the literal the map fills with', () => {
+    render(<BandDot band="warning" />)
+    const dot = document.querySelector('.band-dot') as HTMLElement
+    expect(dot).toHaveAttribute('aria-hidden', 'true')
+    expect(dot).toHaveAttribute('data-band', 'warning')
+    expect(dot.style.background).toBe('rgb(255, 107, 87)')
+    expect(BAND_COLOR.warning).toBe('#ff6b57')
   })
 })
 
@@ -31,6 +43,22 @@ describe('IdentityLegend', () => {
     expect(screen.getByText('Non-cooperative')).toBeInTheDocument()
     expect(screen.getByText('Unknown')).toBeInTheDocument()
     expect(screen.getByText('Cooperative')).toBeInTheDocument()
+  })
+
+  it('lists the two warm bands in band order beside the identities, and no Calm entry (#96)', () => {
+    render(<IdentityLegend />)
+    const group = screen.getByRole('group', { name: 'Map legend' })
+    const lists = within(group).getAllByRole('list')
+    expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual([
+      'Identity legend',
+      'Band legend',
+    ])
+    const items = within(lists[1]).getAllByRole('listitem')
+    expect(items.map((item) => item.textContent)).toEqual(['Caution', 'Warning'])
+    expect(items.map((item) => item.querySelector('.band-dot')?.getAttribute('data-band'))).toEqual(
+      ['caution', 'warning'],
+    )
+    expect(within(group).queryByText('Calm')).toBeNull()
   })
 })
 

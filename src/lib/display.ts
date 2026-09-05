@@ -11,7 +11,7 @@ import type { Disposition } from '../config/dispositions.ts'
 import { AO } from '../config/ao.ts'
 import type { AreaOfOperations, ProtectedSite, SiteRecord } from '../config/ao.ts'
 import type { RecordingEntry } from '../config/recordings.ts'
-import { BANDS, BAND_LABEL, PATTERN_LABEL } from '../config/scoring.ts'
+import { BANDS, BAND_LABEL, PATTERN_LABEL, type Band } from '../config/scoring.ts'
 import type { AdsbCapture } from './adsb.ts'
 import { distanceMeters } from './geo.ts'
 import type { TrackEvent } from './lifecycle.ts'
@@ -34,6 +34,17 @@ export function trackIdent(track: Track): string {
 
 /** The one place the layer is disclosed (§7). */
 export const LAYER_BADGE: Record<Track['source'], string> = { adsb: 'ADS-B', inject: 'INJECT' }
+
+/** The two bands that spend colour (§4.3); calm is the neutral default everywhere. */
+export type WarmBand = Exclude<Band, 'calm'>
+
+/**
+ * The warm bands as the map paints them (#96): literal mirrors of `--caution` and `--warning`
+ * in `index.css`, because a MapLibre paint property cannot read a CSS variable — the same
+ * arrangement `IDENTITY_COLOR` has with the identity palette. The legend swatch inlines these
+ * values too, so the marker and its key cannot drift; a test holds them equal to the tokens.
+ */
+export const BAND_COLOR: Record<WarmBand, string> = { caution: '#f5b942', warning: '#ff6b57' }
 
 /** Range to the protected site's center, km to one decimal (§7). */
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`

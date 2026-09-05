@@ -617,8 +617,14 @@ describe('the §2 check — no input makes a real aircraft rank as a threat', ()
   const ceiling = SCORING.adsbCeiling
   const caution = SCORING.bands.caution
 
+  // Two dependents, not one: the §2 check here, and the map's silence on the ADS-B layer — its
+  // features carry no band because these two pins say a real aircraft can never wear one (#96).
   it('holds the ceiling below the caution band', () => {
     expect(ceiling).toBeLessThan(caution)
+  })
+
+  it('holds the friendly cap below the caution band too (#96)', () => {
+    expect(SCORING.friendlyCap).toBeLessThan(caution)
   })
 
   it('caps every ADS-B track of every frame of the recording, and the cap is doing work', () => {

@@ -104,7 +104,7 @@ flowchart LR
   sites -- session set: scorer, map, panel --> app
   cfg -- seed: strip --> app
   recs -- ?recording= selection · the default --> app
-  rank -- ranked + scores: queue chip, drawer, handoff, snapshot --> app
+  rank -- ranked + scores: queue chip, drawer, handoff, snapshot, map fill --> app
   life -- log · status · re-surface: drawer, state filter, row --> app
   workcfg -- pickers: drawer --> app
   hand -- handoff text --> review

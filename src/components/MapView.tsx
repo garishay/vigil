@@ -6,6 +6,7 @@ import '../lib/maplibreWorker'
 import { IdentityLegend } from './IdentityDot'
 import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao'
 import { circlePolygon } from '../lib/geo'
+import { BAND_COLOR, type WarmBand } from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
@@ -17,6 +18,8 @@ const TRAIL_SOURCE = 'selected-trail'
 
 /** One frozen empty array, so the default prop is not a new identity every render. */
 const NO_TERMINAL: readonly string[] = []
+/** Likewise for the band map: no warm bands, one identity. */
+const NO_BANDS: ReadonlyMap<string, WarmBand> = new Map()
 const NO_SITES: readonly ProtectedSite[] = []
 const NO_AREAS: readonly FriendlyArea[] = []
 
@@ -107,6 +110,30 @@ const IDENTITY_STROKE: ExpressionSpecification = [
   IDENTITY_COLOR['non-cooperative'],
 ]
 
+/** The calm fill — the neutral an inject wore before a score could earn it colour. */
+const INJECT_FILL = '#f2f6fc'
+
+/**
+ * The fill carries the band (#96): the same whole-number score the Queue chip prints, in the
+ * chip's own tokens, so a score change is visible on the map without the Queue in view. Identity
+ * stays on the stroke; the two never share a channel. A dimmed track paints no band — dim means
+ * nothing here needs you (#61, #36 [9]) — so `terminal` is read before the band is.
+ */
+const BAND_FILL: ExpressionSpecification = [
+  'case',
+  ['get', 'terminal'],
+  INJECT_FILL,
+  [
+    'match',
+    ['get', 'band'],
+    'caution',
+    BAND_COLOR.caution,
+    'warning',
+    BAND_COLOR.warning,
+    INJECT_FILL,
+  ],
+]
+
 function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
   return {
     type: 'FeatureCollection' as const,
@@ -123,7 +150,11 @@ function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
   }
 }
 
-function injectFeatures(tracks: InjectTrack[], terminalIds: readonly string[]) {
+function injectFeatures(
+  tracks: InjectTrack[],
+  terminalIds: readonly string[],
+  bands: ReadonlyMap<string, WarmBand>,
+) {
   return {
     type: 'FeatureCollection' as const,
     features: tracks.map((track) => ({
@@ -131,12 +162,14 @@ function injectFeatures(tracks: InjectTrack[], terminalIds: readonly string[]) {
       geometry: { type: 'Point' as const, coordinates: track.position },
       // Observed and derived only. `behavior` and `remoteId` used to travel here unread by any
       // paint or handler; a live map source in the running app is neither a fixture nor a test,
-      // which is where §2 puts the answer key (ruled on #61).
+      // which is where §2 puts the answer key (ruled on #61). The band is derived — the score's
+      // own word — and only an inject carries one: both caps hold a real aircraft below caution.
       properties: {
         id: track.id,
         callsign: track.callsign ?? '',
         identity: track.identity,
         terminal: terminalIds.includes(track.id),
+        band: bands.get(track.id) ?? 'calm',
       },
     })),
   }
@@ -159,6 +192,7 @@ export function MapView({
   selectionShown = true,
   trail = [],
   terminalIds = NO_TERMINAL,
+  bands = NO_BANDS,
   onSelect,
 }: {
   ao: AreaOfOperations
@@ -186,6 +220,13 @@ export function MapView({
    * identity while the set is unchanged — see App.
    */
   terminalIds?: readonly string[]
+  /**
+   * Each inject's band by id, warm entries only — an absent id is calm (#96). A map rather than
+   * a lookup function for the reason `terminalIds` is an array: it sits in the inject effect's
+   * deps, so the fill follows a score that moves while the picture does not (a site edit with
+   * the clock paused), and the caller owes it one identity while no band has moved.
+   */
+  bands?: ReadonlyMap<string, WarmBand>
   /**
    * Whether the selection ring is drawn — presentation only (A2 on #3: Home suppresses the
    * ring). The selection itself, and the once-per-selection ease stamp, ride `selectedId`:
@@ -309,7 +350,10 @@ export function MapView({
         paint: { 'line-color': RING_COLOR, 'line-width': 1.5, 'line-opacity': 0.55 },
       })
       // Added last, so injects draw above cooperative traffic rather than under it.
-      map.addSource(INJECT_SOURCE, { type: 'geojson', data: injectFeatures([], NO_TERMINAL) })
+      map.addSource(INJECT_SOURCE, {
+        type: 'geojson',
+        data: injectFeatures([], NO_TERMINAL, NO_BANDS),
+      })
       map.addLayer({
         id: `${INJECT_SOURCE}-halo`,
         type: 'circle',
@@ -327,7 +371,7 @@ export function MapView({
         source: INJECT_SOURCE,
         paint: {
           'circle-radius': 4.5,
-          'circle-color': '#f2f6fc',
+          'circle-color': BAND_FILL,
           'circle-opacity': ['case', ['get', 'terminal'], 0.5, 0.95],
           'circle-stroke-width': 2,
           'circle-stroke-color': IDENTITY_STROKE,
@@ -405,8 +449,10 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    map.getSource<GeoJSONSource>(INJECT_SOURCE)?.setData(injectFeatures(injects, terminalIds))
-  }, [injects, terminalIds, styleReady])
+    map
+      .getSource<GeoJSONSource>(INJECT_SOURCE)
+      ?.setData(injectFeatures(injects, terminalIds, bands))
+  }, [injects, terminalIds, bands, styleReady])
 
   useEffect(() => {
     const map = mapRef.current

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BAND_COLOR,
   describeEvent,
   formatElapsed,
   formatScore,
@@ -22,6 +23,7 @@ import { destinationPoint } from './geo'
 import type { TrackEvent } from './lifecycle'
 import type { RankedTrack } from './ranking'
 import type { AdsbTrack, InjectTrack, Track } from './tracks'
+import css from '../index.css?raw'
 
 /** The record's clock, as the drawer and the handoff supply it. */
 const clock = (tSec: number) => simClock('02:30', tSec)
@@ -62,6 +64,16 @@ const SCORE: Score = {
     { id: 'time', label: 'Off-hours', value: 100, weight: 10, contribution: 10, detail: '' },
   ],
 }
+
+describe('BAND_COLOR (#96)', () => {
+  it('mirrors --caution and --warning in the stylesheet exactly, so the map and the chip agree', () => {
+    // MapLibre cannot read a CSS variable, so the map paints a literal; this is the one place the
+    // literal is held to the token (ruled A5 on #96) — a palette change that misses one fails here.
+    const token = (name: string) => css.match(new RegExp(`--${name}: (#[0-9a-f]{6});`))?.[1]
+    expect(token('caution')).toBeDefined()
+    expect(BAND_COLOR).toEqual({ caution: token('caution'), warning: token('warning') })
+  })
+})
 
 describe('formatScore', () => {
   it('prints the composite as a whole number', () => {
