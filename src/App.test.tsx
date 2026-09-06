@@ -1919,6 +1919,26 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     expect(cards().some((card) => card.includes('TRK-06'))).toBe(false)
   })
 
+  it('sounds once per raise batch under play, never on a seek, and the strip mutes it (101b)', () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockImplementation(() => Promise.resolve())
+    const replay = start()
+    // A seek replays the record: cards or not, no sound.
+    seek('300')
+    expect(play).not.toHaveBeenCalled()
+    // The ticks that raise TRK-06's card are one batch: one play.
+    raiseTrk06(replay)
+    expect(play).toHaveBeenCalledTimes(1)
+    const mute = () => screen.getByRole('button', { name: /^(Mute|Unmute)$/ })
+    expect(mute()).toHaveTextContent('Mute')
+    expect(mute()).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(mute())
+    expect(mute()).toHaveTextContent('Unmute')
+    expect(mute()).toHaveAttribute('aria-pressed', 'true')
+    play.mockRestore()
+  })
+
   it('raises Re-surfaced in place of the crossing on a Dismissed track (A5)', () => {
     const replay = start()
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))

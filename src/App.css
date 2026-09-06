@@ -87,7 +87,8 @@
 }
 
 /* 06a: the replay clock's field — toggle, seek, position — reads as one control in the strip. */
-.strip__field--playback dd {
+.strip__field--playback dd,
+.strip__field--alerts dd {
   color: var(--text);
 }
 
