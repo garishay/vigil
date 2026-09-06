@@ -787,6 +787,16 @@
   line-height: 1.5;
 }
 
+/* #103: the corroboration line under the header — the History line's colour, so it carries no
+   band colour and never reads as a second score, one step up in size (the identity word's) so it
+   reads as a statement beside the header rather than a caption (judged at open, per the ruling). */
+.drawer__corroboration {
+  margin: 0.375rem 0 0;
+  color: var(--faint);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
 /* 03b: the §7.1 lifecycle — status, actions, escalate/resolve pickers, handoff, event log. */
 .drawer__status {
   text-transform: uppercase;
