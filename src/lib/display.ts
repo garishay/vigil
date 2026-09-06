@@ -216,6 +216,8 @@ export function describeEvent(
     }
     case 'assess':
       return 'Assessing — claimed'
+    case 'acknowledge':
+      return 'Acknowledged'
     case 'escalate':
       return `Escalated — to ${contacts.find((c) => c.id === event.recipient)?.name ?? event.recipient}`
     case 'dismiss':

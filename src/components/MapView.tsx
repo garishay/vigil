@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -194,6 +194,7 @@ export function MapView({
   terminalIds = NO_TERMINAL,
   bands = NO_BANDS,
   onSelect,
+  children,
 }: {
   ao: AreaOfOperations
   /** The session's protected sites (08a): the rings, re-pushed as a source when the set changes. */
@@ -236,6 +237,8 @@ export function MapView({
   /** The selected track's history trail (06b), oldest first; drawn only with the ring. */
   trail?: readonly [number, number][]
   onSelect?: (id: string) => void
+  /** Overlays that live in the map's frame beside the legend — the alert stack (#101). */
+  children?: ReactNode
 }) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
@@ -488,6 +491,7 @@ export function MapView({
         aria-label={`Airspace map centered on ${ao.name}`}
       />
       <IdentityLegend />
+      {children}
     </div>
   )
 }

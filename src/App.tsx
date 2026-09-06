@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
+import { AlertStack } from './components/AlertStack'
 import { MapView } from './components/MapView'
 import { Playback } from './components/Playback'
 import { Queue } from './components/Queue'
@@ -15,7 +16,8 @@ import { SCORING } from './config/scoring'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useCapture } from './data/useCapture'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
-import { recordingLabel, simClock, type WarmBand } from './lib/display'
+import { clearFor, foldAlerts, type Alert } from './lib/alerts'
+import { recordingLabel, simClock, trackIdent, type WarmBand } from './lib/display'
 import { injectTracksAt, planScenario, timelineOf } from './lib/injects'
 import {
   STATUSES,
@@ -147,6 +149,10 @@ export default function App({
   // A log opens the first time this session renders its track (ruled on #6, note 3) — see the
   // sighting fold below — and is kept if the track leaves the picture and returns.
   const [eventLogs, setEventLogs] = useState<Record<string, TrackEvent[]>>({})
+  // The alert stack (#101, 101a): a surface over the record, newest first, and how far into
+  // each track's log the alert fold has read — so every entry is folded exactly once.
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [alertsRead, setAlertsRead] = useState<Record<string, number>>({})
 
   // The session's site set (08a, ruled on #86): the operator's protected sites, seeded from
   // config and scored against on every tick. An edited set is kept in this browser as its plan
@@ -428,6 +434,28 @@ export default function App({
       return changed ? next : logs
     })
   }
+  // The alert fold (#101, 101a), one render behind the record fold above by construction: it
+  // reads the logs as committed and folds each track's entries past the count it last read.
+  // Whether those entries interrupt is the clock's word — a tick raises, a seek (load included)
+  // replays the record and only clears (ruled A1, A2 on #101). The same guarded
+  // set-during-render pattern: the state it writes is what the re-render checks, so one commit
+  // folds an entry once.
+  const raising = playback.lastMove === 'tick'
+  const alertsStale = Object.entries(eventLogs).some(
+    ([id, log]) => log.length > (alertsRead[id] ?? 0),
+  )
+  if (alertsStale) {
+    let next = alerts
+    const read = { ...alertsRead }
+    for (const [id, log] of Object.entries(eventLogs)) {
+      const from = read[id] ?? 0
+      if (log.length <= from) continue
+      next = foldAlerts(next, log, from, sourceOf.get(id) ?? 'adsb', raising)
+      read[id] = log.length
+    }
+    if (next !== alerts) setAlerts(next)
+    setAlertsRead(read)
+  }
   // Sim time as the record prints it — the event log and the handoff timeline (06b).
   const clock = (t: number) => simClock(startLocal, t)
   // The selected track's history trail: pure in the clock, drawn behind its dot (06b).
@@ -437,6 +465,34 @@ export default function App({
   )
   const logFor = (entry: RankedTrack): TrackEvent[] =>
     eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), now(), tSec)
+
+  // Acknowledge (#101): answers a card. A workflow action under #77, refused behind the track's
+  // own frontier — the card's button is disabled there, and this refuses anyway. The line is
+  // written through the table, so a New track becomes Assessing by the existing transition and
+  // an Assessing or Escalated one keeps its status with the line still written; a Dismissed
+  // track — a Re-surfaced card — has no transition to write and its cards simply clear, since
+  // the table keeps Dismissed terminal. The fold above clears the cards when the line lands.
+  const acknowledge = (trackId: string) => {
+    const log = eventLogs[trackId]
+    if (!log || tSec < log[log.length - 1].tSec) return
+    if (isTerminal(statusOf(log))) {
+      setAlerts((current) => clearFor(current, trackId))
+      return
+    }
+    const at = now()
+    const entry = ranked.find((candidate) => candidate.track.id === trackId)
+    const observed = entry ? observedSnapshot(entry) : log[log.length - 1].observed
+    setEventLogs((logs) => ({
+      ...logs,
+      [trackId]: appendEvent(logs[trackId] ?? log, 'acknowledge', { at, tSec, observed }),
+    }))
+  }
+  // A selection is an intent to review (A2 on #3): one made on Home — a map dot, an alert card —
+  // lands the operator on the Queue, where the drawer and its close button are.
+  const selectTrack = (id: string) => {
+    setSelectedId(id)
+    setSurfaceId((current) => (current === 'home' ? 'queue' : current))
+  }
 
   const act = (
     action: LifecycleAction,
@@ -784,14 +840,21 @@ export default function App({
           trail={trail}
           terminalIds={terminalIds}
           bands={bands}
-          onSelect={(id) => {
-            setSelectedId(id)
-            // The other direction of the same ruling: a selection is an intent to review, so one
-            // *made* on Home lands the operator on the Queue, where the drawer and its close
-            // button are.
-            setSurfaceId((current) => (current === 'home' ? 'queue' : current))
-          }}
-        />
+          onSelect={selectTrack}
+        >
+          <AlertStack
+            alerts={alerts}
+            identOf={(id) => {
+              const entry = ranked.find((candidate) => candidate.track.id === id)
+              return entry ? trackIdent(entry.track) : id
+            }}
+            clock={clock}
+            tSec={tSec}
+            frontierOf={(id) => eventLogs[id]?.at(-1)?.tSec ?? tSec}
+            onOpen={selectTrack}
+            onAcknowledge={acknowledge}
+          />
+        </MapView>
       </main>
     </div>
   )

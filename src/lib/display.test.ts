@@ -538,3 +538,50 @@ describe('the friendly launch cap on the row and in the record (08b, ruled on #8
     ).toBe('Drone unit pad · friendly · 0.5 km')
   })
 })
+
+describe('describeEvent — Acknowledged (#101, 101a)', () => {
+  it('prints the one word the record carries, whichever status the track was in', () => {
+    const base = {
+      trackId: 'inject-05',
+      seq: 3,
+      at: '2026-09-01T12:06:02.000Z',
+      tSec: 495,
+      action: 'acknowledge' as const,
+      observed: {
+        identity: 'non-cooperative' as const,
+        rangeM: 7200.2,
+        siteId: 'phl-airfield',
+        sites: PHL_SITES,
+        friendly: false,
+        altitudeFt: 63,
+        groundSpeedKt: 19.1,
+        headingDeg: 345.6,
+        score: 72,
+        uncapped: 72,
+        pattern: null,
+        factors: {
+          cooperativity: 100,
+          closing: 44.4,
+          proximity: 78,
+          pattern: 0,
+          kinematic: 100,
+          time: 100,
+        },
+        weights: {
+          cooperativity: 25,
+          closing: 20,
+          proximity: 15,
+          pattern: 15,
+          kinematic: 10,
+          time: 10,
+        },
+      },
+    }
+    expect(describeEvent({ ...base, from: 'new', to: 'assessing' }, [], [], clock)).toBe(
+      'Acknowledged',
+    )
+    expect(describeEvent({ ...base, from: 'escalated', to: 'escalated' }, [], [], clock)).toBe(
+      'Acknowledged',
+    )
+  })
+})
