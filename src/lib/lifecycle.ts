@@ -47,7 +47,12 @@ import { bandOf } from './scoring.ts'
 import type { Identity, Track } from './tracks.ts'
 
 export type Status = 'new' | 'assessing' | 'escalated' | 'resolved' | 'dismissed'
-export type LifecycleAction = 'assess' | 'escalate' | 'dismiss' | 'resolve'
+/**
+ * The operator's actions. `acknowledge` (#101, 101a) answers an alert: it claims a New track by
+ * the existing transition, and on a track already Assessing or Escalated it changes nothing but
+ * still writes its line, so the handoff timeline carries it whichever status the track was in.
+ */
+export type LifecycleAction = 'assess' | 'escalate' | 'dismiss' | 'resolve' | 'acknowledge'
 /** What the picture did, as opposed to what the operator did. */
 export type ObservationEvent = 'first-seen' | 'band' | 'pattern' | 'lost' | 'regained'
 
@@ -71,12 +76,14 @@ export const STATUS_LABEL: Record<Status, string> = {
 /**
  * The table as ruled on #3: Assess claims a New track; Escalate only from Assessing — a track is
  * claimed before it is handed off; Resolve only from Escalated, with a disposition; Dismiss from
- * New or Assessing. Resolved and Dismissed are terminal for MVP — no reopen.
+ * New or Assessing. Resolved and Dismissed are terminal for MVP — no reopen. Acknowledge (#101)
+ * is Assess from New and a self-transition from Assessing or Escalated; nothing from a terminal
+ * status, so `isTerminal` still reads the same two off the table.
  */
 const TRANSITIONS: Record<Status, Partial<Record<LifecycleAction, Status>>> = {
-  new: { assess: 'assessing', dismiss: 'dismissed' },
-  assessing: { escalate: 'escalated', dismiss: 'dismissed' },
-  escalated: { resolve: 'resolved' },
+  new: { assess: 'assessing', dismiss: 'dismissed', acknowledge: 'assessing' },
+  assessing: { escalate: 'escalated', dismiss: 'dismissed', acknowledge: 'assessing' },
+  escalated: { resolve: 'resolved', acknowledge: 'escalated' },
   resolved: {},
   dismissed: {},
 }

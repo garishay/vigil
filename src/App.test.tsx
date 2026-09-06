@@ -43,6 +43,7 @@ vi.mock('./components/MapView', () => ({
     terminalIds = [],
     bands = new Map<string, string>(),
     onSelect,
+    children,
   }: {
     sites?: readonly { id: string }[]
     selectedSiteId?: string | null
@@ -56,6 +57,7 @@ vi.mock('./components/MapView', () => ({
     terminalIds?: readonly string[]
     bands?: ReadonlyMap<string, string>
     onSelect?: (id: string) => void
+    children?: React.ReactNode
   }) => {
     terminalIdsSeen.push(terminalIds as readonly string[])
     bandsSeen.push(bands)
@@ -85,6 +87,8 @@ vi.mock('./components/MapView', () => ({
           data-testid="map-place"
           onClick={() => onPlace?.(placeTarget.center)}
         />
+        {/* The overlays the frame carries — the alert stack (#101) — render as the real map does. */}
+        {children}
       </div>
     )
   },
@@ -1822,5 +1826,107 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
     expect(
       screen.getByText('Rewound — the workflow acts at the record’s frontier'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
+  const rows = () =>
+    within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+  const rowOf = (ident: string) =>
+    rows().find((row) => within(row).queryByText(ident)) as HTMLElement
+  const logLines = () =>
+    within(screen.getByLabelText('Event log'))
+      .getAllByRole('listitem')
+      .map((line) => line.textContent ?? '')
+  const seek = (value: string) =>
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value } })
+  const stack = () => screen.getByRole('region', { name: 'Alerts' })
+  const cards = () =>
+    within(stack())
+      .queryAllByRole('listitem')
+      .map((card) => card.querySelector('.alert__open')?.textContent ?? '')
+  const cardOf = (ident: string) =>
+    within(stack())
+      .getAllByRole('listitem')
+      .find((item) => item.textContent?.includes(ident)) as HTMLElement
+  const start = () => {
+    useCapture.mockReturnValue(LONG)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    return replay
+  }
+  /**
+   * TRK-06 crosses into warning a little after 02:38 (02:38:11 on the recording's own frame
+   * grid). A seek to 02:38:00 writes every crossing before it; the ticks after write this one.
+   * Returns the sim time the card carries.
+   */
+  const raiseTrk06 = (replay: ReturnType<typeof manualClock>) => {
+    seek('480')
+    expect(cards()).toEqual([])
+    for (let i = 0; i < 40 && cards().length === 0; i++) replay.tick()
+    const card = cards().find((text) => text.includes('TRK-06'))
+    expect(card).toMatch(/^(Warning|Re-surfaced)TRK-0602:38:\d\d$/)
+    return card!.slice(-8)
+  }
+
+  it('raises on a tick and not on a seek — a seek replays the record, the stack stays quiet (A1)', () => {
+    const replay = start()
+    const at = raiseTrk06(replay)
+    expect(cards()).toContain(`WarningTRK-06${at}`)
+    // Never a real aircraft: every card names an inject.
+    for (const card of cards()) expect(card).toMatch(/(TRK|UAS)-/)
+    // Seeking across the same crossing again writes nothing new and raises nothing new.
+    const before = cards()
+    seek('300')
+    seek('600')
+    expect(cards()).toEqual(before)
+  })
+
+  it('acknowledges from the card: New becomes Assessing, the line is written at sim time, the card clears, the handoff carries it', () => {
+    const replay = start()
+    const at = raiseTrk06(replay)
+    // The card's body is a selection: the Queue opens with TRK-06 in the drawer.
+    fireEvent.click(within(cardOf('TRK-06')).getByRole('button', { name: /Warning/ }))
+    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-current', 'page')
+    expect(logLines().at(-1)).toBe(`${at}Warning — up from caution`)
+    fireEvent.click(within(cardOf('TRK-06')).getByRole('button', { name: 'Acknowledge' }))
+    expect(cards().some((card) => card.includes('TRK-06'))).toBe(false)
+    expect(logLines().at(-1)).toBe(`${at}Acknowledged`)
+    expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    // Escalated: the handoff timeline carries Acknowledged in sim time, before the escalation.
+    fireEvent.click(screen.getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm escalation' }))
+    const handoff = (screen.getByLabelText('Handoff text') as HTMLTextAreaElement).value
+    expect(handoff).toContain(`  ${at}  Acknowledged\n  ${at}  Escalated — to PHL Tower`)
+  })
+
+  it('refuses Acknowledge behind the track’s frontier (#77), and clears the cards on Dismiss', () => {
+    const replay = start()
+    raiseTrk06(replay)
+    const ack = () => within(cardOf('TRK-06')).getByRole('button', { name: 'Acknowledge' })
+    seek('300')
+    expect(ack()).toBeDisabled()
+    expect(within(stack()).getByRole('status')).toHaveTextContent(
+      'Rewound — the workflow acts at the record’s frontier',
+    )
+    seek('600')
+    expect(ack()).toBeEnabled()
+    expect(within(stack()).getByRole('status')).toHaveTextContent('')
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(cards().some((card) => card.includes('TRK-06'))).toBe(false)
+  })
+
+  it('raises Re-surfaced in place of the crossing on a Dismissed track (A5)', () => {
+    const replay = start()
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    seek('360')
+    fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    const at = raiseTrk06(replay)
+    expect(cards()).toContain(`Re-surfacedTRK-06${at}`)
+    expect(cards()).not.toContain(`WarningTRK-06${at}`)
   })
 })
