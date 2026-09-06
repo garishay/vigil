@@ -28,6 +28,13 @@ jobs:
       # Formatting rides in the lint job rather than a job of its own, so this needs no change
       # to the required-checks list in branch protection.
       - run: npm run format:check
+      # A conflict marker anywhere in the tracked tree fails the job, naming the file and line
+      # (#45 [G34]): a merge pushed with a hunk unresolved in a .md, .yml, .json, or .css file
+      # passes every other gate — Prettier accepts the markers as text (#112). `=======` alone
+      # is not matched: a conflict always carries the other two, and a bare `=======` line is a
+      # legal Markdown heading underline. Rides in the lint job for the same reason as above.
+      - name: no conflict markers
+        run: '! git grep -nE "^(<<<<<<<|>>>>>>>|\|\|\|\|\|\|\|)( |$)" -- .'
 
   typecheck:
     name: typecheck
