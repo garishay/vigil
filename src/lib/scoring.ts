@@ -631,16 +631,20 @@ export function scoreFromSnapshot(
 /**
  * The corroboration line's number (#103, ruled): what a track not heard on Remote ID this frame
  * would score if it were heard at full dwell, under the weights that scored it — or null for a
- * heard inject and for every ADS-B track, which get no line. No cap is assumed: the friendly cap
- * needs an observed origin the line does not have, and the ceiling keys on a source this is not.
+ * heard inject and for every ADS-B track, which get no line. No cap is assumed beyond the one
+ * the score already carries: a track the scorer reads as a friendly launch — first seen inside
+ * an area, heard within the dwell — stays friendly when its ident is heard, since heard now is
+ * the condition's easiest case, so its cap binds here as it does there (#112 review); a silent
+ * track has no origin the line could assume, and the ceiling keys on a source this is not.
  *
  * Recomposed from the score rather than re-run through `scoreTrack`: the cooperativity
  * contribution is swapped for the heard value over its own weight, the total taken to one
- * decimal and put over the same total weight, the band read off the rounded number — the same
- * construction `scoreTrack` uses. That shortcut is licensed by one pin and nothing else: the
- * test that holds `ifHeard` equal to a scorer re-run with `identity: 'cooperative'` on the
- * silent, degraded, and holding fixtures. The day a factor other than cooperativity reads
- * identity, that pin fails and this helper re-runs the scorer instead.
+ * decimal and put over the same total weight, the friendly cap applied on the score's own
+ * condition, the band read off the rounded number — the same construction `scoreTrack` uses.
+ * That shortcut is licensed by one pin and nothing else: the test that holds `ifHeard` equal to
+ * a scorer re-run with `identity: 'cooperative'` on the silent, degraded, holding, and
+ * friendly-capped fixtures. The day a factor other than cooperativity reads identity, that pin
+ * fails and this helper re-runs the scorer instead.
  */
 export function ifHeard(
   track: Pick<ObservedTrack, 'source' | 'identity'>,
@@ -652,6 +656,7 @@ export function ifHeard(
   if (!coop) return null
   const heard = (config.cooperativity.heard / 100) * coop.weight
   const total = Math.round((score.weighted - coop.contribution + heard) * 10) / 10
-  const composite = (total / score.totalWeight) * 100
+  const uncapped = (total / score.totalWeight) * 100
+  const composite = score.friendly && uncapped > config.friendlyCap ? config.friendlyCap : uncapped
   return { composite, band: bandOf(Math.round(composite), config.bands) }
 }
