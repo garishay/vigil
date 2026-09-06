@@ -1934,12 +1934,14 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     // The ticks that raise TRK-06's card are one batch: one play.
     raiseTrk06(replay)
     expect(play).toHaveBeenCalledTimes(1)
+    // The flipping label alone carries the state, as Play/Pause does — no aria-pressed, which
+    // with a flipping label announces the state inverted (ruled A on #36 [18]).
     const mute = () => screen.getByRole('button', { name: /^(Mute|Unmute)$/ })
     expect(mute()).toHaveTextContent('Mute')
-    expect(mute()).toHaveAttribute('aria-pressed', 'false')
+    expect(mute()).not.toHaveAttribute('aria-pressed')
     fireEvent.click(mute())
     expect(mute()).toHaveTextContent('Unmute')
-    expect(mute()).toHaveAttribute('aria-pressed', 'true')
+    expect(mute()).not.toHaveAttribute('aria-pressed')
     // Muted, the next raise — UAS-CD84's, a little after 02:38:58 — stacks its card and sounds
     // nothing: the binding, not only the hook (#113 review).
     const before = cards().length

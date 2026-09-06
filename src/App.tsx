@@ -694,10 +694,11 @@ export default function App({
         <div className="strip__field strip__field--alerts">
           <dt>Alerts</dt>
           <dd>
+            {/* The flipping label alone, Play/Pause's shape: a label and aria-pressed that both
+                flip announce the state inverted (ruled A on #36 [18]). */}
             <button
               type="button"
               className="playback__toggle"
-              aria-pressed={muted}
               onClick={() => setMuted((current) => !current)}
             >
               {muted ? 'Unmute' : 'Mute'}
