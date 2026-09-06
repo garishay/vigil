@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
 import { DEFAULT_RECORDING, recordingNamed } from './config/recordings'
@@ -1855,6 +1855,13 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     return replay
   }
+  // Every raise here reaches the tone (101b); jsdom's own `play` is not implemented and says so
+  // on the console, so it is stood in for throughout and read where the tone is the subject.
+  let play: MockInstance<() => Promise<void>>
+  beforeEach(() => {
+    play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve())
+  })
+  afterEach(() => play.mockRestore())
   /**
    * TRK-06 crosses into warning a little after 02:38 (02:38:11 on the recording's own frame
    * grid). A seek to 02:38:00 writes every crossing before it; the ticks after write this one.
@@ -1920,9 +1927,6 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
   })
 
   it('sounds once per raise batch under play, never on a seek, and the strip mutes it (101b)', () => {
-    const play = vi
-      .spyOn(HTMLMediaElement.prototype, 'play')
-      .mockImplementation(() => Promise.resolve())
     const replay = start()
     // A seek replays the record: cards or not, no sound.
     seek('300')
@@ -1936,7 +1940,12 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     fireEvent.click(mute())
     expect(mute()).toHaveTextContent('Unmute')
     expect(mute()).toHaveAttribute('aria-pressed', 'true')
-    play.mockRestore()
+    // Muted, the next raise — UAS-CD84's, a little after 02:38:58 — stacks its card and sounds
+    // nothing: the binding, not only the hook (#113 review).
+    const before = cards().length
+    for (let i = 0; i < 90 && cards().length === before; i++) replay.tick()
+    expect(cards().length).toBeGreaterThan(before)
+    expect(play).toHaveBeenCalledTimes(1)
   })
 
   it('raises Re-surfaced in place of the crossing on a Dismissed track (A5)', () => {

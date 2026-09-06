@@ -42,7 +42,10 @@ export function toneSamples(): Int16Array {
 /** The WAV: a 44-byte RIFF header and the samples, little-endian. */
 export function toneWav(): Buffer {
   const samples = toneSamples()
-  const data = Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength)
+  // Written little-endian sample by sample, as the header declares — never the host's order,
+  // which an `Int16Array`'s buffer carries (#113 review).
+  const data = Buffer.alloc(samples.length * 2)
+  samples.forEach((sample, i) => data.writeInt16LE(sample, i * 2))
   const header = Buffer.alloc(44)
   header.write('RIFF', 0, 'ascii')
   header.writeUInt32LE(36 + data.length, 4)
