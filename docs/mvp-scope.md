@@ -127,7 +127,7 @@ The ambition is right: more factors, weights that adapt, and surprising signals 
 
 ## 9. Out of scope — MVP
 
-Live ADS-B polling (Phase 2), backend/API and WebSocket (Phase 2), any ML (Phase 3), CoT/TAK output (Phase 4), persistence beyond the browser-stored site plan (#90), auth, multi-user, mobile layout, alerting/notifications, military identification systems (IFF — a civil watch floor has no interrogator, and it sits deliberately outside this repo's lane), sensor-fusion realism (one clean track per object; no detection modeling). Cut to keep the MVP shippable in ~8 weeks of part-time PRs.
+Live ADS-B polling (Phase 2), backend/API and WebSocket (Phase 2), any ML (Phase 3), CoT/TAK output (Phase 4), persistence beyond the browser-stored site plan (#90), auth, multi-user, mobile layout (#110), notifications outside the session — email, push, a pager (the in-session alert stack is §7, #101), military identification systems (IFF — a civil watch floor has no interrogator, and it sits deliberately outside this repo's lane), sensor-fusion realism (one clean track per object; no detection modeling). Cut to keep the MVP shippable in ~8 weeks of part-time PRs.
 
 ## 10. Phasing
 

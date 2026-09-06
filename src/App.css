@@ -341,8 +341,8 @@
 
 /*
  * The alert stack (#101, 101a): over the map's top-left — the legend has bottom-left, the zoom
- * control top-right — newest on top, scrolling past 40% of the map's height. Hidden while it
- * holds no card, so an empty region draws nothing over the picture. The word takes the kind's
+ * control top-right — newest on top, scrolling past 40% of the map's height. With no card it
+ * has no height and no ground of its own, so nothing draws over the picture. The word takes the kind's
  * colour: the band tokens for a crossing, earned by a score (§4.3), the accent for a pattern
  * or a re-surface — no new colour.
  */
@@ -356,8 +356,21 @@
   overflow-y: auto;
 }
 
-.alerts:not(:has(li)) {
-  display: none;
+/*
+ * Text for a screen reader alone — the stack's announcement line and a card's own times — kept
+ * in the tree and out of the picture. Never `display: none`: a hidden live region announces
+ * nothing, and the first raise is the one that matters.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 /* The state line and its times sit on the cards' own ground, so they read over the basemap. */
