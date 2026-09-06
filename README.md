@@ -35,6 +35,7 @@ flowchart LR
     direction LR
     cap["scripts/capture-adsb.ts"] --> fx[("public/adsb-phl.json · adsb-phl-002.json<br/>the committed recordings")]
     fx --> goldgen["scripts/generate-inject-golden.ts<br/>npm run fixture:injects<br/>samples the plan at the recording's frame times"]
+    tonegen["scripts/generate-tone.ts<br/>npm run fixture:tone<br/>the alert tone, synthesized — original and deterministic"] --> tone[("public/alert-tone.wav")]
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
     direction LR
@@ -105,6 +106,8 @@ flowchart LR
     app --> queue
     app --> map
     app -- cards · the clock's last move --> stack
+    sound["components/useAlertTone.ts<br/>one audio element for the session, played once per raise batch · muted from the strip"]
+    app -- a raise batch · mute --> sound
     app -- selected track: drawer --> review
     app -- site set · placing --> panel
     clock -- t --> app
@@ -121,6 +124,7 @@ flowchart LR
   hand -- handoff text --> review
   airframe -- class · basis: visuals --> review
   photos -. fetched on open .-> review
+  tone -. fetched on the first raise .-> sound
 ```
 
 ---
