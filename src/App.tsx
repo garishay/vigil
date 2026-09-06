@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { AlertStack } from './components/AlertStack'
+import { useAlertTone } from './components/useAlertTone'
 import { MapView } from './components/MapView'
 import { Playback } from './components/Playback'
 import { Queue } from './components/Queue'
@@ -152,6 +153,14 @@ export default function App({
   // The alert stack (#101, 101a): a surface over the record, newest first, and how far into
   // each track's log the alert fold has read — so every entry is folded exactly once.
   const [alerts, setAlerts] = useState<Alert[]>([])
+  // The tone (101b): a count of raise batches, bumped by the alert fold and played by the effect
+  // below — once per batch, never on a seek's replay, never muted. The mute is the strip's.
+  const [raises, setRaises] = useState(0)
+  const [muted, setMuted] = useState(false)
+  const playTone = useAlertTone(muted)
+  useEffect(() => {
+    if (raises > 0) playTone()
+  }, [raises, playTone])
   const [alertsRead, setAlertsRead] = useState<Record<string, number>>({})
 
   // The session's site set (08a, ruled on #86): the operator's protected sites, seeded from
@@ -454,6 +463,8 @@ export default function App({
       read[id] = log.length
     }
     if (next !== alerts) setAlerts(next)
+    // A raise or a re-stamp makes a new card object; a clear only drops. One batch, one tone.
+    if (next.some((card) => !alerts.includes(card))) setRaises((count) => count + 1)
     setAlertsRead(read)
   }
   // Sim time as the record prints it — the event log and the handoff timeline (06b).
@@ -680,6 +691,20 @@ export default function App({
           </div>
         ))}
         <Playback playback={playback} />
+        <div className="strip__field strip__field--alerts">
+          <dt>Alerts</dt>
+          <dd>
+            {/* The flipping label alone, Play/Pause's shape: a label and aria-pressed that both
+                flip announce the state inverted (ruled A on #36 [18]). */}
+            <button
+              type="button"
+              className="playback__toggle"
+              onClick={() => setMuted((current) => !current)}
+            >
+              {muted ? 'Unmute' : 'Mute'}
+            </button>
+          </dd>
+        </div>
         <div className="strip__field strip__field--ao">
           <dt>AO</dt>
           <dd>{AO.name}</dd>

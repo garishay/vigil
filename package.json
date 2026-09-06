@@ -17,6 +17,7 @@
     "test": "vitest run",
     "capture:adsb": "node scripts/capture-adsb.ts",
     "fixture:injects": "node scripts/generate-inject-golden.ts",
+    "fixture:tone": "node scripts/generate-tone.ts",
     "review:threads": "node scripts/review-threads.ts"
   },
   "dependencies": {
