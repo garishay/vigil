@@ -627,3 +627,31 @@ export function scoreFromSnapshot(
     sites: observed.sites,
   }
 }
+
+/**
+ * The corroboration line's number (#103, ruled): what a track not heard on Remote ID this frame
+ * would score if it were heard at full dwell, under the weights that scored it — or null for a
+ * heard inject and for every ADS-B track, which get no line. No cap is assumed: the friendly cap
+ * needs an observed origin the line does not have, and the ceiling keys on a source this is not.
+ *
+ * Recomposed from the score rather than re-run through `scoreTrack`: the cooperativity
+ * contribution is swapped for the heard value over its own weight, the total taken to one
+ * decimal and put over the same total weight, the band read off the rounded number — the same
+ * construction `scoreTrack` uses. That shortcut is licensed by one pin and nothing else: the
+ * test that holds `ifHeard` equal to a scorer re-run with `identity: 'cooperative'` on the
+ * silent, degraded, and holding fixtures. The day a factor other than cooperativity reads
+ * identity, that pin fails and this helper re-runs the scorer instead.
+ */
+export function ifHeard(
+  track: Pick<ObservedTrack, 'source' | 'identity'>,
+  score: Score,
+  config: ScoringConfig = SCORING,
+): { composite: number; band: Band } | null {
+  if (track.source !== 'inject' || track.identity === 'cooperative') return null
+  const coop = score.factors.find((factor) => factor.id === 'cooperativity')
+  if (!coop) return null
+  const heard = (config.cooperativity.heard / 100) * coop.weight
+  const total = Math.round((score.weighted - coop.contribution + heard) * 10) / 10
+  const composite = (total / score.totalWeight) * 100
+  return { composite, band: bandOf(Math.round(composite), config.bands) }
+}

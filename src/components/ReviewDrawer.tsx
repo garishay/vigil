@@ -20,6 +20,7 @@ import {
   type TrackEvent,
 } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
+import { ifHeard } from '../lib/scoring'
 
 /** A value, or an em dash for one the track did not broadcast or carry — never a zero (§7). */
 const dash = (value: string | null | undefined) => value || '—'
@@ -133,6 +134,7 @@ export function ReviewDrawer({
 }) {
   const { track, rank, rangeM } = entry
   const status = statusOf(log)
+  const corroboration = ifHeard(track, entry.score)
   // The record's frontier: the sim time of its last entry. Every writer is forward-only — a
   // crossing declines to log behind the last entry (06b) and the actions below are disabled
   // behind it — so the last entry is the latest, which is how `bandCrossing` reads it too.
@@ -266,6 +268,15 @@ export function ReviewDrawer({
           ×
         </button>
       </header>
+
+      {/* The corroboration line (#103): what a track not heard on Remote ID would score if it
+          were, off the same score — a render-time derivation, no state, not an event, not on the
+          handoff or the snapshot. Heard injects and ADS-B tracks render nothing here. */}
+      {corroboration && (
+        <p className="drawer__corroboration">
+          If heard on Remote ID: {Math.round(corroboration.composite)} ({corroboration.band})
+        </p>
+      )}
 
       <TrackVisuals track={track} lookupPhoto={lookupPhoto} />
 

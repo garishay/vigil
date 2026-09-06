@@ -4,6 +4,7 @@ import {
   bandOf,
   clockStartOf,
   formatClock,
+  ifHeard,
   localClock,
   minuteOfDay,
   parseClock,
@@ -1088,5 +1089,81 @@ describe('the friendly launch cap (08b, ruled on #86)', () => {
     expect(rebuilt.friendly).toBe(true)
     expect(rebuilt.capped).toBe(true)
     expect(rebuilt.composite).toBe(SCORING.friendlyCap)
+  })
+})
+
+describe('the corroboration line (#103, ruled)', () => {
+  // The drawer's own silent inject: loitering low and slow near the airfield at 02:30.
+  const silent = inject({
+    id: 'inject-05',
+    behavior: 'loiter',
+    position: [-75.20547, 39.81341],
+    altitudeFt: 63,
+    groundSpeedKt: 19.1,
+    headingDeg: 345.6,
+    verticalRateFpm: 85,
+  })
+  const heardNow = { ...silent, identity: 'cooperative' as const }
+  const memory: IdentityMemory = { 'inject-05': { lastHeardTSec: 0 } }
+
+  it('equals a scorer re-run with the ident heard — exactly — on the silent, degraded, and holding cases', () => {
+    // The pin that licenses the shortcut: the day a factor other than cooperativity reads
+    // identity, this fails and `ifHeard` re-runs the scorer instead (ruled on #103).
+    const cases: ScoringContext[] = [
+      NIGHT,
+      { ...NIGHT, tSec: 500, memory }, // ident last heard 500 s ago — unknown
+      { ...NIGHT, tSec: 10, memory }, // ident last heard 10 s ago — holding
+    ]
+    for (const context of cases) {
+      const quiet = scoreTrack({ ...silent, identity: 'unknown' }, SITES, context)
+      const rerun = scoreTrack(heardNow, SITES, context)
+      expect(rerun.capped).toBe(false)
+      expect(ifHeard({ source: 'inject', identity: 'unknown' }, quiet)).toEqual({
+        composite: rerun.composite,
+        band: rerun.band,
+      })
+    }
+    // The fixture's numbers: 69 (caution) today, 49 (caution) if heard.
+    const today = scoreTrack(silent, SITES, NIGHT)
+    expect(Math.round(today.composite)).toBe(69)
+    const line = ifHeard(silent, today)!
+    expect(Math.round(line.composite)).toBe(49)
+    expect(line.band).toBe('caution')
+    // The holding case reads its own score back: equal is an answer.
+    const holding = scoreTrack({ ...silent, identity: 'unknown' }, SITES, {
+      ...NIGHT,
+      tSec: 10,
+      memory,
+    })
+    expect(ifHeard({ source: 'inject', identity: 'unknown' }, holding)!.composite).toBe(
+      holding.composite,
+    )
+  })
+
+  it('gives no line to a heard inject or to an ADS-B track', () => {
+    expect(ifHeard(heardNow, scoreTrack(heardNow, SITES, NIGHT))).toBeNull()
+    const aircraft = adsb()
+    expect(ifHeard(aircraft, scoreTrack(aircraft, SITES, NIGHT))).toBeNull()
+  })
+
+  it('reads the band off the rounded number, as the chip does', () => {
+    // Weights that put the heard composite a hair under 40: the printed 40 is caution.
+    const config = {
+      ...SCORING,
+      weights: { ...SCORING.weights, cooperativity: 30, closing: 0, proximity: 0, pattern: 0 },
+    }
+    const track = inject({ altitudeFt: 200, groundSpeedKt: 20 })
+    const score = scoreTrack(track, SITES, { ...NIGHT, config })
+    const line = ifHeard(track, score, config)!
+    // kinematic 100×10 + time 100×10 + heard 25×30/100 = 27.5 over 50 → 55; the shape holds
+    // whatever the number: the band is bandOf(round(composite)).
+    expect(line.band).toBe(bandOf(Math.round(line.composite), config.bands))
+    expect(Math.round(line.composite)).toBe(55)
+  })
+
+  it('uses the weights that scored the track — a zero cooperativity weight leaves the number alone', () => {
+    const config = { ...SCORING, weights: { ...SCORING.weights, cooperativity: 0 } }
+    const score = scoreTrack(silent, SITES, { ...NIGHT, config })
+    expect(ifHeard(silent, score, config)!.composite).toBe(score.composite)
   })
 })

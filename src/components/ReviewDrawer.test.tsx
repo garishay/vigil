@@ -209,6 +209,31 @@ describe('ReviewDrawer', () => {
       expect(screen.queryByText(label)).not.toBeInTheDocument()
   })
 
+  it('reads a silent inject the corroboration line under the header, and keeps it off the handoff (#103)', () => {
+    const ranked = entry(SILENT, 1, 4200)
+    renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
+    // The drawer's own fixture: 69 (caution) today, 49 (caution) if heard — the scorer's number.
+    expect(screen.getByText('Score 69')).toBeInTheDocument()
+    const line = screen.getByText('If heard on Remote ID: 49 (caution)')
+    expect(line.tagName).toBe('P')
+    expect(line).toHaveClass('drawer__corroboration')
+    expect(line.previousElementSibling).toHaveClass('drawer__header')
+    expect(line).not.toHaveAttribute('role')
+    // Not an event, not on the handoff: the log and the payload read as before.
+    expect(within(screen.getByLabelText('Event log')).queryByText(/If heard/)).toBeNull()
+    const handoff = screen.getByLabelText('Handoff text') as HTMLTextAreaElement
+    expect(handoff.value).not.toContain('If heard')
+  })
+
+  it('gives no corroboration line to a heard inject or an ADS-B track (#103)', () => {
+    const heard = entry({ ...SILENT, id: 'inject-01', identity: 'cooperative' }, 5, 6500)
+    const { unmount } = renderDrawer(heard)
+    expect(screen.queryByText(/If heard on Remote ID/)).toBeNull()
+    unmount()
+    renderDrawer(entry(PARKED, 40, 3000))
+    expect(screen.queryByText(/If heard on Remote ID/)).toBeNull()
+  })
+
   it('shows a heard inject its UA-type silhouette, and loses it with the ident (03c)', () => {
     const heard: InjectTrack = {
       ...SILENT,
