@@ -19,6 +19,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # A conflict marker anywhere in the tracked tree fails the job, naming the file and line
+      # (#45 [G34]). The gap it closes is the Prettier-ignored paths — the authored scope doc,
+      # the recorded and golden fixtures, the lockfile — where a merge pushed with a hunk
+      # unresolved passes every other gate (#112's merge, in docs/mvp-scope.md); elsewhere
+      # Prettier already fails on a marker and typecheck fails on one in a .ts file. First, before
+      # the install, so it always runs and its named lines print even when lint would also fail.
+      # `=======` alone is not matched: a conflict always carries the other two, and a bare
+      # `=======` line is a legal Markdown heading underline. `git grep` exits 1 on no match and
+      # above 1 on an error, so only exactly 1 passes — a failed scan is red, not silently green.
+      # Rides in the lint job, so the required-checks list in branch protection is unchanged.
+      - name: no conflict markers
+        run: |
+          git grep -nE "^(<<<<<<<|>>>>>>>|\|\|\|\|\|\|\|)( |$)" -- . && exit 1
+          [ $? -eq 1 ]
       - uses: actions/setup-node@v5
         with:
           node-version: 22
