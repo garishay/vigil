@@ -79,6 +79,10 @@ flowchart LR
     model --> airframe
     frames --> airframe
     workcfg --> hand
+    alertcfg["config/alerts.ts<br/>the triggers: warning · caution (off) · pattern · re-surface"]
+    alerts["lib/alerts.ts<br/>a surface over the record: which entries earn a card, which clear one<br/>one pending card per track per kind · a tick raises, a seek replays · never a capped cooperative track"]
+    alertcfg --> alerts
+    life -- the log, entry by entry --> alerts
   end
   photos["data/photos.ts + usePhoto<br/>one photo per opened ADS-B track, by hex<br/>runtime lookup · session cache · fails soft to the silhouette"]
   fx -. fetched at startup .-> load
@@ -92,13 +96,15 @@ flowchart LR
     queue["Queue<br/>ranked list, the product · reason tag in plain English"]
     map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count"]
-    clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick<br/>scheduler injected, so no test waits on time"]
+    clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick · how it last moved<br/>scheduler injected, so no test waits on time"]
     panel["components/SitesPanel.tsx<br/>the Sites surface: protected sites and friendly launch areas as rows, the inline editor, placement armed on the map<br/>the site plan: copy out, load back · refused behind the record's frontier · a restored row reads stored"]
     copy["components/useCopy.ts<br/>copy with the clipboard, fall back to the textarea's selection<br/>'Copied' only for the text actually copied"]
     copy -- handoff --> review
     copy -- site plan --> panel
+    stack["components/AlertStack.tsx<br/>the cards over the map, newest first · the body selects the track<br/>Acknowledge, refused behind the track's frontier"]
     app --> queue
     app --> map
+    app -- cards · the clock's last move --> stack
     app -- selected track: drawer --> review
     app -- site set · placing --> panel
     clock -- t --> app
@@ -110,6 +116,7 @@ flowchart LR
   recs -- ?recording= selection · the default --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot, map fill --> app
   life -- log · status · re-surface: drawer, state filter, row --> app
+  alerts -- the stack, folded from each track's new entries --> app
   workcfg -- pickers: drawer --> app
   hand -- handoff text --> review
   airframe -- class · basis: visuals --> review

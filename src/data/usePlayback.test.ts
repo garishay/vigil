@@ -103,3 +103,22 @@ describe('intervalSchedule', () => {
     expect(tick).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('how the clock last moved (#101, 101a)', () => {
+  it('reads seek at load, tick after a tick, seek after a seek — and after Play at the end', () => {
+    const clock = manual()
+    const { result } = renderHook(() => usePlayback(3, clock.schedule))
+    expect(result.current.lastMove).toBe('seek')
+    clock.tick()
+    expect(result.current.lastMove).toBe('tick')
+    act(() => result.current.seek(2))
+    expect(result.current.lastMove).toBe('seek')
+    clock.tick()
+    expect(result.current.tSec).toBe(3)
+    expect(result.current.lastMove).toBe('tick')
+    // Starting over from the end is a jump, not a tick.
+    act(() => result.current.play())
+    expect(result.current.tSec).toBe(0)
+    expect(result.current.lastMove).toBe('seek')
+  })
+})

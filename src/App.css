@@ -97,7 +97,8 @@
   align-items: center;
 }
 
-.playback__toggle {
+.playback__toggle,
+.alert__ack {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);
@@ -336,6 +337,121 @@
 .map-frame {
   position: relative;
   min-height: 0;
+}
+
+/*
+ * The alert stack (#101, 101a): over the map's top-left — the legend has bottom-left, the zoom
+ * control top-right — newest on top, scrolling past 40% of the map's height. With no card it
+ * has no height and no ground of its own, so nothing draws over the picture. The word takes the kind's
+ * colour: the band tokens for a crossing, earned by a score (§4.3), the accent for a pattern
+ * or a re-surface — no new colour.
+ */
+.alerts {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 1;
+  width: 22rem;
+  max-height: 40%;
+  overflow-y: auto;
+}
+
+/*
+ * Text for a screen reader alone — the stack's announcement line and a card's own times — kept
+ * in the tree and out of the picture. Never `display: none`: a hidden live region announces
+ * nothing, and the first raise is the one that matters.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* The state line and its times sit on the cards' own ground, so they read over the basemap. */
+.alerts__rewound,
+.alerts__rewound-times {
+  margin: 0 0 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(18, 24, 33, 0.88);
+  padding: 0.25rem 0.5rem;
+  color: var(--faint);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.alerts__rewound:empty {
+  display: none;
+}
+
+.alerts__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alert {
+  --alert: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--alert);
+  border-radius: var(--radius);
+  background: rgba(18, 24, 33, 0.88);
+  padding: 0.35rem 0.5rem;
+}
+
+.alert[data-kind='warning'] {
+  --alert: var(--warning);
+}
+
+.alert[data-kind='caution'] {
+  --alert: var(--caution);
+}
+
+.alert__open {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  align-items: baseline;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.alert__word {
+  color: var(--alert);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.alert__time {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.alert__ack:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Two groups side by side (#96): the identity column, then the two warm bands beside it. */

@@ -65,13 +65,33 @@ const opened = () => firstSeen('inject-05', OBSERVED, '2026-09-01T12:04:31.000Z'
 /**
  * Every (status, action) pair, exhaustively — the ruled table from #3: Escalate only from
  * Assessing, Resolve only from Escalated, Dismiss from New or Assessing, terminal states final.
+ * Acknowledge (#101, ruled A6): Assess from New, a self-transition from Assessing or Escalated,
+ * nothing from a terminal status — so the terminal set below is unchanged by it.
  */
 const TABLE: Record<Status, Record<LifecycleAction, Status | null>> = {
-  new: { assess: 'assessing', escalate: null, dismiss: 'dismissed', resolve: null },
-  assessing: { assess: null, escalate: 'escalated', dismiss: 'dismissed', resolve: null },
-  escalated: { assess: null, escalate: null, dismiss: null, resolve: 'resolved' },
-  resolved: { assess: null, escalate: null, dismiss: null, resolve: null },
-  dismissed: { assess: null, escalate: null, dismiss: null, resolve: null },
+  new: {
+    assess: 'assessing',
+    escalate: null,
+    dismiss: 'dismissed',
+    resolve: null,
+    acknowledge: 'assessing',
+  },
+  assessing: {
+    assess: null,
+    escalate: 'escalated',
+    dismiss: 'dismissed',
+    resolve: null,
+    acknowledge: 'assessing',
+  },
+  escalated: {
+    assess: null,
+    escalate: null,
+    dismiss: null,
+    resolve: 'resolved',
+    acknowledge: 'escalated',
+  },
+  resolved: { assess: null, escalate: null, dismiss: null, resolve: null, acknowledge: null },
+  dismissed: { assess: null, escalate: null, dismiss: null, resolve: null, acknowledge: null },
 }
 
 describe('transition table', () => {
@@ -712,5 +732,27 @@ describe('the friendly-launch guard on re-surface (08b, ruled on #86)', () => {
     expect(resurfaced(crossed, 'inject', false)).toBe(true)
     expect(resurfaced(crossed, 'inject', true)).toBe(false)
     expect(resurfaced(crossed, 'adsb', false)).toBe(false)
+  })
+})
+
+describe('acknowledge (#101, ruled A6)', () => {
+  it('claims a New track by the existing transition, and writes its line on Assessing or Escalated without moving them', () => {
+    let log = appendEvent(opened(), 'acknowledge', input({ tSec: 495 }))
+    expect(log.at(-1)).toMatchObject({
+      action: 'acknowledge',
+      from: 'new',
+      to: 'assessing',
+      tSec: 495,
+    })
+    log = appendEvent(log, 'acknowledge', input({ tSec: 500 }))
+    expect(log.at(-1)).toMatchObject({ action: 'acknowledge', from: 'assessing', to: 'assessing' })
+    log = appendEvent(log, 'escalate', input({ recipient: 'phl-tower', tSec: 510 }))
+    log = appendEvent(log, 'acknowledge', input({ tSec: 520 }))
+    expect(log.at(-1)).toMatchObject({ action: 'acknowledge', from: 'escalated', to: 'escalated' })
+    expect(statusOf(log)).toBe('escalated')
+    // Nothing from a terminal status: the table keeps Dismissed and Resolved final.
+    const dismissed = appendEvent(opened(), 'dismiss', input())
+    expect(() => appendEvent(dismissed, 'acknowledge', input())).toThrow(/illegal/)
+    expect(canAct('dismissed', 'acknowledge')).toBe(false)
   })
 })

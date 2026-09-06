@@ -6,6 +6,7 @@ import type { Playback as PlaybackState } from '../data/usePlayback'
 const state = (overrides: Partial<PlaybackState> = {}): PlaybackState => ({
   tSec: 187,
   playing: true,
+  lastMove: 'tick',
   durationS: 1185,
   play: vi.fn(),
   pause: vi.fn(),
