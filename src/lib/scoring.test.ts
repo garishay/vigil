@@ -4,6 +4,7 @@ import {
   bandOf,
   clockStartOf,
   formatClock,
+  ifHeard,
   localClock,
   minuteOfDay,
   parseClock,
@@ -1088,5 +1089,97 @@ describe('the friendly launch cap (08b, ruled on #86)', () => {
     expect(rebuilt.friendly).toBe(true)
     expect(rebuilt.capped).toBe(true)
     expect(rebuilt.composite).toBe(SCORING.friendlyCap)
+  })
+})
+
+describe('the corroboration line (#103, ruled)', () => {
+  // The drawer's own silent inject: loitering low and slow near the airfield at 02:30.
+  const silent = inject({
+    id: 'inject-05',
+    behavior: 'loiter',
+    position: [-75.20547, 39.81341],
+    altitudeFt: 63,
+    groundSpeedKt: 19.1,
+    headingDeg: 345.6,
+    verticalRateFpm: 85,
+  })
+  const heardNow = { ...silent, identity: 'cooperative' as const }
+  const memory: IdentityMemory = { 'inject-05': { lastHeardTSec: 0 } }
+
+  it('equals a scorer re-run with the ident heard — exactly — on the silent, degraded, holding, and friendly-capped cases', () => {
+    // The pin that licenses the shortcut: the day a factor other than cooperativity reads
+    // identity, this fails and `ifHeard` re-runs the scorer instead (ruled on #103).
+    // The fourth case (#112 review): first seen inside a friendly area and heard 10 s ago — the
+    // score is already friendly-capped while the ident is quiet, and hearing it changes nothing.
+    const pad = { id: 'area-2', name: 'Drone unit pad', center: at(9000), radiusM: 500 }
+    const cases: { context: ScoringContext; capped: boolean }[] = [
+      { context: NIGHT, capped: false },
+      { context: { ...NIGHT, tSec: 500, memory }, capped: false }, // last heard 500 s ago — unknown
+      { context: { ...NIGHT, tSec: 10, memory }, capped: false }, // last heard 10 s ago — holding
+      {
+        context: {
+          ...NIGHT,
+          tSec: 10,
+          memory,
+          friendly: [pad],
+          origins: { 'inject-05': at(9000) },
+        },
+        capped: true,
+      },
+    ]
+    for (const { context, capped } of cases) {
+      const quiet = scoreTrack({ ...silent, identity: 'unknown' }, SITES, context)
+      const rerun = scoreTrack(heardNow, SITES, context)
+      expect(rerun.capped).toBe(capped)
+      expect(ifHeard({ source: 'inject', identity: 'unknown' }, quiet)).toEqual({
+        composite: rerun.composite,
+        band: rerun.band,
+      })
+    }
+    // The fixture's numbers: 69 (caution) today, 49 (caution) if heard.
+    const today = scoreTrack(silent, SITES, NIGHT)
+    expect(Math.round(today.composite)).toBe(69)
+    const line = ifHeard(silent, today)!
+    expect(Math.round(line.composite)).toBe(49)
+    expect(line.band).toBe('caution')
+    // The holding case reads its own score back: equal is an answer.
+    const holding = scoreTrack({ ...silent, identity: 'unknown' }, SITES, {
+      ...NIGHT,
+      tSec: 10,
+      memory,
+    })
+    expect(ifHeard({ source: 'inject', identity: 'unknown' }, holding)!.composite).toBe(
+      holding.composite,
+    )
+  })
+
+  it('gives no line to a heard inject or to an ADS-B track', () => {
+    expect(ifHeard(heardNow, scoreTrack(heardNow, SITES, NIGHT))).toBeNull()
+    const aircraft = adsb()
+    expect(ifHeard(aircraft, scoreTrack(aircraft, SITES, NIGHT))).toBeNull()
+  })
+
+  it('reads the band off the printed whole number, as the chip does (#63): 69.7 prints 70 and reads warning', () => {
+    // Weights that land the heard composite between 69.5 and 70 (#112 review): cooperativity 15,
+    // kinematic 11, time 11, the geometry and pattern rows at 0 — heard 25 × 15/100 = 3.75, plus
+    // 11 + 11 = 25.75 → 25.8 to one decimal, over 37 → 69.73. Unrounded that is caution; the
+    // printed 70 is warning, and the literal word is what is pinned.
+    const config = {
+      ...SCORING,
+      weights: { cooperativity: 15, closing: 0, proximity: 0, pattern: 0, kinematic: 11, time: 11 },
+    }
+    const track = inject({ altitudeFt: 200, groundSpeedKt: 20 })
+    const score = scoreTrack(track, SITES, { ...NIGHT, config })
+    const line = ifHeard(track, score, config)!
+    expect(line.composite).toBeCloseTo(69.73, 2)
+    expect(Math.round(line.composite)).toBe(70)
+    expect(line.band).toBe('warning')
+    expect(bandOf(line.composite, config.bands)).toBe('caution')
+  })
+
+  it('uses the weights that scored the track — a zero cooperativity weight leaves the number alone', () => {
+    const config = { ...SCORING, weights: { ...SCORING.weights, cooperativity: 0 } }
+    const score = scoreTrack(silent, SITES, { ...NIGHT, config })
+    expect(ifHeard(silent, score, config)!.composite).toBe(score.composite)
   })
 })
