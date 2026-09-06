@@ -57,14 +57,18 @@ export const siteKindLine = (site: Pick<SiteRecord, 'kind' | 'tier'>) =>
   site.kind === 'friendly' ? 'Friendly launch area' : `Protected · tier ${site.tier}`
 
 /**
- * The site row's third line (08a): the ring, and where the site came from — `config`, or the
- * sim time the operator added it, printed by the record's clock.
+ * The site row's third line (08a): the ring, and where the site came from — `config`, `stored`
+ * for an unstamped row of a set restored from this browser's storage (#90), or the sim time the
+ * operator added it, printed by the record's clock.
  */
 export const siteOriginLine = (
   site: Pick<SessionSite, 'radiusM' | 'addedTSec'>,
   clock: (tSec: number) => string,
-) =>
-  `${formatRangeKm(site.radiusM)} ring · ${site.addedTSec === null ? 'config' : clock(site.addedTSec)}`
+  stored = false,
+) => {
+  const origin = site.addedTSec === null ? (stored ? 'stored' : 'config') : clock(site.addedTSec)
+  return `${formatRangeKm(site.radiusM)} ring · ${origin}`
+}
 
 /**
  * The handoff's site line (08a): the site the Range line was measured to, as the record carries
