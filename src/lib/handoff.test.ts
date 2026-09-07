@@ -82,7 +82,7 @@ describe('handoffText', () => {
         // history in this picture, so the pattern row reads 0 (05a).
         'Score: 69 (caution) — 65.6/95',
         '  Identity 25/25 · Closing 9/20',
-        '  Proximity 12/15 · Pattern of life 0/15',
+        '  Proximity 12/15 · Movement 0/15',
         '  Flight profile 10/10 · Off-hours 10/10',
         'Timeline:',
         '  02:30:00  New — first seen',

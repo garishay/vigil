@@ -18,7 +18,7 @@
  * — so the printed division reproduces it, and both are on the score: nothing is hidden.
  *
  * Time is an input — `tSec` for the memory, `minuteOfDay` for the off-hours factor — which is
- * the seam PR 06's replay clock drives. **History is an input too** (05a): the pattern-of-life
+ * the seam PR 06's replay clock drives. **History is an input too** (05a): the movement
  * factor reads each track's position history from the context, sampled by the replay module at
  * the frame-grid instants, so the detectors in `patterns.ts` see positions and nothing else.
  *
@@ -160,11 +160,13 @@ export const FACTORS: readonly { id: FactorId; label: string; intent: string }[]
       'Current range to the protected site, decaying with distance — the curve spikes inside the protection ring',
   },
   {
-    // Named for what it measures, as Identity is (ruled on #5, note 1a): the detail line carries
-    // the evidence — a dwell, a turn, a return — and the detected word stays off the row.
+    // Named for what it measures, as Identity is (ruled on #5, note 1a; the word ruled on #126):
+    // the detail line carries the evidence — a dwell, a turn, a return — and the detected word
+    // stays off the row. The hover names the window the detectors read, off the config it is
+    // read from (#127 round 1): doctrine is configuration, so no intent carries a number by hand.
     id: 'pattern',
-    label: 'Pattern of life',
-    intent: 'Loiter dwell, orbit detection (persistent turn rate), area revisit',
+    label: 'Movement',
+    intent: `The track's own movement over the last ${SCORING.pattern.windowS / 60} minutes — loiter dwell, orbit (persistent turn rate), area revisit`,
   },
   {
     id: 'kinematic',
@@ -494,7 +496,7 @@ function kinematic(
 }
 
 /**
- * Pattern of life (05a): the strongest of the three detectors over the track's position history,
+ * Movement (05a): the strongest of the three detectors over the track's position history,
  * with that detector's evidence as the detail. On the ground there is no pattern to read, as
  * there is no geometry.
  */

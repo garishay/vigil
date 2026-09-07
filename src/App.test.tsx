@@ -1192,7 +1192,7 @@ describe('App pattern row under the clock (05a)', () => {
     fireEvent.click(within(rows()[0]).getByRole('button'))
     const breakdownRows = () =>
       within(screen.getByLabelText('Score breakdown')).getAllByRole('listitem')
-    expect(within(breakdownRows()[3]).getByText('Pattern of life')).toBeInTheDocument()
+    expect(within(breakdownRows()[3]).getByText('Movement')).toBeInTheDocument()
     expect(within(breakdownRows()[3]).getByText('no history yet')).toBeInTheDocument()
     // 02:46:30, one seek: the hero has held position inside the ring for 4 min 15 s — the row
     // reads its evidence and fills to 11 of 15, the chip reads 95, and it is back at rank 1 above
@@ -1465,7 +1465,7 @@ describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', 
     fireEvent.click(screen.getByRole('button', { name: 'Confirm escalation' }))
     const handoff = (screen.getByLabelText('Handoff text') as HTMLTextAreaElement).value
     expect(handoff).toContain('  02:46:30  Loitering — began\n  02:46:30  Assessing — claimed')
-    expect(handoff).toContain('Proximity 15/15 · Pattern of life 11/15')
+    expect(handoff).toContain('Proximity 15/15 · Movement 11/15')
     // A rewind writes nothing.
     seek('600')
     expect(logLines()).toHaveLength(5)
