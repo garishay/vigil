@@ -105,8 +105,13 @@ describe('ScoreBreakdown', () => {
       3,
     )
     expect(within(items[0]).getByText('no ident heard')).toBeInTheDocument()
-    // The pattern row reads its evidence, never a verdict word (ruled on #5, note 1a).
-    expect(within(items[3]).getByText('Pattern of life')).toBeInTheDocument()
+    // The pattern row reads its evidence, never a verdict word (ruled on #5, note 1a), and its
+    // hover says what it measures — the track's own movement, named Movement (#126).
+    expect(within(items[3]).getByText('Movement')).toBeInTheDocument()
+    expect(items[3]).toHaveAttribute(
+      'title',
+      "The track's own movement over the last seven minutes — loiter dwell, orbit (persistent turn rate), area revisit",
+    )
     expect(within(items[3]).getByText('no history yet')).toBeInTheDocument()
     expect(within(items[5]).getByText('02:30 local — outside 06:00–22:00')).toBeInTheDocument()
   })

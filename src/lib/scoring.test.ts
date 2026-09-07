@@ -532,7 +532,7 @@ describe('the composite', () => {
       'Identity',
       'Closing',
       'Proximity',
-      'Pattern of life',
+      'Movement',
       'Flight profile',
       'Off-hours',
     ])
@@ -673,14 +673,14 @@ describe('the §2 check — no input makes a real aircraft rank as a threat', ()
   })
 })
 
-describe('pattern of life (05a)', () => {
+describe('movement (05a)', () => {
   // A hover's history at the frame grid: the same point for the whole 420 s window.
   const hover = [...Array(29)].map((_, i) => ({ tSec: i * 15, position: at(3000) }))
 
   it('scores 0 with no history to read, and says so', () => {
     expect(factor(inject(), 'pattern')).toEqual({
       id: 'pattern',
-      label: 'Pattern of life',
+      label: 'Movement',
       value: 0,
       weight: 15,
       contribution: 0,
@@ -698,7 +698,7 @@ describe('pattern of life (05a)', () => {
       contribution: 15,
       detail: 'within 450 m for 7 min 0 s',
     })
-    expect(row.label).toBe('Pattern of life')
+    expect(row.label).toBe('Movement')
     expect(score.pattern).toBe('loiter')
     // Every row at full: the top of the scale, which is what a drone holding position inside the
     // ring at 02:30 with no ident reads (ruled on #5, note 2).

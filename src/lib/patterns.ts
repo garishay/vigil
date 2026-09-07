@@ -1,5 +1,5 @@
 /**
- * Pattern-of-life detectors (scope §6, PR 05a): loiter dwell, orbit, and area revisit, each a
+ * Movement detectors (scope §6, PR 05a): loiter dwell, orbit, and area revisit, each a
  * pure function of a track's **position history** — where it has been at the frame-grid instants
  * of the last few minutes — and nothing else. No React, no DOM, no I/O, no clock; every number
  * comes from `config/scoring.ts`.

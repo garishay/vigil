@@ -74,7 +74,7 @@ export interface ScoringConfig {
    */
   tierMultiplier: Record<SiteTier, number>
   /**
-   * Pattern of life (05a, ruled on #5): three detectors over a track's position history — the
+   * Movement (05a, ruled on #5; the word on #126): three detectors over a track's position history — the
    * frame-grid instants of the last `windowS` seconds — and the factor is the strongest of them.
    * Loiter dwell: the longest trailing run of positions that all lie within `radiusM` of their
    * own centroid, worth 0 at `minS` and 100 at `fullS`. Orbit: the trailing run of turns in one

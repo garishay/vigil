@@ -242,7 +242,7 @@ describe('determinism', () => {
   })
 })
 
-describe('pattern of life in the order (05a acceptance)', () => {
+describe('movement in the order (05a acceptance)', () => {
   const plan = planScenario(gridTimeline(80, 15000))
   const noRecording: ReplayIndex = { startS: 0, durationS: 0, samples: new Map() }
   const injectsAt = (t: number) => {
