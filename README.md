@@ -87,7 +87,7 @@ flowchart LR
     alertcfg --> alerts
     life -- the log, entry by entry --> alerts
     projcfg["config/projection.ts<br/>the horizon"]
-    proj["lib/projection.ts<br/>time to entry by dead reckoning: the observed position, track, and speed against every protected ring<br/>the soonest, its site named and tier carried · inside at zero · none past the horizon<br/>the entry point on the ring · the last message's age counted off, a coasting track captioned · a display value, never a factor"]
+    proj["lib/projection.ts<br/>time to entry by dead reckoning: the observed position, track, and speed against every protected ring<br/>the soonest, its site named and tier carried · inside at zero · none past the horizon<br/>the entry point on the ring · the position's own age counted off, a coasting track captioned · a display value, never a factor"]
     projcfg --> proj
     model --> proj
     proj -- the value on every snapshot --> life

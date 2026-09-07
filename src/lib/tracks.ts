@@ -92,6 +92,15 @@ export interface AdsbTrack extends TrackBase {
    * position, and on every inject, which the generator samples continuously.
    */
   coasting?: true
+  /**
+   * How old the *position* is, seconds (#102; #119 round 2, ruled) — what a projection counts
+   * off. A sample's position is as old as its message; the replay stamps the blend of the
+   * bounding samples' ages on an interpolated position, and the message's age on a held one.
+   * Kept apart from `lastSeenSec`, which is the message's age on every branch: between samples
+   * the position is an estimate of now while the message keeps ageing, and the two stay honest
+   * separately. Absent on an inject, whose position is always now.
+   */
+  positionAgeS?: number
 }
 
 /**

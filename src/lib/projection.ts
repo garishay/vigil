@@ -17,12 +17,17 @@
  * at `tcpa − √(r² − cpa²) / v`. The entry point is then stepped out on the sphere, so the line
  * the map draws ends on the ring the map draws — within a metre at the scenario's ranges.
  *
- * **The age of the last message** (ruled A4; #119 round 1): every position is `lastSeenSec` old
- * — a sample arrives already aged, and a track the replay holds past its last sample ages on —
- * so the entry time counts that age off on every track, clamped at zero, and the value cannot
- * step by the sample's age at the tick a hold begins. The caption is another matter: only a track
- * marked `coasting` at the seam sits where it was last heard rather than at an estimate of now,
- * and only that track carries the age out for the display to say so.
+ * **The age of the position** (ruled A4; #119 rounds 1–2): the entry time counts off how old the
+ * *position* is — `positionAgeS`, which the seam that produced the picture stamps: a sample's own
+ * age at its instant, the blend of the bounding samples' ages while the replay interpolates, the
+ * message's age while it holds — clamped at zero. Not `lastSeenSec`: between samples the position
+ * is an estimate of now while the message keeps ageing, and counting the message's age off there
+ * read the row 13 s low at every frame's end and stepped it back up at the next. On the
+ * position's age the value is continuous through each boundary and at the hold seam, where the
+ * hold begins at the sample's own age. A track with no age stamped — an inject — counts nothing
+ * off. The caption is another matter: only a track marked `coasting` at the seam sits where it
+ * was last heard rather than at an estimate of now, and only that track carries the age out for
+ * the display to say so.
  *
  * A display value, not a factor: nothing in the scoring path imports this module.
  */
@@ -40,6 +45,8 @@ export interface Projectable {
   groundSpeedKt: number | null
   onGround: boolean
   lastSeenSec: number
+  /** How old the position is, seconds — what comes off the time; absent reads as now. */
+  positionAgeS?: number
   coasting?: boolean
 }
 
@@ -66,7 +73,7 @@ export type EntryEstimate = (
   /**
    * The age of the last message, seconds, when the track is coasting and its position is where
    * it was last heard — what the caption under the value says; null when the position is the
-   * picture's estimate of now. The value counts the age off either way.
+   * picture's estimate of now. The value counts `positionAgeS` off either way.
    */
   coastedS: number | null
 }
@@ -111,7 +118,7 @@ export function timeToEntry(
       0,
       approach.tcpaS - Math.sqrt(site.radiusM ** 2 - approach.cpaM ** 2) / speedMs,
     )
-    const tSec = Math.max(0, pathS - track.lastSeenSec)
+    const tSec = Math.max(0, pathS - (track.positionAgeS ?? 0))
     if (tSec > config.horizonS) continue
     if (best.kind === 'entry' && best.tSec <= tSec) continue
     best = { kind: 'entry', ...named(site), tSec, point: projectPosition(track, pathS), coastedS }

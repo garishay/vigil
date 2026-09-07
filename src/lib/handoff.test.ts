@@ -113,6 +113,8 @@ describe('handoffText', () => {
       headingDeg: 345.6,
       verticalRateFpm: 0,
       lastSeenSec: 30,
+      // Held: the position is where the aircraft was last heard, so it is as old as the message.
+      positionAgeS: 30,
       category: null,
       registry: null,
       coasting: true,

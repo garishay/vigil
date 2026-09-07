@@ -239,6 +239,9 @@ export function toTrack(record: CaptureRecord): AdsbTrack {
     headingDeg: record.headingDeg ?? null,
     verticalRateFpm: record.verticalRateFpm ?? null,
     lastSeenSec: record.lastSeenSec ?? 0,
+    // A sample's position is as old as the message that placed it (#102, #119): the replay
+    // re-stamps this between samples and while holding, and a projection counts it off.
+    positionAgeS: record.lastSeenSec ?? 0,
     // Blank/trim and the no-category sentinels are enforced at capture time too, but this record
     // may not have come from our capture script — a hand-built fixture, or Phase 2's live feed.
     // The read path applies the same rules, so the invariants hold wherever the record came from.

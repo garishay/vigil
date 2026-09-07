@@ -247,6 +247,28 @@ describe('pictureAt — the coasting mark (#102, ruled A4)', () => {
     )
     expect(pictureAt(wide, 60)[0].coasting).toBe(true)
   })
+
+  it('stamps the age the position carries on every branch: the blend while interpolating, the message’s while held or at a sample (#119 round 2)', () => {
+    // A0 was heard at its sample (age 0), A1 two seconds before its own: halfway between, the
+    // bridged position is a second old while the message is 7.5 s old — the two stay separate.
+    const [midway] = pictureAt(index, 7.5)
+    expect(midway.lastSeenSec).toBe(7.5)
+    expect(midway.positionAgeS).toBe(1)
+    // At the sample's own instant the position is as old as the message that placed it …
+    expect(pictureAt(index, 15)[0].positionAgeS).toBe(2)
+    // … and the hold begins there and ages on, so the two agree at the seam and after it.
+    expect(pictureAt(index, 16)[0].positionAgeS).toBe(3)
+    expect(pictureAt(index, 60)[0].positionAgeS).toBe(47)
+    // A bridged hole blends the ages too (0 → 2 at f = 0.8), whatever the message's age says.
+    const gappy = indexCapture(
+      capture([
+        { tMs: 0, records: [A0] },
+        { tMs: 75000, records: [A1] },
+      ]),
+    )
+    expect(pictureAt(gappy, 60)[0].positionAgeS).toBe(1.6)
+    expect(pictureAt(gappy, 60)[0].lastSeenSec).toBe(60)
+  })
 })
 
 describe('trailAt (06b)', () => {
