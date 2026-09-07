@@ -15,9 +15,12 @@ const ADSB_SOURCE = 'adsb-tracks'
 const INJECT_SOURCE = 'inject-tracks'
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
+const PROJECTION_SOURCE = 'selected-projection'
 
 /** One frozen empty array, so the default prop is not a new identity every render. */
 const NO_TERMINAL: readonly string[] = []
+/** Likewise for a line with no points. */
+const NO_LINE: readonly [number, number][] = []
 /** Likewise for the band map: no warm bands, one identity. */
 const NO_BANDS: ReadonlyMap<string, WarmBand> = new Map()
 const NO_SITES: readonly ProtectedSite[] = []
@@ -67,16 +70,19 @@ function selectionFeature(position: [number, number] | null) {
   }
 }
 
-/** Zero or one line: the selected track's trail, oldest first, or an empty collection. */
-function trailFeature(trail: readonly [number, number][]) {
+/**
+ * Zero or one line — the selected track's trail, oldest first (06b), or its projected path to
+ * the ring (#102) — or an empty collection when there are not two points to join.
+ */
+function lineFeature(points: readonly [number, number][]) {
   return {
     type: 'FeatureCollection' as const,
     features:
-      trail.length >= 2
+      points.length >= 2
         ? [
             {
               type: 'Feature' as const,
-              geometry: { type: 'LineString' as const, coordinates: trail.map((p) => [...p]) },
+              geometry: { type: 'LineString' as const, coordinates: points.map((p) => [...p]) },
               properties: {},
             },
           ]
@@ -86,6 +92,13 @@ function trailFeature(trail: readonly [number, number][]) {
 
 /** Mirrors --accent in the theme; MapLibre paint properties take literals, not CSS variables. */
 const RING_COLOR = '#4c9aff'
+
+/**
+ * The projected path's colour (#102, ruled A7): `--muted`, mirrored as `RING_COLOR` mirrors its
+ * token. Neutral on purpose — no marker wears it, so it spends neither the identity stroke nor
+ * the band fill (#96), and it is not the trail's blue, which is the past.
+ */
+const PROJECTION_COLOR = '#8b98a9'
 
 /**
  * Cooperative traffic is drawn small, cool, and quiet on purpose (§3): it is the calm background
@@ -191,6 +204,7 @@ export function MapView({
   selectedId = null,
   selectionShown = true,
   trail = [],
+  projection = NO_LINE,
   terminalIds = NO_TERMINAL,
   bands = NO_BANDS,
   onSelect,
@@ -236,6 +250,12 @@ export function MapView({
   selectionShown?: boolean
   /** The selected track's history trail (06b), oldest first; drawn only with the ring. */
   trail?: readonly [number, number][]
+  /**
+   * The selected track's projected path (#102): its position and the point where dead reckoning
+   * meets a protected ring, or empty when there is no entry inside the horizon. Drawn only with
+   * the ring, like the trail; faded and neutral, with no marker at either end (ruled A7).
+   */
+  projection?: readonly [number, number][]
   onSelect?: (id: string) => void
   /** Overlays that live in the map's frame beside the legend — the alert stack (#101). */
   children?: ReactNode
@@ -345,12 +365,21 @@ export function MapView({
       })
       // The breadcrumb trail (06b) sits under the injects and the ring: where the selected
       // track has been must never cover where it is.
-      map.addSource(TRAIL_SOURCE, { type: 'geojson', data: trailFeature([]) })
+      map.addSource(TRAIL_SOURCE, { type: 'geojson', data: lineFeature([]) })
       map.addLayer({
         id: `${TRAIL_SOURCE}-line`,
         type: 'line',
         source: TRAIL_SOURCE,
         paint: { 'line-color': RING_COLOR, 'line-width': 1.5, 'line-opacity': 0.55 },
+      })
+      // The projected path (#102) sits with the trail, under the injects: where the selected
+      // track is going, from the dot to the ring, and the dot covers where it starts.
+      map.addSource(PROJECTION_SOURCE, { type: 'geojson', data: lineFeature([]) })
+      map.addLayer({
+        id: `${PROJECTION_SOURCE}-line`,
+        type: 'line',
+        source: PROJECTION_SOURCE,
+        paint: { 'line-color': PROJECTION_COLOR, 'line-width': 1.5, 'line-opacity': 0.6 },
       })
       // Added last, so injects draw above cooperative traffic rather than under it.
       map.addSource(INJECT_SOURCE, {
@@ -460,8 +489,16 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    map.getSource<GeoJSONSource>(TRAIL_SOURCE)?.setData(trailFeature(selectionShown ? trail : []))
+    map.getSource<GeoJSONSource>(TRAIL_SOURCE)?.setData(lineFeature(selectionShown ? trail : []))
   }, [trail, selectionShown, styleReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    map
+      .getSource<GeoJSONSource>(PROJECTION_SOURCE)
+      ?.setData(lineFeature(selectionShown ? projection : []))
+  }, [projection, selectionShown, styleReady])
 
   useEffect(() => {
     const map = mapRef.current

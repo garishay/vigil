@@ -234,17 +234,27 @@ describe('MapView', () => {
     const [trailId, trailSource] = mapInstance.addSource.mock.calls[2]
     expect(trailId).toBe('selected-trail')
     expect(trailSource.data.features).toEqual([])
-    const [injectId, injectSource] = mapInstance.addSource.mock.calls[3]
+    // #102 adds the projected path beside the trail: under the injects too.
+    const [projectionId, projectionSource] = mapInstance.addSource.mock.calls[3]
+    expect(projectionId).toBe('selected-projection')
+    expect(projectionSource.data.features).toEqual([])
+    const [injectId, injectSource] = mapInstance.addSource.mock.calls[4]
     expect(injectId).toBe('inject-tracks')
     expect(injectSource.data.features).toEqual([])
     // 03a adds the selection ring: its own source, empty, layered above everything.
-    const [selectId, selectSource] = mapInstance.addSource.mock.calls[4]
+    const [selectId, selectSource] = mapInstance.addSource.mock.calls[5]
     expect(selectId).toBe('selected-track')
     expect(selectSource.data.features).toEqual([])
-    // 08b adds the friendly ring layer beside the protected line.
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(9)
+    // 08b adds the friendly ring layer beside the protected line; #102 the projected path.
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(10)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.indexOf('selected-trail-line')).toBeLessThan(order.indexOf('inject-tracks-halo'))
+    expect(order.indexOf('selected-projection-line')).toBeGreaterThan(
+      order.indexOf('selected-trail-line'),
+    )
+    expect(order.indexOf('selected-projection-line')).toBeLessThan(
+      order.indexOf('inject-tracks-halo'),
+    )
     expect(order.at(-1)).toBe('selected-track-ring')
     // The ADS-B hit layer widens the click target for airborne traffic only, and paints
     // nothing — a parked 1.8 px dot must not carry an invisible 16 px blanket over the apron.
@@ -549,6 +559,41 @@ describe('MapView', () => {
       false,
       false,
     ])
+  })
+
+  it('draws the projected path as one faded neutral line, only with the ring, and nothing without an entry (#102)', () => {
+    const projection: [number, number][] = [
+      [-75.2, 39.9],
+      [-75.22, 39.88],
+    ]
+    const { rerender } = render(
+      <MapView ao={AO} injects={INJECTS} selectedId="inject-01" projection={projection} />,
+    )
+    const drawn = dataFor('selected-projection')
+    expect(drawn.features).toHaveLength(1)
+    expect(drawn.features[0].geometry).toEqual({ type: 'LineString', coordinates: projection })
+    // Faded and neutral (ruled A7): `--muted` mirrored, solid, 1.5 px at .6 — not the trail's
+    // blue, not the friendly ring's dash, and no marker's stroke or fill.
+    const layer = mapInstance.addLayer.mock.calls.find(
+      ([layer]) => layer.id === 'selected-projection-line',
+    )![0]
+    expect(layer.paint).toEqual({ 'line-color': '#8b98a9', 'line-width': 1.5, 'line-opacity': 0.6 })
+    expect(Object.values(IDENTITY_COLOR)).not.toContain(layer.paint['line-color'])
+    expect(Object.values(BAND_COLOR)).not.toContain(layer.paint['line-color'])
+    // Home hides the ring and the path with it, the selection kept (A2 on #3).
+    rerender(
+      <MapView
+        ao={AO}
+        injects={INJECTS}
+        selectedId="inject-01"
+        projection={projection}
+        selectionShown={false}
+      />,
+    )
+    expect(dataFor('selected-projection').features).toEqual([])
+    // Inside, or no entry inside the horizon: nothing to draw.
+    rerender(<MapView ao={AO} injects={INJECTS} selectedId="inject-01" projection={[]} />)
+    expect(dataFor('selected-projection').features).toEqual([])
   })
 
   it('feeds tracks to the layer as points, carrying id and ground state', () => {

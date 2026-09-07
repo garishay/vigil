@@ -85,6 +85,13 @@ export interface AdsbTrack extends TrackBase {
    */
   category: string | null
   registry: AircraftRegistry | null
+  /**
+   * Set by the replay on a track it holds past its last sample inside the coast window (#102,
+   * ruled A4): the position is where the aircraft was last heard, `lastSeenSec` ago, not an
+   * estimate of now. An observation of age, never an answer key; absent on an interpolated
+   * position, and on every inject, which the generator samples continuously.
+   */
+  coasting?: true
 }
 
 /**

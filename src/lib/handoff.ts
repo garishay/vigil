@@ -29,6 +29,8 @@ import type { Disposition } from '../config/dispositions.ts'
 import {
   capLine,
   describeEvent,
+  entryBasis,
+  entryHandoffLine,
   formatRangeKm,
   formatScore,
   roundHeading,
@@ -82,6 +84,12 @@ export function handoffText({
     dash(observed.groundSpeedKt, (v) => `${v} kt`),
     `hdg ${dash(observed.headingDeg, (v) => `${roundHeading(v)}`)}`,
   ].join(' · ')
+  // Time to entry as the drawer showed it at escalation (#102), under the kinematics it was
+  // projected from; a coasting track's caption under that. Nothing for a track on the ground.
+  const basis = observed.entry && entryBasis(observed.entry)
+  const entryLines = observed.entry
+    ? [`  ${entryHandoffLine(observed.entry)}`, ...(basis ? [`  ${basis}`] : [])]
+    : []
   // Two factors per line keeps every line inside the pinned fit. The factor lines sum to the
   // total on the Score line within rounding; that total, to one decimal, reproduces the score —
   // over the configured weights, then the ceiling (ruled on #63) — so the recipient can follow
@@ -103,6 +111,7 @@ export function handoffText({
     `Track ${trackIdent(track)} · ${IDENTITY_LABEL[observed.identity]} · ${LAYER_DISCLOSURE[track.source]}`,
     `Range ${formatRangeKm(observed.rangeM)} to ${siteName} at ${clock(escalation.tSec)}`,
     `  ${kinematics}`,
+    ...entryLines,
     ...(site ? [`  ${siteLine(site)}`] : []),
     `Score: ${formatScore(score)} (${score.band}) — ${score.capped ? 'capped, ' : ''}${scoreTotal(score)}`,
     ...factorLines,

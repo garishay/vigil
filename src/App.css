@@ -781,6 +781,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* #102: the Entry row's value keeps the column's right edge when its caption runs longer, and
+   the coasting caption under it is its own line in the History line's voice. */
+.drawer__entry {
+  text-align: right;
+}
+
+.drawer__entrybasis {
+  display: block;
+  color: var(--faint);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .drawer__history {
   margin: 0.75rem 0 0;
   color: var(--faint);

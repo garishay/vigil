@@ -158,7 +158,12 @@ export function pictureAt(
     if (lastSeenSec > config.coastS) continue
     if (next && next.tSec - prev.tSec <= config.coastS) {
       picture.push({ ...interpolate(prev, next, tSec), lastSeenSec })
+    } else if (tSec > prev.tSec) {
+      // Held where it was last heard, and marked so (#102): the age alone cannot tell this
+      // from a bridged hole, whose position is an estimate of now.
+      picture.push({ ...prev.track, lastSeenSec, coasting: true })
     } else {
+      // At the sample's own instant the track reads exactly as the recording holds it.
       picture.push({ ...prev.track, lastSeenSec })
     }
   }

@@ -9,7 +9,15 @@ import type { ContactId } from '../config/contacts'
 import type { DispositionId } from '../config/dispositions'
 import type { PhotoLookup } from '../data/photos'
 import { describeCategory } from '../lib/airframe'
-import { LAYER_BADGE, describeEvent, formatRangeKm, roundHeading, trackIdent } from '../lib/display'
+import {
+  LAYER_BADGE,
+  describeEvent,
+  entryBasis,
+  entryLine,
+  formatRangeKm,
+  roundHeading,
+  trackIdent,
+} from '../lib/display'
 import { handoffText } from '../lib/handoff'
 import { IDENTITY_LABEL } from '../lib/identity'
 import {
@@ -19,6 +27,7 @@ import {
   type LifecycleAction,
   type TrackEvent,
 } from '../lib/lifecycle'
+import type { EntryEstimate } from '../lib/projection'
 import type { RankedTrack } from '../lib/ranking'
 import { ifHeard } from '../lib/scoring'
 
@@ -111,9 +120,15 @@ export function ReviewDrawer({
   clock,
   tSec,
   trail,
+  entryEstimate = null,
 }: {
   entry: RankedTrack
   sites: readonly ProtectedSite[]
+  /**
+   * Time to entry into a protected site (#102), computed once by the caller over the picture and
+   * the session's set; null for a track on the ground, which shows no row.
+   */
+  entryEstimate?: EntryEstimate | null
   log: readonly TrackEvent[]
   contacts: readonly { id: ContactId; name: string }[]
   dispositions: readonly { id: DispositionId; label: string }[]
@@ -208,10 +223,22 @@ export function ReviewDrawer({
           },
         ]
       : []
-  const rows: { label: string; value: string; className?: string }[] = [
+  const rows: { label: string; value: string; className?: string; note?: string | null }[] = [
     { label: 'Status', value: STATUS_LABEL[status], className: 'drawer__status' },
     { label: 'Rank', value: `${rank}` },
     { label: 'Range', value: `${formatRangeKm(rangeM)} to ${siteName}` },
+    // Time to entry (#102): the decision number behind the geometry factors, under the range it
+    // is measured from; a coasting track's caption says what it was projected from (A4).
+    ...(entryEstimate
+      ? [
+          {
+            label: 'Entry',
+            value: entryLine(entryEstimate),
+            className: 'drawer__entry',
+            note: entryBasis(entryEstimate),
+          },
+        ]
+      : []),
     ...enrichment,
     {
       label: 'Altitude',
@@ -284,7 +311,10 @@ export function ReviewDrawer({
         {rows.map((row) => (
           <div className="drawer__row" key={row.label}>
             <dt>{row.label}</dt>
-            <dd className={row.className}>{row.value}</dd>
+            <dd className={row.className}>
+              {row.value}
+              {row.note && <span className="drawer__entrybasis">{row.note}</span>}
+            </dd>
           </div>
         ))}
       </dl>

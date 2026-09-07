@@ -225,6 +225,56 @@ describe('ReviewDrawer', () => {
     expect(handoff.value).not.toContain('If heard')
   })
 
+  it('reads the time to entry under Range in the one format, and shows no row on the ground (#102)', () => {
+    const site = { siteId: 'phl-airfield', siteName: 'PHL Airfield', tier: 1 as const }
+    const point: [number, number] = [-75.2, 39.85]
+    const first = renderDrawer(entry(SILENT, 1, 7200.2), {
+      entryEstimate: { kind: 'entry', ...site, tSec: 108, point, coastedS: null },
+    })
+    const term = screen.getByText('Entry')
+    expect(term.closest('.drawer__row')?.previousElementSibling).toBe(
+      screen.getByText('Range').closest('.drawer__row'),
+    )
+    expect(term.nextElementSibling).toHaveTextContent('108 s to PHL Airfield · tier 1')
+    expect(term.nextElementSibling).toHaveClass('drawer__entry')
+    expect(screen.queryByText(/projected from last heard/)).toBeNull()
+    first.unmount()
+    const second = renderDrawer(entry(SILENT, 1, 4200), {
+      entryEstimate: { kind: 'inside', ...site, coastedS: null },
+    })
+    expect(screen.getByText('Entry').nextElementSibling).toHaveTextContent(
+      'Inside — PHL Airfield · tier 1',
+    )
+    second.unmount()
+    const third = renderDrawer(entry(SILENT, 1, 9000), {
+      entryEstimate: { kind: 'none', coastedS: null },
+    })
+    expect(screen.getByText('Entry').nextElementSibling).toHaveTextContent(/^—$/)
+    third.unmount()
+    // On the ground the caller hands null and the row is not there — not a dash.
+    renderDrawer(entry(PARKED, 40, 3000))
+    expect(screen.getByText('Range')).toBeInTheDocument()
+    expect(screen.queryByText('Entry')).toBeNull()
+  })
+
+  it('captions a coasting track’s value with what it was projected from (#102, ruled A4)', () => {
+    renderDrawer(entry(SILENT, 1, 7200.2), {
+      entryEstimate: {
+        kind: 'entry',
+        siteId: 'phl-airfield',
+        siteName: 'PHL Airfield',
+        tier: 1,
+        tSec: 78,
+        point: [-75.2, 39.85],
+        coastedS: 30,
+      },
+    })
+    const value = screen.getByText('Entry').nextElementSibling as HTMLElement
+    expect(value).toHaveTextContent('78 s to PHL Airfield · tier 1')
+    const caption = within(value).getByText('projected from last heard 30 s ago')
+    expect(caption).toHaveClass('drawer__entrybasis')
+  })
+
   it('gives no corroboration line to a heard inject or an ADS-B track (#103)', () => {
     const heard = entry({ ...SILENT, id: 'inject-01', identity: 'cooperative' }, 5, 6500)
     const { unmount } = renderDrawer(heard)

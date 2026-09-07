@@ -212,6 +212,43 @@ describe('pictureAt — the coast window is one clock in both branches (#73 revi
   })
 })
 
+describe('pictureAt — the coasting mark (#102, ruled A4)', () => {
+  const index = indexCapture(
+    capture([
+      { tMs: 0, records: [A0] },
+      { tMs: 15000, records: [A1] },
+    ]),
+  )
+
+  it('marks a track held past its last sample, and neither an interpolated one nor a sample at its own instant', () => {
+    expect(pictureAt(index, 7.5)[0].coasting).toBeUndefined()
+    expect(pictureAt(index, 15)[0].coasting).toBeUndefined()
+    const held = pictureAt(index, 60)[0]
+    expect(held.coasting).toBe(true)
+    expect(held.lastSeenSec).toBe(47)
+  })
+
+  it('does not mark a bridged hole — that position is an estimate of now, whatever its age', () => {
+    const gappy = indexCapture(
+      capture([
+        { tMs: 0, records: [A0] },
+        { tMs: 75000, records: [A1] },
+      ]),
+    )
+    const [bridged] = pictureAt(gappy, 60)
+    expect(bridged.lastSeenSec).toBe(60)
+    expect(bridged.coasting).toBeUndefined()
+    // Wider than the coast window the hole is not bridged: held at the first sample, and marked.
+    const wide = indexCapture(
+      capture([
+        { tMs: 0, records: [A0] },
+        { tMs: 120000, records: [A1] },
+      ]),
+    )
+    expect(pictureAt(wide, 60)[0].coasting).toBe(true)
+  })
+})
+
 describe('trailAt (06b)', () => {
   const plan = planScenario(gridTimeline(80, 15000))
   const samples = [...Array(8)].map((_, i) => ({

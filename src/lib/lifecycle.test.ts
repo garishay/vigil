@@ -36,6 +36,7 @@ const OBSERVED: ObservedSnapshot = {
   siteId: 'phl-airfield',
   sites: PHL_SITES,
   friendly: false,
+  entry: null,
   altitudeFt: 63,
   groundSpeedKt: 19.1,
   headingDeg: 345.6,
@@ -233,6 +234,9 @@ describe('learner-ready shape (§8.3b)', () => {
         time: 100,
       },
       weights: SCORING.weights,
+      // Time to entry rides the snapshot (#102): no speed observed, so none — and not null,
+      // which is the on-ground case.
+      entry: { kind: 'none', coastedS: null },
     })
   })
 
@@ -280,6 +284,29 @@ describe('learner-ready shape (§8.3b)', () => {
     expect(crossRead).not.toBeCloseTo(observed.uncapped, 1)
   })
 
+  it('projects the snapshot’s entry off its protected records only — a friendly area is no target (#102)', () => {
+    const moving = { ...track, groundSpeedKt: 19.1 }
+    const pad = { id: 'pad', name: 'Drone unit pad', center: moving.position, radiusM: 500 }
+    const scored = scoreTrack(moving, AO.protectedSites, {
+      tSec: 0,
+      minuteOfDay: 150,
+      memory: {},
+      friendly: [pad],
+    })
+    // The record carries both kinds; the projection reads the protected one.
+    expect(scored.sites.map((site) => site.kind)).toEqual(['protected', 'friendly'])
+    const snapshot = observedSnapshot({
+      track: moving,
+      rank: 1,
+      rangeM: scored.rangeM,
+      siteId: scored.siteId,
+      score: scored,
+    })
+    expect(snapshot.entry).toMatchObject({ kind: 'entry', siteId: 'phl-airfield', tier: 1 })
+    // On the ground there is nothing to show — null, not none.
+    expect(observedSnapshot({ ...entry, track: { ...track, onGround: true } }).entry).toBeNull()
+  })
+
   it('carries no ground-truth field anywhere in a fully walked log', () => {
     const observed = observedSnapshot(entry)
     let log = firstSeen(track.id, observed, '2026-09-01T12:04:31.000Z')
@@ -291,6 +318,7 @@ describe('learner-ready shape (§8.3b)', () => {
     for (const event of log) {
       expect(Object.keys(event.observed).sort()).toEqual([
         'altitudeFt',
+        'entry',
         'factors',
         'friendly',
         'groundSpeedKt',

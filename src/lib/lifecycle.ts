@@ -42,6 +42,7 @@ import {
   type PatternKind,
   type ScoringConfig,
 } from '../config/scoring.ts'
+import { timeToEntry, type EntryEstimate, type EntrySite } from './projection.ts'
 import type { RankedTrack } from './ranking.ts'
 import { bandOf } from './scoring.ts'
 import type { Identity, Track } from './tracks.ts'
@@ -158,7 +159,19 @@ export interface ObservedSnapshot {
    * line the cap prints — so it is part of the moment, and the frozen handoff prints its cap.
    */
   friendly: boolean
+  /**
+   * Time to entry into a protected site at the moment (#102): the value the drawer showed, off
+   * the protected records above — the set as scored — so the frozen handoff prints what the
+   * operator read. Derived from observed kinematics only; null for a track on the ground.
+   */
+  entry: EntryEstimate | null
 }
+
+/** The protected sites of a record's set, in the shape the projection reads. */
+const protectedOf = (sites: readonly SiteRecord[]): EntrySite[] =>
+  sites.flatMap((site) =>
+    site.kind === 'protected' && site.tier !== undefined ? [{ ...site, tier: site.tier }] : [],
+  )
 
 export interface TrackEvent {
   trackId: string
@@ -212,6 +225,7 @@ export const observedSnapshot = ({
   >,
   sites: score.sites,
   friendly: score.friendly,
+  entry: timeToEntry(track, protectedOf(score.sites)),
 })
 
 /** Every track starts New: a log opens with its synthetic first-seen entry. */
