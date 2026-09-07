@@ -27,6 +27,7 @@ const observed = (over: Partial<ObservedSnapshot> = {}): ObservedSnapshot => ({
   weights: { cooperativity: 25, closing: 20, proximity: 15, pattern: 15, kinematic: 10, time: 10 },
   sites: SITES,
   friendly: false,
+  entry: null,
   ...over,
 })
 

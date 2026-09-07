@@ -72,6 +72,10 @@ describe('handoffText', () => {
         'Track TRK-05 · Non-cooperative · synthetic inject',
         'Range 7.2 km to PHL Airfield at 02:30:00',
         '  63 ft · 19.1 kt · hdg 346',
+        // Time to entry as the drawer showed it at escalation (#102): from this position at
+        // 19.1 kt on 346° the path meets the 5.0 km ring in 230 s by the closing factor's own
+        // geometry — minutes and seconds in words, never m:ss beside the clock stamps (A3).
+        '  entry 3 min 50 s to PHL Airfield · tier 1',
         // The site the range was measured to, as the record carries it (08a).
         '  PHL Airfield · protected · tier 1 · 5.0 km',
         // The factor lines sum to the total on the Score line within rounding (25 + 9 + 12 + 0
@@ -88,6 +92,40 @@ describe('handoffText', () => {
         '  02:30:00  Escalated — to PHL Tower',
       ].join('\n'),
     )
+  })
+
+  it('prints inside, the dash, a coasting caption, and nothing on the ground, as the drawer shows them (#102)', () => {
+    const inside = entry({ ...INJECT, position: AO.protectedSites[0].center })
+    expect(text(inside)).toContain('\n  inside PHL Airfield · tier 1\n  PHL Airfield')
+    // The reciprocal heading opens: no entry inside the horizon.
+    expect(text(entry({ ...INJECT, headingDeg: 165.6 }))).toContain('\n  entry —\n')
+    // A held aircraft on the same path: the age counted off (230 − 30 s) and the caption under it.
+    const held: AdsbTrack = {
+      id: 'adsb-a06461',
+      source: 'adsb',
+      icaoHex: 'a06461',
+      identity: 'cooperative',
+      callsign: 'AAL423',
+      position: INJECT.position,
+      altitudeFt: 1200,
+      onGround: false,
+      groundSpeedKt: 19.1,
+      headingDeg: 345.6,
+      verticalRateFpm: 0,
+      lastSeenSec: 30,
+      // Held: the position is where the aircraft was last heard, so it is as old as the message.
+      positionAgeS: 30,
+      category: null,
+      registry: null,
+      coasting: true,
+    }
+    expect(text(entry(held))).toContain(
+      '\n  entry 3 min 20 s to PHL Airfield · tier 1\n  projected from last heard 30 s ago\n',
+    )
+    // On the ground there is nothing to project, and no line says so.
+    const parked = text(entry({ ...held, onGround: true, coasting: undefined, lastSeenSec: 0 }))
+    expect(parked).not.toMatch(/\n {2}(entry|inside|projected) /)
+    expect(parked).toContain('\n  1200 ft · 19.1 kt · hdg 346\n  PHL Airfield · protected')
   })
 
   it('keeps every line within the measured 26 rem fit, for every configured contact and disposition (#36 [5])', () => {

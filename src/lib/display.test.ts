@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   BAND_COLOR,
   describeEvent,
+  entryBasis,
+  entryHandoffLine,
+  entryLine,
   formatElapsed,
+  formatEntryTime,
   formatScore,
   localDate,
   recordingLabel,
@@ -16,6 +20,7 @@ import {
   siteOriginLine,
   capLine,
 } from './display'
+import type { EntryEstimate } from './projection'
 import { scoreTrack, type Score, type ScoringContext } from './scoring'
 import { AO } from '../config/ao'
 import { DEFAULT_RECORDING, recordingNamed } from '../config/recordings'
@@ -181,6 +186,57 @@ describe('formatElapsed', () => {
   })
 })
 
+describe('time to entry as printed (#102, ruled A3 as amended)', () => {
+  const site = { siteId: 'phl-airfield', siteName: 'PHL Airfield', tier: 1 as const }
+  const at = (tSec: number, over: Partial<EntryEstimate> = {}): EntryEstimate => ({
+    kind: 'entry',
+    ...site,
+    tSec,
+    point: [-75.2, 39.85],
+    coastedS: null,
+    ...over,
+  })
+
+  it('prints whole seconds under two minutes and minutes and seconds in words above, rounding first', () => {
+    expect(formatEntryTime(108)).toBe('108 s')
+    expect(formatEntryTime(0)).toBe('0 s')
+    expect(formatEntryTime(119.4)).toBe('119 s')
+    // Round first, then choose the form: never `120 s`, never m:ss.
+    expect(formatEntryTime(119.6)).toBe('2 min 0 s')
+    expect(formatEntryTime(348)).toBe('5 min 48 s')
+    expect(formatEntryTime(599)).toBe('9 min 59 s')
+  })
+
+  it('reads one format wherever the number appears: the value, inside, and the dash', () => {
+    expect(entryLine(at(108))).toBe('108 s to PHL Airfield · tier 1')
+    expect(entryLine({ kind: 'inside', ...site, coastedS: null })).toBe(
+      'Inside — PHL Airfield · tier 1',
+    )
+    expect(entryLine({ kind: 'none', coastedS: null })).toBe('—')
+  })
+
+  it('lowers the handoff line to the kinematics line’s case, inside the fit at the name cap', () => {
+    expect(entryHandoffLine(at(108))).toBe('entry 108 s to PHL Airfield · tier 1')
+    expect(entryHandoffLine({ kind: 'inside', ...site, coastedS: null })).toBe(
+      'inside PHL Airfield · tier 1',
+    )
+    expect(entryHandoffLine({ kind: 'none', coastedS: null })).toBe('entry —')
+    // The widest line the horizon and the editor's 20-character cap allow, indented as printed.
+    const widest = `  ${entryHandoffLine(at(599, { siteName: 'x'.repeat(20), tier: 2 }))}`
+    expect(widest).toHaveLength(51)
+    expect(
+      `  ${entryHandoffLine({ kind: 'inside', ...site, siteName: 'x'.repeat(20), coastedS: null })}`
+        .length,
+    ).toBeLessThanOrEqual(53)
+  })
+
+  it('captions a coasting value with what it was projected from, and nothing otherwise', () => {
+    expect(entryBasis(at(78, { coastedS: 30.4 }))).toBe('projected from last heard 30 s ago')
+    expect(entryBasis({ kind: 'none', coastedS: 90 })).toBe('projected from last heard 90 s ago')
+    expect(entryBasis(at(108))).toBeNull()
+  })
+})
+
 describe('describeEvent — band crossings (06b)', () => {
   const crossing = (from: 'calm' | 'caution' | 'warning', to: typeof from) =>
     ({
@@ -198,6 +254,7 @@ describe('describeEvent — band crossings (06b)', () => {
         siteId: 'phl-airfield',
         sites: PHL_SITES,
         friendly: false,
+        entry: null,
         altitudeFt: 63,
         groundSpeedKt: 19.1,
         headingDeg: 345.6,
@@ -241,6 +298,7 @@ describe('describeEvent — pattern entries and the first-seen word (05b)', () =
     siteId: 'phl-airfield',
     sites: PHL_SITES,
     friendly: false,
+    entry: null,
     altitudeFt: 230,
     groundSpeedKt: 6,
     headingDeg: 270,
@@ -553,6 +611,7 @@ describe('describeEvent — Acknowledged (#101, 101a)', () => {
         siteId: 'phl-airfield',
         sites: PHL_SITES,
         friendly: false,
+        entry: null,
         altitudeFt: 63,
         groundSpeedKt: 19.1,
         headingDeg: 345.6,

@@ -15,6 +15,7 @@ import { BANDS, BAND_LABEL, PATTERN_LABEL, type Band } from '../config/scoring.t
 import type { AdsbCapture } from './adsb.ts'
 import { distanceMeters } from './geo.ts'
 import type { TrackEvent } from './lifecycle.ts'
+import type { EntryEstimate } from './projection.ts'
 import type { RankedTrack } from './ranking.ts'
 import { formatClock, minuteOfDay, zonedParts, type Factor, type Score } from './scoring.ts'
 import type { SessionSite } from './sites.ts'
@@ -79,6 +80,49 @@ export const siteLine = (site: SiteRecord) =>
   site.kind === 'friendly'
     ? `${site.name} · friendly · ${formatRangeKm(site.radiusM)}`
     : `${site.name} · ${site.kind} · tier ${site.tier} · ${formatRangeKm(site.radiusM)}`
+
+/**
+ * An entry time as every surface prints it (#102, ruled A3 as amended): the rounded whole
+ * seconds under two minutes — `108 s` — and minutes and seconds in words at and above, both
+ * parts always — `5 min 48 s`, `2 min 0 s` — never m:ss, which beside the record's clock stamps
+ * reads as a time of day. Round first, then choose the form, so 119.6 s prints `2 min 0 s`.
+ */
+export const formatEntryTime = (tSec: number) => {
+  const whole = Math.round(tSec)
+  return whole < 120 ? `${whole} s` : `${Math.floor(whole / 60)} min ${whole % 60} s`
+}
+
+/**
+ * The value under the drawer's Entry term and in the handoff's entry line — one format wherever
+ * the number appears (#102, routing 3): `108 s to PHL Airfield · tier 1`,
+ * `Inside — PHL Airfield · tier 1`, or `—` for no entry inside the horizon.
+ */
+export const entryLine = (estimate: EntryEstimate) =>
+  estimate.kind === 'none'
+    ? '—'
+    : estimate.kind === 'inside'
+      ? `Inside — ${estimate.siteName} · tier ${estimate.tier}`
+      : `${formatEntryTime(estimate.tSec)} to ${estimate.siteName} · tier ${estimate.tier}`
+
+/**
+ * The handoff's line under the kinematics, in the kinematics line's own lower case: `entry 108 s
+ * to PHL Airfield · tier 1`, `inside PHL Airfield · tier 1`, `entry —`. Inside the 53-character
+ * fit at the 20-character name cap and the longest time the horizon allows (#36 [5]).
+ */
+export const entryHandoffLine = (estimate: EntryEstimate) =>
+  estimate.kind === 'inside'
+    ? `inside ${estimate.siteName} · tier ${estimate.tier}`
+    : `entry ${entryLine(estimate)}`
+
+/**
+ * The caption under a coasting track's value (#102, ruled A4): what the value was projected
+ * from, so a number counted off a held position says so wherever it prints; null when the
+ * position was the picture's estimate of now.
+ */
+export const entryBasis = (estimate: EntryEstimate) =>
+  estimate.coastedS === null
+    ? null
+    : `projected from last heard ${Math.round(estimate.coastedS)} s ago`
 
 /** The composite as the chip and the handoff print it: a whole number, 0–100. */
 export const formatScore = (score: Score) => String(Math.round(score.composite))

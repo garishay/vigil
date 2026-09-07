@@ -40,6 +40,7 @@ vi.mock('./components/MapView', () => ({
     selectedId,
     selectionShown = true,
     trail = [],
+    projection = [],
     terminalIds = [],
     bands = new Map<string, string>(),
     onSelect,
@@ -54,6 +55,7 @@ vi.mock('./components/MapView', () => ({
     selectedId?: string | null
     selectionShown?: boolean
     trail?: unknown[]
+    projection?: readonly unknown[]
     terminalIds?: readonly string[]
     bands?: ReadonlyMap<string, string>
     onSelect?: (id: string) => void
@@ -69,6 +71,7 @@ vi.mock('./components/MapView', () => ({
         data-selected={selectedId ?? ''}
         data-selection-shown={String(selectionShown)}
         data-trail={trail.length}
+        data-projection={projection.length}
         data-terminal={[...terminalIds].join(',')}
         data-bands={[...bands].map(([id, band]) => `${id}:${band}`).join(',')}
         data-sites={sites.map((site) => site.id).join(',')}
@@ -840,6 +843,27 @@ describe('App replay clock (06a)', () => {
     expect(clock()).toHaveTextContent('02:31:30')
     expect(document.querySelector('.queue')?.textContent).not.toBe(frozen)
     expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
+  })
+
+  it('reads the selected track’s time to entry in the drawer and hands the map its path, following the clock (#102)', () => {
+    useCapture.mockReturnValue(LONG)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    // 02:37:00: TRK-05 is 6.0 km out, closing at 19.1 kt on 346° — the gate's own numbers.
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '420' } })
+    fireEvent.click(document.querySelector('[data-id="inject-05"] button') as HTMLElement)
+    const drawer = screen.getByLabelText('Track review: TRK-05')
+    const value = () => within(drawer).getByText('Entry').nextElementSibling
+    expect(value()).toHaveTextContent('108 s to PHL Airfield · tier 1')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-projection', '2')
+    // 02:39:00: inside the ring — the value follows the clock and the path is gone.
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '540' } })
+    expect(value()).toHaveTextContent('Inside — PHL Airfield · tier 1')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-projection', '0')
+    // Scrubbed back, the same instant reads the same number: derived from the picture, no state.
+    fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '420' } })
+    expect(value()).toHaveTextContent('108 s to PHL Airfield · tier 1')
   })
 
   it('opens a track’s log when it first appears on the clock, not back-stamped to app start', () => {

@@ -20,6 +20,7 @@ import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback
 import { clearFor, foldAlerts, type Alert } from './lib/alerts'
 import { recordingLabel, simClock, trackIdent, type WarmBand } from './lib/display'
 import { injectTracksAt, planScenario, timelineOf } from './lib/injects'
+import { timeToEntry } from './lib/projection'
 import {
   STATUSES,
   STATUS_LABEL,
@@ -474,6 +475,20 @@ export default function App({
     () => (index && selected ? trailAt(index, plan, selected.track, tSec) : []),
     [index, plan, selected, tSec],
   )
+  // Time to entry for the selected track (#102): one pure call over the picture and the session's
+  // protected set — the drawer prints it, the map draws the path to the ring. App reads the
+  // estimate and computes nothing else, as it reads the bands and the terminal set.
+  const entryEstimate = useMemo(
+    () => (selected ? timeToEntry(selected.track, sites) : null),
+    [selected, sites],
+  )
+  const projection = useMemo<readonly [number, number][]>(
+    () =>
+      selected && entryEstimate?.kind === 'entry'
+        ? [selected.track.position, entryEstimate.point]
+        : [],
+    [selected, entryEstimate],
+  )
   const logFor = (entry: RankedTrack): TrackEvent[] =>
     eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), now(), tSec)
 
@@ -647,6 +662,7 @@ export default function App({
       clock={clock}
       tSec={tSec}
       trail={{ count: trail.length, windowS: REPLAY.trailS }}
+      entryEstimate={entryEstimate}
       onClose={(event) => {
         const keyboard = event.detail === 0
         setKeyboardClose(keyboard)
@@ -863,6 +879,7 @@ export default function App({
           selectedId={selectedId}
           selectionShown={surfaceId !== 'home'}
           trail={trail}
+          projection={projection}
           terminalIds={terminalIds}
           bands={bands}
           onSelect={selectTrack}

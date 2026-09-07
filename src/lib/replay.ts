@@ -9,7 +9,10 @@
  * read linearly between them — position, altitude, ground speed, vertical rate — with the
  * heading taken the short way round the compass. A one-frame hole inside a track's span is
  * bridged the same way; the position stays plausible while `lastSeenSec` says the last message
- * is ageing, and the two stay honest separately.
+ * is ageing, and the two stay honest separately. `positionAgeS` is the third number (#102, #119):
+ * how old the *position* is — the sample's own age at its instant, the blend of the bounding
+ * samples' ages between them, the message's age while held — which is what a projection counts
+ * off, so a dead-reckoned value is continuous through every frame boundary and at the hold seam.
  *
  * **Never into existence.** A track is absent before its first sample. After its last — or
  * across a hole wider than the coast window — it holds at that sample while `lastSeenSec`
@@ -130,6 +133,10 @@ function interpolate(prev: Sample, next: Sample, tSec: number): AdsbTrack {
       a.headingDeg === null || b.headingDeg === null
         ? a.headingDeg
         : interpolateHeading(a.headingDeg, b.headingDeg, f),
+    // The bridged position is as old as the blend of the two messages that bracket it — not the
+    // earlier message's age, which keeps counting while the position is an estimate of now
+    // (#102; #119 round 2). Continuous into the next sample's own age at f = 1.
+    positionAgeS: round(lerp(a.lastSeenSec, b.lastSeenSec, f), 1),
   }
 }
 
@@ -158,7 +165,13 @@ export function pictureAt(
     if (lastSeenSec > config.coastS) continue
     if (next && next.tSec - prev.tSec <= config.coastS) {
       picture.push({ ...interpolate(prev, next, tSec), lastSeenSec })
+    } else if (tSec > prev.tSec) {
+      // Held where it was last heard, and marked so (#102): the age alone cannot tell this
+      // from a bridged hole, whose position is an estimate of now. The position is exactly as
+      // old as the message, and the hold begins at the sample's own age (#119 round 2).
+      picture.push({ ...prev.track, lastSeenSec, positionAgeS: lastSeenSec, coasting: true })
     } else {
+      // At the sample's own instant the track reads exactly as the recording holds it.
       picture.push({ ...prev.track, lastSeenSec })
     }
   }

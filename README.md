@@ -86,6 +86,11 @@ flowchart LR
     alerts["lib/alerts.ts<br/>a surface over the record: which entries earn a card, which clear one<br/>one pending card per track per kind · a tick raises, a seek replays · never a capped cooperative track"]
     alertcfg --> alerts
     life -- the log, entry by entry --> alerts
+    projcfg["config/projection.ts<br/>the horizon"]
+    proj["lib/projection.ts<br/>time to entry by dead reckoning: the observed position, track, and speed against every protected ring<br/>the soonest, its site named and tier carried · inside at zero · none past the horizon<br/>the entry point on the ring · the position's own age counted off, a coasting track captioned · a display value, never a factor"]
+    projcfg --> proj
+    model --> proj
+    proj -- the value on every snapshot --> life
   end
   photos["data/photos.ts + usePhoto<br/>one photo per opened ADS-B track, by hex<br/>runtime lookup · session cache · fails soft to the silhouette"]
   fx -. fetched at startup .-> load
@@ -101,8 +106,8 @@ flowchart LR
     direction TB
     app["App.tsx + data/useCapture.ts<br/>loads the recording the query names, once<br/>holds the inject plan · samples both layers and every history at the clock's t<br/>opens a track's log when it first appears · sim clock ticking from the recording's clock start"]
     queue["Queue<br/>ranked list, the product · reason tag in plain English"]
-    map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track"]
-    review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count"]
+    map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track · its projected path to the ring"]
+    review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count · time to entry"]
     clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick · how it last moved<br/>scheduler injected, so no test waits on time"]
     panel["components/SitesPanel.tsx<br/>the Sites surface: protected sites and friendly launch areas as rows, the inline editor, placement armed on the map<br/>the site plan: copy out, load back · refused behind the record's frontier · a restored row reads stored"]
     copy["components/useCopy.ts<br/>copy with the clipboard, fall back to the textarea's selection<br/>'Copied' only for the text actually copied"]
@@ -125,6 +130,7 @@ flowchart LR
   recs -- ?recording= selection · the default --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot, map fill --> app
   life -- log · status · re-surface: drawer, state filter, row --> app
+  proj -- time to entry for the selected track: drawer, map line --> app
   alerts -- the stack, folded from each track's new entries --> app
   workcfg -- pickers: drawer --> app
   hand -- handoff text --> review
