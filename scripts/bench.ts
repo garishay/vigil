@@ -229,6 +229,8 @@ export function runBench(
     const injects: InjectRun[] = []
     for (const seed of seeds) {
       const plan = planScenario(timelineOf(capture), { ...SCENARIO, seed })
+      // The oracle is the plan's own specs: a picture track carries no answer key (#115, A3).
+      const truth = new Map(plan.specs.map((spec) => [spec.id, spec]))
       const origins = originsOf(index, plan)
       const runs = new Map<string, InjectRun>()
       for (let tSec = 0; tSec <= index.durationS; tSec++) {
@@ -253,7 +255,10 @@ export function runBench(
         for (const e of ranked) {
           if (e.track.source !== 'inject') continue
           const band = bandOf(Math.round(e.score.composite), config.bands)
-          runs.set(e.track.id, foldInject(runs.get(e.track.id), e.track, band, tSec, e.rank))
+          const spec = truth.get(e.track.id)
+          if (!spec)
+            throw new Error(`No spec for ${e.track.id} — a picture track the plan did not deal`)
+          runs.set(e.track.id, foldInject(runs.get(e.track.id), spec, band, tSec, e.rank))
         }
       }
       injects.push(...runs.values())

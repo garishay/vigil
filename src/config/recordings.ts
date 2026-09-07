@@ -4,7 +4,8 @@
  * A recording is the real layer's file and the hour its picture opens at. The scenario — the
  * seed, the injects it deals — is `config/scenario.ts` and is the same under every recording:
  * the contrast between two recordings is the sky and the hour, never the drones. The id is what
- * the strip's Recording field prints and what `?recording=<id>` selects.
+ * the strip's Recording field prints and what a session names a recording feed by —
+ * `?feed=recording:<id>`, or `?recording=<id>` as its alias (`lib/session.ts`, #115).
  */
 
 /**
@@ -44,15 +45,9 @@ export const RECORDINGS: readonly RecordingEntry[] = [PHL_001, PHL_002]
  */
 export const DEFAULT_RECORDING = PHL_001
 
-/** The entry with this id. An unknown name is a load error that says so, never a fallback. */
+/** The entry with this id. An unknown name is a refusal that says so, never a fallback. */
 export function recordingNamed(id: string): RecordingEntry {
   const entry = RECORDINGS.find((recording) => recording.id === id)
   if (!entry) throw new Error(`No recording named "${id}"`)
   return entry
-}
-
-/** The recording a query string selects — `?recording=<id>` — or the default without one. */
-export function selectedRecording(search: string): RecordingEntry {
-  const id = new URLSearchParams(search).get('recording')
-  return id === null ? DEFAULT_RECORDING : recordingNamed(id)
 }

@@ -15,11 +15,11 @@ import { REPLAY } from './config/replay'
 import { SCENARIO } from './config/scenario'
 import { SCORING } from './config/scoring'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
-import { useCapture } from './data/useCapture'
+import { useSession } from './data/useSession'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
 import { clearFor, foldAlerts, type Alert } from './lib/alerts'
 import { recordingLabel, simClock, trackIdent, type WarmBand } from './lib/display'
-import { injectTracksAt, planScenario, timelineOf } from './lib/injects'
+import { mergePicture } from './lib/feeds'
 import { timeToEntry } from './lib/projection'
 import {
   STATUSES,
@@ -43,15 +43,7 @@ import {
   type TrackEvent,
 } from './lib/lifecycle'
 import { rankTracks, type RankedTrack } from './lib/ranking'
-import {
-  historiesAt,
-  indexCapture,
-  lastHeardBefore,
-  memoryAt,
-  originsOf,
-  pictureAt,
-  trailAt,
-} from './lib/replay'
+import { historiesAt, lastHeardBefore, memoryAt, originsOf, trailAt } from './lib/replay'
 import { clockStartOf, minuteOfDay } from './lib/scoring'
 import {
   addSite,
@@ -65,7 +57,7 @@ import {
   type SitePatch,
   type SiteSet,
 } from './lib/sites'
-import type { Track } from './lib/tracks'
+import type { AdsbTrack, InjectTrack } from './lib/tracks'
 
 type SurfaceId = 'home' | 'queue' | 'review' | 'sites'
 type LayerFilter = 'all' | 'adsb' | 'inject'
@@ -140,7 +132,12 @@ export default function App({
 }: { now?: () => string; schedule?: Schedule; lookupPhoto?: PhotoLookup } = {}) {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
   const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
-  const capture = useCapture()
+  // The session the URL and the build name (#115): its feeds and, when on, its scenario. One
+  // recording per session in this build, the resolver's rule, so the recording feed is the first.
+  const session = useSession()
+  const ready = session.status === 'ready' ? session : null
+  const feed = ready?.feeds[0] ?? null
+  const scenario = ready?.scenario ?? null
 
   // Selection and filters persist across surface switches — client state only (§7.1 ruling, #3).
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -185,46 +182,44 @@ export default function App({
   const [placing, setPlacing] = useState<Placing>(null)
   const [siteNotice, setSiteNotice] = useState<string | null>(null)
 
-  // The recording, re-keyed by aircraft for the interpolator; the clock runs to its last frame.
-  const index = useMemo(
-    () => (capture.status === 'ready' ? indexCapture(capture.capture) : null),
-    [capture],
-  )
+  // The recording feed carries its index — the recording re-keyed by aircraft for the
+  // interpolator — and its plan-bearing scenario rides beside it; the clock runs to the last frame.
+  const index = feed?.index ?? null
+  const plan = scenario?.plan ?? null
   const playback = usePlayback(index?.durationS ?? null, schedule)
   const tSec = playback.tSec
 
-  // The real picture at the clock: bracketed samples read linearly, held then dropped (06a).
-  const adsb = useMemo(() => (index ? pictureAt(index, tSec) : []), [index, tSec])
-
   /**
-   * The app holds the inject *plan* — every random decision, made once — and samples it at the
-   * instant the clock names. The plan is drawn on the recording's own frame grid rather than one
-   * of its own, so one clock drives `injectTracksAt` and the ADS-B interpolator together. The
-   * generator is pure and synchronous; it never reads the capture itself.
+   * The picture at the clock, through the seam (#115): the feeds in session order, then the
+   * scenario when on — the recording's bracketed samples read linearly, held then dropped (06a),
+   * and the injects sampled from the plan every random decision of which was made once, on the
+   * recording's own frame grid, so one clock drives both. One list for the Queue and the scorer:
+   * neither knows which feed a track came from. The map still draws the two layers apart.
    */
-  const plan = useMemo(
-    () => (capture.status === 'ready' ? planScenario(timelineOf(capture.capture)) : null),
-    [capture],
+  const tracks = useMemo(
+    () => (ready ? mergePicture(ready.feeds, ready.scenario, tSec) : []),
+    [ready, tSec],
   )
-  const injects = useMemo(() => (plan ? injectTracksAt(plan, tSec) : []), [plan, tSec])
-
-  // One list for the Queue and the scorer: neither knows which layer a track came from.
-  const tracks = useMemo<Track[]>(() => [...adsb, ...injects], [adsb, injects])
+  const adsb = useMemo(
+    () => tracks.filter((track): track is AdsbTrack => track.source === 'adsb'),
+    [tracks],
+  )
+  const injects = useMemo(
+    () => tracks.filter((track): track is InjectTrack => track.source === 'inject'),
+    [tracks],
+  )
   // The identity memory — when each inject's ident was last heard — is a pure fold over the
   // frame grid up to the clock, so play and seek agree on it (06a). The hour is the recording's
   // clock start plus the clock (#84, after D2 on #4): 001's configured 02:30, 002's capture wall
   // time in the AO's zone — and the strip shows the same number the breakdown scores against.
   // Until the recording is in nothing is scored, so the default's hour stands in.
   const memory = useMemo(
-    () => (plan ? memoryAt((t) => injectTracksAt(plan, t), plan.intervalS, tSec) : {}),
-    [plan, tSec],
+    () => (scenario ? memoryAt(scenario.pictureAt, scenario.plan.intervalS, tSec) : {}),
+    [scenario, tSec],
   )
   const startLocal = useMemo(
-    () =>
-      capture.status === 'ready'
-        ? clockStartOf(capture.recording, capture.capture, AO)
-        : DEFAULT_RECORDING.clock.startLocal,
-    [capture],
+    () => (feed ? clockStartOf(feed.entry, feed.capture, AO) : DEFAULT_RECORDING.clock.startLocal),
+    [feed],
   )
   const clockMinute = minuteOfDay(startLocal, tSec)
   // Each track's position history over the pattern window (05a), sampled at the clock as the
@@ -344,7 +339,7 @@ export default function App({
   // focus would otherwise fall to document.body — the failure #46 and #54 were built against.
   // Guarded set-during-render, as the sighting fold below; only once the recording is in, since
   // a loading picture has taken nothing away.
-  const orphaned = selectedId !== null && selected === null && capture.status === 'ready'
+  const orphaned = selectedId !== null && selected === null && ready !== null
   const [orphanCount, setOrphanCount] = useState(0)
   if (orphaned) {
     setOrphanCount((count) => count + 1)
@@ -376,7 +371,7 @@ export default function App({
   // crossing and pattern change are read against the record before it, so what moved across
   // the hole is written down.
   const inPicture = useMemo(() => new Set(ranked.map((entry) => entry.track.id)), [ranked])
-  const settled = capture.status === 'ready'
+  const settled = ready !== null
   const recordStale =
     ranked.some((entry) => {
       const log = eventLogs[entry.track.id]
@@ -602,8 +597,8 @@ export default function App({
     if (id !== 'sites') setPlacing(null)
   }
 
-  const pending = capture.status === 'loading' ? '…' : '—'
-  const count = (n: number) => (capture.status === 'ready' ? String(n) : pending)
+  const pending = session.status === 'loading' ? '…' : '—'
+  const count = (n: number) => (ready ? String(n) : pending)
 
   const statusFields = [
     { label: 'Cooperative', value: count(adsb.length) },
@@ -613,16 +608,21 @@ export default function App({
     // the counts until the recording is in, since all three are read off the loaded file.
     {
       label: 'Recording',
-      value:
-        capture.status === 'ready'
-          ? recordingLabel(capture.recording, capture.capture, AO)
-          : pending,
+      value: feed ? recordingLabel(feed.entry, feed.capture, AO) : pending,
     },
     {
       label: 'Sim clock',
-      value: capture.status === 'ready' ? simClock(startLocal, tSec) : pending,
+      value: feed ? simClock(startLocal, tSec) : pending,
     },
   ]
+  // A session that could not be made (refused: the URL's ask) or could not load (error: the
+  // recording's fetch) says so on the rail, in its own words, rather than showing an empty map.
+  const problem =
+    session.status === 'refused'
+      ? session.reason
+      : session.status === 'error'
+        ? session.message
+        : null
 
   // On Review the Queue is unmounted, so its row-focus return has nothing to land on: the close
   // button a keyboard operator just pressed unmounts under them and focus falls to document.body.
@@ -745,10 +745,9 @@ export default function App({
             )}
           </div>
           <p className="rail__body">{surface.body}</p>
-          {/* A picture that cannot load its traffic says so, rather than showing an empty map. */}
-          {capture.status === 'error' && (
+          {problem !== null && (
             <p className="rail__error" role="alert">
-              {capture.message}
+              {problem}
             </p>
           )}
           {surfaceId === 'queue' && (
@@ -801,7 +800,7 @@ export default function App({
               screen readers never announce — and the filters persist across surfaces, so a
               return to the Queue would otherwise remount it already filled (#51 review). */}
           <p className="rail__empty" role="status">
-            {surfaceId === 'queue' && capture.status === 'ready' && visible.length === 0
+            {surfaceId === 'queue' && ready !== null && visible.length === 0
               ? 'No tracks match the filters.'
               : null}
           </p>

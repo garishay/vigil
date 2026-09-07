@@ -34,6 +34,24 @@ describe('determinism', () => {
     expect(generateScenario(TIMELINE)).toEqual(golden)
   })
 
+  it('keeps the answer key on the golden’s frames and off the picture’s tracks (#115, A3)', () => {
+    // The golden is the generator's own record and carries what each inject was flown from; the
+    // picture `injectTracksAt` hands the app never builds those two fields at all.
+    const plan = planScenario(TIMELINE)
+    for (const tSec of [0, 15, 600, 1185]) {
+      const picture = injectTracksAt(plan, tSec)
+      const frame = golden.frames.find((f) => f.tMs === tSec * 1000)!
+      expect(picture).toHaveLength(frame.tracks.length)
+      picture.forEach((track, i) => {
+        expect(track).not.toHaveProperty('behavior')
+        expect(track).not.toHaveProperty('remoteId')
+        const { behavior, remoteId, ...observed } = frame.tracks[i]
+        expect([behavior, remoteId]).toEqual([plan.specs[i].behavior, plan.specs[i].remoteId])
+        expect(track).toEqual(observed)
+      })
+    }
+  })
+
   it('produces identical output from two separate calls', () => {
     // Would catch module-level RNG state leaking between invocations, which the golden alone
     // could not: a generator that mutates shared state still matches the golden on its first run.

@@ -561,8 +561,6 @@ describe('the friendly launch cap on the row and in the record (08b, ruled on #8
     const drone: InjectTrack = {
       id: 'inject-02',
       source: 'inject',
-      behavior: 'orbit',
-      remoteId: 'broadcasting',
       uaType: null,
       identity: 'cooperative',
       callsign: 'UAS-A341',

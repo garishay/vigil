@@ -4,7 +4,7 @@ import { MapView } from './MapView'
 import { AO } from '../config/ao'
 import { BAND_COLOR } from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
-import type { AdsbTrack, InjectTrack } from '../lib/tracks'
+import type { AdsbTrack, GeneratedInjectTrack } from '../lib/tracks'
 
 /** jsdom serialises an inline hex background as `rgb(r, g, b)`. */
 const rgb = (hex: string) =>
@@ -45,7 +45,7 @@ const TRACKS: AdsbTrack[] = [
   },
 ]
 
-const INJECTS: InjectTrack[] = [
+const INJECTS: GeneratedInjectTrack[] = [
   {
     id: 'inject-01',
     source: 'inject',

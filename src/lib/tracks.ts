@@ -109,11 +109,13 @@ export interface AdsbTrack extends TrackBase {
  */
 export type UaType = 'multirotor' | 'aeroplane' | 'hybrid-lift'
 
-/** A simulated small UAS. The only kind of track that can score as a threat. */
+/**
+ * A simulated small UAS as the picture sees it. The only kind of track that can score as a
+ * threat. Carries no answer key: the behavior it was scripted with and the Remote ID status it
+ * was dealt stay on `GeneratedInjectTrack`, which the picture is never handed (#115, ruling 2).
+ */
 export interface InjectTrack extends TrackBase {
   source: 'inject'
-  behavior: Behavior
-  remoteId: RemoteIdStatus
   identity: Identity
   /**
    * The UA type heard in the Remote ID broadcast — on the frames it is heard, exactly as
@@ -121,6 +123,17 @@ export interface InjectTrack extends TrackBase {
    * a silent inject reads null on every frame. Display only (#22); nothing scores it.
    */
   uaType: UaType | null
+}
+
+/**
+ * An inject as the generator flew it: the observed track plus the answer key it was flown from.
+ * Lives in the generator's own frames — the golden fixture, the bench's oracle — and nowhere
+ * above the seam: `injectTracksAt` builds the picture's `InjectTrack` without these two fields,
+ * so the §2 guardrail is enforced where the track is made, not only where it is typed (#115, A3).
+ */
+export interface GeneratedInjectTrack extends InjectTrack {
+  behavior: Behavior
+  remoteId: RemoteIdStatus
 }
 
 export type Track = AdsbTrack | InjectTrack

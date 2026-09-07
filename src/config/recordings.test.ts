@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_RECORDING, RECORDINGS, recordingNamed, selectedRecording } from './recordings'
+import { DEFAULT_RECORDING, RECORDINGS, recordingNamed } from './recordings'
 
 describe('recordings registry (#84)', () => {
   it('opens on 001 with its configured small-hours clock, the golden’s and §13’s recording', () => {
@@ -21,16 +21,9 @@ describe('recordings registry (#84)', () => {
     expect(new Set(RECORDINGS.map((r) => r.file)).size).toBe(RECORDINGS.length)
   })
 
-  it('selects by the query parameter and defaults without one', () => {
-    expect(selectedRecording('')).toBe(DEFAULT_RECORDING)
-    expect(selectedRecording('?other=1')).toBe(DEFAULT_RECORDING)
-    expect(selectedRecording('?recording=vigil-phl-002').id).toBe('vigil-phl-002')
-  })
-
+  // Selection by the query string is the session resolver's (#115, session.test.ts).
   it('refuses an unknown name in so many words rather than falling back to 001', () => {
-    expect(() => selectedRecording('?recording=vigil-phl-003')).toThrow(
-      'No recording named "vigil-phl-003"',
-    )
+    expect(() => recordingNamed('vigil-phl-003')).toThrow('No recording named "vigil-phl-003"')
     expect(() => recordingNamed('')).toThrow('No recording named ""')
   })
 })

@@ -195,8 +195,6 @@ describe('learner-ready shape (§8.3b)', () => {
   const track: InjectTrack = {
     id: 'inject-05',
     source: 'inject',
-    behavior: 'loiter',
-    remoteId: 'silent',
     uaType: null,
     identity: 'non-cooperative',
     callsign: null,
@@ -355,8 +353,6 @@ describe('band crossings (06b)', () => {
     track: {
       id: 'inject-05',
       source: 'inject',
-      behavior: 'loiter',
-      remoteId: 'silent',
       uaType: null,
       identity: 'non-cooperative',
       callsign: null,
@@ -452,8 +448,6 @@ describe('band crossings are forward only (#75 review)', () => {
     track: {
       id: 'inject-05',
       source: 'inject',
-      behavior: 'loiter',
-      remoteId: 'silent',
       uaType: null,
       identity: 'non-cooperative',
       callsign: null,
@@ -511,8 +505,6 @@ describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
   const drone: InjectTrack = {
     id: 'inject-05',
     source: 'inject',
-    behavior: 'loiter',
-    remoteId: 'silent',
     uaType: null,
     identity: 'non-cooperative',
     callsign: null,
@@ -716,8 +708,6 @@ describe('the friendly-launch guard on re-surface (08b, ruled on #86)', () => {
   const track: InjectTrack = {
     id: 'inject-02',
     source: 'inject',
-    behavior: 'orbit',
-    remoteId: 'broadcasting',
     uaType: null,
     identity: 'cooperative',
     callsign: 'UAS-A341',

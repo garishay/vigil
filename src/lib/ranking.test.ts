@@ -9,7 +9,7 @@ import { destinationPoint, distanceMeters } from './geo'
 import { gridTimeline, injectTracksAt, planScenario, type InjectScenario } from './injects'
 import { historiesAt, memoryAt, type ReplayIndex } from './replay'
 import { minuteOfDay, type ScoringContext } from './scoring'
-import type { AdsbTrack, Identity, InjectTrack, Track } from './tracks'
+import type { AdsbTrack, GeneratedInjectTrack, Identity, Track } from './tracks'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
 
@@ -46,7 +46,7 @@ function adsb(hex: string, rangeM: number, extra: Partial<AdsbTrack> = {}): Adsb
   }
 }
 
-function inject(n: number, identity: Identity, rangeM: number): InjectTrack {
+function inject(n: number, identity: Identity, rangeM: number): GeneratedInjectTrack {
   return {
     id: `inject-${String(n).padStart(2, '0')}`,
     source: 'inject',
@@ -263,7 +263,10 @@ describe('pattern of life in the order (05a acceptance)', () => {
     for (const t of [990, 1185]) {
       const ranked = injectsAt(t)
       const byBehavior = Object.fromEntries(
-        ranked.map((entry) => [(entry.track as InjectTrack).behavior, entry.track.id]),
+        ranked.map((entry) => [
+          plan.specs.find((spec) => spec.id === entry.track.id)!.behavior,
+          entry.track.id,
+        ]),
       )
       expect(rankOf(ranked, byBehavior.loiter)).toBeLessThan(rankOf(ranked, byBehavior.transit))
       expect(rankOf(ranked, byBehavior.orbit)).toBeLessThan(rankOf(ranked, byBehavior.transit))

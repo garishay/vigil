@@ -2,12 +2,19 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
-import { DEFAULT_RECORDING, recordingNamed } from './config/recordings'
+import { DEFAULT_RECORDING, recordingNamed, type RecordingEntry } from './config/recordings'
 import { SCENARIO } from './config/scenario'
-import type { CaptureState } from './data/useCapture'
+import type { SessionState } from './data/useSession'
 import type { Schedule } from './data/usePlayback'
+import type { AdsbCapture } from './lib/adsb'
 import { trackIdent } from './lib/display'
-import { gridTimeline, injectTracksAt, planScenario as planInjects } from './lib/injects'
+import { recordingFeed, scenarioFeed } from './lib/feeds'
+import {
+  gridTimeline,
+  injectTracksAt,
+  planScenario as planInjects,
+  timelineOf,
+} from './lib/injects'
 import { addSite, fromConfig, sitePlanText } from './lib/sites'
 
 // Every `terminalIds` the map was handed, in order — the array *identities*, not their contents,
@@ -97,9 +104,8 @@ vi.mock('./components/MapView', () => ({
   },
 }))
 
-const { useCapture, planScenario, lookupPhoto } = vi.hoisted(() => ({
-  useCapture: vi.fn(),
-  planScenario: vi.fn(),
+const { useSession, lookupPhoto } = vi.hoisted(() => ({
+  useSession: vi.fn(),
   lookupPhoto: vi.fn(),
 }))
 
@@ -107,41 +113,49 @@ const { useCapture, planScenario, lookupPhoto } = vi.hoisted(() => ({
 // test here — whichever row it opens — can reach Planespotters. photos.test.ts covers the real one.
 vi.mock('./data/photos', () => ({ lookupPhoto }))
 
-// The generator runs for real; the spy is only here to check what timeline App hands it.
-vi.mock('./lib/injects', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./lib/injects')>()
-  planScenario.mockImplementation(actual.planScenario)
-  return { ...actual, planScenario }
-})
-vi.mock('./data/useCapture', () => ({ useCapture }))
+// The session is the hook's to build (useSession.test.ts); here it is handed in ready-made, so
+// the generator runs for real on the fixture's own frame grid and nothing is fetched.
+vi.mock('./data/useSession', () => ({ useSession }))
 
-const READY: CaptureState = {
+/** A ready session over one recording feed, the scenario on unless a test says off (#115). */
+const ready = (
+  capture: AdsbCapture,
+  entry: RecordingEntry = DEFAULT_RECORDING,
+  scenarioOn = true,
+): SessionState => ({
   status: 'ready',
-  recording: DEFAULT_RECORDING,
-  capture: {
-    ao: 'phl',
-    source: 'adsb.lol v2',
-    capturedAt: '2026-08-29T23:09:25.373Z',
-    intervalMs: 15000,
-    bbox: AO.bbox,
-    frames: [
-      {
-        tMs: 0,
-        records: [
-          { hex: 'a06461', callsign: 'AAL423', position: [-75.1, 39.7], groundSpeedKt: 275 },
-          { hex: '501267', position: [-75.9, 39.8], groundSpeedKt: 60 },
-        ],
-      },
-    ],
+  session: {
+    feeds: [{ kind: 'recording', id: entry.id }],
+    scenario: scenarioOn ? { on: true, seed: SCENARIO.seed } : { on: false },
   },
+  feeds: [recordingFeed(entry, capture)],
+  scenario: scenarioOn ? scenarioFeed(timelineOf(capture)) : null,
+})
+
+const CAPTURE: AdsbCapture = {
+  ao: 'phl',
+  source: 'adsb.lol v2',
+  capturedAt: '2026-08-29T23:09:25.373Z',
+  intervalMs: 15000,
+  bbox: AO.bbox,
+  frames: [
+    {
+      tMs: 0,
+      records: [
+        { hex: 'a06461', callsign: 'AAL423', position: [-75.1, 39.7], groundSpeedKt: 275 },
+        { hex: '501267', position: [-75.9, 39.8], groundSpeedKt: 60 },
+      ],
+    },
+  ],
 }
+const READY = ready(CAPTURE)
 
 // The replay clock never ticks here unless a test drives it: frame 0 stays frame 0 whatever
 // the test's wall duration, which is the flake the acceptance on #6 names.
 const never: Schedule = () => () => {}
 
 beforeEach(() => {
-  useCapture.mockReturnValue(READY)
+  useSession.mockReturnValue(READY)
   lookupPhoto.mockReset()
   lookupPhoto.mockResolvedValue(null)
 })
@@ -216,11 +230,12 @@ describe('App shell', () => {
   // zone, and the off-hours factor reads it — 22:02Z on 4 September is 18:02 in Philadelphia,
   // inside operating hours, where 001's 02:30 is not.
   it('opens a captured-clock recording at its wall time, inside operating hours (#84)', () => {
-    useCapture.mockReturnValue({
-      ...READY,
-      recording: recordingNamed('vigil-phl-002'),
-      capture: { ...READY.capture, capturedAt: '2026-09-04T22:02:11.000Z' },
-    } as CaptureState)
+    useSession.mockReturnValue(
+      ready(
+        { ...CAPTURE, capturedAt: '2026-09-04T22:02:11.000Z' },
+        recordingNamed('vigil-phl-002'),
+      ),
+    )
     render(<App schedule={never} />)
     expect(screen.getByText('Recording').nextSibling).toHaveTextContent(
       'vigil-phl-002 · 2026-09-04',
@@ -241,7 +256,7 @@ describe('App shell', () => {
   })
 
   it('holds the Recording field back with the counts until the recording is in (#84)', () => {
-    useCapture.mockReturnValue({ status: 'loading' })
+    useSession.mockReturnValue({ status: 'loading' })
     render(<App schedule={never} />)
     expect(screen.getByText('Recording').nextSibling).toHaveTextContent('…')
     expect(screen.getByText('Sim clock').nextSibling).toHaveTextContent('…')
@@ -277,16 +292,6 @@ describe('App shell', () => {
     expect(within(breakdown).getAllByRole('meter')).toHaveLength(6)
   })
 
-  it("plans the injects on the recording's own frame grid", () => {
-    // The two layers share one timeline, which is what lets PR 06 advance a single clock. App
-    // holds the plan and samples it, so that clock will drive `injectTracksAt` with no rewiring.
-    render(<App schedule={never} />)
-    expect(planScenario).toHaveBeenCalledWith({
-      intervalMs: 15000,
-      frameTimesMs: READY.status === 'ready' ? READY.capture.frames.map((frame) => frame.tMs) : [],
-    })
-  })
-
   it('ranks both layers into one queue on the Queue surface', () => {
     render(<App schedule={never} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -313,7 +318,7 @@ describe('App shell', () => {
   })
 
   it('holds the count back while the recording is still loading', () => {
-    useCapture.mockReturnValue({ status: 'loading' })
+    useSession.mockReturnValue({ status: 'loading' })
     render(<App schedule={never} />)
     expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('…')
     expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '0')
@@ -321,10 +326,41 @@ describe('App shell', () => {
 
   // An airspace picture that cannot load its traffic has to say so, not show a plausible empty map.
   it('surfaces a load failure instead of rendering an empty picture silently', () => {
-    useCapture.mockReturnValue({ status: 'error', message: 'could not load the ADS-B recording' })
+    useSession.mockReturnValue({ status: 'error', message: 'could not load the ADS-B recording' })
     render(<App schedule={never} />)
     expect(screen.getByRole('alert')).toHaveTextContent('could not load the ADS-B recording')
     expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('—')
+  })
+
+  // A session the URL could not make is refused in its own words (#115, ruling 4; A7): on the
+  // rail in 09a, where a load failure prints, and nothing is fetched or scored.
+  it('surfaces a refused session with its reason, and holds every count back', () => {
+    useSession.mockReturnValue({
+      status: 'refused',
+      reason: 'Feed "sonar:1" — unknown feed kind "sonar"',
+    })
+    render(<App schedule={never} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Feed "sonar:1" — unknown feed kind "sonar"',
+    )
+    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('—')
+    expect(screen.getByText('Injects').nextSibling).toHaveTextContent('—')
+    expect(screen.getByText('Recording').nextSibling).toHaveTextContent('—')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '0')
+  })
+
+  // The scenario off (#115, ruling 1): the recording alone — no inject in the picture, on the
+  // map, or in the Queue, and the Injects count reads 0 (A10). The recording is untouched.
+  it('shows the recording alone with the scenario off, counting zero injects', () => {
+    useSession.mockReturnValue(ready(CAPTURE, DEFAULT_RECORDING, false))
+    render(<App schedule={never} />)
+    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2')
+    expect(screen.getByText('Injects').nextSibling).toHaveTextContent('0')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-injects', '0')
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+    expect(rows).toHaveLength(2)
+    expect(rows.every((row) => within(row).queryByText('INJECT') === null)).toBe(true)
   })
 
   it('opens the drawer beside the list from a row click, and closes it (03a)', () => {
@@ -509,7 +545,7 @@ describe('App shell', () => {
     // The default `now` prop is a fresh function identity each render, so first-seen must not
     // ride a memo keyed on it — and the replay clock must not restamp it either: a track first
     // seen at 02:30:00 keeps that mark after the clock has moved.
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     const { rerender } = render(
       <App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />,
@@ -626,10 +662,10 @@ describe('App shell', () => {
 
     // An empty list with no recording behind it is not a filter result: nothing while loading,
     // nothing on a load failure — the error already says what happened.
-    useCapture.mockReturnValue({ status: 'loading' })
+    useSession.mockReturnValue({ status: 'loading' })
     rerender(<App schedule={never} />)
     expect(region()).toBeEmptyDOMElement()
-    useCapture.mockReturnValue({ status: 'error', message: 'Could not load the recording.' })
+    useSession.mockReturnValue({ status: 'error', message: 'Could not load the recording.' })
     rerender(<App schedule={never} />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(region()).toBeEmptyDOMElement()
@@ -757,42 +793,38 @@ function manualClock() {
  * `cccccc` appears at frame 2 (30 s); `dddddd` is heard at frames 0 and 7 (105 s) — a hole wider
  * than the coast, so it leaves the picture at 91 s and is back at 105 s, further out and slower.
  */
-const MOVING: CaptureState = {
-  status: 'ready',
-  recording: DEFAULT_RECORDING,
-  capture: {
-    ao: 'phl',
-    source: 'adsb.lol v2',
-    capturedAt: '2026-08-29T23:09:25.373Z',
-    intervalMs: 15000,
-    bbox: AO.bbox,
-    frames: [...Array(8)].map((_, i) => ({
-      tMs: i * 15000,
-      records: [
-        {
-          hex: 'a06461',
-          callsign: 'AAL423',
-          position: [-75.23 + i * 0.03, 39.88] as [number, number],
-          altitudeFt: 3000,
-          groundSpeedKt: 250,
-          headingDeg: 90,
-        },
-        { hex: '501267', position: [-75.2411, 39.9396] as [number, number], groundSpeedKt: 60 },
-        ...(i === 0
-          ? [{ hex: 'bbbbbb', position: [-75.3, 39.85] as [number, number], groundSpeedKt: 90 }]
+const MOVING = ready({
+  ao: 'phl',
+  source: 'adsb.lol v2',
+  capturedAt: '2026-08-29T23:09:25.373Z',
+  intervalMs: 15000,
+  bbox: AO.bbox,
+  frames: [...Array(8)].map((_, i) => ({
+    tMs: i * 15000,
+    records: [
+      {
+        hex: 'a06461',
+        callsign: 'AAL423',
+        position: [-75.23 + i * 0.03, 39.88] as [number, number],
+        altitudeFt: 3000,
+        groundSpeedKt: 250,
+        headingDeg: 90,
+      },
+      { hex: '501267', position: [-75.2411, 39.9396] as [number, number], groundSpeedKt: 60 },
+      ...(i === 0
+        ? [{ hex: 'bbbbbb', position: [-75.3, 39.85] as [number, number], groundSpeedKt: 90 }]
+        : []),
+      ...(i >= 2
+        ? [{ hex: 'cccccc', position: [-75.4, 39.95] as [number, number], groundSpeedKt: 120 }]
+        : []),
+      ...(i === 0
+        ? [{ hex: 'dddddd', position: [-75.25, 39.87] as [number, number], groundSpeedKt: 100 }]
+        : i === 7
+          ? [{ hex: 'dddddd', position: [-75.5, 40.0] as [number, number], groundSpeedKt: 40 }]
           : []),
-        ...(i >= 2
-          ? [{ hex: 'cccccc', position: [-75.4, 39.95] as [number, number], groundSpeedKt: 120 }]
-          : []),
-        ...(i === 0
-          ? [{ hex: 'dddddd', position: [-75.25, 39.87] as [number, number], groundSpeedKt: 100 }]
-          : i === 7
-            ? [{ hex: 'dddddd', position: [-75.5, 40.0] as [number, number], groundSpeedKt: 40 }]
-            : []),
-      ],
-    })),
-  },
-}
+    ],
+  })),
+})
 
 describe('App replay clock (06a)', () => {
   const clock = () => screen.getByText('Sim clock').nextSibling as HTMLElement
@@ -801,7 +833,7 @@ describe('App replay clock (06a)', () => {
   const idents = () => rows().map((row) => row.querySelector('.queue__ident')?.textContent)
 
   it('ticks the sim clock one second at a time from the scenario start, and shows the position', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
     expect(clock()).toHaveTextContent('02:30:00')
@@ -813,7 +845,7 @@ describe('App replay clock (06a)', () => {
   })
 
   it('re-ranks the Queue live as the picture plays', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -829,7 +861,7 @@ describe('App replay clock (06a)', () => {
   })
 
   it('freezes the picture on Pause and moves it on Seek', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -846,7 +878,7 @@ describe('App replay clock (06a)', () => {
   })
 
   it('reads the selected track’s time to entry in the drawer and hands the map its path, following the clock (#102)', () => {
-    useCapture.mockReturnValue(LONG)
+    useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -867,7 +899,7 @@ describe('App replay clock (06a)', () => {
   })
 
   it('opens a track’s log when it first appears on the clock, not back-stamped to app start', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     let wall = '2026-09-01T12:04:31.000Z'
     render(<App schedule={replay.schedule} now={() => wall} />)
@@ -886,7 +918,7 @@ describe('App replay clock (06a)', () => {
   })
 
   it('drops a coasted track from the Queue and closes its drawer, keeping its log', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -918,7 +950,7 @@ describe('App replay clock (06a)', () => {
   })
 
   it('logs Lost at the tick a claimed track coasts out, status carried (ruled on #71)', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -953,7 +985,7 @@ describe('App replay clock (06a)', () => {
   })
 
   it('logs Regained when a lost track is heard again; a rewind before first sight logs nothing (ruled on #71)', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -990,7 +1022,7 @@ describe('App replay clock (06a)', () => {
   })
 
   it('lands focus on the Review nav item when the picture takes the reviewed track away (#73 review)', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -1011,23 +1043,19 @@ describe('App replay clock (06a)', () => {
 })
 
 /** The full recording's length with one parked aircraft, so the injects run their whole script. */
-const LONG: CaptureState = {
-  status: 'ready',
-  recording: DEFAULT_RECORDING,
-  capture: {
-    ao: 'phl',
-    source: 'adsb.lol v2',
-    capturedAt: '2026-08-29T23:09:25.373Z',
-    intervalMs: 15000,
-    bbox: AO.bbox,
-    frames: [...Array(80)].map((_, i) => ({
-      tMs: i * 15000,
-      records: [
-        { hex: '501267', position: [-75.2411, 39.9396] as [number, number], groundSpeedKt: 60 },
-      ],
-    })),
-  },
-}
+const LONG = ready({
+  ao: 'phl',
+  source: 'adsb.lol v2',
+  capturedAt: '2026-08-29T23:09:25.373Z',
+  intervalMs: 15000,
+  bbox: AO.bbox,
+  frames: [...Array(80)].map((_, i) => ({
+    tMs: i * 15000,
+    records: [
+      { hex: '501267', position: [-75.2411, 39.9396] as [number, number], groundSpeedKt: 60 },
+    ],
+  })),
+})
 
 describe('App record under the clock (06b)', () => {
   const rows = () =>
@@ -1039,7 +1067,7 @@ describe('App record under the clock (06b)', () => {
   const handoff = () => (screen.getByLabelText('Handoff text') as HTMLTextAreaElement).value
 
   it('logs band crossings at sim time as the picture plays — in the log and the handoff timeline', () => {
-    useCapture.mockReturnValue(LONG)
+    useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -1076,7 +1104,7 @@ describe('App record under the clock (06b)', () => {
   })
 
   it('writes nothing on a rewind — re-watching never runs the record backwards (#75 review)', () => {
-    useCapture.mockReturnValue(LONG)
+    useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -1099,7 +1127,7 @@ describe('App record under the clock (06b)', () => {
   })
 
   it('freezes the handoff evidence block at escalation while the timeline stays live', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -1134,7 +1162,7 @@ describe('App record under the clock (06b)', () => {
   })
 
   it('draws the selected track’s trail and counts it in the drawer', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -1152,7 +1180,7 @@ describe('App record under the clock (06b)', () => {
 
 describe('App pattern row under the clock (05a)', () => {
   it('fills the pattern row from the history at the clock, and the hero climbs back to the top', () => {
-    useCapture.mockReturnValue(LONG)
+    useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -1199,7 +1227,7 @@ describe('App rewound actions (#77)', () => {
 
   /** Selects AAL423 and claims it at 02:31:00, which puts the record's frontier at 60 s. */
   const claimedAtSixty = () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(action('Queue'))
@@ -1281,7 +1309,7 @@ describe('App rewound actions (#77)', () => {
   })
 
   it('hands the map one terminalIds identity until the set itself changes (#61)', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     terminalIdsSeen.length = 0
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
@@ -1310,7 +1338,7 @@ describe('App rewound actions (#77)', () => {
   })
 
   it('hands the map one bands identity until some band moves, and never an ADS-B id (#96)', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     bandsSeen.length = 0
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
@@ -1406,7 +1434,7 @@ describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', 
   const seek = (value: string) =>
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value } })
   const start = () => {
-    useCapture.mockReturnValue(LONG)
+    useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
@@ -1710,7 +1738,7 @@ describe('App Sites surface (08a, ruled on #86)', () => {
   })
 
   it('refuses site edits behind the record’s frontier — its own last edit included — and re-enables at it', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     fireEvent.click(action('Sites'))
@@ -1816,7 +1844,7 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
   })
 
   it('loads a pasted plan as one edit, and refuses one behind the frontier with the rewound reason', () => {
-    useCapture.mockReturnValue(MOVING)
+    useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     const heard = injectsAtOpen().find((inject) => inject.identity === 'cooperative')!
@@ -1874,7 +1902,7 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
       .getAllByRole('listitem')
       .find((item) => item.textContent?.includes(ident)) as HTMLElement
   const start = () => {
-    useCapture.mockReturnValue(LONG)
+    useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
     return replay
