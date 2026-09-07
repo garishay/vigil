@@ -88,8 +88,10 @@ const LIVE_ISSUE: Readonly<Record<Exclude<FeedKind, 'recording'>, string>> = {
  * Given beside a `?feed=` that names the same recording it folds away; naming a different one is
  * refused rather than resolved by precedence (A6, amended). The cross-check fires only on that
  * genuine disagreement — both name a recording and they differ; a `?feed=` naming no recording,
- * or two, falls through to its own refusal (#125 round 1). A repeated `?feed=` is refused the
- * same way, never picked from (ruled on #125): the list is the comma.
+ * or two, falls through to its own refusal (#125 round 1). A parameter given more than once is
+ * refused, never picked from (ruled on #125; #36 [24] for the alias and the switch): the list is
+ * the comma, and the alias is the one an operator hand-edits, where a pasted duplicate is a guess
+ * before anywhere else.
  *
  * A declared-but-empty env variable reads as unset: the env is the one layer the operator cannot
  * correct from the URL, so an empty string is the build setting nothing, not a refusal of every
@@ -104,9 +106,13 @@ export function resolveSession(
   const params = new URLSearchParams(search)
 
   let feedsText = env.VITE_DEFAULT_FEEDS || BUILD_DEFAULTS.feeds
-  const alias = params.get('recording')
+  const aliases = params.getAll('recording')
+  if (aliases.length > 1) refuse('?recording= is given more than once — give it once')
+  const alias: string | null = aliases[0] ?? null
   const feedParams = params.getAll('feed')
-  if (feedParams.length > 1) refuse('?feed= is given twice — give it once, comma-separated')
+  if (feedParams.length > 1) {
+    refuse('?feed= is given more than once — give it once, comma-separated')
+  }
   // Annotated: without `noUncheckedIndexedAccess` the index reads as `string`, and the guards
   // below are on the nullability (#125 re-review).
   const feedParam: string | null = feedParams[0] ?? null
@@ -136,7 +142,9 @@ export function resolveSession(
     if (!registry.some((entry) => entry.id === ref.id)) refuse(`No recording named "${ref.id}"`)
   }
 
-  const scenarioParam = params.get('scenario')
+  const scenarioParams = params.getAll('scenario')
+  if (scenarioParams.length > 1) refuse('?scenario= is given more than once — give it once')
+  const scenarioParam: string | null = scenarioParams[0] ?? null
   const on =
     scenarioParam !== null
       ? parseScenario('?scenario=', scenarioParam)

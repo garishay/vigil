@@ -127,12 +127,36 @@ describe('resolveSession (#115, ruling 6)', () => {
     })
   })
 
-  it('refuses a repeated ?feed= rather than picking one (#125 round 1, ruled)', () => {
+  it('refuses a repeated ?feed= rather than picking one (#125 round 1, ruled; #36 [24] wording)', () => {
     expect(refusal('?feed=recording:vigil-phl-001&feed=recording:vigil-phl-002')).toBe(
-      '?feed= is given twice — give it once, comma-separated',
+      '?feed= is given more than once — give it once, comma-separated',
     )
     expect(refusal('?feed=recording:vigil-phl-001&feed=recording:vigil-phl-001')).toBe(
-      '?feed= is given twice — give it once, comma-separated',
+      '?feed= is given more than once — give it once, comma-separated',
+    )
+    // "Twice" was wrong at three; the sentence names the count it can vouch for.
+    expect(refusal('?feed=adsb&feed=adsb&feed=adsb')).toBe(
+      '?feed= is given more than once — give it once, comma-separated',
+    )
+  })
+
+  it('refuses a repeated ?recording= rather than picking one (#36 [24], ruled)', () => {
+    // The alias is the parameter an operator hand-edits: a pasted duplicate is a guess there
+    // before anywhere else. Same recording or not, never picked from.
+    expect(refusal('?recording=vigil-phl-001&recording=vigil-phl-002')).toBe(
+      '?recording= is given more than once — give it once',
+    )
+    expect(refusal('?recording=vigil-phl-002&recording=vigil-phl-002')).toBe(
+      '?recording= is given more than once — give it once',
+    )
+  })
+
+  it('refuses a repeated ?scenario= rather than picking one (#36 [24], ruled)', () => {
+    expect(refusal('?scenario=on&scenario=off')).toBe(
+      '?scenario= is given more than once — give it once',
+    )
+    expect(refusal('?feed=recording:vigil-phl-002&scenario=off&scenario=off')).toBe(
+      '?scenario= is given more than once — give it once',
     )
   })
 
