@@ -27,6 +27,7 @@ import type { RankedTrack } from './ranking'
 import { bandOf, scoreTrack } from './scoring'
 import type { InjectTrack } from './tracks'
 import { AO } from '../config/ao'
+import { PROJECTION } from '../config/projection'
 import { SCORING, type FactorId, type PatternKind } from '../config/scoring'
 
 const PHL_SITES = AO.protectedSites.map((site) => ({ ...site, kind: 'protected' as const }))
@@ -236,7 +237,7 @@ describe('learner-ready shape (§8.3b)', () => {
       weights: SCORING.weights,
       // Time to entry rides the snapshot (#102): no speed observed, so none — and not null,
       // which is the on-ground case.
-      entry: { kind: 'none', coastedS: null },
+      entry: { kind: 'none', horizonS: PROJECTION.horizonS, coastedS: null },
     })
   })
 

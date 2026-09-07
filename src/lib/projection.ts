@@ -60,7 +60,11 @@ interface Named {
 }
 
 export type EntryEstimate = (
-  | { kind: 'none' }
+  | {
+      kind: 'none'
+      /** The horizon it was computed under, seconds — what the drawer's none reading names (#122). */
+      horizonS: number
+    }
   | ({ kind: 'inside' } & Named)
   | ({
       kind: 'entry'
@@ -101,7 +105,7 @@ export function timeToEntry(
     tier: site.tier,
   })
   let inside: { site: EntrySite; rangeM: number } | null = null
-  let best: EntryEstimate = { kind: 'none', coastedS }
+  let best: EntryEstimate = { kind: 'none', horizonS: config.horizonS, coastedS }
   for (const site of sites) {
     const rangeM = distanceMeters(site.center, track.position)
     if (rangeM <= site.radiusM) {

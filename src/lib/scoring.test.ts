@@ -178,7 +178,7 @@ describe('closing geometry', () => {
     // 6 km at 120 kt is 97 s to CPA — inside the two-minute full band — and the CPA is the site.
     expect(factor(inject({ position: at(6000), groundSpeedKt: 120 }), 'closing')).toMatchObject({
       value: 100,
-      detail: 'CPA 0.0 km in 2 min',
+      detail: 'will pass 0.0 km from PHL Airfield in 2 min',
     })
   })
 
@@ -194,13 +194,25 @@ describe('closing geometry', () => {
     // which is halfway down the 1 → 3 radii ramp; TCPA 10 km at 20 kt as above.
     const abeam = inject({ position: at(Math.hypot(10_000, 10_000), 315), headingDeg: 90 })
     expect(factor(abeam, 'closing').value).toBeCloseTo(0.5 * 21.1, 0)
-    expect(factor(abeam, 'closing').detail).toMatch(/^CPA 10\.0 km in 16 min$/)
+    expect(factor(abeam, 'closing').detail).toMatch(
+      /^will pass 10\.0 km from PHL Airfield in 16 min$/,
+    )
+  })
+
+  it('reads a rounded 0 min as "under a minute", never a printed zero (#122, ruled A3)', () => {
+    // 6 km at 400 kt is 29 s to CPA: Math.round(29 / 60) is 0, and the number is the same one
+    // the value is made from — only the printed form folds the zero into words. At 30 s the
+    // round reaches 1 and the number prints again.
+    const fast = (groundSpeedKt: number) =>
+      factor(inject({ position: at(6000), groundSpeedKt }), 'closing').detail
+    expect(fast(400)).toBe('will pass 0.0 km from PHL Airfield in under a minute')
+    expect(fast(380)).toBe('will pass 0.0 km from PHL Airfield in 1 min')
   })
 
   it('scores a track that is opening at 0, and says so', () => {
     expect(factor(inject({ position: at(6000), headingDeg: 0 }), 'closing')).toMatchObject({
       value: 0,
-      detail: 'opening — closest approach already passed',
+      detail: 'moving away from PHL Airfield — will come no closer',
     })
   })
 
@@ -212,7 +224,7 @@ describe('closing geometry', () => {
     expect(factor(inject({ ...far, headingDeg: null }), 'closing').value).toBe(0)
     expect(factor(inject({ ...far, groundSpeedKt: 0 }), 'closing')).toMatchObject({
       value: 0,
-      detail: 'not moving',
+      detail: 'not moving — not closing on PHL Airfield',
     })
     expect(factor(adsb({ onGround: true, altitudeFt: 0 }), 'closing').detail).toBe(
       'on ground — not in the airspace',
@@ -222,7 +234,7 @@ describe('closing geometry', () => {
   it('reads 100 inside the ring whichever way the track points — the approach is complete (ruled on #5)', () => {
     // Straight in, opening, or parked with no heading: inside the ring the closest approach to
     // the volume is now, and the CPA/TCPA geometry — built for the approach — no longer applies.
-    const inside = { value: 100, detail: '1.0 km — inside the ring, closest approach is now' }
+    const inside = { value: 100, detail: "inside PHL Airfield's ring at 1.0 km" }
     expect(factor(inject(), 'closing')).toMatchObject(inside)
     expect(factor(inject({ headingDeg: 0 }), 'closing')).toMatchObject(inside)
     expect(factor(inject({ headingDeg: null, groundSpeedKt: 0.7 }), 'closing')).toMatchObject(
@@ -232,7 +244,7 @@ describe('closing geometry', () => {
     // One metre outside, opening: the geometry is back, unchanged.
     expect(
       factor(inject({ position: at(SITE.radiusM + 1), headingDeg: 0 }), 'closing'),
-    ).toMatchObject({ value: 0, detail: 'opening — closest approach already passed' })
+    ).toMatchObject({ value: 0, detail: 'moving away from PHL Airfield — will come no closer' })
   })
 
   it('names the enclosing site when there is more than one, as proximity does (#80 review)', () => {
@@ -246,7 +258,7 @@ describe('closing geometry', () => {
     const score = scoreTrack(inject(), [decoy, SITE], NIGHT)
     expect(score.factors.find((f) => f.id === 'closing')).toMatchObject({
       value: 100,
-      detail: "1.0 km — inside PHL Airfield's ring, closest approach is now",
+      detail: "inside PHL Airfield's ring at 1.0 km",
     })
     // Inside two rings, the nearer centre governs.
     const nested: ProtectedSite = {
@@ -258,7 +270,7 @@ describe('closing geometry', () => {
     }
     expect(
       scoreTrack(inject(), [SITE, nested], NIGHT).factors.find((f) => f.id === 'closing')?.detail,
-    ).toBe("0.8 km — inside Inner's ring, closest approach is now")
+    ).toBe("inside Inner's ring at 0.8 km")
   })
 
   it('keeps the inside-ring 100 for a hovering track when another site reads not moving (#87 review)', () => {
@@ -277,12 +289,12 @@ describe('closing geometry', () => {
       scoreTrack(hovering, [SITE, decoy], NIGHT).factors.find((f) => f.id === 'closing'),
     ).toMatchObject({
       value: 100,
-      detail: "1.0 km — inside PHL Airfield's ring, closest approach is now",
+      detail: "inside PHL Airfield's ring at 1.0 km",
     })
     // Alone and outside every ring, not moving still reads as it did.
     expect(factor({ ...hovering, position: at(6000) }, 'closing')).toMatchObject({
       value: 0,
-      detail: 'not moving',
+      detail: 'not moving — not closing on PHL Airfield',
     })
   })
 

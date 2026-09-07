@@ -188,7 +188,10 @@ describe('formatElapsed', () => {
 
 describe('time to entry as printed (#102, ruled A3 as amended)', () => {
   const site = { siteId: 'phl-airfield', siteName: 'PHL Airfield', tier: 1 as const }
-  const at = (tSec: number, over: Partial<EntryEstimate> = {}): EntryEstimate => ({
+  const at = (
+    tSec: number,
+    over: Partial<Extract<EntryEstimate, { kind: 'entry' }>> = {},
+  ): EntryEstimate => ({
     kind: 'entry',
     ...site,
     tSec,
@@ -212,7 +215,14 @@ describe('time to entry as printed (#102, ruled A3 as amended)', () => {
     expect(entryLine({ kind: 'inside', ...site, coastedS: null })).toBe(
       'Inside — PHL Airfield · tier 1',
     )
-    expect(entryLine({ kind: 'none', coastedS: null })).toBe('—')
+    // The none reading names the horizon the estimate was computed under, never a typed 10.
+    expect(entryLine({ kind: 'none', horizonS: 600, coastedS: null })).toBe('— none within 10 min')
+    expect(entryLine({ kind: 'none', horizonS: 300, coastedS: null })).toBe('— none within 5 min')
+    // A horizon that is not whole minutes prints in the one format, never a fraction (#124 review).
+    expect(entryLine({ kind: 'none', horizonS: 450, coastedS: null })).toBe(
+      '— none within 7 min 30 s',
+    )
+    expect(entryLine({ kind: 'none', horizonS: 90, coastedS: null })).toBe('— none within 90 s')
   })
 
   it('lowers the handoff line to the kinematics line’s case, inside the fit at the name cap', () => {
@@ -220,7 +230,7 @@ describe('time to entry as printed (#102, ruled A3 as amended)', () => {
     expect(entryHandoffLine({ kind: 'inside', ...site, coastedS: null })).toBe(
       'inside PHL Airfield · tier 1',
     )
-    expect(entryHandoffLine({ kind: 'none', coastedS: null })).toBe('entry —')
+    expect(entryHandoffLine({ kind: 'none', horizonS: 600, coastedS: null })).toBe('entry —')
     // The widest line the horizon and the editor's 20-character cap allow, indented as printed.
     const widest = `  ${entryHandoffLine(at(599, { siteName: 'x'.repeat(20), tier: 2 }))}`
     expect(widest).toHaveLength(51)
@@ -232,7 +242,9 @@ describe('time to entry as printed (#102, ruled A3 as amended)', () => {
 
   it('captions a coasting value with what it was projected from, and nothing otherwise', () => {
     expect(entryBasis(at(78, { coastedS: 30.4 }))).toBe('projected from last heard 30 s ago')
-    expect(entryBasis({ kind: 'none', coastedS: 90 })).toBe('projected from last heard 90 s ago')
+    expect(entryBasis({ kind: 'none', horizonS: 600, coastedS: 90 })).toBe(
+      'projected from last heard 90 s ago',
+    )
     expect(entryBasis(at(108))).toBeNull()
   })
 })

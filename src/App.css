@@ -706,6 +706,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* #122: the one-line caption under the header, in the detail line's voice. */
+.breakdown__caption {
+  margin: 0.25rem 0 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .breakdown__factors {
   margin: 0.5rem 0 0;
   padding: 0;

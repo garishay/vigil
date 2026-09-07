@@ -111,6 +111,21 @@ describe('ScoreBreakdown', () => {
     expect(within(items[5]).getByText('02:30 local — outside 06:00–22:00')).toBeInTheDocument()
   })
 
+  it('captions the block with what it is, once, between the header and the rows (#122)', () => {
+    render(<ScoreBreakdown score={score(SILENT)} />)
+    const section = screen.getByLabelText('Score breakdown')
+    const caption = within(section).getByText(
+      'Each factor reads the rows above, the history below, and the clock; nothing else goes into the score.',
+    )
+    expect(caption).toHaveClass('breakdown__caption')
+    expect(caption.previousElementSibling).toHaveClass('breakdown__header')
+    expect(caption.nextElementSibling).toHaveClass('breakdown__factors')
+    // The Closing row reads in operator words off the same score (#122).
+    expect(
+      within(rows()[1]).getByText(/^will pass \d+\.\d km from PHL Airfield in \d+ min$/),
+    ).toBeInTheDocument()
+  })
+
   it('carries the §6 intent text as each row’s hover', () => {
     render(<ScoreBreakdown score={score(SILENT)} />)
     expect(rows().map((row) => row.title)).toEqual(FACTORS.map((f) => f.intent))
