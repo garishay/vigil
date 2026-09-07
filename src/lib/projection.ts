@@ -17,10 +17,12 @@
  * at `tcpa − √(r² − cpa²) / v`. The entry point is then stepped out on the sphere, so the line
  * the map draws ends on the ring the map draws — within a metre at the scenario's ranges.
  *
- * **Coasting** (ruled A4): a track the replay holds past its last sample sits where it was last
- * heard, `lastSeenSec` ago, and is marked `coasting` at the seam. Its entry time counts that age
- * off, clamped at zero, and the estimate carries the age so the display can say so. An
- * interpolated position is already an estimate of now and counts nothing off.
+ * **The age of the last message** (ruled A4; #119 round 1): every position is `lastSeenSec` old
+ * — a sample arrives already aged, and a track the replay holds past its last sample ages on —
+ * so the entry time counts that age off on every track, clamped at zero, and the value cannot
+ * step by the sample's age at the tick a hold begins. The caption is another matter: only a track
+ * marked `coasting` at the seam sits where it was last heard rather than at an estimate of now,
+ * and only that track carries the age out for the display to say so.
  *
  * A display value, not a factor: nothing in the scoring path imports this module.
  */
@@ -62,9 +64,9 @@ export type EntryEstimate = (
     } & Named)
 ) & {
   /**
-   * The age the value counts off, seconds, when the track is coasting and its position is
-   * where it was last heard — what the caption under the value says; null when the position is
-   * the picture's estimate of now.
+   * The age of the last message, seconds, when the track is coasting and its position is where
+   * it was last heard — what the caption under the value says; null when the position is the
+   * picture's estimate of now. The value counts the age off either way.
    */
   coastedS: number | null
 }
@@ -109,7 +111,7 @@ export function timeToEntry(
       0,
       approach.tcpaS - Math.sqrt(site.radiusM ** 2 - approach.cpaM ** 2) / speedMs,
     )
-    const tSec = Math.max(0, pathS - (coastedS ?? 0))
+    const tSec = Math.max(0, pathS - track.lastSeenSec)
     if (tSec > config.horizonS) continue
     if (best.kind === 'entry' && best.tSec <= tSec) continue
     best = { kind: 'entry', ...named(site), tSec, point: projectPosition(track, pathS), coastedS }

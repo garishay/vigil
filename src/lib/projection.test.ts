@@ -124,7 +124,7 @@ describe('timeToEntry', () => {
     })
   })
 
-  it('counts the age off a coasting track, clamps at zero, and carries the age; an interpolated age counts nothing', () => {
+  it('counts the age of the last message off every track, clamps at zero, and captions only a coasting one (#119 round 1, ruled)', () => {
     const held = timeToEntry({ ...inbound, lastSeenSec: 30, coasting: true }, AO.protectedSites)!
     expect(held.kind).toBe('entry')
     expect(held.coastedS).toBe(30)
@@ -133,9 +133,15 @@ describe('timeToEntry', () => {
     if (long.kind === 'entry') expect(long.tSec).toBe(0)
     // The point is where the path meets the ring, whatever the age.
     if (held.kind === 'entry' && long.kind === 'entry') expect(long.point).toEqual(held.point)
-    const bridged = timeToEntry({ ...inbound, lastSeenSec: 30 }, AO.protectedSites)!
-    expect(bridged.coastedS).toBeNull()
-    if (bridged.kind === 'entry') expect(bridged.tSec).toBeCloseTo(INBOUND_S, 0)
+    // A recorded age is real staleness whether or not the replay is holding the track: a sample
+    // heard 30 s before its own instant counts the same 30 s off, so the value cannot step by the
+    // sample's age at the tick a hold begins. Only the caption keys off the mark.
+    const aged = timeToEntry({ ...inbound, lastSeenSec: 30 }, AO.protectedSites)!
+    expect(aged.coastedS).toBeNull()
+    if (aged.kind === 'entry' && held.kind === 'entry') expect(aged.tSec).toBe(held.tSec)
+    if (aged.kind === 'entry') expect(aged.tSec).toBeCloseTo(INBOUND_S - 30, 0)
+    // Injects carry no age, so the scenario's numbers do not move.
+    expect(hero(420).lastSeenSec).toBe(0)
     // The mark travels on inside and none too, so the caption can say so on every reading.
     expect(
       timeToEntry(
