@@ -193,7 +193,9 @@ describe('the golden scenario as the answer key (ruled on #5, note 1)', () => {
       const history = historyAt(noRecording, plan, track, t, CONFIG.windowS)
       expect(history).toHaveLength(29)
       expect(Object.keys(history[0])).toEqual(['tSec', 'position'])
-      expect(detectPattern(history, CONFIG).kind, track.id).toBe(EXPECTED[track.behavior])
+      expect(detectPattern(history, CONFIG).kind, track.id).toBe(
+        EXPECTED[plan.specs.find((spec) => spec.id === track.id)!.behavior],
+      )
     }
   })
 

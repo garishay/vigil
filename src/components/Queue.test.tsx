@@ -12,8 +12,6 @@ import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 const SILENT: InjectTrack = {
   id: 'inject-03',
   source: 'inject',
-  behavior: 'lawnmower',
-  remoteId: 'silent',
   uaType: null,
   identity: 'non-cooperative',
   callsign: null,
@@ -29,8 +27,6 @@ const SILENT: InjectTrack = {
 const UNHEARD: InjectTrack = {
   ...SILENT,
   id: 'inject-01',
-  behavior: 'transit',
-  remoteId: 'intermittent',
   uaType: null,
   identity: 'unknown',
 }
@@ -38,8 +34,6 @@ const UNHEARD: InjectTrack = {
 const HEARD: InjectTrack = {
   ...SILENT,
   id: 'inject-04',
-  behavior: 'approach-retreat',
-  remoteId: 'broadcasting',
   uaType: null,
   identity: 'cooperative',
   callsign: 'UAS-CD84',

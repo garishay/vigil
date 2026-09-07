@@ -24,7 +24,14 @@ import type { ScenarioConfig } from '../config/scenario.ts'
 import { bearingDegrees, destinationPoint, distanceMeters, offsetPoint, round } from './geo.ts'
 import { makeRng } from './rng.ts'
 import type { Rng } from './rng.ts'
-import type { Behavior, Identity, InjectTrack, RemoteIdStatus, UaType } from './tracks.ts'
+import type {
+  Behavior,
+  GeneratedInjectTrack,
+  Identity,
+  InjectTrack,
+  RemoteIdStatus,
+  UaType,
+} from './tracks.ts'
 
 /** Every behavior in the model (§5.2). Exported so the coverage guarantee is testable. */
 export const BEHAVIORS = [
@@ -71,12 +78,21 @@ export interface Timeline {
   frameTimesMs: readonly number[]
 }
 
-/** The timeline a recording actually has — read from its frames, never assumed from their count. */
+/**
+ * The timeline a recording actually has — read from its frames, never assumed from their count.
+ * Sorted by time, not trusted to be, as `indexCapture` sorts its samples: the ascending contract
+ * above holds by construction, so the grid the dropout chain is drawn on reads the true span and
+ * a feed's health walks the same order its picture reads (#125 re-review). A no-op on every
+ * committed recording, whose frames are in order — the golden holds.
+ */
 export function timelineOf(capture: {
   intervalMs: number
   frames: readonly { tMs: number }[]
 }): Timeline {
-  return { intervalMs: capture.intervalMs, frameTimesMs: capture.frames.map((frame) => frame.tMs) }
+  return {
+    intervalMs: capture.intervalMs,
+    frameTimesMs: capture.frames.map((frame) => frame.tMs).sort((a, b) => a - b),
+  }
 }
 
 /** A contiguous grid of `frameCount` frames — the timeline a recording with no holes has. */
@@ -140,9 +156,10 @@ export interface InjectPlan {
   specs: InjectSpec[]
 }
 
+/** One frame of the generator's own record — the tracks with the answer key they were flown from. */
 export interface InjectFrame {
   tMs: number
-  tracks: InjectTrack[]
+  tracks: GeneratedInjectTrack[]
 }
 
 export interface InjectScenario {
@@ -277,14 +294,15 @@ function isHeard(spec: InjectSpec, intervalS: number, tSec: number): boolean {
 }
 
 /**
- * One inject as a track at `tSec`.
+ * One inject as the picture sees it at `tSec`.
  *
  * `identity` is *observed*, not copied from the label: an intermittent inject reads `cooperative`
  * on the frames its broadcast is heard and `unknown` on the frames it is not. `remoteId` is the
  * ground truth about the airframe; `identity` is what the picture can actually tell. PR 04 scores
- * the second, never the first.
+ * the second, never the first — and the first is not on this track at all: the answer key is
+ * added only by `trackAt`, for the generator's own record (#115, ruling 2).
  */
-function trackAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTrack {
+function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTrack {
   const t = Math.max(0, tSec)
   // The kinematic window is clamped forward at the start of the run, so frame zero reports the
   // motion it is about to make rather than dividing by nothing.
@@ -301,8 +319,6 @@ function trackAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTrack
   return {
     id: spec.id,
     source: 'inject',
-    behavior: spec.behavior,
-    remoteId: spec.remoteId,
     identity,
     callsign: heard ? spec.label : null,
     // Heard with the ident, lost with it: the same observed/not-observed rule (#22).
@@ -318,6 +334,11 @@ function trackAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTrack
     // Injects are freshly observed every frame; staleness accrual belongs to the replay clock.
     lastSeenSec: 0,
   }
+}
+
+/** The same inject with its answer key — the generator's own record, never the picture's. */
+function trackAt(spec: InjectSpec, intervalS: number, tSec: number): GeneratedInjectTrack {
+  return { ...observedAt(spec, intervalS, tSec), behavior: spec.behavior, remoteId: spec.remoteId }
 }
 
 /**
@@ -430,16 +451,16 @@ export function planScenario(
 }
 
 /**
- * The inject picture at an arbitrary instant.
+ * The inject picture at an arbitrary instant — observed fields only, the answer key never built.
  *
  * Continuous in `tSec` by design — PR 06's replay clock interpolates the ADS-B fixture between
  * its 15-second samples, and injects need no such treatment because they can simply be asked.
  */
 export function injectTracksAt(plan: InjectPlan, tSec: number): InjectTrack[] {
-  return plan.specs.map((spec) => trackAt(spec, plan.intervalS, tSec))
+  return plan.specs.map((spec) => observedAt(spec, plan.intervalS, tSec))
 }
 
-/** The whole scenario, sampled at the timeline's frame times. */
+/** The whole scenario, sampled at the timeline's frame times, with the answer key: the golden. */
 export function generateScenario(
   timeline: Timeline,
   config: ScenarioConfig = SCENARIO,
@@ -448,7 +469,7 @@ export function generateScenario(
   const plan = planScenario(timeline, config, ao)
   const frames: InjectFrame[] = timeline.frameTimesMs.map((tMs) => ({
     tMs,
-    tracks: injectTracksAt(plan, tMs / 1000),
+    tracks: plan.specs.map((spec) => trackAt(spec, plan.intervalS, tMs / 1000)),
   }))
   return { seed: plan.seed, frameCount: frames.length, intervalMs: timeline.intervalMs, frames }
 }

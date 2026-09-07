@@ -15,8 +15,6 @@ const NIGHT: ScoringContext = { tSec: 0, minuteOfDay: 150, memory: {} }
 const SILENT: InjectTrack = {
   id: 'inject-05',
   source: 'inject',
-  behavior: 'loiter',
-  remoteId: 'silent',
   uaType: null,
   identity: 'non-cooperative',
   callsign: null,

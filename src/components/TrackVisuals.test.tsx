@@ -25,8 +25,6 @@ const DAL989: AdsbTrack = {
 const HEARD: InjectTrack = {
   id: 'inject-01',
   source: 'inject',
-  behavior: 'transit',
-  remoteId: 'broadcasting',
   uaType: 'multirotor',
   identity: 'cooperative',
   callsign: 'UAS-7CD5',

@@ -14,8 +14,6 @@ import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 const SILENT: InjectTrack = {
   id: 'inject-05',
   source: 'inject',
-  behavior: 'loiter',
-  remoteId: 'silent',
   uaType: null,
   identity: 'non-cooperative',
   callsign: null,
@@ -289,7 +287,6 @@ describe('ReviewDrawer', () => {
     const heard: InjectTrack = {
       ...SILENT,
       id: 'inject-01',
-      remoteId: 'intermittent',
       identity: 'cooperative',
       callsign: 'UAS-7CD5',
       uaType: 'multirotor',

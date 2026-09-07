@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AdsbTrack, Identity, InjectTrack, RemoteIdStatus, Track } from './tracks'
+import type { AdsbTrack, GeneratedInjectTrack, Identity, RemoteIdStatus, Track } from './tracks'
 
 const BASE = {
   callsign: 'LET5686',
@@ -65,20 +65,18 @@ describe('the shared track model', () => {
         ...BASE,
         id: 'inject-01',
         source: 'inject',
-        behavior: 'orbit',
-        remoteId: 'silent',
         uaType: null,
         identity: 'non-cooperative',
       },
     ]
-    const hexes = tracks.map((track) => (track.source === 'adsb' ? track.icaoHex : track.behavior))
-    expect(hexes).toEqual(['0d0afe', 'orbit'])
+    const hexes = tracks.map((track) => (track.source === 'adsb' ? track.icaoHex : track.identity))
+    expect(hexes).toEqual(['0d0afe', 'non-cooperative'])
   })
 
   it('lets injects hold any identity, which is what makes them the only possible threat', () => {
     const identities: Identity[] = ['cooperative', 'unknown', 'non-cooperative']
     const statuses: RemoteIdStatus[] = ['broadcasting', 'intermittent', 'silent']
-    const injects: InjectTrack[] = statuses.map((remoteId, i) => ({
+    const injects: GeneratedInjectTrack[] = statuses.map((remoteId, i) => ({
       ...BASE,
       id: `inject-0${i}`,
       source: 'inject',

@@ -25,7 +25,7 @@ import type { AdsbCapture } from './adsb'
 import { scoreTotal } from './display'
 import { destinationPoint } from './geo'
 import type { InjectScenario } from './injects'
-import type { AdsbTrack, InjectTrack, Track } from './tracks'
+import type { AdsbTrack, GeneratedInjectTrack, Track } from './tracks'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
 
@@ -44,7 +44,7 @@ const NIGHT: ScoringContext = { tSec: 0, minuteOfDay: 150, memory: {} }
 /** The same picture at 10:00 — within operating hours. */
 const DAY: ScoringContext = { ...NIGHT, minuteOfDay: 600 }
 
-function inject(over: Partial<InjectTrack> = {}): InjectTrack {
+function inject(over: Partial<GeneratedInjectTrack> = {}): GeneratedInjectTrack {
   return {
     id: 'inject-01',
     source: 'inject',
@@ -149,7 +149,7 @@ describe('cooperativity', () => {
       scoreTrack(observedAlike, SITES, NIGHT),
     )
     // Nor does the scripted behavior enter.
-    const labelledLoiter: InjectTrack = { ...observedAlike, behavior: 'loiter' }
+    const labelledLoiter: GeneratedInjectTrack = { ...observedAlike, behavior: 'loiter' }
     expect(scoreTrack(labelledLoiter, SITES, NIGHT)).toEqual(
       scoreTrack(observedAlike, SITES, NIGHT),
     )
@@ -1062,7 +1062,7 @@ describe('the friendly launch cap (08b, ruled on #86)', () => {
 
   it('scores two tracks differing only in the label identically under a friendly area (ruled on #4)', () => {
     const a = heard()
-    const b: InjectTrack = { ...heard(), remoteId: 'intermittent', behavior: 'loiter' }
+    const b: GeneratedInjectTrack = { ...heard(), remoteId: 'intermittent', behavior: 'loiter' }
     expect(scoreTrack(a, SITES, ctx())).toEqual(scoreTrack(b, SITES, ctx()))
   })
 

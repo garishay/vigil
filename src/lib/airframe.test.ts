@@ -6,7 +6,7 @@ import {
   KINEMATIC_CLASS,
   TYPE_CODE_AIRFRAME,
 } from '../config/airframes'
-import type { AdsbTrack, InjectTrack } from './tracks'
+import type { AdsbTrack, GeneratedInjectTrack } from './tracks'
 
 const adsb = (extra: Partial<AdsbTrack> = {}): AdsbTrack => ({
   id: 'adsb-a0540a',
@@ -27,7 +27,7 @@ const adsb = (extra: Partial<AdsbTrack> = {}): AdsbTrack => ({
 })
 
 // Ground truth on purpose (loiter, silent): the classifier must read none of it.
-const inject = (extra: Partial<InjectTrack> = {}): InjectTrack => ({
+const inject = (extra: Partial<GeneratedInjectTrack> = {}): GeneratedInjectTrack => ({
   id: 'inject-05',
   source: 'inject',
   behavior: 'loiter',
