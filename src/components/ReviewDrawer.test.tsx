@@ -247,9 +247,10 @@ describe('ReviewDrawer', () => {
     )
     second.unmount()
     const third = renderDrawer(entry(SILENT, 1, 9000), {
-      entryEstimate: { kind: 'none', coastedS: null },
+      entryEstimate: { kind: 'none', horizonS: 600, coastedS: null },
     })
-    expect(screen.getByText('Entry').nextElementSibling).toHaveTextContent(/^—$/)
+    // The none reading names its horizon in the drawer (#122); the handoff keeps the dash.
+    expect(screen.getByText('Entry').nextElementSibling).toHaveTextContent(/^— none within 10 min$/)
     third.unmount()
     // On the ground the caller hands null and the row is not there — not a dash.
     renderDrawer(entry(PARKED, 40, 3000))

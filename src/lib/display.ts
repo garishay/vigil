@@ -93,26 +93,30 @@ export const formatEntryTime = (tSec: number) => {
 }
 
 /**
- * The value under the drawer's Entry term and in the handoff's entry line — one format wherever
- * the number appears (#102, routing 3): `108 s to PHL Airfield · tier 1`,
- * `Inside — PHL Airfield · tier 1`, or `—` for no entry inside the horizon.
+ * The value under the drawer's Entry term — one format wherever the number appears (#102,
+ * routing 3): `108 s to PHL Airfield · tier 1`, `Inside — PHL Airfield · tier 1`, and for no
+ * entry inside the horizon `— none within 10 min`, the horizon the estimate was computed under
+ * (#122, ruled).
  */
 export const entryLine = (estimate: EntryEstimate) =>
   estimate.kind === 'none'
-    ? '—'
+    ? `— none within ${estimate.horizonS / 60} min`
     : estimate.kind === 'inside'
       ? `Inside — ${estimate.siteName} · tier ${estimate.tier}`
       : `${formatEntryTime(estimate.tSec)} to ${estimate.siteName} · tier ${estimate.tier}`
 
 /**
  * The handoff's line under the kinematics, in the kinematics line's own lower case: `entry 108 s
- * to PHL Airfield · tier 1`, `inside PHL Airfield · tier 1`, `entry —`. Inside the 53-character
- * fit at the 20-character name cap and the longest time the horizon allows (#36 [5]).
+ * to PHL Airfield · tier 1`, `inside PHL Airfield · tier 1`, `entry —` — the dash, not the
+ * drawer's horizon reading (#122). Inside the 53-character fit at the 20-character name cap and
+ * the longest time the horizon allows (#36 [5]).
  */
 export const entryHandoffLine = (estimate: EntryEstimate) =>
   estimate.kind === 'inside'
     ? `inside ${estimate.siteName} · tier ${estimate.tier}`
-    : `entry ${entryLine(estimate)}`
+    : estimate.kind === 'none'
+      ? 'entry —'
+      : `entry ${entryLine(estimate)}`
 
 /**
  * The caption under a coasting track's value (#102, ruled A4): what the value was projected

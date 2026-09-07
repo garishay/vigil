@@ -23,6 +23,12 @@ export function ScoreBreakdown({ score }: { score: Score }) {
           {scoreTotal(score)}
         </span>
       </header>
+      {/* What the block is (#122, ruled): the factors read what the drawer already shows — the
+          rows above, the History line below, the strip's clock — and nothing else. */}
+      <p className="breakdown__caption">
+        Each factor reads the rows above, the history below, and the clock; nothing else goes into
+        the score.
+      </p>
       <ol className="breakdown__factors">
         {score.factors.map((factor) => (
           <li

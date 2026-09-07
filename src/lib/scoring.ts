@@ -349,12 +349,13 @@ function closing(
     const rangeM = distanceMeters(site.center, track.position)
     const scale = tiers[site.tier]
     const note = tierNote(site, tiers)
-    // Inside a ring the approach is complete, whichever way the track points (ruled on #5).
+    // Inside a ring the approach is complete, whichever way the track points (ruled on #5). The
+    // detail lines read in operator words and name the site in every case (#122, ruled): the
+    // slots are the same calls the factor already makes, and the values are untouched.
     if (rangeM <= site.radiusM) {
-      const ring = sites.length > 1 ? `${site.name}'s ring` : 'the ring'
       candidates.push({
         value: 100 * scale,
-        detail: `${km(rangeM)} — inside ${ring}, closest approach is now${note}`,
+        detail: `inside ${site.name}'s ring at ${km(rangeM)}${note}`,
         rangeM,
       })
       continue
@@ -372,20 +373,23 @@ function closing(
     // A candidate, never a return: a hovering track inside another site's ring keeps its 100
     // (#87 review).
     if (approach === null) {
-      candidates.push({ value: 0, detail: 'not moving', rangeM })
+      candidates.push({ value: 0, detail: `not moving — not closing on ${site.name}`, rangeM })
       continue
     }
     const { cpaM, tcpaS } = approach
+    // The rounded minutes print as a number, except a 0, which reads as a defect (#122, ruled).
+    const minutes = Math.round(tcpaS / 60)
+    const when = minutes === 0 ? 'under a minute' : `${minutes} min`
     candidates.push(
       tcpaS <= 0
-        ? { value: 0, detail: 'opening — closest approach already passed', rangeM }
+        ? { value: 0, detail: `moving away from ${site.name} — will come no closer`, rangeM }
         : {
             value:
               ((rolloff(cpaM, site.radiusM, site.radiusM * config.cpaRolloffRadii) *
                 rolloff(tcpaS / 60, config.tcpaFullMin, config.tcpaZeroMin)) /
                 100) *
               scale,
-            detail: `CPA ${km(cpaM)} in ${Math.round(tcpaS / 60)} min${note}`,
+            detail: `will pass ${km(cpaM)} from ${site.name} in ${when}${note}`,
             rangeM,
           },
     )

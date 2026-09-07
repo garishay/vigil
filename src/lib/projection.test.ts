@@ -77,12 +77,17 @@ describe('timeToEntry', () => {
   })
 
   it('reads none past the horizon, opening, on a path that misses the ring, or with speed or heading unobserved', () => {
-    const none = { kind: 'none', coastedS: null }
+    const none = { kind: 'none', horizonS: 600, coastedS: null }
     // 4 km at 10 kt is 778 s: past the 600 s horizon, inside a 900 s one — the horizon is config.
     const slow = { ...inbound, groundSpeedKt: 10 }
     expect(timeToEntry(slow, AO.protectedSites)).toEqual(none)
     expect(PROJECTION.horizonS).toBe(600)
     expect(timeToEntry(slow, AO.protectedSites, { horizonS: 900 })?.kind).toBe('entry')
+    // A none carries the horizon it was computed under — the config's, whichever it was (#122).
+    expect(timeToEntry(slow, AO.protectedSites, { horizonS: 300 })).toEqual({
+      ...none,
+      horizonS: 300,
+    })
     expect(timeToEntry({ ...inbound, headingDeg: 0 }, AO.protectedSites)).toEqual(none)
     expect(timeToEntry({ ...inbound, headingDeg: 90 }, AO.protectedSites)).toEqual(none)
     expect(timeToEntry({ ...inbound, groundSpeedKt: null }, AO.protectedSites)).toEqual(none)
@@ -172,6 +177,7 @@ describe('timeToEntry', () => {
       ),
     ).toEqual({
       kind: 'none',
+      horizonS: 600,
       coastedS: 12,
     })
   })
