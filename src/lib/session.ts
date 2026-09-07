@@ -107,7 +107,9 @@ export function resolveSession(
   const alias = params.get('recording')
   const feedParams = params.getAll('feed')
   if (feedParams.length > 1) refuse('?feed= is given twice — give it once, comma-separated')
-  const feedParam = feedParams[0] ?? null
+  // Annotated: without `noUncheckedIndexedAccess` the index reads as `string`, and the guards
+  // below are on the nullability (#125 re-review).
+  const feedParam: string | null = feedParams[0] ?? null
   if (feedParam !== null) feedsText = feedParam
   else if (alias !== null) feedsText = `recording:${alias}`
   const feeds = parseFeeds(feedsText)

@@ -114,10 +114,9 @@ export function recordingFeed(
   config: ReplayConfig = REPLAY,
 ): RecordingFeed {
   const index = indexCapture(capture)
+  // Ascending by contract — `timelineOf` sorts, as `indexCapture` does — so health and picture
+  // describe the same frame whatever order the file holds them in (#125 round 1, re-review).
   const timeline = timelineOf(capture)
-  // Sorted by time, not trusted to be — the order the index reads, so health and picture describe
-  // the same frame (#125 round 1). The timeline itself keeps the file's order for the generator.
-  const frameTimesS = timeline.frameTimesMs.map((tMs) => tMs / 1000).sort((a, b) => a - b)
   return {
     ref: { kind: 'recording', id: entry.id },
     clock: 'recording',
@@ -129,9 +128,9 @@ export function recordingFeed(
     pictureAt: (tSec) => pictureAt(index, tSec, config),
     healthAt: (tSec) => {
       let lastS: number | null = null
-      for (const frameS of frameTimesS) {
-        if (frameS > tSec) break
-        lastS = frameS
+      for (const tMs of timeline.frameTimesMs) {
+        if (tMs / 1000 > tSec) break
+        lastS = tMs / 1000
       }
       return lastS === null
         ? { ageS: null, reason: 'before the first frame' }

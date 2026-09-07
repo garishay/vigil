@@ -78,12 +78,21 @@ export interface Timeline {
   frameTimesMs: readonly number[]
 }
 
-/** The timeline a recording actually has — read from its frames, never assumed from their count. */
+/**
+ * The timeline a recording actually has — read from its frames, never assumed from their count.
+ * Sorted by time, not trusted to be, as `indexCapture` sorts its samples: the ascending contract
+ * above holds by construction, so the grid the dropout chain is drawn on reads the true span and
+ * a feed's health walks the same order its picture reads (#125 re-review). A no-op on every
+ * committed recording, whose frames are in order — the golden holds.
+ */
 export function timelineOf(capture: {
   intervalMs: number
   frames: readonly { tMs: number }[]
 }): Timeline {
-  return { intervalMs: capture.intervalMs, frameTimesMs: capture.frames.map((frame) => frame.tMs) }
+  return {
+    intervalMs: capture.intervalMs,
+    frameTimesMs: capture.frames.map((frame) => frame.tMs).sort((a, b) => a - b),
+  }
 }
 
 /** A contiguous grid of `frameCount` frames — the timeline a recording with no holes has. */

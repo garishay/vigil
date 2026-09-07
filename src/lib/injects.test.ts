@@ -52,6 +52,19 @@ describe('determinism', () => {
     }
   })
 
+  it('reads a recording’s timeline ascending whatever order its file holds the frames in (#125 re-review)', () => {
+    // `Timeline.frameTimesMs` is documented ascending, and the grid the dropout chain is drawn on
+    // reads the last element as the span: a file with its frames out of order must deal the same
+    // plan as the same file in order — a scenario is a function of seed and config alone (§5.2).
+    const ordered = gridTimeline(3, 15000)
+    const shuffled = timelineOf({
+      intervalMs: 15000,
+      frames: [{ tMs: 0 }, { tMs: 30000 }, { tMs: 15000 }],
+    })
+    expect(shuffled).toEqual(ordered)
+    expect(planScenario(shuffled)).toEqual(planScenario(ordered))
+  })
+
   it('produces identical output from two separate calls', () => {
     // Would catch module-level RNG state leaking between invocations, which the golden alone
     // could not: a generator that mutates shared state still matches the golden on its first run.
