@@ -15,6 +15,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
+    "bench": "node scripts/bench.ts",
+    "bench:baseline": "node scripts/bench.ts --write",
     "capture:adsb": "node scripts/capture-adsb.ts",
     "fixture:injects": "node scripts/generate-inject-golden.ts",
     "fixture:tone": "node scripts/generate-tone.ts",

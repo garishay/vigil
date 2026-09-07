@@ -36,6 +36,8 @@ flowchart LR
     cap["scripts/capture-adsb.ts"] --> fx[("public/adsb-phl.json · adsb-phl-002.json<br/>the committed recordings")]
     fx --> goldgen["scripts/generate-inject-golden.ts<br/>npm run fixture:injects<br/>samples the plan at the recording's frame times"]
     tonegen["scripts/generate-tone.ts<br/>npm run fixture:tone<br/>the alert tone, synthesized — original and deterministic"] --> tone[("public/alert-tone.wav")]
+    bench["scripts/bench.ts<br/>npm run bench · bench:baseline<br/>every recording × N seeds at one-second ticks, the engine through the app's own seams<br/>the generator's labels as the oracle · a config override for a sweep, printed, never written"] --> baseline[("docs/bench/baseline.md<br/>the scoreboard: crossings, ranks, flaps per behavior; real aircraft by uncapped band<br/>a test holds the default run to it byte for byte")]
+    fx --> bench
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
     direction LR
@@ -89,6 +91,10 @@ flowchart LR
   fx -. fetched at startup .-> load
   gen --> goldgen
   goldgen -. pins .-> gold
+  gen --> bench
+  replay -- picture · memory · histories · origins at t --> bench
+  score -- scoreTrack · bandOf --> bench
+  rank -- queueOrder --> bench
   ao -- bbox --> cap
   norm -. normalize + rate-limit etiquette, at capture time .-> cap
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]

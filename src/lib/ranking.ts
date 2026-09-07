@@ -36,7 +36,7 @@ const FRAME_ZERO: ScoringContext = {
 }
 
 /**
- * Tracks in queue order. The sort key, in order:
+ * The queue's order over scored entries. The sort key, in order:
  *
  * 1. **composite score**, descending — the engine's answer, breakdown retained on the entry.
  * 2. **uncapped composite**, descending — orders the ADS-B block the ceiling flattened.
@@ -44,7 +44,22 @@ const FRAME_ZERO: ScoringContext = {
  * 4. **airborne before on-ground** — the Queue orders rather than hides.
  * 5. **range to the nearest protected site**, ascending.
  * 6. **track id** — the stable tie-break, so a recapture reorders only by data.
+ *
+ * Exported so the bench (#104) ranks a picture it scored in two halves by this comparator and
+ * no other: the app's order and the bench's cannot drift apart.
  */
+export const queueOrder = (
+  a: Pick<RankedTrack, 'track' | 'score' | 'rangeM'>,
+  b: Pick<RankedTrack, 'track' | 'score' | 'rangeM'>,
+): number =>
+  b.score.composite - a.score.composite ||
+  b.score.uncapped - a.score.uncapped ||
+  IDENTITIES.indexOf(a.track.identity) - IDENTITIES.indexOf(b.track.identity) ||
+  Number(a.track.onGround) - Number(b.track.onGround) ||
+  a.rangeM - b.rangeM ||
+  (a.track.id < b.track.id ? -1 : a.track.id > b.track.id ? 1 : 0)
+
+/** Tracks in queue order — every track scored, then sorted by `queueOrder`. */
 export function rankTracks(
   tracks: readonly Track[],
   sites: readonly ProtectedSite[],
@@ -58,14 +73,6 @@ export function rankTracks(
       const score = scoreTrack(track, sites, context)
       return { track, score, rangeM: score.rangeM, siteId: score.siteId }
     })
-    .sort(
-      (a, b) =>
-        b.score.composite - a.score.composite ||
-        b.score.uncapped - a.score.uncapped ||
-        IDENTITIES.indexOf(a.track.identity) - IDENTITIES.indexOf(b.track.identity) ||
-        Number(a.track.onGround) - Number(b.track.onGround) ||
-        a.rangeM - b.rangeM ||
-        (a.track.id < b.track.id ? -1 : a.track.id > b.track.id ? 1 : 0),
-    )
+    .sort(queueOrder)
     .map((entry, index) => ({ ...entry, rank: index + 1 }))
 }
