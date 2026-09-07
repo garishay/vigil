@@ -93,7 +93,8 @@ flowchart LR
   goldgen -. pins .-> gold
   gen --> bench
   replay -- picture · memory · histories · origins at t --> bench
-  rank -- scoreTrack · queueOrder --> bench
+  score -- scoreTrack · bandOf --> bench
+  rank -- queueOrder --> bench
   ao -- bbox --> cap
   norm -. normalize + rate-limit etiquette, at capture time .-> cap
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]

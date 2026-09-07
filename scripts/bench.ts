@@ -140,12 +140,15 @@ export function foldInject(
   const next = { ...run, last: band }
   if (BAND_RANK[band] < BAND_RANK[run.last]) return next
   const crossing = { afterS: tSec - run.firstSeenS, rank }
-  if (band === 'warning') {
-    if (next.caution === null) next.caution = crossing
-    if (next.warning === null) next.warning = crossing
+  // Every band between the one last seen and this one is entered, so a calm → warning jump
+  // enters two: each is stamped if new, and a flap if not. One flap per band re-entered, so the
+  // count reads the same whether the composite crossed both thresholds in one tick or two
+  // (#117 review).
+  for (const entered of ['caution', 'warning'] as const) {
+    if (BAND_RANK[entered] <= BAND_RANK[run.last] || BAND_RANK[entered] > BAND_RANK[band]) continue
+    if (next[entered] === null) next[entered] = crossing
     else next.flaps++
-  } else if (next.caution === null) next.caution = crossing
-  else next.flaps++
+  }
   return next
 }
 
@@ -167,9 +170,10 @@ export function foldReal(
 }
 
 /**
- * A partial config over the committed one, key by key: an object merges, anything else replaces.
- * A key the config does not have is refused by name — a sweep file with a typo must not pass as
- * the default.
+ * A partial config over the committed one, key by key: an object merges, a leaf replaces. A key
+ * the config does not have is refused by name, and so is a scalar where the config holds an
+ * object — a sweep file with a typo must not pass as the default, nor render a table of NaN as
+ * all calm (#117 review).
  */
 export function mergeConfig<T extends object>(base: T, override: unknown, path = 'config'): T {
   if (typeof override !== 'object' || override === null || Array.isArray(override)) {
@@ -180,7 +184,7 @@ export function mergeConfig<T extends object>(base: T, override: unknown, path =
     if (!(key in out)) throw new Error(`unknown config key: ${path}.${key}`)
     const current = out[key]
     out[key] =
-      typeof current === 'object' && current !== null && typeof value === 'object'
+      typeof current === 'object' && current !== null
         ? mergeConfig(current, value, `${path}.${key}`)
         : value
   }
@@ -351,8 +355,15 @@ export function parseArgs(argv: readonly string[]): Args {
       }
     } else throw new Error(`unknown argument: ${arg}`)
   }
+  // The baseline is the default run's — the committed config at the default seed count — so
+  // `--write` takes neither knob (#117 review).
   if (args.write && args.configPath !== null) {
     throw new Error("--write takes no --config: the baseline is the committed config's")
+  }
+  if (args.write && args.seeds !== DEFAULT_SEEDS) {
+    throw new Error(
+      `--write takes no --seeds: the baseline is the default ${DEFAULT_SEEDS}-seed run`,
+    )
   }
   return args
 }

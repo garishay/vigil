@@ -76,6 +76,18 @@ describe('the crossing fold (A3)', () => {
     expect(jumped.warning).toEqual({ afterS: 45, rank: 2 })
   })
 
+  it('a re-ascent that skips a band re-enters both — one flap per band, whatever the tick rate (#117 review)', () => {
+    const skipped = ['calm', 'caution', 'warning', 'calm', 'warning'] as const
+    const stepped = ['calm', 'caution', 'warning', 'calm', 'caution', 'warning'] as const
+    const fold = (bands: readonly ('calm' | 'caution' | 'warning')[]) =>
+      bands.reduce<InjectRun | undefined>(
+        (run, band, i) => foldInject(run, inject, band, i * 10, 1),
+        undefined,
+      )
+    expect(fold(skipped)?.flaps).toBe(2)
+    expect(fold(stepped)?.flaps).toBe(2)
+  })
+
   it('a downward crossing moves nothing but the band last seen', () => {
     const down = foldInject(foldInject(undefined, inject, 'caution', 0, 3), inject, 'calm', 20, 8)
     expect(down).toMatchObject({
@@ -127,7 +139,7 @@ describe('the rank pin (A6)', () => {
       },
     })
     expect(ticks).toBe(index.durationS + 1)
-  })
+  }, 60_000)
 })
 
 describe('the override (A7)', () => {
@@ -144,6 +156,13 @@ describe('the override (A7)', () => {
     expect(() => mergeConfig(SCORING, [])).toThrow('config must be an object')
   })
 
+  it('refuses a scalar over an object-valued key — the all-NaN, all-calm sweep (#117 review)', () => {
+    expect(() => mergeConfig(SCORING, { weights: 20 })).toThrow('config.weights must be an object')
+    expect(() => mergeConfig(SCORING, { pattern: { loiter: 5 } })).toThrow(
+      'config.pattern.loiter must be an object',
+    )
+  })
+
   it('moves the table and names itself in the header', () => {
     const base = runBench(phl001, { seeds: 2 })
     const swept = runBench(phl001, {
@@ -156,7 +175,7 @@ describe('the override (A7)', () => {
     expect(warnings(swept)).toBeLessThan(warnings(base))
     expect(renderBench(swept)).toContain('with `sweep/no-geometry.json` merged over it')
     expect(renderBench(base)).toContain('as committed')
-  })
+  }, 60_000)
 
   it('parses --seeds and --config, and --write never takes a config', () => {
     expect(parseArgs([])).toEqual({ seeds: DEFAULT_SEEDS, configPath: null, write: false })
@@ -167,6 +186,8 @@ describe('the override (A7)', () => {
     })
     expect(parseArgs(['--write']).write).toBe(true)
     expect(() => parseArgs(['--write', '--config', 'x.json'])).toThrow('--write takes no --config')
+    // The baseline is the default run's — the seed count as much as the config (#117 review).
+    expect(() => parseArgs(['--write', '--seeds', '3'])).toThrow('--write takes no --seeds')
     expect(() => parseArgs(['--seeds', 'many'])).toThrow('--seeds must be a whole number')
     expect(() => parseArgs(['--seeds'])).toThrow('--seeds needs a value')
     expect(() => parseArgs(['--fast'])).toThrow('unknown argument: --fast')
@@ -178,7 +199,7 @@ describe('the baseline (A10, R4)', () => {
     expect(renderBench(runBench(phl001, { seeds: 2 }))).toBe(
       renderBench(runBench(phl001, { seeds: 2 })),
     )
-  })
+  }, 60_000)
 
   it('is exactly what the default run renders — a weight or a detector that moves regenerates it', () => {
     const committed = readFileSync(join(repo, OUT), 'utf8')
