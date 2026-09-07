@@ -162,11 +162,11 @@ export const FACTORS: readonly { id: FactorId; label: string; intent: string }[]
   {
     // Named for what it measures, as Identity is (ruled on #5, note 1a; the word ruled on #126):
     // the detail line carries the evidence — a dwell, a turn, a return — and the detected word
-    // stays off the row.
+    // stays off the row. The hover names the window the detectors read, off the config it is
+    // read from (#127 round 1): doctrine is configuration, so no intent carries a number by hand.
     id: 'pattern',
     label: 'Movement',
-    intent:
-      "The track's own movement over the last seven minutes — loiter dwell, orbit (persistent turn rate), area revisit",
+    intent: `The track's own movement over the last ${SCORING.pattern.windowS / 60} minutes — loiter dwell, orbit (persistent turn rate), area revisit`,
   },
   {
     id: 'kinematic',
