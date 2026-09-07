@@ -111,6 +111,20 @@ describe('the recording feed', () => {
   })
 })
 
+describe('the recording feed on frames out of order (#125 round 1)', () => {
+  it('reads its health off the same order its picture reads — sorted by time, not trusted to be', () => {
+    const shuffled: AdsbCapture = {
+      ...CAPTURE,
+      frames: [CAPTURE.frames[0], { tMs: 30000, records: [] }, CAPTURE.frames[1]],
+    }
+    const feed = recordingFeed(DEFAULT_RECORDING, shuffled)
+    // At 20 s the last frame at or before the clock is the one at 15 s, wherever it sits in the file.
+    expect(feed.healthAt(20)).toEqual({ ageS: 5, reason: null })
+    expect(feed.healthAt(31)).toEqual({ ageS: 1, reason: null })
+    expect(feed.pictureAt(20)).toEqual(pictureAt(indexCapture(shuffled), 20))
+  })
+})
+
 describe('the scenario as a feed', () => {
   const timeline = timelineOf(CAPTURE)
   const scenario = scenarioFeed(timeline)

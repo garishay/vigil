@@ -115,6 +115,9 @@ export function recordingFeed(
 ): RecordingFeed {
   const index = indexCapture(capture)
   const timeline = timelineOf(capture)
+  // Sorted by time, not trusted to be — the order the index reads, so health and picture describe
+  // the same frame (#125 round 1). The timeline itself keeps the file's order for the generator.
+  const frameTimesS = timeline.frameTimesMs.map((tMs) => tMs / 1000).sort((a, b) => a - b)
   return {
     ref: { kind: 'recording', id: entry.id },
     clock: 'recording',
@@ -126,9 +129,9 @@ export function recordingFeed(
     pictureAt: (tSec) => pictureAt(index, tSec, config),
     healthAt: (tSec) => {
       let lastS: number | null = null
-      for (const tMs of timeline.frameTimesMs) {
-        if (tMs / 1000 > tSec) break
-        lastS = tMs / 1000
+      for (const frameS of frameTimesS) {
+        if (frameS > tSec) break
+        lastS = frameS
       }
       return lastS === null
         ? { ageS: null, reason: 'before the first frame' }

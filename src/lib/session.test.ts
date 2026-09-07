@@ -104,6 +104,38 @@ describe('resolveSession (#115, ruling 6)', () => {
     )
   })
 
+  it('lets every other alias combination fall through to its own refusal (#125 round 1)', () => {
+    // The cross-check fires only on a genuine disagreement — both name a recording and they
+    // differ; a ?feed= naming no recording, or two, is refused for what it is.
+    expect(refusal('?feed=adsb&recording=vigil-phl-001')).toBe(
+      'Feed "adsb" — no adsb feed in this build (#72)',
+    )
+    expect(
+      refusal('?feed=recording:vigil-phl-001,recording:vigil-phl-002&recording=vigil-phl-001'),
+    ).toBe('One recording per session')
+    expect(
+      refusal('?feed=recording:vigil-phl-001,recording:vigil-phl-002&recording=vigil-phl-003'),
+    ).toBe('One recording per session')
+  })
+
+  it('reads a declared-but-empty env variable as unset — the build set nothing (#125 round 1)', () => {
+    // The env is the one layer the operator cannot correct from the URL: an empty string falls
+    // back to the demo rather than refusing every visitor.
+    expect(resolveSession('', { VITE_DEFAULT_FEEDS: '', VITE_DEFAULT_SCENARIO: '' })).toEqual({
+      feeds: [rec('vigil-phl-001')],
+      scenario: ON,
+    })
+  })
+
+  it('refuses a repeated ?feed= rather than picking one (#125 round 1, ruled)', () => {
+    expect(refusal('?feed=recording:vigil-phl-001&feed=recording:vigil-phl-002')).toBe(
+      '?feed= is given twice — give it once, comma-separated',
+    )
+    expect(refusal('?feed=recording:vigil-phl-001&feed=recording:vigil-phl-001')).toBe(
+      '?feed= is given twice — give it once, comma-separated',
+    )
+  })
+
   it('tolerates blanks in the comma list and takes the registry as a parameter', () => {
     expect(resolveSession('?feed= recording:vigil-phl-002 ,')).toEqual({
       feeds: [rec('vigil-phl-002')],

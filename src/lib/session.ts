@@ -86,7 +86,14 @@ const LIVE_ISSUE: Readonly<Record<Exclude<FeedKind, 'recording'>, string>> = {
  *
  * `?recording=<id>` is the alias for `?feed=recording:<id>` — the Tuesday link never changes.
  * Given beside a `?feed=` that names the same recording it folds away; naming a different one is
- * refused rather than resolved by precedence (A6, amended).
+ * refused rather than resolved by precedence (A6, amended). The cross-check fires only on that
+ * genuine disagreement — both name a recording and they differ; a `?feed=` naming no recording,
+ * or two, falls through to its own refusal (#125 round 1). A repeated `?feed=` is refused the
+ * same way, never picked from (ruled on #125): the list is the comma.
+ *
+ * A declared-but-empty env variable reads as unset: the env is the one layer the operator cannot
+ * correct from the URL, so an empty string is the build setting nothing, not a refusal of every
+ * visitor (#125 round 1).
  */
 export function resolveSession(
   search: string,
@@ -96,15 +103,17 @@ export function resolveSession(
 ): SessionConfig {
   const params = new URLSearchParams(search)
 
-  let feedsText = env.VITE_DEFAULT_FEEDS ?? BUILD_DEFAULTS.feeds
+  let feedsText = env.VITE_DEFAULT_FEEDS || BUILD_DEFAULTS.feeds
   const alias = params.get('recording')
-  const feedParam = params.get('feed')
+  const feedParams = params.getAll('feed')
+  if (feedParams.length > 1) refuse('?feed= is given twice — give it once, comma-separated')
+  const feedParam = feedParams[0] ?? null
   if (feedParam !== null) feedsText = feedParam
   else if (alias !== null) feedsText = `recording:${alias}`
   const feeds = parseFeeds(feedsText)
   if (feedParam !== null && alias !== null) {
     const named = feeds.filter((ref) => ref.kind === 'recording').map((ref) => ref.id)
-    if (named.length !== 1 || named[0] !== alias) {
+    if (named.length === 1 && named[0] !== alias) {
       refuse('?recording= and ?feed= name different recordings — say one')
     }
   }
@@ -129,7 +138,7 @@ export function resolveSession(
   const on =
     scenarioParam !== null
       ? parseScenario('?scenario=', scenarioParam)
-      : parseScenario('VITE_DEFAULT_SCENARIO', env.VITE_DEFAULT_SCENARIO ?? BUILD_DEFAULTS.scenario)
+      : parseScenario('VITE_DEFAULT_SCENARIO', env.VITE_DEFAULT_SCENARIO || BUILD_DEFAULTS.scenario)
 
   return { feeds, scenario: on ? { on: true, seed } : { on: false } }
 }
