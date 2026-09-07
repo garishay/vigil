@@ -65,4 +65,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run test
+      # The bench's tests run in the `bench` job below, not here (#120). That file is the one in
+      # the suite whose cost scales with the recording count and the seed count — ~65 s of this
+      # job's vitest run on the runner at #117's merge — so the four existing gates keep their old
+      # wall time and the bench's minute is its own job's. `--exclude` adds to the config's
+      # exclude list; the include list in vite.config.ts is unchanged, so a local `npm run test`
+      # still runs everything.
+      - run: npm run test -- --exclude scripts/bench.test.ts
+
+  bench:
+    name: bench
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The bench's tests alone — the seeds, the folds, the rank pin, the override, and the
+      # baseline byte for byte — in the [19] shape: the check is a vitest test, not a `git diff`
+      # of the baseline. A new job is a new check, not in branch protection's required list until
+      # the owner adds it; until then it rides unrequired.
+      - run: npm run test -- scripts/bench.test.ts
