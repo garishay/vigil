@@ -218,6 +218,11 @@ describe('time to entry as printed (#102, ruled A3 as amended)', () => {
     // The none reading names the horizon the estimate was computed under, never a typed 10.
     expect(entryLine({ kind: 'none', horizonS: 600, coastedS: null })).toBe('— none within 10 min')
     expect(entryLine({ kind: 'none', horizonS: 300, coastedS: null })).toBe('— none within 5 min')
+    // A horizon that is not whole minutes prints in the one format, never a fraction (#124 review).
+    expect(entryLine({ kind: 'none', horizonS: 450, coastedS: null })).toBe(
+      '— none within 7 min 30 s',
+    )
+    expect(entryLine({ kind: 'none', horizonS: 90, coastedS: null })).toBe('— none within 90 s')
   })
 
   it('lowers the handoff line to the kinematics line’s case, inside the fit at the name cap', () => {
