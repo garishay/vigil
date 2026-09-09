@@ -34,9 +34,7 @@
 
 import type { ProtectedSite, SiteTier } from '../config/ao.ts'
 import { PROJECTION, type ProjectionConfig } from '../config/projection.ts'
-import { closestApproach, destinationPoint, distanceMeters } from './geo.ts'
-
-const KT_TO_MS = 0.514444
+import { KT_TO_MS, closestApproach, destinationPoint, distanceMeters } from './geo.ts'
 
 /** The observed fields the projection reads — every track has them; none is the answer key. */
 export interface Projectable {

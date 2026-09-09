@@ -21,7 +21,14 @@ import { AO } from '../config/ao.ts'
 import type { AreaOfOperations } from '../config/ao.ts'
 import { SCENARIO } from '../config/scenario.ts'
 import type { ScenarioConfig } from '../config/scenario.ts'
-import { bearingDegrees, destinationPoint, distanceMeters, offsetPoint, round } from './geo.ts'
+import {
+  KT_TO_MS,
+  bearingDegrees,
+  destinationPoint,
+  distanceMeters,
+  offsetPoint,
+  round,
+} from './geo.ts'
 import { makeRng } from './rng.ts'
 import type { Rng } from './rng.ts'
 import type {
@@ -55,8 +62,6 @@ export const UA_TYPES = [
   'aeroplane',
   'hybrid-lift',
 ] as const satisfies readonly UaType[]
-
-const KT_TO_MS = 0.514444
 
 /**
  * The span over which motion is measured, seconds.
