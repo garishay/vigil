@@ -47,13 +47,11 @@ import {
   type ScoringConfig,
 } from '../config/scoring.ts'
 import type { AdsbCapture } from './adsb.ts'
-import { closestApproach, distanceMeters } from './geo.ts'
+import { KT_TO_MS, closestApproach, distanceMeters } from './geo.ts'
 import { detectPattern, type TrackHistories } from './patterns.ts'
 import type { Track } from './tracks.ts'
 
 export type { Band, FactorId }
-
-const KT_TO_MS = 0.514444
 
 /** The fields the scorer must never see: the generator's answer key and the display lookups. */
 type AnswerKey = 'behavior' | 'remoteId' | 'uaType' | 'category' | 'registry'

@@ -9,6 +9,9 @@ const EARTH_RADIUS_M = 6378137
  */
 const MEAN_EARTH_RADIUS_M = 6371008.8
 
+/** Knots to metres per second: one international nautical mile per hour, 1852 m / 3600 s. */
+export const KT_TO_MS = 0.514444
+
 /**
  * A GeoJSON polygon approximating a circle of `radiusM` around `center`.
  *
