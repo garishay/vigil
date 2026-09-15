@@ -16,6 +16,7 @@ import {
 } from './study.ts'
 import { SCENARIOS, scenarioNamed } from '../src/config/scenarios.ts'
 import { STUDY } from '../src/config/study.ts'
+import { indexCapture } from '../src/lib/replay.ts'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const recording = (() => {
@@ -39,8 +40,16 @@ describe('the study config (A8)', () => {
     expect(STUDY).toMatchObject({ beginS: 480, runS: 360, rawAssociationM: 1500 })
     expect(STUDY.acceptance).toEqual({ entryLeadS: 60, marginAtLeast: 5, heardCalmUnder: 40 })
     expect(STUDY.audit).toEqual({ closingAtLeast: 50, insideM: 6500, hoveringUnderKt: 2 })
-    // The window sits inside the recording: 002 is 80 frames at 15 s.
-    expect(STUDY.beginS + STUDY.runS).toBeLessThanOrEqual(79 * 15)
+    // The window sits inside the recording it runs on — read off the loaded capture, not a
+    // number typed here (#147 round 2); runStudy refuses a window past the recording's end.
+    expect(STUDY.beginS + STUDY.runS).toBeLessThanOrEqual(indexCapture(recording.capture).durationS)
+    const short = {
+      ...recording,
+      capture: { ...recording.capture, frames: recording.capture.frames.slice(0, 20) },
+    }
+    expect(() => runStudy(scenarioNamed('02a', SCENARIOS), short)).toThrow(
+      "02a: the window ends at 840 s, past vigil-phl-002's 285 s",
+    )
   })
 })
 
@@ -69,13 +78,20 @@ describe('the four acceptance lines (#131; the S3 gate’s mockup 4)', () => {
       expect(r.threat.rank1Throughout).toBe(true)
       expect(r.threat.minMargin).toBe(6)
       expect(r.threat.marginOver).toMatch(/^inject-12 at \d+ s$/)
+      // Rank 1 on every tick left in the window — and in the picture on every one of them.
+      expect(r.threat.ticksFromCrossing).toBe(r.threat.ticksExpected)
+      expect(r.threat.ticksExpected).toBe(STUDY.beginS + STUDY.runS - (r.threat.crossingS ?? 0) + 1)
     }
+    expect(results['02a'].threat.ticksExpected).toBe(360)
+    expect(results['02b'].threat.ticksExpected).toBe(331)
   })
 
   it('the revisit track never reads warning, and no heard, consistent, not-closing track reaches 40, on both', () => {
     for (const r of both) {
       expect(r.revisit.maxBand).toBe('caution')
       expect(Math.round(r.revisit.maxComposite)).toBe(65)
+      expect(r.revisit.ticks).toBe(r.revisit.ticksExpected)
+      expect(r.revisit.ticks).toBe(STUDY.runS + 1)
       expect(r.heardNotClosing).not.toBeNull()
       expect(Math.round(r.heardNotClosing!.maxComposite)).toBe(38)
       expect(Math.round(r.heardNotClosing!.maxComposite)).toBeLessThan(
@@ -120,10 +136,14 @@ describe('the lines the rulings added', () => {
 
   it('no track flaps inside either window', () => {
     for (const r of both) expect(r.flaps).toEqual([])
-    // The fold itself: an upward re-crossing into a band already entered counts, a first entry does not.
+    // The fold itself, the bench's: an upward crossing enters every band between the last one
+    // and this one, and each already entered counts one — a calm → warning jump over a caution
+    // already seen is a flap, as foldInject counts it (#147 round 2).
     expect(flapsOf(['calm', 'caution', 'calm', 'caution'])).toBe(1)
     expect(flapsOf(['caution', 'warning', 'caution'])).toBe(0)
-    expect(flapsOf(['calm', 'warning', 'caution', 'warning', 'calm', 'warning'])).toBe(2)
+    expect(flapsOf(['calm', 'caution', 'calm', 'warning'])).toBe(1)
+    expect(flapsOf(['calm', 'warning', 'caution', 'warning', 'calm', 'warning'])).toBe(3)
+    expect(flapsOf(['warning', 'calm', 'warning'])).toBe(2)
   })
 
   it('the threat is the only ring entry inside a run — 604 s on 02a, 603 s on 02b — and the closing drone’s falls at 935 s, after it', () => {
@@ -179,5 +199,48 @@ describe('the baselines (A7)', () => {
     expect(renderStudy(results['02b'])).toContain(
       'present from 0 s, heard and consistent, the lie from 510 s · first warning at Begin + 30 s · 6.66 km · 92 s to entry — ≥ 60 s ✓',
     )
+  })
+})
+
+describe('the folds say what they mean (#147 round 2)', () => {
+  const base = scenarioNamed('02a', SCENARIOS).config
+  const rows = base.cast!
+  /** 002's grid with no aircraft on it: the injects alone, so the queue can run short. */
+  const empty = {
+    ...recording,
+    capture: {
+      ...recording.capture,
+      frames: Array.from({ length: 80 }, (_, i) => ({ tMs: i * 15000, records: [] })),
+    },
+  }
+
+  it('a revisit track that enters the window late is not vacuously clear, and a threat with no next candidate throws nothing', () => {
+    // Row 2 is a return that appears at 900 s: absent from the whole window, so the threat is
+    // alone in the picture — no next candidate — and the revisit line has no ticks to read.
+    const late = { name: 'late', config: { ...base, cast: [rows[0], { ...rows[6], startS: 900 }] } }
+    const result = runStudy(late, empty)
+    expect(result.threat.minMargin).toBeNull()
+    expect(result.threat.ticksFromCrossing).toBe(result.threat.ticksExpected)
+    expect(result.revisit.ticks).toBe(0)
+    const text = renderStudy(result)
+    expect(text).toContain('rank 1 from its warning crossing: not held — ≥ 5 ✗')
+    expect(text).toContain('revisit track inject-12: scored on 0 of 361 ticks — never warning ✗')
+    // Present for part of the window: the count says so, and the line does not pass on it.
+    const partial = {
+      name: 'partial',
+      config: { ...base, cast: [rows[0], { ...rows[6], startS: 580 }] },
+    }
+    const part = runStudy(partial, empty)
+    expect(part.revisit.ticks).toBe(261)
+    expect(renderStudy(part)).toContain(
+      'revisit track inject-12: scored on 261 of 361 ticks — never warning ✗',
+    )
+  })
+
+  it('prints the seconds to entry rounded and judges the rounded number — the page never contradicts itself', () => {
+    const at = (toEntryS: number) =>
+      renderStudy({ ...results['02a'], threat: { ...results['02a'].threat, toEntryS } })
+    expect(at(59.6)).toContain('60 s to entry — ≥ 60 s ✓')
+    expect(at(59.4)).toContain('59 s to entry — ≥ 60 s ✗')
   })
 })

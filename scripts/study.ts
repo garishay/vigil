@@ -93,10 +93,14 @@ export interface StudyResult {
     /** From the crossing on: the least margin over the next candidate, and who that was. */
     minMargin: number | null
     marginOver: string | null
-    /** Rank 1 on every tick from the crossing to the end of the window. */
+    /** Rank 1 on every tick from the crossing to the end of the window — and scored on all of them. */
     rank1Throughout: boolean
+    /** The ticks the threat was in the picture from its crossing on, against the window's remainder. */
+    ticksFromCrossing: number
+    ticksExpected: number
   }
-  revisit: { maxComposite: number; maxBand: Band }
+  /** The revisit track over the window, with the ticks it was scored on against the window's length. */
+  revisit: { maxComposite: number; maxBand: Band; ticks: number; ticksExpected: number }
   /** The highest heard, consistent, not-closing track — null when there is none. */
   heardNotClosing: { id: string; label: string | null; maxComposite: number } | null
   audit: {
@@ -123,13 +127,23 @@ export function loadRecording(id: string): Recording {
   return { entry, capture: JSON.parse(readFileSync(`public/${entry.file}`, 'utf8')) as AdsbCapture }
 }
 
-/** Upward re-crossings into a band already entered — the bench's flap, over one track's window. */
+/**
+ * The bench's flap (`foldInject`), over one track's window: an upward crossing enters every band
+ * between the one last seen and this one, and each already entered counts one — so a calm →
+ * warning jump over a caution already seen counts, as the scoreboard counts it (#147 round 2).
+ */
 export function flapsOf(bands: readonly Band[]): number {
   let flaps = 0
   const entered = new Set<Band>()
+  const rank = (band: Band) => BANDS.indexOf(band)
   bands.forEach((band, i) => {
-    if (i > 0 && BANDS.indexOf(band) > BANDS.indexOf(bands[i - 1]) && entered.has(band)) flaps++
-    entered.add(band)
+    const last = i === 0 ? 'calm' : bands[i - 1]
+    if (rank(band) <= rank(last)) return
+    for (const between of BANDS) {
+      if (rank(between) <= rank(last) || rank(between) > rank(band)) continue
+      if (entered.has(between)) flaps++
+      else entered.add(between)
+    }
   })
   return flaps
 }
@@ -148,6 +162,11 @@ export function runStudy(
   const origins = originsOf(index, plan)
   const begin = config.beginS
   const end = config.beginS + config.runS
+  if (end > index.durationS) {
+    throw new Error(
+      `${scenario.name}: the window ends at ${end} s, past ${recording.entry.id}'s ${index.durationS} s`,
+    )
+  }
   const runs = new Map<string, TrackRun>()
   const runOf = (track: Track): TrackRun => {
     let run = runs.get(track.id)
@@ -177,6 +196,7 @@ export function runStudy(
     minMargin: null as number | null,
     marginOver: null as string | null,
     rank1Throughout: true,
+    ticksFromCrossing: 0,
   }
   for (let tSec = 0; tSec <= index.durationS; tSec++) {
     // Ring entry is read over the whole recording — the closing drone's falls after the run.
@@ -221,18 +241,22 @@ export function runStudy(
       if (track.source === 'inject' && band !== 'calm') above.push(track.id)
       // The audit, on airborne ticks only.
       if (!track.onGround) {
-        if (score.factors[1].value >= config.audit.closingAtLeast) run.closing = true
+        // The closing factor by id, as the rest of the tree reads a factor (#147 round 2).
+        const closingValue = score.factors.find((factor) => factor.id === 'closing')?.value ?? 0
+        if (closingValue >= config.audit.closingAtLeast) run.closing = true
         if (distanceMeters(site.center, track.position) <= config.audit.insideM) run.inside = true
         if (track.source === 'inject') {
-          // What raw mode shows: the same track through associate at its own distance.
+          // What raw mode shows: the same track through associate at its own distance — an
+          // inject still, by associate's contract; the check narrows the type and nothing else.
           const shown = raw.get(track.id)!
-          if (shown.source !== 'inject') return
-          if (shown.broadcast === null) run.silent = true
-          if (shown.callsign !== null) {
-            run.heard = true
-            run.label = shown.callsign
-            if ((shown.groundSpeedKt ?? Infinity) < config.audit.hoveringUnderKt)
-              run.hovering = true
+          if (shown.source === 'inject') {
+            if (shown.broadcast === null) run.silent = true
+            if (shown.callsign !== null) {
+              run.heard = true
+              run.label = shown.callsign
+              if ((shown.groundSpeedKt ?? Infinity) < config.audit.hoveringUnderKt)
+                run.hovering = true
+            }
           }
         }
       }
@@ -244,11 +268,14 @@ export function runStudy(
         threat.toEntryS = path.kind === 'entry' ? path.tSec : path.kind === 'inside' ? 0 : null
       }
       if (threat.crossingS === null) return
+      threat.ticksFromCrossing++
       if (i !== 0) {
         threat.rank1Throughout = false
         return
       }
+      // The next candidate, when the picture holds one: a cast of the threat alone has none.
       const next = ranked[1]
+      if (!next) return
       const margin = Math.round(score.composite) - Math.round(next.score.composite)
       if (threat.minMargin === null || margin < threat.minMargin) {
         threat.minMargin = margin
@@ -282,6 +309,13 @@ export function runStudy(
       firstFrameS: spec.startS,
       lieFromS: spec.broadcastOffset?.fromS ?? 0,
       ...threat,
+      // Rank 1 throughout means on every tick left in the window, not only the ticks it was
+      // in the picture: a threat that leaves the queue is not rank 1 (#147 round 2).
+      ticksExpected: threat.crossingS === null ? 0 : end - threat.crossingS + 1,
+      rank1Throughout:
+        threat.rank1Throughout &&
+        threat.crossingS !== null &&
+        threat.ticksFromCrossing === end - threat.crossingS + 1,
     },
     revisit: {
       maxComposite: revisit.maxComposite,
@@ -289,6 +323,8 @@ export function runStudy(
         (top, band) => (BANDS.indexOf(band) > BANDS.indexOf(top) ? band : top),
         'calm',
       ),
+      ticks: revisit.bands.length,
+      ticksExpected: end - begin + 1,
     },
     heardNotClosing: heardNotClosing && {
       id: heardNotClosing.id,
@@ -337,16 +373,26 @@ export function renderStudy(result: StudyResult): string {
     t.firstFrameS === 0
       ? `present from 0 s, heard and consistent, the lie from ${t.lieFromS} s`
       : `first frame ${t.firstFrameS} s (Begin + ${t.firstFrameS - begin})`
+  // The seconds print rounded, and the verdict reads the rounded number too (#147 round 2).
+  const leadS = t.toEntryS === null ? null : Math.round(t.toEntryS)
   const crossing =
     t.crossingS === null
       ? 'never warning in the window ✗'
-      : `first warning at Begin + ${t.crossingS - begin} s · ${km(t.crossingRangeM ?? 0)} · ${t.toEntryS === null ? 'no entry on its course' : `${Math.round(t.toEntryS)} s to entry`} — ≥ ${c.acceptance.entryLeadS} s ${check(t.toEntryS !== null && t.toEntryS >= c.acceptance.entryLeadS)}`
+      : `first warning at Begin + ${t.crossingS - begin} s · ${km(t.crossingRangeM ?? 0)} · ${leadS === null ? 'no entry on its course' : `${leadS} s to entry`} — ≥ ${c.acceptance.entryLeadS} s ${check(leadS !== null && leadS >= c.acceptance.entryLeadS)}`
   lines.push(`threat ${THREAT_ID}: ${presence} · ${crossing}`)
+  const held = t.rank1Throughout && t.minMargin !== null
+  const rankLine = held
+    ? `min margin ${t.minMargin} over ${t.marginOver}`
+    : t.crossingS !== null && t.ticksFromCrossing !== t.ticksExpected
+      ? `not held — in the picture on ${t.ticksFromCrossing} of ${t.ticksExpected} ticks from the crossing`
+      : 'not held'
   lines.push(
-    `rank 1 from its warning crossing: ${t.rank1Throughout && t.minMargin !== null ? `min margin ${t.minMargin} over ${t.marginOver}` : 'not held'} — ≥ ${c.acceptance.marginAtLeast} ${check(t.rank1Throughout && t.minMargin !== null && t.minMargin >= c.acceptance.marginAtLeast)}`,
+    `rank 1 from its warning crossing: ${rankLine} — ≥ ${c.acceptance.marginAtLeast} ${check(held && (t.minMargin ?? -Infinity) >= c.acceptance.marginAtLeast)}`,
   )
+  const r = result.revisit
+  const revisitScored = r.ticks === r.ticksExpected
   lines.push(
-    `revisit track ${REVISIT_ID}: max band ${result.revisit.maxBand} (${Math.round(result.revisit.maxComposite)}) — never warning ${check(result.revisit.maxBand !== 'warning')}`,
+    `revisit track ${REVISIT_ID}: ${revisitScored ? `max band ${r.maxBand} (${Math.round(r.maxComposite)})` : `scored on ${r.ticks} of ${r.ticksExpected} ticks`} — never warning ${check(revisitScored && r.maxBand !== 'warning')}`,
   )
   const h = result.heardNotClosing
   lines.push(

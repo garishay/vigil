@@ -119,6 +119,7 @@ flowchart LR
   replay -- picture · memory · histories · origins at t --> study
   score -- scoreTrack · bandOf --> study
   rank -- queueOrder --> study
+  proj -- entryAt --> study
   rank -- queueOrder --> bench
   ao -- bbox --> cap
   norm -. normalize + rate-limit etiquette, at capture time .-> cap
