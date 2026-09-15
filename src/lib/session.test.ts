@@ -3,8 +3,8 @@ import { BUILD_DEFAULTS, SessionRefusal, parseFeedRef, resolveSession } from './
 import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings'
 import { SCENARIO } from '../config/scenario'
 
-/** `on` is the registry's first — the default deal, named 001 (S3b, #135; #36 [26] A). */
-const ON = { on: true, name: '001', seed: SCENARIO.seed }
+/** `on` is the registry's first — the default deal, named default (S3b, #135; #36 [26] A). */
+const ON = { on: true, name: 'default', seed: SCENARIO.seed }
 const OFF = { on: false }
 const rec = (id: string) => ({ kind: 'recording', id })
 
@@ -109,7 +109,7 @@ describe('resolveSession (#115, ruling 6)', () => {
       name: '02b',
       seed: 'study-02b',
     })
-    expect(resolveSession('?scenario=001').scenario).toEqual(ON)
+    expect(resolveSession('?scenario=default').scenario).toEqual(ON)
     // The env reads the same grammar, and the URL still wins over it.
     expect(resolveSession('', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual({
       on: true,
@@ -120,7 +120,7 @@ describe('resolveSession (#115, ruling 6)', () => {
     expect(resolveSession('?scenario=off', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual(OFF)
     // Anything else is refused in a sentence that names the registry — so the sentence is the
     // registry's, never a stale list.
-    const names = '001, 02a, 02b'
+    const names = 'default, 02a, 02b'
     expect(refusal('?scenario=maybe')).toBe(
       `?scenario= reads on, off, or a scenario name — ${names} — not "maybe"`,
     )

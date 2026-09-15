@@ -16,7 +16,7 @@ export interface NamedScenario {
 
 /** The registry, the default first. */
 export const SCENARIOS: readonly NamedScenario[] = [
-  { name: '001', config: SCENARIO },
+  { name: 'default', config: SCENARIO },
   { name: '02a', config: SCENARIO_02A },
   { name: '02b', config: SCENARIO_02B },
 ]

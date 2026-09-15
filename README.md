@@ -57,7 +57,7 @@ flowchart LR
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
-      scenarios["config/scenarios.ts + scenarios/<br/>the registry: 001 the default · 02a · 02b, cast-only files, one row per entry<br/>cast.ts: six builders over the three cast behaviors — threat · shuttle · silentMover · mover · hover · returning"]
+      scenarios["config/scenarios.ts + scenarios/<br/>the registry: default · 02a · 02b, cast-only files, one row per entry<br/>cast.ts: six builders over the three cast behaviors — threat · shuttle · silentMover · mover · hover · returning"]
     cfg --> scenarios
     scenarios --> gen
     cfg["config/scenario.ts<br/>seed · envelope · launch points · the cast"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 dealt behaviors · 3 cast behaviors, scripted · 3 Remote ID states · UA type"]

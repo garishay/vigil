@@ -39,8 +39,8 @@ const kind = (entry: CastEntry) =>
           : 'mover'
 
 describe('the scenario registry (S3b, #135, ruled A5; #36 [26] A)', () => {
-  it('lists 001 — the default deal — first, then the two study files; an unknown name is refused', () => {
-    expect(SCENARIOS.map((scenario) => scenario.name)).toEqual(['001', '02a', '02b'])
+  it('lists default — the default deal — first, then the two study files; an unknown name is refused', () => {
+    expect(SCENARIOS.map((scenario) => scenario.name)).toEqual(['default', '02a', '02b'])
     expect(SCENARIOS[0].config).toBe(SCENARIO)
     expect(scenarioNamed('02a').config).toBe(SCENARIO_02A)
     expect(scenarioNamed('02b').config).toBe(SCENARIO_02B)

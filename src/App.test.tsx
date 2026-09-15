@@ -127,7 +127,7 @@ const ready = (
   status: 'ready',
   session: {
     feeds: [{ kind: 'recording', id: entry.id }],
-    scenario: scenarioOn ? { on: true, name: '001', seed: SCENARIO.seed } : { on: false },
+    scenario: scenarioOn ? { on: true, name: 'default', seed: SCENARIO.seed } : { on: false },
   },
   feeds: [recordingFeed(entry, capture)],
   scenario: scenarioOn ? scenarioFeed(timelineOf(capture)) : null,
