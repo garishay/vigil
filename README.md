@@ -115,7 +115,10 @@ flowchart LR
   replay -- picture · memory · histories · origins at t --> bench
   score -- scoreTrack · bandOf --> bench
   scenarios -- 02a · 02b through the feed --> study
+  gen -- injectTracksAt, the feed over it --> study
+  replay -- picture · memory · histories · origins at t --> study
   score -- scoreTrack · bandOf --> study
+  rank -- queueOrder --> study
   rank -- queueOrder --> bench
   ao -- bbox --> cap
   norm -. normalize + rate-limit etiquette, at capture time .-> cap
