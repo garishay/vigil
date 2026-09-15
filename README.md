@@ -44,6 +44,9 @@ flowchart LR
     fx --> goldgen["scripts/generate-inject-golden.ts<br/>npm run fixture:injects<br/>samples the plan at the recording's frame times"]
     tonegen["scripts/generate-tone.ts<br/>npm run fixture:tone<br/>the alert tone, synthesized — original and deterministic"] --> tone[("public/alert-tone.wav")]
     bench["scripts/bench.ts<br/>npm run bench · bench:baseline<br/>every recording × N seeds at one-second ticks, the engine through the app's own seams<br/>the generator's labels as the oracle · a config override for a sweep, printed, never written"] --> baseline[("docs/bench/baseline.md<br/>the scoreboard: crossings, ranks, flaps per behavior; real aircraft by uncapped band<br/>a test holds the default run to it byte for byte")]
+    study["scripts/study.ts<br/>npm run bench:study<br/>the operator study's acceptance: each study scenario through the feed beside 002 over the window<br/>the four lines · the cue audit on airborne ticks · above calm · flaps · every ring entry — held byte for byte by test"] --> sb[("docs/bench/study-02a.md · study-02b.md")]
+    studycfg["config/study.ts<br/>Begin · the run · raw mode's association distance · the acceptance and audit numbers"] --> study
+    fx --> study
     fx --> bench
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
@@ -111,6 +114,8 @@ flowchart LR
   gen --> bench
   replay -- picture · memory · histories · origins at t --> bench
   score -- scoreTrack · bandOf --> bench
+  scenarios -- 02a · 02b through the feed --> study
+  score -- scoreTrack · bandOf --> study
   rank -- queueOrder --> bench
   ao -- bbox --> cap
   norm -. normalize + rate-limit etiquette, at capture time .-> cap
