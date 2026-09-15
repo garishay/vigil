@@ -6,6 +6,8 @@ import { MapView } from './components/MapView'
 import { Playback } from './components/Playback'
 import { Queue } from './components/Queue'
 import { ReviewDrawer } from './components/ReviewDrawer'
+import { RunBrief } from './components/RunBrief'
+import { RunEnd } from './components/RunEnd'
 import { SitesPanel, type Placing } from './components/SitesPanel'
 import { AO } from './config/ao'
 import { CONTACTS, type ContactId } from './config/contacts'
@@ -13,11 +15,12 @@ import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { DEFAULT_RECORDING } from './config/recordings'
 import { REPLAY } from './config/replay'
 import { SCORING } from './config/scoring'
+import { BRIEF, QUESTIONS, STUDY, WORKLOAD_SCALE, type QuestionId } from './config/study'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useSession } from './data/useSession'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
 import { clearFor, foldAlerts, type Alert } from './lib/alerts'
-import { recordingLabel, simClock, trackIdent, type WarmBand } from './lib/display'
+import { formatElapsed, recordingLabel, simClock, trackIdent, type WarmBand } from './lib/display'
 import { mergePicture } from './lib/feeds'
 import { timeToEntry } from './lib/projection'
 import {
@@ -43,6 +46,7 @@ import {
 } from './lib/lifecycle'
 import { rankTracks, type RankedTrack } from './lib/ranking'
 import { historiesAt, lastHeardBefore, memoryAt, originsOf, trailAt } from './lib/replay'
+import { runJson, type RunAnswers, type Selection } from './lib/run'
 import { clockStartOf, minuteOfDay } from './lib/scoring'
 import {
   addSite,
@@ -113,6 +117,15 @@ const NO_BANDS: ReadonlyMap<string, WarmBand> = new Map()
 /** Where this browser keeps an edited site plan between sessions (#90) — the plan's own text. */
 const SITE_PLAN_KEY = 'vigil.site-plan'
 
+/**
+ * The build a run JSON names (S4b, ruled A6): the package version and the commit, defined by
+ * `vite.config.ts` for the build and for the tests; a bare typecheck has none.
+ */
+const BUILD = import.meta.env.VITE_BUILD ?? 'unknown'
+
+/** A study run's window on the recording (S4b, ruled A2, A4): Begin's tick to the run's end. */
+const RUN_WINDOW = { fromS: STUDY.beginS, toS: STUDY.beginS + STUDY.runS }
+
 /** The stored plan, or null when none is held or the browser refuses storage — never a throw. */
 const readStoredPlan = (): string | null => {
   try {
@@ -147,11 +160,15 @@ export default function App({
   // Vigil, so the record — and S4b's run JSON — keep one shape in both modes (ruled A2, A7).
   // Read while loading too — the URL resolves synchronously (#148 round 1) — so a raw link never
   // shows Vigil's shell before the recording is in.
-  const mode =
-    session.status === 'ready' || session.status === 'loading'
-      ? (session.session?.mode ?? 'vigil')
-      : 'vigil'
+  const resolved =
+    session.status === 'ready' || session.status === 'loading' ? (session.session ?? null) : null
+  const mode = resolved?.mode ?? 'vigil'
   const raw = mode === 'raw'
+  // A study run (S4b, #137, ruled; #131): the link named a subject and a run, in either mode.
+  // The session opens on the brief with the clock held at Begin's tick, runs from Begin to the
+  // window's end, and closes on the end screen; nothing of it mounts in the demo (ruled A8).
+  const study = resolved?.study ?? null
+  const inStudy = study !== null
 
   // Selection and filters persist across surface switches — client state only (§7.1 ruling, #3).
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -183,9 +200,10 @@ export default function App({
   // (#108 review). The golden and every pinned test run on the config set.
   // Raw ignores the stored plan and draws the config's sites (#36 [34], ruled A): a subject can
   // neither see nor reset a plan a Vigil run left in this browser, and the study's baselines are
-  // computed against the config set. Vigil keeps its plan, shown on its own panel.
+  // computed against the config set. So does a study run in Vigil (S4b, ruled A13), which
+  // withholds the Sites surface too. The demo in Vigil keeps its plan, shown on its own panel.
   const [siteSet, setSiteSet] = useState<SiteSet>(() => {
-    const text = raw ? null : readStoredPlan()
+    const text = raw || inStudy ? null : readStoredPlan()
     const { set, problem } = fromStore(text, AO.protectedSites, AO.friendlyAreas, AO)
     if (problem !== null) console.warn(`Stored site plan ignored — ${problem}; using config`)
     else if (text !== null && !set.stored) localStorage.removeItem(SITE_PLAN_KEY)
@@ -203,8 +221,25 @@ export default function App({
   // interpolator — and its plan-bearing scenario rides beside it; the clock runs to the last frame.
   const index = feed?.index ?? null
   const plan = scenario?.plan ?? null
-  const playback = usePlayback(index?.durationS ?? null, schedule)
+  // In a study run the clock is the window's: held at Begin until the button, ended at Begin +
+  // the run's length, never restarted (ruled A2–A4).
+  const playback = usePlayback(
+    index?.durationS ?? null,
+    schedule,
+    REPLAY.tickMs,
+    inStudy ? RUN_WINDOW : null,
+  )
   const tSec = playback.tSec
+  // The run's three states (S4b): the brief up until Begin; running; ended at the window's end
+  // — or the recording's, if it is shorter — with the picture frozen under the end screen.
+  // `began_at` is the wall clock at Begin, the stamp the run JSON carries.
+  const [beganAt, setBeganAt] = useState<string | null>(null)
+  const runEnded = inStudy && index !== null && tSec >= Math.min(RUN_WINDOW.toS, index.durationS)
+  const runActive = inStudy && beganAt !== null && !runEnded
+  // Every selection between Begin and the end, in order — the run JSON's `select` events
+  // (ruled A5): which track, at which tick. The record holds the actions; this holds the looks.
+  const [selections, setSelections] = useState<Selection[]>([])
+  const [answers, setAnswers] = useState<Partial<RunAnswers>>({})
 
   /**
    * The picture at the clock, through the seam (#115): the feeds in session order, then the
@@ -518,6 +553,8 @@ export default function App({
   const acknowledge = (trackId: string) => {
     const log = eventLogs[trackId]
     if (!log || tSec < log[log.length - 1].tSec) return
+    // A study run takes actions only while it runs (ruled A4): none before Begin, none after.
+    if (inStudy && !runActive) return
     if (isTerminal(statusOf(log))) {
       setAlerts((current) => clearFor(current, trackId))
       return
@@ -530,10 +567,19 @@ export default function App({
       [trackId]: appendEvent(logs[trackId] ?? log, 'acknowledge', { at, tSec, observed }),
     }))
   }
+  // A selection — a Queue row, a map dot, an alert card's open — is logged in a study run at the
+  // clock it was made (ruled A5); the same track opened again is a new line, since the replay
+  // draws the hops. Before Begin the overlay takes every click; after the end the shell is inert
+  // and the selection refused anyway, so a click selects nothing new (ruled A4).
+  const select = (id: string) => {
+    if (inStudy && !runActive) return
+    if (inStudy) setSelections((current) => [...current, { tSec, trackId: id }])
+    setSelectedId(id)
+  }
   // A selection is an intent to review (A2 on #3): one made on Home — a map dot, an alert card —
   // lands the operator on the Queue, where the drawer and its close button are.
   const selectTrack = (id: string) => {
-    setSelectedId(id)
+    select(id)
     setSurfaceId((current) => (current === 'home' ? 'queue' : current))
   }
 
@@ -542,6 +588,7 @@ export default function App({
     detail?: { recipient?: ContactId; disposition?: DispositionId },
   ) => {
     if (!selected) return
+    if (inStudy && !runActive) return
     const at = now()
     setEventLogs((logs) => ({
       ...logs,
@@ -623,8 +670,15 @@ export default function App({
   const count = (n: number) => (ready ? String(n) : pending)
 
   const statusFields = [
-    { label: 'Cooperative', value: count(adsb.length) },
-    { label: 'Injects', value: count(injects.length) },
+    // A study run counts its tracks as one number in both modes (S4b, ruled A13): an Injects
+    // field that ticks up when the threat appears is a cue no real display has. The demo keeps
+    // the split.
+    ...(inStudy
+      ? [{ label: 'Tracks', value: count(tracks.length) }]
+      : [
+          { label: 'Cooperative', value: count(adsb.length) },
+          { label: 'Injects', value: count(injects.length) },
+        ]),
     // Raw hides the seed: it names the scenario a subject must not know (ruled A3).
     ...(raw ? [] : [{ label: 'Seed', value: ready ? (scenario?.seed ?? '—') : pending }]),
     // The recording and the day it was flown (#84, ruled), and the clock it opens: held back with
@@ -687,6 +741,7 @@ export default function App({
       trail={{ count: trail.length, windowS: REPLAY.trailS }}
       entryEstimate={entryEstimate}
       mode={mode}
+      run={inStudy}
       onClose={(event) => {
         const keyboard = event.detail === 0
         setKeyboardClose(keyboard)
@@ -704,13 +759,36 @@ export default function App({
   // Raw (S4a, ruled A3): no rail — the map fills the body, the drawer opens beside it on a click.
   if (raw) bodyClasses.push('shell__body--raw')
 
+  // The run's overlays (S4b): the brief until Begin, the end screen from the window's end. The
+  // shell under either is inert — no click, no Tab reaches it — so the picture is neither read
+  // nor acted on through the overlay; the handlers above refuse anyway.
+  const runName = study
+    ? `${resolved?.scenario.on ? resolved.scenario.name : 'off'} · ${mode} · subject ${study.subject} · run ${study.run}`
+    : null
+  const overlay = study && beganAt === null && !runEnded
+  const json = useMemo(() => {
+    if (!study || !runEnded || beganAt === null || !ready) return null
+    if (QUESTIONS.some((question) => answers[question.id] === undefined)) return null
+    return runJson({
+      session: ready.session,
+      build: BUILD,
+      beganAt,
+      beginS: RUN_WINDOW.fromS,
+      endS: RUN_WINDOW.toS,
+      logs: eventLogs,
+      selections,
+      answers: answers as RunAnswers,
+    })
+  }, [study, runEnded, beganAt, ready, answers, eventLogs, selections])
+  const covered = overlay || runEnded
+
   return (
     <div className="shell">
-      <header className="shell__header">
+      <header className="shell__header" inert={covered}>
         <h1 className="shell__wordmark">Vigil</h1>
         {!raw && (
           <nav className="nav" aria-label="Surfaces">
-            {SURFACES.map((s) => (
+            {SURFACES.filter((s) => !inStudy || s.id !== 'sites').map((s) => (
               <button
                 key={s.id}
                 ref={s.id === 'review' ? reviewNavRef : undefined}
@@ -727,14 +805,14 @@ export default function App({
         <p className="shell__notice">Demonstration only — not for operational use</p>
       </header>
 
-      <dl className="strip" aria-label="Picture status">
+      <dl className="strip" aria-label="Picture status" inert={covered}>
         {statusFields.map((field) => (
           <div className="strip__field" key={field.label}>
             <dt>{field.label}</dt>
             <dd>{field.value}</dd>
           </div>
         ))}
-        <Playback playback={playback} raw={raw} />
+        <Playback playback={playback} raw={raw} runFromS={inStudy ? RUN_WINDOW.fromS : null} />
         {!raw && (
           <div className="strip__field strip__field--alerts">
             <dt>Alerts</dt>
@@ -757,7 +835,7 @@ export default function App({
         </div>
       </dl>
 
-      <main className={bodyClasses.join(' ')}>
+      <main className={bodyClasses.join(' ')} inert={covered}>
         {!raw && (
           <section className="rail" aria-labelledby="rail-title">
             <div className="rail__head">
@@ -818,7 +896,7 @@ export default function App({
                     resurfaced(eventLogs[entry.track.id], entry.track.source, entry.score.friendly)
                   }
                   sites={sites}
-                  onSelect={setSelectedId}
+                  onSelect={select}
                 />
               </>
             )}
@@ -934,6 +1012,29 @@ export default function App({
           )}
         </MapView>
       </main>
+      {overlay && runName !== null && (
+        <RunBrief
+          title={`Vigil · study run — ${runName}`}
+          brief={BRIEF}
+          ready={ready !== null}
+          onBegin={() => {
+            setBeganAt(now())
+            playback.play()
+          }}
+        />
+      )}
+      {inStudy && runEnded && runName !== null && (
+        <RunEnd
+          title={`Run complete — ${runName} · +${formatElapsed(tSec - RUN_WINDOW.fromS)}`}
+          questions={QUESTIONS}
+          scale={WORKLOAD_SCALE}
+          answers={answers}
+          onAnswer={(id: QuestionId, value: number) =>
+            setAnswers((current) => ({ ...current, [id]: value }))
+          }
+          json={json}
+        />
+      )}
     </div>
   )
 }

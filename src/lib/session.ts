@@ -28,10 +28,23 @@ export type ScenarioState = { on: true; name: string; seed: string } | { on: fal
 export type Mode = 'raw' | 'vigil'
 export const MODES: readonly Mode[] = ['raw', 'vigil']
 
+/**
+ * A study run (S4b, #137, ruled A1; #131's run-link contract): the subject's code and the run's
+ * index, from the URL only, both or neither. A session with one is a study run — the brief,
+ * Begin, the window, the end screen, in either mode; without one the app is the demo it was.
+ */
+export interface StudyRun {
+  /** A subject code — `S03` — never a name (#131: subject codes only, no names in the file). */
+  subject: string
+  /** The run's index for that subject, from 1. */
+  run: number
+}
+
 export interface SessionConfig {
   feeds: readonly FeedRef[]
   scenario: ScenarioState
   mode: Mode
+  study: StudyRun | null
 }
 
 /** The two build-time variables, PAGES_BASE-style; both optional, both plain strings. */
@@ -100,6 +113,28 @@ function parseScenario(
 function parseMode(text: string): Mode {
   if ((MODES as readonly string[]).includes(text)) return text as Mode
   return refuse(`?mode= reads raw or vigil, not "${text}"`)
+}
+
+/** A subject code: letters, digits, and dashes. Anything else — a name, a blank — is refused. */
+const SUBJECT_CODE = /^[A-Za-z0-9-]+$/
+
+/**
+ * `?subject=<code>&run=<n>`, both or neither (S4b, ruled A1): one without the other is a run
+ * link with half its name, refused rather than guessed; a code is letters, digits, and dashes; a
+ * run index is a whole number from 1; either given twice is refused as the others are ([24]).
+ */
+function parseStudy(params: URLSearchParams): StudyRun | null {
+  const subjects = params.getAll('subject')
+  if (subjects.length > 1) refuse('?subject= is given more than once — give it once')
+  const runs = params.getAll('run')
+  if (runs.length > 1) refuse('?run= is given more than once — give it once')
+  const subject: string | null = subjects[0] ?? null
+  const run: string | null = runs[0] ?? null
+  if (subject === null && run === null) return null
+  if (subject === null || run === null) return refuse('a run link names both ?subject= and ?run=')
+  if (!SUBJECT_CODE.test(subject)) refuse(`?subject= is a subject code, not "${subject}"`)
+  if (!/^[1-9][0-9]*$/.test(run)) refuse(`?run= is a run number from 1, not "${run}"`)
+  return { subject, run: Number(run) }
 }
 
 /** Where the picker would go for a live feed: the number of the Issue that brings it. */
@@ -187,9 +222,13 @@ export function resolveSession(
           scenarios,
         )
 
+  // The study run (S4b): URL only, as the mode is — the link fixes scenario, mode, and subject.
+  const study = parseStudy(params)
+
   return {
     feeds,
     scenario: named ? { on: true, name: named.name, seed: named.config.seed } : { on: false },
     mode,
+    study,
   }
 }

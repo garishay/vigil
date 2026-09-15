@@ -4,8 +4,10 @@ import App from './App'
 import { AO } from './config/ao'
 import { DEFAULT_RECORDING, recordingNamed, type RecordingEntry } from './config/recordings'
 import { SCENARIO } from './config/scenario'
+import { BRIEF } from './config/study'
 import { SCENARIO_02A } from './config/scenarios/02a'
 import type { SessionState } from './data/useSession'
+import type { StudyRun } from './lib/session'
 import type { Schedule } from './data/usePlayback'
 import type { AdsbCapture } from './lib/adsb'
 import { trackIdent } from './lib/display'
@@ -127,12 +129,14 @@ const ready = (
   entry: RecordingEntry = DEFAULT_RECORDING,
   scenarioOn = true,
   mode: 'raw' | 'vigil' = 'vigil',
+  study: StudyRun | null = null,
 ): SessionState => ({
   status: 'ready',
   session: {
     feeds: [{ kind: 'recording', id: entry.id }],
     scenario: scenarioOn ? { on: true, name: 'default', seed: SCENARIO.seed } : { on: false },
     mode,
+    study,
   },
   feeds: [recordingFeed(entry, capture)],
   // Raw's feed runs the rule at raw's distance (S4a); the default deal carries no offset, so
@@ -2168,6 +2172,7 @@ describe('raw mode while the recording loads (#148 round 1)', () => {
         feeds: [{ kind: 'recording', id: 'vigil-phl-002' }],
         scenario: { on: true, name: '02a', seed: 'study-02a' },
         mode: 'raw',
+        study: null,
       },
     })
     render(<App schedule={never} />)
@@ -2204,5 +2209,222 @@ describe('raw mode and the stored site plan (#36 [34], ruled A)', () => {
     render(<App schedule={never} />)
     expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield,site-2')
     localStorage.removeItem(STORE_KEY)
+  })
+})
+
+describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the end screen, the run JSON', () => {
+  const NOW = '2026-09-16T01:12:04.000Z'
+  const run = (mode: 'raw' | 'vigil') => {
+    if (LONG.status !== 'ready') throw new Error('LONG is a ready session')
+    return { ...LONG, session: { ...LONG.session, mode, study: { subject: 'S03', run: 1 } } }
+  }
+  const start = (mode: 'raw' | 'vigil') => {
+    useSession.mockReturnValue(run(mode))
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => NOW} />)
+    return replay
+  }
+  const dialog = () => screen.getByRole('dialog')
+  const field = (label: string) => screen.getByText(label).nextSibling as HTMLElement
+  const begin = () => fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+  const answer = (group: string, value: string) =>
+    fireEvent.click(
+      within(within(dialog()).getByRole('group', { name: group })).getByRole('radio', {
+        name: value,
+      }),
+    )
+  const answerAll = () => {
+    answer('Mental demand', '6')
+    answer('Time pressure', '7')
+    answer('Confidence in your decisions', '5')
+  }
+  const runJsonText = () =>
+    (within(dialog()).getByLabelText('Run JSON') as HTMLTextAreaElement).value
+  const STORE_KEY = 'vigil.site-plan'
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localStorage.removeItem(STORE_KEY)
+  })
+
+  it('opens on the brief — the run named, the text word for word, one button — with the clock held at Begin, one track count, and the shell inert', () => {
+    const replay = start('raw')
+    expect(dialog()).toHaveAccessibleName('Vigil · study run — default · raw · subject S03 · run 1')
+    expect(within(dialog()).getByText(BRIEF)).toBeInTheDocument()
+    expect(within(dialog()).getByRole('button', { name: 'Begin' })).toBeEnabled()
+    // Held at Begin's tick: 001's 02:30:00 + 480 s, the elapsed time +00:00, no tick scheduled.
+    expect(field('Sim clock')).toHaveTextContent('02:38:00')
+    expect(field('Playback')).toHaveTextContent('+00:00')
+    replay.tick(5)
+    expect(field('Sim clock')).toHaveTextContent('02:38:00')
+    // One count in place of the split (ruled A13); no seek and no Pause; raw's shell otherwise.
+    expect(field('Tracks')).toHaveTextContent(/^[0-9]+$/)
+    expect(screen.queryByText('Cooperative')).toBeNull()
+    expect(screen.queryByText('Injects')).toBeNull()
+    expect(screen.queryByRole('slider', { name: 'Seek' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Play|Pause)$/ })).toBeNull()
+    expect(screen.queryByRole('navigation', { name: 'Surfaces' })).toBeNull()
+    // The shell under the overlay is inert, and a click through it selects nothing.
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    expect(screen.getByRole('banner')).toHaveAttribute('inert')
+    fireEvent.click(screen.getByTestId('map-select'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '')
+  })
+
+  it('offers Begin only once the recording is in, the count held back until then', () => {
+    useSession.mockReturnValue({
+      status: 'loading',
+      session: {
+        feeds: [{ kind: 'recording', id: 'vigil-phl-002' }],
+        scenario: { on: true, name: '02a', seed: 'study-02a' },
+        mode: 'vigil',
+        study: { subject: 'S03', run: 2 },
+      },
+    })
+    render(<App schedule={never} />)
+    expect(dialog()).toHaveAccessibleName('Vigil · study run — 02a · vigil · subject S03 · run 2')
+    expect(within(dialog()).getByRole('button', { name: 'Begin' })).toBeDisabled()
+    expect(field('Tracks')).toHaveTextContent('…')
+    expect(field('Playback')).toHaveTextContent('—')
+  })
+
+  it('Begin lifts the brief and the clock ticks from Begin + 1 — in Vigil too, with no Play, Pause, or seek, and no Sites surface', () => {
+    const replay = start('vigil')
+    expect(screen.getByRole('navigation', { name: 'Surfaces' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Queue' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sites' })).toBeNull()
+    begin()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+    replay.tick()
+    expect(field('Sim clock')).toHaveTextContent('02:38:01')
+    expect(field('Playback')).toHaveTextContent('+00:01')
+    expect(field('Tracks')).toHaveTextContent(/^[0-9]+$/)
+    expect(screen.queryByText('Cooperative')).toBeNull()
+    expect(screen.queryByRole('slider', { name: 'Seek' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Play|Pause)$/ })).toBeNull()
+  })
+
+  it('logs the looks and the actions from Begin, ends at +6:00 with the picture frozen and every click refused, and Copy run hands back the JSON — no positions, no names', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+    const replay = start('raw')
+    begin()
+    replay.tick(14)
+    fireEvent.click(screen.getByTestId('map-select'))
+    const id = screen.getByTestId('map').getAttribute('data-selected')
+    expect(id).not.toBe('')
+    const drawer = screen.getByRole('complementary', { name: /Track review/ })
+    replay.tick(35)
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Assess' }))
+    replay.tick(9)
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm escalation' }))
+    expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Escalated')
+    expect(within(drawer).queryByRole('button', { name: 'Resolve' })).toBeNull()
+    replay.tick(301)
+    expect(field('Playback')).toHaveTextContent('+05:59')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    replay.tick()
+    expect(field('Playback')).toHaveTextContent('+06:00')
+    expect(dialog()).toHaveAccessibleName(
+      'Run complete — default · raw · subject S03 · run 1 · +06:00',
+    )
+    // Frozen: a further tick moves nothing; the shell is inert and a click selects nothing new.
+    replay.tick(5)
+    expect(field('Playback')).toHaveTextContent('+06:00')
+    expect(field('Sim clock')).toHaveTextContent('02:44:00')
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    fireEvent.click(screen.getByTestId('map-select'))
+    // Copy run waits for all three answers; the JSON is printed only then.
+    const copyRun = within(dialog()).getByRole('button', { name: 'Copy run' })
+    expect(copyRun).toBeDisabled()
+    expect(within(dialog()).getByText('Enabled once all three are answered')).toBeInTheDocument()
+    expect(within(dialog()).queryByLabelText('Run JSON')).toBeNull()
+    answer('Mental demand', '6')
+    answer('Time pressure', '7')
+    expect(copyRun).toBeDisabled()
+    answer('Confidence in your decisions', '5')
+    expect(copyRun).toBeEnabled()
+    expect(within(dialog()).queryByText('Enabled once all three are answered')).toBeNull()
+    const json = runJsonText()
+    expect(JSON.parse(json)).toEqual({
+      subject: 'S03',
+      scenario: 'default',
+      mode: 'raw',
+      run: 1,
+      build: import.meta.env.VITE_BUILD,
+      began_at: NOW,
+      events: [
+        { t: 14, type: 'select', track: id },
+        { t: 49, type: 'assess', track: id },
+        { t: 58, type: 'escalate', track: id },
+      ],
+      answers: { demand: 6, pressure: 7, confidence: 5 },
+    })
+    expect(typeof import.meta.env.VITE_BUILD).toBe('string')
+    expect(json).not.toMatch(/position|score|band|-75[.]|UAS-|TRK-/)
+    fireEvent.click(copyRun)
+    await waitFor(() => expect(copyRun).toHaveTextContent('Copied'))
+    expect(writeText).toHaveBeenCalledWith(json)
+  })
+
+  it('in Vigil: draws the config’s sites over a stored plan and leaves the plan for the demo (ruled A13), logs a Queue row’s selection, offers no Resolve, and refuses an action after the end', () => {
+    localStorage.setItem(
+      STORE_KEY,
+      sitePlanText(addSite(fromConfig(AO.protectedSites), [-75.2, 39.8], 600, AO), AO),
+    )
+    const replay = start('vigil')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield')
+    begin()
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    replay.tick(20)
+    const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+    fireEvent.click(within(rows[0]).getByRole('button'))
+    const id = screen.getByTestId('map').getAttribute('data-selected')
+    expect(id).not.toBe('')
+    const drawer = screen.getByRole('complementary', { name: /Track review/ })
+    expect(
+      within(drawer)
+        .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
+        .map((button) => button.textContent),
+    ).toEqual(['Assess', 'Escalate', 'Dismiss'])
+    replay.tick(10)
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Assess' }))
+    expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    replay.tick(330)
+    expect(dialog()).toHaveAccessibleName(
+      'Run complete — default · vigil · subject S03 · run 1 · +06:00',
+    )
+    // Refused after the end: the drawer's Dismiss changes nothing and logs nothing.
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Dismiss' }))
+    expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    answerAll()
+    expect(JSON.parse(runJsonText())).toMatchObject({
+      mode: 'vigil',
+      events: [
+        { t: 20, type: 'select', track: id },
+        { t: 30, type: 'assess', track: id },
+      ],
+    })
+    expect(localStorage.getItem(STORE_KEY)).not.toBeNull()
+  })
+
+  it('mounts none of it in the demo, in either mode (ruled A8)', () => {
+    useSession.mockReturnValue(ready(CAPTURE))
+    const { unmount } = render(<App schedule={never} />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('Cooperative')).toBeInTheDocument()
+    expect(screen.getByText('Injects')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sites' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^(Play|Pause)$/ })).toBeInTheDocument()
+    expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+    unmount()
+    useSession.mockReturnValue(ready(CAPTURE, DEFAULT_RECORDING, true, 'raw'))
+    render(<App schedule={never} />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('Cooperative')).toBeInTheDocument()
+    expect(field('Playback')).toHaveTextContent(/^[0-9][0-9]:[0-9][0-9]$/)
   })
 })

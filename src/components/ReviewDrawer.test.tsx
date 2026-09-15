@@ -758,3 +758,18 @@ describe('raw mode (S4a, #136, ruled A5)', () => {
     expect(rowsOf(drawer).find(([label]) => label === 'Identity')?.[1]).toBe('Cooperative')
   })
 })
+
+describe('a study run (S4b, #137, ruled A5’s opt-out)', () => {
+  it('hides Resolve in Vigil too, so both conditions offer the same three actions', () => {
+    renderDrawer(entry(SILENT, 1, 7200.2), { run: true })
+    const drawer = screen.getByRole('complementary', { name: /Track review/ })
+    expect(
+      within(drawer)
+        .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
+        .map((button) => button.textContent),
+    ).toEqual(['Assess', 'Escalate', 'Dismiss'])
+    // Still Vigil's drawer otherwise: the score is opened, the event log drawn.
+    expect(within(drawer).getByLabelText('Score breakdown')).toBeInTheDocument()
+    expect(within(drawer).getByLabelText('Event log')).toBeInTheDocument()
+  })
+})

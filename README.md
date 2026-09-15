@@ -15,6 +15,9 @@ The unaided condition (S4a): **Study-02a-raw**
 [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) ·
 **Study-02b-raw** [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw).
 `?scenario=on` is the default deal, `off` none; `?mode=vigil`, the default, is the app as built.
+A **study run** (S4b) adds `&subject=<code>&run=<n>` to a study link, both or neither —
+[`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1):
+the brief, Begin, six minutes on the clock, the end screen with Copy run.
 
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
@@ -78,6 +81,7 @@ flowchart LR
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
     life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings, pattern changes, loss and return logged at sim time, statuses carried · re-surface read off the log<br/>the sites in force on every snapshot"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · the site line from the record · timeline live"]
+    run["lib/run.ts<br/>the run JSON: subject · scenario · mode · run · build · began_at · events · answers<br/>the record's actions and the selections folded, t from Begin · track ids only — no position, no score, no name"]
     workcfg["config/contacts.ts + dispositions.ts<br/>recipients · outcome labels"]
     frames["config/airframes.ts<br/>emitter categories · type codes · kinematic envelope"]
     airframe["lib/airframe.ts<br/>classify: silhouette class + its basis<br/>type code → category → UA type → envelope"]
@@ -102,6 +106,7 @@ flowchart LR
     alerts["lib/alerts.ts<br/>a surface over the record: which entries earn a card, which clear one<br/>one pending card per track per kind · a tick raises, a seek replays · never a capped cooperative track"]
     alertcfg --> alerts
     life -- the log, entry by entry --> alerts
+    life -- the record's actions --> run
     projcfg["config/projection.ts<br/>the horizon — the factor's entryZeroMin, one number"]
     proj["lib/projection.ts<br/>time to entry by dead reckoning: the observed position, track, and speed against every protected ring<br/>the soonest, its site named and tier carried · inside at zero · none past the horizon<br/>the entry point on the ring · the position's own age counted off, a coasting track captioned · entryAt: the one entry estimate the Closing factor scores and the Entry row prints (S3a)"]
     scorecfg -- entryZeroMin --> projcfg
@@ -133,7 +138,7 @@ flowchart LR
     queue["Queue<br/>ranked list, the product · reason tag in plain English"]
     map["MapView + IdentityLegend<br/>context · breadcrumb trail behind the selected track · its projected path to the ring"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count · time to entry"]
-    clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick · how it last moved<br/>scheduler injected, so no test waits on time"]
+    clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick · how it last moved<br/>a study run's window: held at Begin, ended at +6:00, never restarted<br/>scheduler injected, so no test waits on time"]
     panel["components/SitesPanel.tsx<br/>the Sites surface: protected sites and friendly launch areas as rows, the inline editor, placement armed on the map<br/>the site plan: copy out, load back · refused behind the record's frontier · a restored row reads stored"]
     copy["components/useCopy.ts<br/>copy with the clipboard, fall back to the textarea's selection<br/>'Copied' only for the text actually copied"]
     copy -- handoff --> review
@@ -154,7 +159,8 @@ flowchart LR
   cfg -- seed: strip --> app
   recs -- ?recording= selection · the default --> app
   scenarios -- ?scenario= name · on the first · off none --> app
-  studycfg -- ?mode=raw: the rule at 1 500 m, every derived reading hidden --> app
+  studycfg -- ?mode=raw: the rule at 1 500 m, every derived reading hidden · a run: Begin · the window · the brief · the questions --> app
+  run -- the run JSON: the end screen's Copy run --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot, map fill --> app
   life -- log · status · re-surface: drawer, state filter, row --> app
   proj -- time to entry for the selected track: drawer, map line --> app

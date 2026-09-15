@@ -174,6 +174,18 @@ describe('the mode before the recording is in (#148 round 1)', () => {
     vi.unstubAllGlobals()
   })
 
+  it('carries the study run the link names on the same first state (S4b, #137)', () => {
+    vi.stubGlobal('fetch', fetcher)
+    const { result } = renderHook(() =>
+      useSession('?feed=recording:vigil-phl-002&scenario=02a&mode=vigil&subject=S03&run=2', {}),
+    )
+    expect(result.current).toMatchObject({
+      status: 'loading',
+      session: { mode: 'vigil', study: { subject: 'S03', run: 2 } },
+    })
+    vi.unstubAllGlobals()
+  })
+
   it('refuses synchronously too — a bad link never reaches a loading shell', () => {
     vi.stubGlobal('fetch', fetcher)
     const { result } = renderHook(() => useSession('?mode=fast', {}))

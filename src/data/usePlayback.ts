@@ -36,47 +36,65 @@ export interface Playback {
 }
 
 /**
+ * A study run's window on the recording (S4b, #137, ruled A2–A4): the clock opens held at
+ * `fromS` — Begin's tick — and does not play until `play`, which is Begin; it then ticks to
+ * `toS`, or the recording's end if that comes first, and stops there for good: Play at the end
+ * restarts nothing, and a seek stays inside the window.
+ */
+export interface PlaybackWindow {
+  fromS: number
+  toS: number
+}
+
+/**
  * The replay clock (PR 06a). Plays from load, one second per tick, and pauses at the end of the
  * recording rather than looping — a loop would rewrite what the record means. Seek clamps to the
- * recording and keeps whatever play state it finds; Play at the end starts over.
+ * recording and keeps whatever play state it finds; Play at the end starts over. Given a window,
+ * the clock is a run's instead: held at its start, ended at its end.
  */
 export function usePlayback(
   durationS: number | null,
   schedule: Schedule = intervalSchedule,
   tickMs: number = REPLAY.tickMs,
+  window: PlaybackWindow | null = null,
 ): Playback {
-  const [tSec, setTSec] = useState(0)
-  const [wantPlaying, setWantPlaying] = useState(true)
+  const fromS = window?.fromS ?? 0
+  const bounded = window !== null
+  const [tSec, setTSec] = useState(fromS)
+  const [wantPlaying, setWantPlaying] = useState(!bounded)
   const [lastMove, setLastMove] = useState<PlaybackMove>('seek')
   // Derived, not stored: reaching the end pauses without an effect writing state back, and a
   // clock with no recording to run on is not playing, however much it wants to (#73 review).
-  const ended = durationS !== null && tSec >= durationS
-  const playing = wantPlaying && durationS !== null && !ended
+  const endS = durationS === null ? null : window ? Math.min(window.toS, durationS) : durationS
+  const ended = endS !== null && tSec >= endS
+  const playing = wantPlaying && endS !== null && !ended
 
   useEffect(() => {
-    if (!playing || durationS === null) return
+    if (!playing || endS === null) return
     return schedule(() => {
-      setTSec((t) => Math.min(t + 1, durationS))
+      setTSec((t) => Math.min(t + 1, endS))
       setLastMove('tick')
     }, tickMs)
-  }, [playing, durationS, schedule, tickMs])
+  }, [playing, endS, schedule, tickMs])
 
   const play = useCallback(() => {
     if (ended) {
+      // A run that has ended is over: the ended clock cannot be restarted (ruled A3).
+      if (bounded) return
       setTSec(0)
       setLastMove('seek')
     }
     setWantPlaying(true)
-  }, [ended])
+  }, [ended, bounded])
   const pause = useCallback(() => setWantPlaying(false), [])
   const seek = useCallback(
     (to: number) => {
       // The state a seek finds at the end is paused; leaving the end must not silently resume.
       if (ended) setWantPlaying(false)
-      setTSec(Math.max(0, Math.min(Math.floor(to), durationS ?? 0)))
+      setTSec(Math.max(fromS, Math.min(Math.floor(to), endS ?? fromS)))
       setLastMove('seek')
     },
-    [durationS, ended],
+    [endS, ended, fromS],
   )
 
   return { tSec, playing, lastMove, durationS, play, pause, seek }

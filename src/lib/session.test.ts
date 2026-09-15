@@ -26,11 +26,13 @@ describe('resolveSession (#115, ruling 6)', () => {
       feeds: [rec(DEFAULT_RECORDING.id)],
       scenario: ON,
       mode: 'vigil',
+      study: null,
     })
     expect(resolveSession('?other=1')).toEqual({
       feeds: [rec('vigil-phl-001')],
       scenario: ON,
       mode: 'vigil',
+      study: null,
     })
   })
 
@@ -40,17 +42,20 @@ describe('resolveSession (#115, ruling 6)', () => {
       feeds: [rec('vigil-phl-002')],
       scenario: OFF,
       mode: 'vigil',
+      study: null,
     })
     expect(resolveSession('?feed=recording:vigil-phl-001&scenario=on', env)).toEqual({
       feeds: [rec('vigil-phl-001')],
       scenario: ON,
       mode: 'vigil',
+      study: null,
     })
     // Each variable on its own: the other keeps the build's fallback.
     expect(resolveSession('', { VITE_DEFAULT_SCENARIO: 'off' })).toEqual({
       feeds: [rec('vigil-phl-001')],
       scenario: OFF,
       mode: 'vigil',
+      study: null,
     })
   })
 
@@ -59,11 +64,13 @@ describe('resolveSession (#115, ruling 6)', () => {
       feeds: [rec('vigil-phl-002')],
       scenario: ON,
       mode: 'vigil',
+      study: null,
     })
     expect(resolveSession('?feed=recording:vigil-phl-002&scenario=off')).toEqual({
       feeds: [rec('vigil-phl-002')],
       scenario: OFF,
       mode: 'vigil',
+      study: null,
     })
   })
 
@@ -72,6 +79,7 @@ describe('resolveSession (#115, ruling 6)', () => {
       feeds: [rec('vigil-phl-002')],
       scenario: ON,
       mode: 'vigil',
+      study: null,
     })
     expect(refusal('?feed=recording:vigil-phl-001&recording=vigil-phl-002')).toBe(
       '?recording= and ?feed= name different recordings — say one',
@@ -170,6 +178,7 @@ describe('resolveSession (#115, ruling 6)', () => {
       feeds: [rec('vigil-phl-001')],
       scenario: ON,
       mode: 'vigil',
+      study: null,
     })
   })
 
@@ -211,6 +220,7 @@ describe('resolveSession (#115, ruling 6)', () => {
       feeds: [rec('vigil-phl-002')],
       scenario: ON,
       mode: 'vigil',
+      study: null,
     })
     expect(() => resolveSession('?recording=vigil-phl-002', {}, RECORDINGS.slice(0, 1))).toThrow(
       'No recording named "vigil-phl-002"',
@@ -234,6 +244,7 @@ describe('?mode= — the study’s condition (S4a, #136, ruled A1)', () => {
       feeds: [rec('vigil-phl-002')],
       scenario: { on: true, name: '02a', seed: 'study-02a' },
       mode: 'raw',
+      study: null,
     })
     expect(resolveSession('?mode=vigil').mode).toBe('vigil')
     expect(resolveSession('').mode).toBe('vigil')
@@ -242,5 +253,42 @@ describe('?mode= — the study’s condition (S4a, #136, ruled A1)', () => {
     expect(refusal('?mode=raw&mode=vigil')).toBe('?mode= is given more than once — give it once')
     // URL only: the env carries no mode — a run's parameter, not a build's.
     expect(resolveSession('', { VITE_DEFAULT_SCENARIO: '02a' }).mode).toBe('vigil')
+  })
+})
+
+describe('?subject= and ?run= — a study run (S4b, #137, ruled A1; #131)', () => {
+  it('reads both into the session, in either mode; neither is the demo', () => {
+    expect(
+      resolveSession('?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1'),
+    ).toEqual({
+      feeds: [rec('vigil-phl-002')],
+      scenario: { on: true, name: '02a', seed: 'study-02a' },
+      mode: 'raw',
+      study: { subject: 'S03', run: 1 },
+    })
+    expect(resolveSession('?scenario=02b&subject=p-7&run=12').study).toEqual({
+      subject: 'p-7',
+      run: 12,
+    })
+    expect(resolveSession('?scenario=02a&mode=vigil').study).toBeNull()
+  })
+
+  it('refuses one without the other, a name for a code, a run index not from 1, and a repeat — in so many words', () => {
+    expect(refusal('?subject=S03')).toBe('a run link names both ?subject= and ?run=')
+    expect(refusal('?run=1')).toBe('a run link names both ?subject= and ?run=')
+    expect(refusal('?subject=&run=1')).toBe('?subject= is a subject code, not ""')
+    expect(refusal('?subject=Gary Smith&run=1')).toBe(
+      '?subject= is a subject code, not "Gary Smith"',
+    )
+    expect(refusal('?subject=S03&run=0')).toBe('?run= is a run number from 1, not "0"')
+    expect(refusal('?subject=S03&run=')).toBe('?run= is a run number from 1, not ""')
+    expect(refusal('?subject=S03&run=1.5')).toBe('?run= is a run number from 1, not "1.5"')
+    expect(refusal('?subject=S03&run=two')).toBe('?run= is a run number from 1, not "two"')
+    expect(refusal('?subject=S03&run=1&run=2')).toBe('?run= is given more than once — give it once')
+    expect(refusal('?subject=S03&subject=S04&run=1')).toBe(
+      '?subject= is given more than once — give it once',
+    )
+    // URL only, as the mode is: the env names no subject.
+    expect(resolveSession('', { VITE_DEFAULT_SCENARIO: '02a' }).study).toBeNull()
   })
 })
