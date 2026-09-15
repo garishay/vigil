@@ -1315,3 +1315,56 @@ describe('the mismatch reading (S1, #132, ruled A1–A4)', () => {
     expect(day.band).toBe('calm')
   })
 })
+
+describe('a lying broadcast vouches for nothing (#140 round 1)', () => {
+  // S2b's realistic shape until the association rule lands: the generator marks a heard frame
+  // cooperative, and the broadcast it heard claims a point 1.1 km from where the track is.
+  const lying = inject({
+    identity: 'cooperative',
+    callsign: 'UAS-8F21',
+    remoteId: 'broadcasting',
+    broadcast: { label: 'UAS-8F21', position: destinationPoint(at(1000), 90, 1100) },
+  })
+  const silent = inject()
+
+  it('is not a friendly launch — the cap does not swallow the reading, and the score equals silence', () => {
+    // First seen inside a declared friendly area, heard this frame: the friendly condition's
+    // easiest case, and the one place the reading must not be capped away.
+    const pad = { id: 'area-1', name: 'Drone unit pad', center: at(1000), radiusM: 500 }
+    const context: ScoringContext = {
+      ...NIGHT,
+      friendly: [pad],
+      origins: { 'inject-01': at(1000) },
+    }
+    const score = scoreTrack(lying, SITES, context)
+    expect(score.mismatch).toMatchObject({ label: 'UAS-8F21' })
+    expect(score.friendly).toBe(false)
+    expect(score.capped).toBe(false)
+    expect(score.composite).toBe(scoreTrack(silent, SITES, context).composite)
+    // The same broadcast, consistent, from the same pad: friendly, capped — 08b as ruled.
+    const consistent = { ...lying, broadcast: { label: 'UAS-8F21', position: at(1000) } }
+    expect(scoreTrack(consistent, SITES, context)).toMatchObject({ friendly: true, capped: true })
+  })
+
+  it('does not stamp the identity memory, so a spoofer that goes quiet reads as never heard', () => {
+    expect(rememberIdentities({}, [lying], 100)).toEqual({
+      'inject-01': { lastHeardTSec: null },
+    })
+    const consistent = { ...lying, broadcast: { label: 'UAS-8F21', position: at(1000) } }
+    expect(rememberIdentities({}, [consistent], 100)).toEqual({
+      'inject-01': { lastHeardTSec: 100 },
+    })
+    // The frame after the lying broadcast stops: silence's 100, not the dwell's 10 "holding".
+    const memory = rememberIdentities({}, [lying], 100)
+    const quiet = { ...lying, identity: 'unknown' as const, callsign: null, broadcast: null }
+    expect(factor(quiet, 'cooperativity', { ...NIGHT, tSec: 110, memory })).toMatchObject({
+      value: SCORING.cooperativity.silent,
+      detail: 'no ident heard',
+    })
+    // The threshold is the config's here too: a sweep that widens it hears the same broadcast.
+    const wide = { ...SCORING.cooperativity, mismatchM: 2000 }
+    expect(rememberIdentities({}, [lying], 100, wide)).toEqual({
+      'inject-01': { lastHeardTSec: 100 },
+    })
+  })
+})

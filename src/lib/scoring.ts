@@ -262,16 +262,22 @@ export const formatClock = (minute: number) =>
  * cooperative because its ident arrived — stamps `tSec`; every other track keeps what it had,
  * or opens as never heard. Pure and immutable, so the app folds it per frame and a test folds
  * a whole sequence. ADS-B tracks are cooperative by construction and need no memory.
+ *
+ * A broadcast under the mismatch reading is not an ident here either (S1, #140 round 1): the
+ * frame does not stamp, so a spoofer that goes quiet reads as never heard, not as holding. The
+ * threshold is the config's — the committed one unless a caller supplies its own, as the scorer
+ * reads it when the context carries none.
  */
 export function rememberIdentities(
   memory: IdentityMemory,
   tracks: readonly ObservedTrack[],
   tSec: number,
+  config: ScoringConfig['cooperativity'] = SCORING.cooperativity,
 ): IdentityMemory {
   const next: Record<string, { lastHeardTSec: number | null }> = { ...memory }
   for (const track of tracks) {
     if (track.source !== 'inject') continue
-    const heard = track.identity === 'cooperative'
+    const heard = track.identity === 'cooperative' && mismatchOf(track, config) === null
     next[track.id] = heard ? { lastHeardTSec: tSec } : (next[track.id] ?? { lastHeardTSec: null })
   }
   return next
@@ -487,14 +493,18 @@ const siteRecords = (
  * the Identity factor already holds a heard ident for, so the cap and the factor agree on what
  * "heard" means (a per-frame read would flicker an intermittent ident's cap 22 times across the
  * recording; "ever heard" would keep capping a drone that fell silent for good). Two
- * observations, no label: a silent track first seen inside the area reads false.
+ * observations, no label: a silent track first seen inside the area reads false. So does a
+ * track under the mismatch reading (S1, #140 round 1): a broadcast that puts the drone
+ * somewhere else vouches for nothing, whatever the identity says — the same rule the memory
+ * fold applies, so the cap, the factor, and the dwell agree on what "heard" means.
  */
 function friendlyLaunch(
   track: ObservedTrack,
   context: ScoringContext,
+  mismatch: Mismatch | null,
   config: ScoringConfig['cooperativity'],
 ): boolean {
-  if (track.source !== 'inject' || !context.friendly?.length) return false
+  if (track.source !== 'inject' || !context.friendly?.length || mismatch) return false
   const origin = context.origins?.[track.id]
   if (!origin) return false
   const inside = context.friendly.some(
@@ -591,7 +601,7 @@ export function scoreTrack(
   const uncapped = (total / totalWeight) * 100
   // The ceiling first, on the observed source; then the friendly cap, its own value, on the
   // friendly condition (08b). Both are caps below the caution band; the display names which.
-  const friendly = friendlyLaunch(track, context, config.cooperativity)
+  const friendly = friendlyLaunch(track, context, mismatch, config.cooperativity)
   const ceilinged = track.source === 'adsb' && uncapped > config.adsbCeiling
   const friendlyCapped = friendly && uncapped > config.friendlyCap
   const composite = ceilinged ? config.adsbCeiling : friendlyCapped ? config.friendlyCap : uncapped
