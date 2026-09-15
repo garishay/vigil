@@ -24,6 +24,7 @@
  */
 
 import { REPLAY, type ReplayConfig } from '../config/replay.ts'
+import type { ScoringConfig } from '../config/scoring.ts'
 import { toTrack } from './adsb.ts'
 import type { AdsbCapture } from './adsb.ts'
 import { round } from './geo.ts'
@@ -183,15 +184,20 @@ export function pictureAt(
  * The identity memory at `tSec` as a pure fold over the frame grid up to it — the instants a
  * broadcast is actually sampled at — so playing to a time tick by tick and seeking straight to
  * it land on the same memory, and the same score (the determinism criterion on #6). Cheap
- * enough to rebuild every tick: at most eighty frames of a handful of injects.
+ * enough to rebuild every tick: at most eighty frames of a handful of injects. The mismatch
+ * threshold a frame is heard under is the caller's scoring config (#141) — the one its rows are
+ * scored with, so the fold and the row cannot read two — the committed one when it hands none.
  */
 export function memoryAt(
   sample: (tSec: number) => readonly ObservedTrack[],
   intervalS: number,
   tSec: number,
+  config?: ScoringConfig['cooperativity'],
 ): IdentityMemory {
   let memory: IdentityMemory = {}
-  for (let t = 0; t <= tSec; t += intervalS) memory = rememberIdentities(memory, sample(t), t)
+  for (let t = 0; t <= tSec; t += intervalS) {
+    memory = rememberIdentities(memory, sample(t), t, config)
+  }
   return memory
 }
 

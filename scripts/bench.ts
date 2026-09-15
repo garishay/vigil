@@ -232,13 +232,14 @@ export function runBench(
       // The oracle is the plan's own specs: a picture track carries no answer key (#115, A3).
       const truth = new Map(plan.specs.map((spec) => [spec.id, spec]))
       const origins = originsOf(index, plan)
+      const sample = (t: number) => injectTracksAt(plan, t)
       const runs = new Map<string, InjectRun>()
       for (let tSec = 0; tSec <= index.durationS; tSec++) {
-        const layer = injectTracksAt(plan, tSec)
+        const layer = sample(tSec)
         const context = {
           tSec,
           minuteOfDay: minuteOfDay(startLocal, tSec),
-          memory: memoryAt((t) => injectTracksAt(plan, t), plan.intervalS, tSec),
+          memory: memoryAt(sample, plan.intervalS, tSec, config.cooperativity),
           history: historiesAt(index, plan, layer, tSec, config.pattern.windowS),
           friendly: areas,
           origins,

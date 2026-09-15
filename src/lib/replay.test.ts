@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import { PHL } from '../config/ao'
 import { SCENARIO } from '../config/scenario'
+import { SCORING } from '../config/scoring'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture, CaptureRecord } from './adsb'
 import { gridTimeline, injectTracksAt, planScenario } from './injects'
@@ -192,6 +193,21 @@ describe('memoryAt', () => {
     const memory = memoryAt(sample, plan.intervalS, 20 * 15 + 7)
     expect(memory[intermittent!.id]).toEqual({ lastHeardTSec: lastHeardFrame * 15 })
     expect(SCENARIO.seed).toBe(plan.seed)
+  })
+
+  it('folds at the config it is handed, so a sweep hears what its own row hears (#141)', () => {
+    // inject-14's broadcast claims a point 1.1 km from the track: a mismatch at the committed
+    // 1 000 m, so the fold does not stamp it; a sweep that widens the threshold to 2 000 m hears
+    // the same broadcast, and the memory the sweep scores against says so.
+    const lying = planScenario(gridTimeline(80, 15000), BEHAVIORS_SCENARIO)
+    const sampleLying = (t: number) => injectTracksAt(lying, t)
+    const committed = memoryAt(sampleLying, lying.intervalS, 60, SCORING.cooperativity)
+    expect(committed['inject-14']).toEqual({ lastHeardTSec: null })
+    expect(memoryAt(sampleLying, lying.intervalS, 60)).toEqual(committed)
+    const wide = { ...SCORING.cooperativity, mismatchM: 2000 }
+    expect(memoryAt(sampleLying, lying.intervalS, 60, wide)['inject-14']).toEqual({
+      lastHeardTSec: 60,
+    })
   })
 })
 
