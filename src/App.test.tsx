@@ -2182,3 +2182,27 @@ describe('raw mode while the recording loads (#148 round 1)', () => {
     expect(screen.getByTestId('map')).toHaveAttribute('data-mode', 'raw')
   })
 })
+
+describe('raw mode and the stored site plan (#36 [34], ruled A)', () => {
+  const STORE_KEY = 'vigil.site-plan'
+  const storedPlan = () =>
+    sitePlanText(addSite(fromConfig(AO.protectedSites), [-75.2, 39.8], 600, AO), AO)
+
+  it('ignores the plan this browser stored and draws the config’s sites — a subject can neither see nor reset it', () => {
+    localStorage.setItem(STORE_KEY, storedPlan())
+    useSession.mockReturnValue(ready(CAPTURE, DEFAULT_RECORDING, true, 'raw'))
+    render(<App schedule={never} />)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield')
+    // The plan is left where it was, for Vigil, which shows it on its panel.
+    expect(localStorage.getItem(STORE_KEY)).toBe(storedPlan())
+    localStorage.removeItem(STORE_KEY)
+  })
+
+  it('leaves Vigil restoring the same plan, as #90 built it', () => {
+    localStorage.setItem(STORE_KEY, storedPlan())
+    useSession.mockReturnValue(ready(CAPTURE))
+    render(<App schedule={never} />)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield,site-2')
+    localStorage.removeItem(STORE_KEY)
+  })
+})

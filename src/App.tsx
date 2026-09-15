@@ -181,8 +181,11 @@ export default function App({
   // it; a plan the parser refuses leaves config in place with one line said. A held plan that
   // equals config records no difference, so it is forgotten here rather than kept unclearable
   // (#108 review). The golden and every pinned test run on the config set.
+  // Raw ignores the stored plan and draws the config's sites (#36 [34], ruled A): a subject can
+  // neither see nor reset a plan a Vigil run left in this browser, and the study's baselines are
+  // computed against the config set. Vigil keeps its plan, shown on its own panel.
   const [siteSet, setSiteSet] = useState<SiteSet>(() => {
-    const text = readStoredPlan()
+    const text = raw ? null : readStoredPlan()
     const { set, problem } = fromStore(text, AO.protectedSites, AO.friendlyAreas, AO)
     if (problem !== null) console.warn(`Stored site plan ignored — ${problem}; using config`)
     else if (text !== null && !set.stored) localStorage.removeItem(SITE_PLAN_KEY)
