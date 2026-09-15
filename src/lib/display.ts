@@ -17,7 +17,14 @@ import { distanceMeters } from './geo.ts'
 import type { TrackEvent } from './lifecycle.ts'
 import type { EntryEstimate } from './projection.ts'
 import type { RankedTrack } from './ranking.ts'
-import { formatClock, minuteOfDay, zonedParts, type Factor, type Score } from './scoring.ts'
+import {
+  formatClock,
+  minuteOfDay,
+  zonedParts,
+  type Factor,
+  type Mismatch,
+  type Score,
+} from './scoring.ts'
 import type { SessionSite } from './sites.ts'
 import type { Track } from './tracks.ts'
 
@@ -158,6 +165,22 @@ export const capLine = (score: Score) =>
     : `Capped at ${formatScore(score)} — cooperative aircraft`
 
 /**
+ * The mismatch reading as the drawer prints it under the header (S1, #132): the sentence the
+ * Issue asked for, the broadcast's own label in it. Off the score, so the drawer cannot disagree
+ * with the row; wraps as a paragraph, no fit pinned there.
+ */
+export const mismatchLine = (mismatch: Mismatch) =>
+  `Remote ID ${mismatch.label} broadcasts ${formatRangeKm(mismatch.distanceM)} from the observed track`
+
+/**
+ * The same evidence on the handoff, after the Track line (S1, opt-in H, ruled): frozen off the
+ * escalate snapshot, so it still says why once the broadcast has stopped. "observed" is dropped
+ * for the 53-character fit — 51 with an eight-character label and a distance under 10 km.
+ */
+export const mismatchHandoffLine = (mismatch: Mismatch) =>
+  `Remote ID ${mismatch.label} broadcasts ${formatRangeKm(mismatch.distanceM)} from the track`
+
+/**
  * The chip's hover: the three largest contributions and the total they are part of, so a row
  * explains itself before the drawer opens; a capped row leads with the cap (#63 review). The
  * reason tag below carries the words; this carries the numbers.
@@ -197,6 +220,9 @@ export function reasonTag(entry: RankedTrack, sites: readonly ProtectedSite[]): 
     if (factor.value < 50) return null
     switch (factor.id) {
       case 'cooperativity':
+        // The reading's own word when the row read the mismatch (S1): the row has to explain a
+        // broadcast that lies, not an identity that is quiet.
+        if (score.mismatch) return 'Remote ID mismatch'
         return track.identity === 'non-cooperative' ? 'non-cooperative' : 'ident unknown'
       case 'closing':
         return inside ? null : 'closing'

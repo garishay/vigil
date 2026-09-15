@@ -44,7 +44,7 @@ import {
 } from '../config/scoring.ts'
 import { timeToEntry, type EntryEstimate, type EntrySite } from './projection.ts'
 import type { RankedTrack } from './ranking.ts'
-import { bandOf } from './scoring.ts'
+import { bandOf, type Mismatch } from './scoring.ts'
 import type { Identity, Track } from './tracks.ts'
 
 export type Status = 'new' | 'assessing' | 'escalated' | 'resolved' | 'dismissed'
@@ -160,6 +160,14 @@ export interface ObservedSnapshot {
    */
   friendly: boolean
   /**
+   * The mismatch reading's evidence at the moment (S1, #132, opt-in S): the broadcast's label
+   * and how far its claimed position lay from the observed track. Derived from two observed
+   * positions, and seen — the drawer's line and the tag's word — so it is part of the moment,
+   * and the frozen handoff still says why the track was escalated. Null when the row did not
+   * read it.
+   */
+  mismatch: Mismatch | null
+  /**
    * Time to entry into a protected site at the moment (#102): the value the drawer showed, off
    * the protected records above — the set as scored — so the frozen handoff prints what the
    * operator read. Derived from observed kinematics only; null for a track on the ground.
@@ -225,6 +233,7 @@ export const observedSnapshot = ({
   >,
   sites: score.sites,
   friendly: score.friendly,
+  mismatch: score.mismatch,
   entry: timeToEntry(track, protectedOf(score.sites)),
 })
 

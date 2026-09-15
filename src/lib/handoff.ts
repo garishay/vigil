@@ -33,6 +33,7 @@ import {
   entryHandoffLine,
   formatRangeKm,
   formatScore,
+  mismatchHandoffLine,
   roundHeading,
   scoreTotal,
   siteLine,
@@ -109,6 +110,9 @@ export function handoffText({
     'Demonstration only — not for operational use',
     `To: ${recipient.name}`,
     `Track ${trackIdent(track)} · ${IDENTITY_LABEL[observed.identity]} · ${LAYER_DISCLOSURE[track.source]}`,
+    // The mismatch reading's evidence, frozen with the rest of the block (S1, opt-in H): the
+    // recipient learns why before the range, and after the broadcast has stopped.
+    ...(score.mismatch ? [mismatchHandoffLine(score.mismatch)] : []),
     `Range ${formatRangeKm(observed.rangeM)} to ${siteName} at ${clock(escalation.tSec)}`,
     `  ${kinematics}`,
     ...entryLines,

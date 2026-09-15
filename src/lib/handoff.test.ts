@@ -3,6 +3,7 @@ import { AO } from '../config/ao'
 import { CONTACTS } from '../config/contacts'
 import { DISPOSITIONS } from '../config/dispositions'
 import { simClock } from './display'
+import { destinationPoint } from './geo'
 import { handoffText } from './handoff'
 import { appendEvent, bandCrossing, patternChange, firstSeen, observedSnapshot } from './lifecycle'
 import type { RankedTrack } from './ranking'
@@ -13,6 +14,7 @@ const INJECT: InjectTrack = {
   id: 'inject-05',
   source: 'inject',
   uaType: null,
+  broadcast: null,
   identity: 'non-cooperative',
   callsign: null,
   position: [-75.20547, 39.81341],
@@ -408,5 +410,27 @@ describe('the friendly cap in the frozen evidence block (08b)', () => {
     expect(summary).toContain('\n  Friendly launch — capped at 30 (uncapped 80)\n')
     expect(summary).not.toContain('cooperative aircraft')
     for (const line of summary.split('\n')) expect(line.length).toBeLessThanOrEqual(53)
+  })
+})
+
+describe('the mismatch line (S1, #132, opt-in H)', () => {
+  const MISMATCHED: InjectTrack = {
+    ...INJECT,
+    broadcast: { label: 'UAS-8F21', position: destinationPoint(INJECT.position, 90, 1100) },
+  }
+
+  it('prints the frozen evidence after the Track line, inside the fit, and nothing without it', () => {
+    const lines = text(entry(MISMATCHED)).split('\n')
+    expect(lines[3]).toBe('Track TRK-05 · Non-cooperative · synthetic inject')
+    expect(lines[4]).toBe('Remote ID UAS-8F21 broadcasts 1.1 km from the track')
+    expect(lines[5]).toMatch(/^Range /)
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(53)
+    expect(text(entry(INJECT))).not.toContain('broadcasts')
+  })
+
+  it('reads the snapshot, not the live track: the line survives the broadcast stopping', () => {
+    const log = walkToEscalated(entry(MISMATCHED))
+    const quiet = entry({ ...MISMATCHED, broadcast: null })
+    expect(text(quiet, log)).toContain('\nRemote ID UAS-8F21 broadcasts 1.1 km from the track\n')
   })
 })

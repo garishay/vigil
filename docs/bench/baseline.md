@@ -8,13 +8,13 @@ A crossing is the first upward crossing; a flap is an upward re-crossing into a 
 
 | behavior | n | to caution min / mean / max | reached | rank at caution min / mean / max | to warning min / mean / max | reached | rank at warning min / mean / max | flaps total / max |
 |---|---|---|---|---|---|---|---|---|
-| transit | 30 | 0:00 / 0:00 / 0:00 | 30/30 | 1 / 3 / 6 | 0:00 / 6:47 / 17:37 | 14/30 | 1 / 3 / 7 | 5 / 2 |
-| loiter | 29 | 0:00 / 0:07 / 2:04 | 29/29 | 1 / 4 / 8 | 0:08 / 9:02 / 15:48 | 29/29 | 1 / 3 / 6 | 8 / 2 |
-| orbit | 35 | 0:00 / 0:02 / 0:39 | 35/35 | 1 / 4 / 8 | 0:00 / 7:53 / 15:46 | 35/35 | 1 / 3 / 5 | 55 / 9 |
-| lawnmower | 34 | 0:00 / 0:42 / 5:42 | 34/34 | 1 / 4 / 8 | 0:11 / 9:47 / 19:22 | 32/34 | 1 / 3 / 6 | 12 / 3 |
-| approach-retreat | 31 | 0:00 / 0:00 / 0:00 | 31/31 | 1 / 3 / 7 | 0:00 / 5:56 / 11:00 | 31/31 | 1 / 3 / 5 | 48 / 4 |
+| transit | 30 | 0:00 / 0:01 / 0:27 | 30/30 | 1 / 4 / 6 | 0:00 / 4:54 / 14:09 | 9/30 | 1 / 2 / 4 | 5 / 2 |
+| loiter | 29 | 0:00 / 0:34 / 4:14 | 29/29 | 1 / 4 / 8 | 0:08 / 9:28 / 16:11 | 29/29 | 1 / 3 / 6 | 10 / 3 |
+| orbit | 35 | 0:00 / 0:29 / 2:57 | 35/35 | 1 / 4 / 8 | 0:00 / 8:24 / 17:31 | 35/35 | 1 / 3 / 5 | 51 / 9 |
+| lawnmower | 34 | 0:00 / 1:17 / 7:56 | 34/34 | 1 / 4 / 8 | 0:11 / 9:41 / 19:39 | 31/34 | 1 / 3 / 6 | 13 / 3 |
+| approach-retreat | 31 | 0:00 / 0:00 / 0:00 | 31/31 | 1 / 3 / 7 | 0:00 / 6:09 / 11:00 | 31/31 | 1 / 3 / 5 | 50 / 5 |
 
-By Remote ID state — broadcasting: n 47 · caution 47 · warning 34 · flaps 41 · intermittent: n 53 · caution 53 · warning 48 · flaps 78 · silent: n 59 · caution 59 · warning 59 · flaps 9
+By Remote ID state — broadcasting: n 47 · caution 47 · warning 34 · flaps 38 · intermittent: n 53 · caution 53 · warning 42 · flaps 82 · silent: n 59 · caution 59 · warning 59 · flaps 9
 
 ## vigil-phl-001 — real aircraft (uncapped composite)
 
@@ -44,13 +44,13 @@ By Remote ID state — broadcasting: n 47 · caution 47 · warning 34 · flaps 4
 
 | behavior | n | to caution min / mean / max | reached | rank at caution min / mean / max | to warning min / mean / max | reached | rank at warning min / mean / max | flaps total / max |
 |---|---|---|---|---|---|---|---|---|
-| transit | 30 | 0:00 / 0:51 / 3:23 | 30/30 | 1 / 3 / 6 | 2:05 / 4:34 / 7:21 | 5/30 | 1 / 1 / 2 | 1 / 1 |
-| loiter | 29 | 0:00 / 2:16 / 7:36 | 29/29 | 1 / 4 / 8 | 2:58 / 11:53 / 18:13 | 29/29 | 1 / 3 / 5 | 2 / 1 |
-| orbit | 35 | 0:00 / 1:34 / 6:16 | 35/35 | 1 / 4 / 8 | 2:17 / 10:54 / 19:01 | 30/35 | 1 / 3 / 6 | 14 / 2 |
-| lawnmower | 34 | 0:00 / 2:31 / 11:33 | 34/34 | 1 / 4 / 8 | 3:07 / 10:20 / 19:02 | 26/34 | 1 / 2 / 4 | 10 / 2 |
-| approach-retreat | 31 | 0:00 / 0:27 / 1:59 | 31/31 | 1 / 3 / 7 | 1:13 / 7:22 / 11:00 | 31/31 | 1 / 2 / 5 | 37 / 3 |
+| transit | 30 | 0:00 / 1:53 / 5:09 | 30/30 | 1 / 3 / 6 | 2:05 / 4:34 / 7:21 | 5/30 | 1 / 1 / 2 | 7 / 2 |
+| loiter | 29 | 0:00 / 3:24 / 9:38 | 29/29 | 1 / 4 / 8 | 2:58 / 9:54 / 19:14 | 16/29 | 1 / 2 / 4 | 14 / 5 |
+| orbit | 35 | 0:00 / 2:23 / 7:24 | 35/35 | 1 / 4 / 8 | 2:17 / 9:29 / 19:44 | 20/35 | 1 / 2 / 4 | 12 / 3 |
+| lawnmower | 34 | 0:00 / 2:57 / 12:05 | 34/34 | 1 / 4 / 8 | 3:07 / 9:27 / 18:44 | 22/34 | 1 / 2 / 4 | 10 / 2 |
+| approach-retreat | 31 | 0:00 / 1:14 / 3:32 | 31/31 | 1 / 3 / 7 | 1:13 / 6:51 / 16:59 | 16/31 | 1 / 2 / 5 | 31 / 2 |
 
-By Remote ID state — broadcasting: n 47 · caution 47 · warning 30 · flaps 21 · intermittent: n 53 · caution 53 · warning 32 · flaps 34 · silent: n 59 · caution 59 · warning 59 · flaps 9
+By Remote ID state — broadcasting: n 47 · caution 47 · warning 0 · flaps 12 · intermittent: n 53 · caution 53 · warning 20 · flaps 53 · silent: n 59 · caution 59 · warning 59 · flaps 9
 
 ## vigil-phl-002 — real aircraft (uncapped composite)
 

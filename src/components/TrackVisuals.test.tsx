@@ -26,6 +26,7 @@ const HEARD: InjectTrack = {
   id: 'inject-01',
   source: 'inject',
   uaType: 'multirotor',
+  broadcast: null,
   identity: 'cooperative',
   callsign: 'UAS-7CD5',
   position: [-75.2, 39.8],

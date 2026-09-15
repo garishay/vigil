@@ -53,6 +53,7 @@ function inject(n: number, identity: Identity, rangeM: number): GeneratedInjectT
     behavior: 'transit',
     remoteId: identity === 'non-cooperative' ? 'silent' : 'intermittent',
     uaType: null,
+    broadcast: null,
     identity,
     callsign: identity === 'cooperative' ? `UAS-${n}` : null,
     position: at(rangeM),
@@ -204,7 +205,9 @@ describe('determinism', () => {
     // ones by geometry, then the capped ADS-B block — led by the arrival inside the ring that
     // the placeholder put fourth, since inside the ring its approach is complete (05a). The
     // composites are over 95 with the pattern row at 0 — no history at frame 0 — and the hero
-    // opens at 10 km, one point clear of the nearer grid sweep (ruled on #5, note 3).
+    // opens at 10 km, one point clear of the nearer grid sweep (ruled on #5, note 3). The three
+    // heard rows read 51 · 46 · 36 — 54 · 50 · 40 before S1 lowered the heard value from 25 to
+    // 10 (#132, ruled A2): the order holds, the silent three are untouched.
     expect(ids.slice(0, 7)).toEqual([
       'inject-05',
       'inject-03',
@@ -216,7 +219,7 @@ describe('determinism', () => {
     ])
     const ranked = rankTracks(frame0, SITES)
     expect(ranked.slice(0, 6).map((r) => Math.round(r.score.composite))).toEqual([
-      59, 58, 56, 54, 50, 40,
+      59, 58, 56, 51, 46, 36,
     ])
     expect(ranked[6].score).toMatchObject({ composite: 30, capped: true })
     expect(ranked.find((r) => r.track.id === 'adsb-c00b80')?.rank).toBeGreaterThan(6)

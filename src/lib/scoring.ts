@@ -99,6 +99,17 @@ export interface Factor {
   detail: string
 }
 
+/**
+ * The mismatch reading's evidence (S1, #132): the label the broadcast identifies as and how far
+ * its claimed position lies from the observed track, metres. On the score for the drawer line,
+ * the tag's word, and — frozen on the snapshot — the handoff's line; null whenever the track
+ * carries no broadcast or the broadcast is consistent.
+ */
+export interface Mismatch {
+  label: string
+  distanceM: number
+}
+
 export interface Score {
   /** 0–100, after the ceiling. */
   composite: number
@@ -122,6 +133,8 @@ export interface Score {
    * the never-re-surface guard keys on it — the condition, not on the cap having bound.
    */
   friendly: boolean
+  /** The mismatch reading's evidence when the Identity row read it (S1); null otherwise. */
+  mismatch: Mismatch | null
   band: Band
   factors: Factor[]
   /**
@@ -279,13 +292,34 @@ function nearestSite(
 
 const km = (meters: number) => `${(meters / 1000).toFixed(1)} km`
 
+/**
+ * The mismatch reading's evidence, or null (S1, #132, ruled A4): the track carries a broadcast
+ * and the position it claims lies `mismatchM` or more from where the sensor observes the track.
+ * Read off the broadcast alone, whatever `identity` says — what a mismatched track's identity
+ * and callsign are is the association rule's decision (S2b, #134), and this needs neither.
+ */
+function mismatchOf(track: ObservedTrack, config: ScoringConfig['cooperativity']): Mismatch | null {
+  if (track.source !== 'inject' || track.broadcast === null) return null
+  const distanceM = distanceMeters(track.position, track.broadcast.position)
+  return distanceM >= config.mismatchM ? { label: track.broadcast.label, distanceM } : null
+}
+
 function cooperativity(
   track: ObservedTrack,
   context: ScoringContext,
+  mismatch: Mismatch | null,
   config: ScoringConfig['cooperativity'],
 ): { value: number; detail: string } {
   if (track.source === 'adsb')
     return { value: config.adsb, detail: 'ADS-B, cooperative by construction' }
+  // A broadcast that puts the drone somewhere else is not an ident: the reading wins over a
+  // cooperative identity, and reads as silence does (S1, ruled A1).
+  if (mismatch) {
+    return {
+      value: config.mismatch,
+      detail: `Remote ID broadcasts ${km(mismatch.distanceM)} from the observed track`,
+    }
+  }
   if (track.identity === 'cooperative')
     return { value: config.heard, detail: 'Remote ID heard this frame' }
   const lastHeard = context.memory[track.id]?.lastHeardTSec ?? null
@@ -536,8 +570,9 @@ export function scoreTrack(
   const config = context.config ?? SCORING
   const nearest = nearestSite(track.position, sites)
   const pattern = patternOfLife(track, context.history, config.pattern)
+  const mismatch = mismatchOf(track, config.cooperativity)
   const raw: Record<FactorId, { value: number; detail: string }> = {
-    cooperativity: cooperativity(track, context, config.cooperativity),
+    cooperativity: cooperativity(track, context, mismatch, config.cooperativity),
     closing: closing(track, sites, config.closing, config.tierMultiplier),
     proximity: proximity(track, sites, config.proximity, config.tierMultiplier),
     pattern: { value: pattern.value, detail: pattern.detail },
@@ -568,6 +603,7 @@ export function scoreTrack(
     uncapped,
     capped: ceilinged || friendlyCapped,
     friendly,
+    mismatch,
     // Banded on the whole number the chip and the handoff print, so a 69.6 that prints as 70
     // reads warning, not caution: the word and the number beside it can never disagree (#63).
     band: bandOf(Math.round(composite), config.bands),
@@ -598,6 +634,7 @@ export function scoreFromSnapshot(
     pattern: PatternKind | null
     sites: readonly SiteRecord[]
     friendly: boolean
+    mismatch: Mismatch | null
   },
   config: ScoringConfig = SCORING,
 ): Score {
@@ -623,6 +660,7 @@ export function scoreFromSnapshot(
     uncapped: observed.uncapped,
     capped: observed.score < observed.uncapped,
     friendly: observed.friendly,
+    mismatch: observed.mismatch,
     band: bandOf(Math.round(observed.score), config.bands),
     factors,
     pattern: observed.pattern,
@@ -648,14 +686,15 @@ export function scoreFromSnapshot(
  * That shortcut is licensed by one pin and nothing else: the test that holds `ifHeard` equal to
  * a scorer re-run with `identity: 'cooperative'` on the silent, degraded, holding, and
  * friendly-capped fixtures. The day a factor other than cooperativity reads identity, that pin
- * fails and this helper re-runs the scorer instead.
+ * fails and this helper re-runs the scorer instead. A track under the mismatch reading gets no
+ * line either (S1): it is heard — the drawer's mismatch line says what it heard.
  */
 export function ifHeard(
   track: Pick<ObservedTrack, 'source' | 'identity'>,
   score: Score,
   config: ScoringConfig = SCORING,
 ): { composite: number; band: Band } | null {
-  if (track.source !== 'inject' || track.identity === 'cooperative') return null
+  if (track.source !== 'inject' || track.identity === 'cooperative' || score.mismatch) return null
   const coop = score.factors.find((factor) => factor.id === 'cooperativity')
   if (!coop) return null
   const heard = (config.cooperativity.heard / 100) * coop.weight

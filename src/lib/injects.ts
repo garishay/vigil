@@ -316,7 +316,8 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
   const a = positionAt(spec, from)
   const b = positionAt(spec, to)
   const travelM = distanceMeters(a, b)
-  const position = positionAt(spec, t)
+  const now = positionAt(spec, t)
+  const position: [number, number] = [round(now[0], 5), round(now[1], 5)]
   const heard = isHeard(spec, intervalS, t)
   const identity: Identity =
     spec.remoteId === 'silent' ? 'non-cooperative' : heard ? 'cooperative' : 'unknown'
@@ -328,7 +329,10 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
     callsign: heard ? spec.label : null,
     // Heard with the ident, lost with it: the same observed/not-observed rule (#22).
     uaType: heard ? spec.uaType : null,
-    position: [round(position[0], 5), round(position[1], 5)],
+    // The broadcast's own content, on the same rule (S1, #132): its position is the observed one
+    // until a scenario offsets it (S2b, #134), so every committed inject reads consistent.
+    broadcast: heard ? { label: spec.label, position } : null,
+    position,
     altitudeFt: Math.round(altitudeAt(spec, t)) + 0,
     onGround: false,
     groundSpeedKt: round(travelM / KINEMATIC_WINDOW_S / KT_TO_MS, 1),

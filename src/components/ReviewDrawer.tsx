@@ -15,6 +15,7 @@ import {
   entryBasis,
   entryLine,
   formatRangeKm,
+  mismatchLine,
   roundHeading,
   trackIdent,
 } from '../lib/display'
@@ -295,6 +296,13 @@ export function ReviewDrawer({
           ×
         </button>
       </header>
+
+      {/* The mismatch line (S1, #132): what the track's Remote ID broadcast claims against what
+          the sensor observes, off the score's own reading — one element, so raw mode can hide it
+          (S4a). A track with a mismatch is heard, so the corroboration line below yields to it. */}
+      {entry.score.mismatch && (
+        <p className="drawer__mismatch">{mismatchLine(entry.score.mismatch)}</p>
+      )}
 
       {/* The corroboration line (#103): what a track not heard on Remote ID would score if it
           were, off the same score — a render-time derivation, no state, not an event, not on the
