@@ -141,6 +141,8 @@ export type ScriptedMotion =
       radiusM: number
       meetM: number
       meetS: number
+      /** +1 clockwise for a centre to the right of the course, −1 for one to the left (#142 round 1). */
+      turn: 1 | -1
     }
   | { kind: 'return-to-launch'; pad: [number, number]; arriveS: number; descentS: number }
 
@@ -332,16 +334,15 @@ function positionAt(spec: InjectSpec, tSec: number): [number, number] {
     case 'transit-orbit': {
       const script = scripted(spec, 'transit-orbit')
       // Straight along the course until it first meets the configured circle, then around it
-      // from that point at the same speed, turning the way the dealt orbit turns. Continuous by
+      // from that point at the same speed, turning toward the side the centre lies on — the
+      // dealt orbit turns one way because it places its centre to the right; a cast centre is
+      // given, so the sense is read off the geometry (#142 round 1). Continuous by
       // construction: the meeting point lies on the course and on the circle (ruled A4).
       if (t <= script.meetS) return destinationPoint(spec.origin, spec.courseDeg, spec.speedMs * t)
       const entry = destinationPoint(spec.origin, spec.courseDeg, script.meetM)
       const sweepDeg = ((spec.speedMs / script.radiusM) * (t - script.meetS) * 180) / Math.PI
-      return destinationPoint(
-        script.center,
-        (bearingDegrees(script.center, entry) + sweepDeg) % 360,
-        script.radiusM,
-      )
+      const bearing = bearingDegrees(script.center, entry) + script.turn * sweepDeg
+      return destinationPoint(script.center, ((bearing % 360) + 360) % 360, script.radiusM)
     }
     case 'return-to-launch': {
       const script = scripted(spec, 'return-to-launch')
@@ -440,7 +441,9 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
     // until a scenario offsets it (S2b, #134), so every committed inject reads consistent.
     broadcast: heard ? { label: spec.label, position } : null,
     position,
-    altitudeFt: Math.round(altitudeAt(spec, t)) + 0,
+    // Zero altitude only on the ground (the model's rule): an airborne reading rounds no lower
+    // than 1 ft, so the last fraction of a descent cannot print 0 before the arrival (#142 round 1).
+    altitudeFt: landed ? 0 : Math.max(1, Math.round(altitudeAt(spec, t))),
     onGround: landed,
     groundSpeedKt: landed ? 0 : round(travelM / KINEMATIC_WINDOW_S / KT_TO_MS, 1),
     // A hovering drone has no meaningful course, and the model already allows for that.
@@ -568,6 +571,13 @@ export function planScenario(
   if (cast.length > 89) {
     throw new Error(`a cast of ${cast.length}; ids run inject-11 to inject-99, so at most 89`)
   }
+  // The other end of the range: a deal that could reach inject-11 would collide with the cast,
+  // and a duplicate id vanishes from the picture silently (#142 round 1).
+  if (cast.length > 0 && config.maxInjects > 10) {
+    throw new Error(
+      `a deal of up to ${config.maxInjects} beside a cast; cast ids start at inject-11, so a scenario with a cast deals at most 10`,
+    )
+  }
   const place = (at: Placement): [number, number] =>
     destinationPoint(ao.center, at.bearingDeg, at.rangeKm * 1000)
   cast.forEach((entry, index) => {
@@ -649,15 +659,24 @@ function scriptOf(
     case 'shuttle': {
       const to = place(entry.to)
       const legM = distanceMeters(origin, to)
+      // A leg of no length has no period — the motion would be NaN, not a hover (#142 round 1).
+      if (legM < 1) throw new Error(`cast ${id}: the shuttle's two points are the same place`)
       return { courseDeg: bearingDegrees(origin, to), script: { kind: 'shuttle', to, legM } }
     }
     case 'transit-orbit': {
       const center = place(entry.orbit.center)
       const { radiusM } = entry.orbit
       const meeting = firstMeeting(origin, entry.courseDeg, center, radiusM)
+      // Three refusals, each in its own words (#142 round 1): an origin already inside the
+      // circle, a circle behind the origin, a course that passes outside it.
+      if (meeting.inside) {
+        throw new Error(
+          `cast ${id}: its origin lies inside its orbit circle — ${Math.round(distanceMeters(origin, center))} m from the centre, radius ${radiusM} m; start it outside`,
+        )
+      }
       if (meeting.alongM === null) {
         throw new Error(
-          `cast ${id}: the course ${entry.courseDeg}° never meets its orbit circle — the centre lies ${(meeting.acrossM / 1000).toFixed(1)} km off the course${meeting.behind ? ', behind the origin' : ''}, radius ${radiusM} m`,
+          `cast ${id}: the course ${entry.courseDeg}° never meets its orbit circle — the centre lies ${(Math.abs(meeting.acrossM) / 1000).toFixed(1)} km off the course${meeting.behind ? ', behind the origin' : ''}, radius ${radiusM} m`,
         )
       }
       return {
@@ -668,6 +687,8 @@ function scriptOf(
           radiusM,
           meetM: meeting.alongM,
           meetS: meeting.alongM / speedMs,
+          // The side the centre lies on is the way the track turns onto the circle.
+          turn: meeting.acrossM >= 0 ? 1 : -1,
         },
       }
     }

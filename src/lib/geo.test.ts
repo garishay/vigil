@@ -217,3 +217,30 @@ describe('firstMeeting (S2a, #133)', () => {
     expect(distanceMeters(center, point)).toBeCloseTo(800, 0)
   })
 })
+
+describe('firstMeeting — the side and the inside (#142 round 1)', () => {
+  const north = (m: number) => destinationPoint(PHL_CENTER, 0, m)
+
+  it('signs the across distance by side: a centre to the left of the course reads negative', () => {
+    const right = firstMeeting(PHL_CENTER, 0, destinationPoint(north(3000), 90, 500), 800)
+    const left = firstMeeting(PHL_CENTER, 0, destinationPoint(north(3000), 270, 500), 800)
+    expect(right.acrossM).toBeCloseTo(500, 0)
+    expect(left.acrossM).toBeCloseTo(-500, 0)
+    expect(left.alongM).toBeCloseTo(right.alongM!, 0)
+    // The same geometry on a southbound course flips the side.
+    const south = firstMeeting(north(6000), 180, destinationPoint(north(3000), 90, 500), 800)
+    expect(south.acrossM).toBeCloseTo(-500, 0)
+  })
+
+  it('tells an origin already inside the circle apart from a miss and from a circle behind', () => {
+    const inside = firstMeeting(PHL_CENTER, 0, north(300), 800)
+    expect(inside).toMatchObject({ alongM: null, inside: true, behind: false })
+    const atCentre = firstMeeting(PHL_CENTER, 0, PHL_CENTER, 800)
+    expect(atCentre).toMatchObject({ alongM: null, inside: true })
+    expect(firstMeeting(PHL_CENTER, 0, north(3000), 800).inside).toBe(false)
+    expect(firstMeeting(PHL_CENTER, 180, north(3000), 800)).toMatchObject({
+      inside: false,
+      behind: true,
+    })
+  })
+})

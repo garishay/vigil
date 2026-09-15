@@ -161,10 +161,16 @@ export function offsetPoint(
 export interface CourseMeeting {
   /** Meters along the course from the origin to the first point on the circle; null when none. */
   alongM: number | null
-  /** How far the centre lies off the course line, meters — the perpendicular distance. */
+  /**
+   * How far the centre lies off the course line, meters, signed: positive to the right of the
+   * course, negative to the left — the side decides which way a track turns onto the circle
+   * (#142 round 1).
+   */
   acrossM: number
   /** True when the centre lies behind the origin along the course. */
   behind: boolean
+  /** True when the origin already lies inside the circle — there is no first meeting ahead. */
+  inside: boolean
 }
 
 /**
@@ -172,9 +178,10 @@ export interface CourseMeeting {
  * until it first meets the configured circle, and this is where. Public first principles on the
  * same local tangent plane as `closestApproach` — the centre's offset resolved along and across
  * the unit course vector, and the chord half-length from the radius and the across distance:
- * the first meeting is `along − √(r² − across²)`. Null when the course passes outside the circle
- * or the circle lies behind the origin, with the across distance and the side reported so a
- * refusal can say which; an origin already inside the circle is refused the same way.
+ * the first meeting is `along − √(r² − across²)`. Null when the course passes outside the circle,
+ * the circle lies behind the origin, or the origin is already inside it — each told apart in the
+ * result, so a refusal can say which (#142 round 1) — with the across distance signed by side,
+ * which is what decides the direction of the turn onto the circle.
  */
 export function firstMeeting(
   origin: [number, number],
@@ -189,9 +196,11 @@ export function firstMeeting(
   const ux = Math.sin(courseDeg * toRad)
   const uy = Math.cos(courseDeg * toRad)
   const alongM = eastM * ux + northM * uy
-  const acrossM = Math.abs(eastM * uy - northM * ux)
+  // The cross product's sign is the side: east of a northbound course is to its right.
+  const acrossM = eastM * uy - northM * ux
   const behind = alongM < 0
-  if (acrossM > radiusM) return { alongM: null, acrossM, behind }
+  const inside = alongM * alongM + acrossM * acrossM < radiusM * radiusM
+  if (Math.abs(acrossM) > radiusM) return { alongM: null, acrossM, behind, inside }
   const first = alongM - Math.sqrt(radiusM * radiusM - acrossM * acrossM)
-  return { alongM: first >= 0 ? first : null, acrossM, behind }
+  return { alongM: first >= 0 ? first : null, acrossM, behind, inside }
 }

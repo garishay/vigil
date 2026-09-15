@@ -721,3 +721,85 @@ describe('return to launch (S2a, ruled A5, the descent clamp)', () => {
     expect(at(longScript.arriveS + 1)).toMatchObject({ onGround: true, altitudeFt: 0 })
   })
 })
+
+describe('round 1 of #142 — the cast refuses what it cannot fly, and flies what it accepts honestly', () => {
+  const entry = BEHAVIORS_SCENARIO.cast![1] as Extract<CastEntry, { behavior: 'transit-orbit' }>
+  const withCast = (cast: CastEntry[]) => planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, cast })
+
+  it('turns onto the circle toward the side the centre lies on — a centre to the left is joined counter-clockwise, not by a reversal', () => {
+    // The fixture's centre lies to the right of the course and turns clockwise, as before. Moved
+    // 790 m to the left — bearing 170.3° at 3.0 km — the course still meets the circle, and the
+    // track must turn the other way: the heading a quarter-minute after the meeting stays within
+    // a right angle of the inbound course, where a clockwise sweep would reverse it by ~170°.
+    const left = withCast([
+      { ...entry, orbit: { center: { bearingDeg: 170.3, rangeKm: 3.0 }, radiusM: 800 } },
+    ])
+    const spec = left.specs.at(-1)!
+    const script = spec.script as Extract<ScriptedMotion, { kind: 'transit-orbit' }>
+    expect(script.turn).toBe(-1)
+    const at = (t: number) => injectTracksAt(left, t).at(-1)!
+    const inbound = at(script.meetS - 20).headingDeg!
+    const after = at(script.meetS + 20).headingDeg!
+    const turned = Math.abs(((((after - inbound) % 360) + 360) % 360) - 180)
+    expect(turned).toBeGreaterThan(90)
+    for (const t of [script.meetS + 30, script.meetS + 120, script.meetS + 400]) {
+      expect(distanceMeters(script.center, at(t).position)).toBeCloseTo(800, -1)
+    }
+    // The fixture's own centre, to the right: clockwise, as the golden holds it.
+    const right = planScenario(TIMELINE, BEHAVIORS_SCENARIO).specs.find(
+      (s) => s.behavior === 'transit-orbit',
+    )!
+    expect((right.script as Extract<ScriptedMotion, { kind: 'transit-orbit' }>).turn).toBe(1)
+  })
+
+  it('refuses a shuttle whose two points are the same place, rather than flying NaN', () => {
+    const shuttle = BEHAVIORS_SCENARIO.cast![0] as Extract<CastEntry, { behavior: 'shuttle' }>
+    expect(() => withCast([{ ...shuttle, to: shuttle.from }])).toThrow(
+      /cast inject-11: the shuttle's two points are the same place/,
+    )
+  })
+
+  it('refuses a deal that could reach inject-11 beside a cast, so no id can collide silently', () => {
+    const wide = {
+      ...BEHAVIORS_SCENARIO,
+      minInjects: 11,
+      maxInjects: 12,
+      launchPoints: Array.from({ length: 12 }, (_, i) => ({
+        id: `lp-${i}`,
+        name: `launch ${i}`,
+        bearingDeg: i * 30,
+        rangeKm: 8,
+      })),
+    }
+    expect(() => planScenario(TIMELINE, wide)).toThrow(/a scenario with a cast deals at most 10/)
+    // The same deal with no cast is fine, and the cast beside a deal of ten is fine.
+    expect(() => planScenario(TIMELINE, { ...wide, cast: [] })).not.toThrow()
+    expect(() => planScenario(TIMELINE, { ...wide, minInjects: 5, maxInjects: 10 })).not.toThrow()
+  })
+
+  it('refuses an origin already inside its orbit circle in its own words, not as a miss', () => {
+    expect(() => withCast([{ ...entry, from: entry.orbit.center }])).toThrow(
+      /cast inject-11: its origin lies inside its orbit circle — 0 m from the centre, radius 800 m; start it outside/,
+    )
+  })
+
+  it('never prints zero altitude on an airborne return — the last fraction of the descent rounds to 1 ft', () => {
+    const plan = planScenario(TIMELINE, BEHAVIORS_SCENARIO)
+    const spec = plan.specs.find((s) => s.behavior === 'return-to-launch')!
+    const script = spec.script as Extract<ScriptedMotion, { kind: 'return-to-launch' }>
+    // A tick 0.05 s before the arrival: the descent is at 0.26 ft, airborne still.
+    const justBefore = injectTracksAt(plan, spec.startS + script.arriveS - 0.05).find(
+      (t) => t.id === spec.id,
+    )!
+    expect(justBefore.onGround).toBe(false)
+    expect(justBefore.altitudeFt).toBe(1)
+    const landed = injectTracksAt(plan, spec.startS + script.arriveS + 0.01).find(
+      (t) => t.id === spec.id,
+    )!
+    expect(landed).toMatchObject({ onGround: true, altitudeFt: 0 })
+    // Zero altitude only on the ground, on every frame of the golden.
+    for (const track of allTracks(behaviorsGolden)) {
+      if (track.altitudeFt === 0) expect(track.onGround).toBe(true)
+    }
+  })
+})

@@ -29,7 +29,9 @@ const CAPTURE = `public/${DEFAULT_RECORDING.file}`
  */
 const behaviors = process.argv.includes('--behaviors')
 const CONFIG = behaviors ? BEHAVIORS_SCENARIO : SCENARIO
-const OUT = `src/lib/__fixtures__/injects-${SCENARIO.seed}${behaviors ? '-behaviors' : ''}.json`
+// Named by the seed of the scenario actually written, so the file cannot say one seed and hold
+// another (#142 round 1).
+const OUT = `src/lib/__fixtures__/injects-${CONFIG.seed}${behaviors ? '-behaviors' : ''}.json`
 
 /** One track per line, so a regeneration diffs as data rather than as reflowed whitespace. */
 function serialize(scenario: InjectScenario): string {
