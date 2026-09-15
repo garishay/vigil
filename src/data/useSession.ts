@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { recordingNamed } from '../config/recordings'
 import { scenarioNamed } from '../config/scenarios'
+import { STUDY } from '../config/study'
 import { captureUrl, loadCapture } from './capture'
 import { recordingFeed, scenarioFeed } from '../lib/feeds'
 import type { RecordingFeed, ScenarioFeed } from '../lib/feeds'
@@ -8,7 +9,12 @@ import { SessionRefusal, resolveSession } from '../lib/session'
 import type { SessionConfig, SessionEnv } from '../lib/session'
 
 export type SessionState =
-  | { status: 'loading' }
+  /**
+   * Loading carries the session the URL resolved to, synchronously, so the shell can wear the
+   * requested mode before the recording is in (S4a, #148 round 1): a study subject on a raw
+   * link must never see Vigil's shell flash. Absent only for a test's bare loading state.
+   */
+  | { status: 'loading'; session?: SessionConfig }
   | {
       status: 'ready'
       session: SessionConfig
@@ -37,7 +43,17 @@ export function useSession(
   search: string = window.location.search,
   env: SessionEnv = import.meta.env as SessionEnv,
 ): SessionState {
-  const [state, setState] = useState<SessionState>({ status: 'loading' })
+  // The URL resolves synchronously; only the recording's fetch is asynchronous. Resolving here
+  // gives the first render the mode (S4a); the effect below resolves again on its own path.
+  const [state, setState] = useState<SessionState>(() => {
+    try {
+      return { status: 'loading', session: resolveSession(search, env) }
+    } catch (error) {
+      return error instanceof SessionRefusal
+        ? { status: 'refused', reason: error.message }
+        : { status: 'error', message: (error as Error).message }
+    }
+  })
   // The two variables as primitives, so a caller's fresh env object per render re-runs nothing.
   const feedsEnv = env.VITE_DEFAULT_FEEDS
   const scenarioEnv = env.VITE_DEFAULT_SCENARIO
@@ -58,9 +74,19 @@ export function useSession(
             return recordingFeed(entry, await loadCapture(captureUrl(entry)))
           }),
         )
-        // The named config from the registry (S3b): its seed is the session's (ruling 5).
+        // The named config from the registry (S3b): its seed is the session's (ruling 5). In
+        // raw mode the same picture goes through the association rule at raw's own distance
+        // (S4a, #136, ruled A2; #131) — the one thing raw computes; Vigil's feed keeps the
+        // scorer's threshold, the default.
         const scenario = session.scenario.on
-          ? scenarioFeed(feeds[0].timeline, scenarioNamed(session.scenario.name).config)
+          ? session.mode === 'raw'
+            ? scenarioFeed(
+                feeds[0].timeline,
+                scenarioNamed(session.scenario.name).config,
+                undefined,
+                STUDY.rawAssociationM,
+              )
+            : scenarioFeed(feeds[0].timeline, scenarioNamed(session.scenario.name).config)
           : null
         return { session, feeds, scenario }
       })

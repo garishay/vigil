@@ -19,9 +19,19 @@ import type { FeedKind, FeedRef } from './feeds.ts'
 /** The scenario switch as a name (S3b, #135, ruled A5; #36 [26] A): `on` is the registry's first, `off` none. */
 export type ScenarioState = { on: true; name: string; seed: string } | { on: false }
 
+/**
+ * The study's two conditions (S4a, #136, ruled A1; #131): `vigil` is the app as built, `raw` the
+ * honest unaided picture — the same tracks through the association rule at raw's own distance,
+ * every derived reading hidden. A run's parameter, read from the URL once with the session and
+ * never switched inside a run: nothing in the UI sets it.
+ */
+export type Mode = 'raw' | 'vigil'
+export const MODES: readonly Mode[] = ['raw', 'vigil']
+
 export interface SessionConfig {
   feeds: readonly FeedRef[]
   scenario: ScenarioState
+  mode: Mode
 }
 
 /** The two build-time variables, PAGES_BASE-style; both optional, both plain strings. */
@@ -84,6 +94,12 @@ function parseScenario(
   if (named) return named
   const names = registry.map((scenario) => scenario.name).join(', ')
   return refuse(`${where} reads on, off, or a scenario name — ${names} — not "${text}"`)
+}
+
+/** `raw` or `vigil`, nothing else — a run link that says anything else is refused, not guessed. */
+function parseMode(text: string): Mode {
+  if ((MODES as readonly string[]).includes(text)) return text as Mode
+  return refuse(`?mode= reads raw or vigil, not "${text}"`)
 }
 
 /** Where the picker would go for a live feed: the number of the Issue that brings it. */
@@ -153,6 +169,12 @@ export function resolveSession(
     if (!registry.some((entry) => entry.id === ref.id)) refuse(`No recording named "${ref.id}"`)
   }
 
+  // The mode (S4a): URL only — a run's, not a build's — `vigil` when absent.
+  const modeParams = params.getAll('mode')
+  if (modeParams.length > 1) refuse('?mode= is given more than once — give it once')
+  const modeParam: string | null = modeParams[0] ?? null
+  const mode: Mode = modeParam === null ? 'vigil' : parseMode(modeParam)
+
   const scenarioParams = params.getAll('scenario')
   if (scenarioParams.length > 1) refuse('?scenario= is given more than once — give it once')
   const scenarioParam: string | null = scenarioParams[0] ?? null
@@ -168,5 +190,6 @@ export function resolveSession(
   return {
     feeds,
     scenario: named ? { on: true, name: named.name, seed: named.config.seed } : { on: false },
+    mode,
   }
 }

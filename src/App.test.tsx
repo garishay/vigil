@@ -51,6 +51,7 @@ vi.mock('./components/MapView', () => ({
     projection = [],
     terminalIds = [],
     bands = new Map<string, string>(),
+    mode = 'vigil',
     onSelect,
     children,
   }: {
@@ -66,6 +67,7 @@ vi.mock('./components/MapView', () => ({
     projection?: readonly unknown[]
     terminalIds?: readonly string[]
     bands?: ReadonlyMap<string, string>
+    mode?: string
     onSelect?: (id: string) => void
     children?: React.ReactNode
   }) => {
@@ -85,6 +87,7 @@ vi.mock('./components/MapView', () => ({
         data-sites={sites.map((site) => site.id).join(',')}
         data-selected-site={selectedSiteId ?? ''}
         data-placing={String(placing)}
+        data-mode={mode}
       >
         {/* Stands in for a dot click: selects the first inject, like the real map would. */}
         <button
@@ -123,13 +126,17 @@ const ready = (
   capture: AdsbCapture,
   entry: RecordingEntry = DEFAULT_RECORDING,
   scenarioOn = true,
+  mode: 'raw' | 'vigil' = 'vigil',
 ): SessionState => ({
   status: 'ready',
   session: {
     feeds: [{ kind: 'recording', id: entry.id }],
     scenario: scenarioOn ? { on: true, name: 'default', seed: SCENARIO.seed } : { on: false },
+    mode,
   },
   feeds: [recordingFeed(entry, capture)],
+  // Raw's feed runs the rule at raw's distance (S4a); the default deal carries no offset, so
+  // the picture is the same one here — the mode is what the shell reads.
   scenario: scenarioOn ? scenarioFeed(timelineOf(capture)) : null,
 })
 
@@ -2049,5 +2056,153 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     const at = raise(replay, 'UAS-CD84', '520', '02:38')
     expect(cards()).toContain(`Re-surfacedUAS-CD84${at}`)
     expect(cards()).not.toContain(`WarningUAS-CD84${at}`)
+  })
+})
+
+describe('raw mode (S4a, #136, ruled) — the fairness spec, line by line', () => {
+  const rawReady = () => ready(CAPTURE, DEFAULT_RECORDING, true, 'raw')
+  const map = () => screen.getByTestId('map')
+
+  it('shows the map, the counts, the recording, the clock, the elapsed time, and the AO — no nav, no seek, no Pause, no Seed, no Alerts, no rail', () => {
+    useSession.mockReturnValue(rawReady())
+    render(<App schedule={never} />)
+    expect(screen.queryByRole('navigation', { name: 'Surfaces' })).toBeNull()
+    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2')
+    expect(screen.getByText('Injects')).toBeInTheDocument()
+    expect(screen.getByText('Recording')).toBeInTheDocument()
+    expect(screen.getByText('Sim clock')).toBeInTheDocument()
+    expect(screen.getByText('AO').nextSibling).toHaveTextContent('Philadelphia')
+    expect(screen.getByText('Playback').nextSibling).toHaveTextContent(/^[0-9][0-9]:[0-9][0-9]$/)
+    expect(screen.queryByRole('slider', { name: 'Seek' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Play|Pause)$/ })).toBeNull()
+    expect(screen.queryByText('Seed')).toBeNull()
+    expect(screen.queryByText('Alerts')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Alerts' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Mute|Unmute)$/ })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Ranked queue' })).toBeNull()
+    expect(screen.queryByLabelText('Tracks in queue')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Picture summary' })).toBeNull()
+    // The map: raw, the ring drawn, no dim, no bands, no projected path, the selection shown.
+    expect(map()).toHaveAttribute('data-mode', 'raw')
+    expect(map()).toHaveAttribute('data-sites', 'phl-airfield')
+    expect(map()).toHaveAttribute('data-terminal', '')
+    expect(map()).toHaveAttribute('data-bands', '')
+    expect(map()).toHaveAttribute('data-projection', '0')
+    expect(map()).toHaveAttribute('data-selection-shown', 'true')
+  })
+
+  it('opens the observed-only drawer beside the map on a click, keeps the trail, and acts through Assess and Escalate', () => {
+    useSession.mockReturnValue(rawReady())
+    render(<App schedule={never} />)
+    fireEvent.click(screen.getByTestId('map-select'))
+    const drawer = screen.getByRole('complementary', { name: /Track review/ })
+    expect([...drawer.querySelectorAll('.drawer__row dt')].map((dt) => dt.textContent)).toEqual([
+      'Status',
+      'Range',
+      'Identity',
+      'Source',
+      'Position',
+      'Altitude',
+      'Speed',
+      'Heading',
+      'First seen',
+    ])
+    expect(within(drawer).queryByLabelText('Score breakdown')).toBeNull()
+    expect(within(drawer).queryByText('Rank')).toBeNull()
+    expect(within(drawer).queryByText('Entry')).toBeNull()
+    expect(within(drawer).queryByLabelText('Event log')).toBeNull()
+    expect(Number(map().getAttribute('data-trail'))).toBeGreaterThan(0)
+    expect(map()).toHaveAttribute('data-projection', '0')
+    expect(
+      within(drawer)
+        .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
+        .map((button) => button.textContent),
+    ).toEqual(['Assess', 'Escalate', 'Dismiss'])
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Assess' }))
+    expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm escalation' }))
+    expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Escalated')
+    // The escalation logged, the handoff not drawn: raw prints no score anywhere.
+    expect(within(drawer).queryByLabelText('Handoff text')).toBeNull()
+    // The map still dims nothing and paints no band after the action.
+    expect(map()).toHaveAttribute('data-terminal', '')
+    expect(map()).toHaveAttribute('data-bands', '')
+  })
+
+  it('raises no card and plays no tone on a tick (ruled A6)', () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockImplementation(() => Promise.resolve())
+    if (LONG.status !== 'ready') throw new Error('LONG is a ready session')
+    useSession.mockReturnValue({ ...LONG, session: { ...LONG.session, mode: 'raw' } })
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
+    // In Vigil TRK-06 crosses warning at 73 s and raises; in raw the ticks raise nothing.
+    replay.tick(90)
+    expect(screen.queryByRole('region', { name: 'Alerts' })).toBeNull()
+    expect(play).not.toHaveBeenCalled()
+    play.mockRestore()
+  })
+
+  it('leaves Vigil unchanged: the same session in vigil has the nav, the seek, the Seed, the rail, and the bands (ruled A7)', () => {
+    useSession.mockReturnValue(ready(CAPTURE))
+    render(<App schedule={never} />)
+    expect(screen.getByRole('navigation', { name: 'Surfaces' })).toBeInTheDocument()
+    expect(screen.getByRole('slider', { name: 'Seek' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^(Play|Pause)$/ })).toBeInTheDocument()
+    expect(screen.getByText('Seed')).toBeInTheDocument()
+    expect(screen.getByText('Alerts')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Picture summary' })).toBeInTheDocument()
+    expect(map()).toHaveAttribute('data-mode', 'vigil')
+    expect(map().getAttribute('data-bands')).not.toBe('')
+  })
+})
+
+describe('raw mode while the recording loads (#148 round 1)', () => {
+  it('wears the raw shell from the first render — no nav, no rail, no seek, no Seed, no Alerts, no legend — never a Vigil flash', () => {
+    useSession.mockReturnValue({
+      status: 'loading',
+      session: {
+        feeds: [{ kind: 'recording', id: 'vigil-phl-002' }],
+        scenario: { on: true, name: '02a', seed: 'study-02a' },
+        mode: 'raw',
+      },
+    })
+    render(<App schedule={never} />)
+    expect(screen.queryByRole('navigation', { name: 'Surfaces' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Picture summary' })).toBeNull()
+    expect(screen.queryByRole('slider', { name: 'Seek' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Play|Pause)$/ })).toBeNull()
+    expect(screen.queryByText('Seed')).toBeNull()
+    expect(screen.queryByText('Alerts')).toBeNull()
+    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('…')
+    expect(screen.getByText('Playback').nextSibling).toHaveTextContent('—')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-mode', 'raw')
+  })
+})
+
+describe('raw mode and the stored site plan (#36 [34], ruled A)', () => {
+  const STORE_KEY = 'vigil.site-plan'
+  const storedPlan = () =>
+    sitePlanText(addSite(fromConfig(AO.protectedSites), [-75.2, 39.8], 600, AO), AO)
+
+  it('ignores the plan this browser stored and draws the config’s sites — a subject can neither see nor reset it', () => {
+    localStorage.setItem(STORE_KEY, storedPlan())
+    useSession.mockReturnValue(ready(CAPTURE, DEFAULT_RECORDING, true, 'raw'))
+    render(<App schedule={never} />)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield')
+    // The plan is left where it was, for Vigil, which shows it on its panel.
+    expect(localStorage.getItem(STORE_KEY)).toBe(storedPlan())
+    localStorage.removeItem(STORE_KEY)
+  })
+
+  it('leaves Vigil restoring the same plan, as #90 built it', () => {
+    localStorage.setItem(STORE_KEY, storedPlan())
+    useSession.mockReturnValue(ready(CAPTURE))
+    render(<App schedule={never} />)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield,site-2')
+    localStorage.removeItem(STORE_KEY)
   })
 })

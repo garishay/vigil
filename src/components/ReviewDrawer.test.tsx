@@ -694,3 +694,67 @@ describe('the mismatch line (S1, #132)', () => {
     expect(screen.queryByText(/If heard on Remote ID/)).toBeNull()
   })
 })
+
+describe('raw mode (S4a, #136, ruled A5)', () => {
+  const rowsOf = (drawer: HTMLElement) =>
+    [...drawer.querySelectorAll('.drawer__row')].map((row) => [
+      row.querySelector('dt')?.textContent,
+      row.querySelector('dd')?.textContent,
+    ])
+
+  it('shows the observed rows only — Status, Range, Identity, Source, Position, Altitude, Speed, Heading, First seen — and nothing derived', () => {
+    renderDrawer(entry(SILENT, 1, 7200), { mode: 'raw' })
+    const drawer = screen.getByRole('complementary', { name: /Track review/ })
+    const rows = rowsOf(drawer)
+    expect(rows.map(([label]) => label)).toEqual([
+      'Status',
+      'Range',
+      'Identity',
+      'Source',
+      'Position',
+      'Altitude',
+      'Speed',
+      'Heading',
+      'First seen',
+    ])
+    expect(rows[0][1]).toBe('New')
+    expect(rows[1][1]).toBe('7.2 km to PHL Airfield')
+    expect(rows[2][1]).toBe('Non-cooperative')
+    expect(rows[3][1]).toBe('sensor')
+    expect(rows[4][1]).toMatch(/^[0-9]+[.][0-9]{4}, -[0-9]+[.][0-9]{4}$/)
+    expect(rows[5][1]).toBe(`${SILENT.altitudeFt} ft`)
+    expect(rows[6][1]).toBe(`${SILENT.groundSpeedKt} kt`)
+    expect(rows[7][1]).toMatch(/°$/)
+    expect(rows[8][1]).not.toBe('')
+    // Everything derived is absent: the score block, the lines, the visuals, the history, the
+    // log, the handoff, and Rank.
+    expect(within(drawer).queryByLabelText('Score breakdown')).toBeNull()
+    expect(within(drawer).queryByText(/^If heard on Remote ID/)).toBeNull()
+    expect(drawer.querySelector('.drawer__mismatch')).toBeNull()
+    expect(within(drawer).queryByLabelText('Track visuals')).toBeNull()
+    expect(within(drawer).queryByText(/^History:/)).toBeNull()
+    expect(within(drawer).queryByLabelText('Event log')).toBeNull()
+    expect(within(drawer).queryByLabelText('Handoff summary')).toBeNull()
+    expect(within(drawer).queryByText('Rank')).toBeNull()
+    expect(within(drawer).queryByText('Entry')).toBeNull()
+  })
+
+  it('offers Assess, Escalate, and Dismiss — never Resolve — and names a heard track’s source Remote ID', () => {
+    const heard = {
+      ...SILENT,
+      id: 'inject-11',
+      identity: 'cooperative' as const,
+      callsign: 'UAS-8F21',
+      broadcast: { label: 'UAS-8F21', position: SILENT.position },
+    }
+    renderDrawer(entry(heard, 1, 7200), { mode: 'raw' })
+    const drawer = screen.getByRole('complementary', { name: /Track review/ })
+    expect(
+      within(drawer)
+        .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
+        .map((button) => button.textContent),
+    ).toEqual(['Assess', 'Escalate', 'Dismiss'])
+    expect(rowsOf(drawer).find(([label]) => label === 'Source')?.[1]).toBe('Remote ID')
+    expect(rowsOf(drawer).find(([label]) => label === 'Identity')?.[1]).toBe('Cooperative')
+  })
+})

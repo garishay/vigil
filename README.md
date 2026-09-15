@@ -11,7 +11,10 @@ The operator study’s scenarios open by name (S3b): **Study-02a-vigil**
 **Demo-02a-vigil** [`?recording=vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02a) ·
 **Study-02b-vigil** [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b) ·
 **Demo-02b-vigil** [`?recording=vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02b).
-`?scenario=on` is the default deal, `off` none; the raw-mode rows arrive with S4a (`mode=raw`).
+The unaided condition (S4a): **Study-02a-raw**
+[`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) ·
+**Study-02b-raw** [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw).
+`?scenario=on` is the default deal, `off` none; `?mode=vigil`, the default, is the app as built.
 
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
@@ -45,7 +48,6 @@ flowchart LR
     tonegen["scripts/generate-tone.ts<br/>npm run fixture:tone<br/>the alert tone, synthesized — original and deterministic"] --> tone[("public/alert-tone.wav")]
     bench["scripts/bench.ts<br/>npm run bench · bench:baseline<br/>every recording × N seeds at one-second ticks, the engine through the app's own seams<br/>the generator's labels as the oracle · a config override for a sweep, printed, never written"] --> baseline[("docs/bench/baseline.md<br/>the scoreboard: crossings, ranks, flaps per behavior; real aircraft by uncapped band<br/>a test holds the default run to it byte for byte")]
     study["scripts/study.ts<br/>npm run bench:study<br/>the operator study's acceptance: each study scenario through the feed beside 002 over the window<br/>the four lines · the cue audit on airborne ticks · above calm · flaps · every ring entry — held byte for byte by test"] --> sb[("docs/bench/study-02a.md · study-02b.md")]
-    studycfg["config/study.ts<br/>Begin · the run · raw mode's association distance · the acceptance and audit numbers"] --> study
     fx --> study
     fx --> bench
   end
@@ -70,6 +72,7 @@ flowchart LR
     sites["lib/sites.ts<br/>the session's site set: protected sites and friendly launch areas<br/>add · update · remove · reset, stamped at sim time · the rules a site meets · the last protected site stays<br/>the site plan: JSON out, a pasted plan back in · restored from this browser's storage at load, held while the set differs from config"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
+    studycfg["config/study.ts<br/>Begin · the run · raw mode's association distance · the acceptance and audit numbers"]
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
     score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · the friendly launch cap · closing on the projection's time to entry, complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
@@ -114,6 +117,7 @@ flowchart LR
   gen --> bench
   replay -- picture · memory · histories · origins at t --> bench
   score -- scoreTrack · bandOf --> bench
+  studycfg --> study
   scenarios -- 02a · 02b through the feed --> study
   gen -- injectTracksAt, the feed over it --> study
   replay -- picture · memory · histories · origins at t --> study
@@ -150,6 +154,7 @@ flowchart LR
   cfg -- seed: strip --> app
   recs -- ?recording= selection · the default --> app
   scenarios -- ?scenario= name · on the first · off none --> app
+  studycfg -- ?mode=raw: the rule at 1 500 m, every derived reading hidden --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot, map fill --> app
   life -- log · status · re-surface: drawer, state filter, row --> app
   proj -- time to entry for the selected track: drawer, map line --> app

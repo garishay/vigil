@@ -6,6 +6,7 @@ import {
   entryHandoffLine,
   entryLine,
   formatElapsed,
+  formatPosition,
   formatEntryTime,
   formatScore,
   localDate,
@@ -21,6 +22,7 @@ import {
   capLine,
   mismatchHandoffLine,
   mismatchLine,
+  sourceWord,
 } from './display'
 import type { EntryEstimate } from './projection'
 import { scoreTrack, type Score, type ScoringContext } from './scoring'
@@ -712,5 +714,17 @@ describe('the mismatch reading on the row and in the lines (S1, #132)', () => {
     expect(mismatchHandoffLine(mismatch)).toHaveLength(51)
     // Ten kilometres and more still fit — the widest distance the format prints at this label.
     expect(mismatchHandoffLine({ ...mismatch, distanceM: 12_345 })).toHaveLength(52)
+  })
+})
+
+describe('the raw drawer’s words (S4a, #136, ruled A5)', () => {
+  it('names where the identity came from, and prints the position as observed', () => {
+    expect(sourceWord({ source: 'adsb', callsign: 'AAL423' } as Track)).toBe('ADS-B')
+    expect(sourceWord({ source: 'adsb', callsign: null } as Track)).toBe('ADS-B')
+    // An inject the rule labelled from a broadcast is Remote ID; one it did not is the sensor's.
+    expect(sourceWord({ source: 'inject', callsign: 'UAS-8F21' } as Track)).toBe('Remote ID')
+    expect(sourceWord({ source: 'inject', callsign: null } as Track)).toBe('sensor')
+    // Latitude, longitude — the order a person reads — to four decimals, about ten metres.
+    expect(formatPosition([-75.20547, 39.81341])).toBe('39.8134, -75.2055')
   })
 })
