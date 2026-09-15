@@ -98,7 +98,9 @@ export function classify(track: Track): AirframeClass {
   // What the caption says about the ident (#143 round 1): a track with no broadcast heard none;
   // a track whose broadcast the association rule withheld heard one that is not its own — the
   // drawer's mismatch line names it — so the caption must not claim silence.
-  const ident = track.broadcast ? 'the Remote ID heard is not this track’s' : 'no ident heard'
+  const ident = track.broadcast
+    ? 'the Remote ID heard is not associated with this track'
+    : 'no ident heard'
   // A null is a gap, not a low number (#35) — and not a high one either: the caption must not
   // claim the envelope was evaluated when a reading it needs was never observed (#55 review).
   if (altitudeFt === null || groundSpeedKt === null) {

@@ -198,13 +198,13 @@ describe('a track whose broadcast was withheld (#143 round 1)', () => {
     const inside = classify(withheld)
     expect(inside.label).toBe('Small UAS (kinematic class)')
     expect(inside.caption).toBe(
-      'from the observed envelope — 200 ft, 35 kt; the Remote ID heard is not this track’s',
+      'from the observed envelope — 200 ft, 35 kt; the Remote ID heard is not associated with this track',
     )
     expect(classify({ ...withheld, groundSpeedKt: 120 }).caption).toBe(
-      'the Remote ID heard is not this track’s; outside the small-UAS envelope',
+      'the Remote ID heard is not associated with this track; outside the small-UAS envelope',
     )
     expect(classify({ ...withheld, altitudeFt: null }).caption).toBe(
-      'the Remote ID heard is not this track’s; altitude or speed not observed',
+      'the Remote ID heard is not associated with this track; altitude or speed not observed',
     )
     // A silent track keeps its words.
     expect(classify(inject({ altitudeFt: 200, groundSpeedKt: 35 })).caption).toBe(
