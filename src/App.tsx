@@ -211,9 +211,13 @@ export default function App({
   // frame grid up to the clock, so play and seek agree on it (06a). The hour is the recording's
   // clock start plus the clock (#84, after D2 on #4): 001's configured 02:30, 002's capture wall
   // time in the AO's zone — and the strip shows the same number the breakdown scores against.
-  // Until the recording is in nothing is scored, so the default's hour stands in.
+  // Until the recording is in nothing is scored, so the default's hour stands in. The fold hears
+  // a broadcast at the threshold the rows are scored with (#141) — the committed config here.
   const memory = useMemo(
-    () => (scenario ? memoryAt(scenario.pictureAt, scenario.plan.intervalS, tSec) : {}),
+    () =>
+      scenario
+        ? memoryAt(scenario.pictureAt, scenario.plan.intervalS, tSec, SCORING.cooperativity)
+        : {},
     [scenario, tSec],
   )
   const startLocal = useMemo(
