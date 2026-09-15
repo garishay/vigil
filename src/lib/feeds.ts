@@ -163,6 +163,9 @@ export interface ScenarioFeed extends Picture {
  * returned as it came. Pure; raw mode calls it at its own distance (S4a), Vigil's scenario feed
  * at the scorer's threshold, so the row and the ident cannot disagree.
  */
+/** How far an authored offset must sit from the threshold, metres — twice the position grid's noise. */
+const OFFSET_GUARD_M = 2
+
 export function associate(track: Track, associationM: number): Track {
   if (track.source !== 'inject' || track.broadcast === null) return track
   if (distanceMeters(track.position, track.broadcast.position) < associationM) return track
@@ -177,6 +180,18 @@ export function scenarioFeed(
   associationM: number = SCORING.cooperativity.mismatchM,
 ): ScenarioFeed {
   const plan = planScenario(timeline, config, ao)
+  // A position is quantized to five decimals (about a metre), so a distance the rule measures
+  // wobbles by up to a metre from frame to frame. An offset written on the threshold itself
+  // would flip the ident and the Identity row every few frames — refused here, where the
+  // threshold is known, in so many words (#143 round 1).
+  for (const spec of plan.specs) {
+    const offsetM = spec.broadcastOffset?.distanceM
+    if (offsetM !== undefined && Math.abs(offsetM - associationM) < OFFSET_GUARD_M) {
+      throw new Error(
+        `cast ${spec.id}: a broadcast offset of ${offsetM} m sits on the ${associationM} m association threshold within the position grid's noise — write it at least ${OFFSET_GUARD_M} m either side`,
+      )
+    }
+  }
   return {
     seed: plan.seed,
     plan,

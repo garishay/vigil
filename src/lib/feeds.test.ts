@@ -272,3 +272,28 @@ describe('the association rule (S2b, #134, ruled A2–A4; #36 [27])', () => {
     }
   })
 })
+
+describe('an offset on the threshold is refused (#143 round 1)', () => {
+  const real = JSON.parse(captureRaw) as AdsbCapture
+  const timeline = timelineOf(real)
+  const offsetOf = (distanceM: number) => ({
+    ...BEHAVIORS_SCENARIO,
+    cast: BEHAVIORS_SCENARIO.cast!.map((entry) =>
+      entry.broadcastOffset ? { ...entry, broadcastOffset: { bearingDeg: 90, distanceM } } : entry,
+    ),
+  })
+
+  it('refuses a broadcast offset within the position grid’s noise of the association threshold, in so many words', () => {
+    // At exactly 1 000 m the measured distance wobbles 999.6–1000.4 m frame to frame: the ident
+    // and the Identity row would flip every few frames. Written 2 m either side, it builds.
+    expect(() => scenarioFeed(timeline, offsetOf(1000))).toThrow(
+      /cast inject-14: a broadcast offset of 1000 m sits on the 1000 m association threshold within the position grid's noise — write it at least 2 m either side/,
+    )
+    expect(() => scenarioFeed(timeline, offsetOf(1001))).toThrow(/sits on the 1000 m/)
+    expect(() => scenarioFeed(timeline, offsetOf(1002))).not.toThrow()
+    expect(() => scenarioFeed(timeline, offsetOf(998))).not.toThrow()
+    // The guard follows the threshold the feed is built with: at raw's 1 500 m, 1 000 m is fine.
+    expect(() => scenarioFeed(timeline, offsetOf(1000), AO, 1500)).not.toThrow()
+    expect(() => scenarioFeed(timeline, offsetOf(1500), AO, 1500)).toThrow(/sits on the 1500 m/)
+  })
+})

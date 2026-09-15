@@ -842,9 +842,7 @@ describe('the broadcast offset (S2b, #134, ruled A1)', () => {
     })
     const same = (t: number) => injectTracksAt(straight, t).find((track) => track.id === lying.id)!
     for (const t of [0, 60, 300]) {
-      const { broadcast: _a, ...moving } = at(t)
-      const { broadcast: _b, ...moved } = same(t)
-      expect(moving).toEqual(moved)
+      expect({ ...at(t), broadcast: null }).toEqual({ ...same(t), broadcast: null })
       expect(same(t).broadcast!.position).toEqual(same(t).position)
     }
     expect(at(60)).toMatchObject({ identity: 'cooperative', callsign: 'UAS-8F21' })
