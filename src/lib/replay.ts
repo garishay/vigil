@@ -27,7 +27,7 @@ import { REPLAY, type ReplayConfig } from '../config/replay.ts'
 import { toTrack } from './adsb.ts'
 import type { AdsbCapture } from './adsb.ts'
 import { round } from './geo.ts'
-import { injectTracksAt, type InjectPlan } from './injects.ts'
+import { injectOriginsOf, injectTracksAt, type InjectPlan } from './injects.ts'
 import type { HistorySample, TrackHistories, TrackHistory } from './patterns.ts'
 import { rememberIdentities, type IdentityMemory, type ObservedTrack } from './scoring.ts'
 import type { AdsbTrack, InjectTrack, Track } from './tracks.ts'
@@ -81,8 +81,9 @@ export function originsOf(
 ): Readonly<Record<string, [number, number]>> {
   const origins: Record<string, [number, number]> = {}
   for (const [id, samples] of index.samples) origins[id] = samples[0].track.position
-  if (plan)
-    for (const inject of injectTracksAt(plan, index.startS)) origins[inject.id] = inject.position
+  // An inject's origin is its own first frame — the recording's first for a dealt inject, its
+  // start for a cast inject that appears later (S2a, ruled).
+  if (plan) Object.assign(origins, injectOriginsOf(plan, index.startS))
   return origins
 }
 

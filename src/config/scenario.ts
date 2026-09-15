@@ -7,7 +7,7 @@
  * the generator.
  */
 
-import type { UaType } from '../lib/tracks.ts'
+import type { RemoteIdStatus, UaType } from '../lib/tracks.ts'
 
 /** Where an inject starts, expressed relative to the AO center rather than as a fixed point. */
 export interface LaunchPoint {
@@ -34,6 +34,46 @@ export interface InjectEnvelope {
   maxVerticalRateFpm: number
 }
 
+/** A place relative to the AO centre, as a launch point is — never a coordinate (S2a, #133). */
+export interface Placement {
+  /** Degrees true from the AO center. */
+  bearingDeg: number
+  /** Kilometers from the AO center. */
+  rangeKm: number
+}
+
+/**
+ * A scripted inject (S2a, #133, ruled): one entry of a scenario's cast, beside the dealt injects
+ * or in their place. The three cast behaviors are reachable only this way — never dealt — so the
+ * default deal, its golden, and the bench baseline are untouched by their existence (A1). Every
+ * number the motion needs is written here; the UA type, the dropout chain, and the label when it
+ * is not scripted still come from per-inject derived streams, so a cast inject is a function of
+ * seed and config alone, like a dealt one.
+ */
+export type CastEntry = {
+  remoteId: RemoteIdStatus
+  speedKt: number
+  /** Level from the first frame — a cast inject is already flying when the picture shows it (A6). */
+  altitudeFt: number
+  /** The synthetic Remote ID label, `UAS-XXXX`; drawn from `${seed}:${id}:label` when absent. */
+  label?: string
+  /**
+   * Scenario seconds at which the inject first appears (opt-in, ruled): absent from the picture
+   * before it, and its first frame is its origin, as a dealt inject's launch is. 0 when absent.
+   */
+  startS?: number
+} & (
+  | { behavior: 'shuttle'; from: Placement; to: Placement }
+  | {
+      behavior: 'transit-orbit'
+      from: Placement
+      /** The transit course, degrees true; it must meet the circle, or the plan is refused. */
+      courseDeg: number
+      orbit: { center: Placement; radiusM: number }
+    }
+  | { behavior: 'return-to-launch'; from: Placement; pad: Placement }
+)
+
 export interface ScenarioConfig {
   /**
    * The scenario seed. Same seed, same picture — see `src/lib/injects.ts`. One seed under every
@@ -43,10 +83,14 @@ export interface ScenarioConfig {
   /**
    * Scope §5.2 allows 3–8 injects. The floor is 5 rather than 3 so that every behavior and every
    * Remote ID state appears in every scenario **by construction** — the default picture is both
-   * the demo and the golden fixture, and it should not depend on a lucky seed.
+   * the demo and the golden fixture, and it should not depend on a lucky seed. A scenario with
+   * a non-empty cast may carry no deal at all — `maxInjects: 0` (opt-in, ruled on #133): the
+   * floor binds the deal only when there is one, and the study's scenarios are cast-only.
    */
   minInjects: number
   maxInjects: number
+  /** The scripted injects (S2a); none by default, so the deal is the whole default scenario. */
+  cast?: readonly CastEntry[]
   /** At least `maxInjects` of them, so every inject gets a distinct launch point. */
   launchPoints: LaunchPoint[]
   envelope: InjectEnvelope

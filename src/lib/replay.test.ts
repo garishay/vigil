@@ -5,6 +5,7 @@ import { SCENARIO } from '../config/scenario'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture, CaptureRecord } from './adsb'
 import { gridTimeline, injectTracksAt, planScenario } from './injects'
+import { BEHAVIORS_SCENARIO } from './__fixtures__/behaviors'
 import {
   historiesAt,
   historyAt,
@@ -467,5 +468,25 @@ describe('originsOf (08b, ruled on #86)', () => {
     const [first] = injectTracksAt(plan, 15)
     expect(origins[first.id]).toEqual(first.position)
     expect(origins[first.id]).not.toEqual(injectTracksAt(plan, 0)[0].position)
+  })
+})
+
+describe('originsOf with a cast inject that appears mid-run (S2a, ruled)', () => {
+  it("reads the inject's own first frame — its start — not the recording's first frame", () => {
+    const real = JSON.parse(captureRaw) as AdsbCapture
+    const index = indexCapture(real)
+    const plan = planScenario(gridTimeline(real.frames.length, real.intervalMs), BEHAVIORS_SCENARIO)
+    const origins = originsOf(index, plan)
+    const late = plan.specs.find((spec) => spec.startS > 0)!
+    expect(late.id).toBe('inject-13')
+    // Absent at the recording's first frame, so the old read would have had no origin for it.
+    expect(injectTracksAt(plan, index.startS).some((t) => t.id === late.id)).toBe(false)
+    const first = injectTracksAt(plan, late.startS).find((t) => t.id === late.id)!
+    expect(origins[late.id]).toEqual(first.position)
+    expect(Object.keys(origins)).toHaveLength(index.samples.size + plan.specs.length)
+    // The dealt injects read as before.
+    for (const inject of injectTracksAt(plan, index.startS)) {
+      expect(origins[inject.id]).toEqual(inject.position)
+    }
   })
 })

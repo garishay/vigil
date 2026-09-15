@@ -193,8 +193,11 @@ describe('the golden scenario as the answer key (ruled on #5, note 1)', () => {
       const history = historyAt(noRecording, plan, track, t, CONFIG.windowS)
       expect(history).toHaveLength(29)
       expect(Object.keys(history[0])).toEqual(['tSec', 'position'])
+      // The committed plan deals only the five behaviors above; the cast behaviors (S2a) are
+      // never dealt, so the lookup's key is the dealt pool's.
+      const behavior = plan.specs.find((spec) => spec.id === track.id)!.behavior
       expect(detectPattern(history, CONFIG).kind, track.id).toBe(
-        EXPECTED[plan.specs.find((spec) => spec.id === track.id)!.behavior],
+        EXPECTED[behavior as keyof typeof EXPECTED],
       )
     }
   })

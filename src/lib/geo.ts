@@ -156,3 +156,42 @@ export function offsetPoint(
   if (range === 0) return [origin[0], origin[1]]
   return destinationPoint(origin, (Math.atan2(eastM, northM) * 180) / Math.PI, range)
 }
+
+/** Where a straight course first meets a circle, or why it does not. */
+export interface CourseMeeting {
+  /** Meters along the course from the origin to the first point on the circle; null when none. */
+  alongM: number | null
+  /** How far the centre lies off the course line, meters — the perpendicular distance. */
+  acrossM: number
+  /** True when the centre lies behind the origin along the course. */
+  behind: boolean
+}
+
+/**
+ * A straight course against a circle (S2a, #133): the transit-then-orbit inject flies its course
+ * until it first meets the configured circle, and this is where. Public first principles on the
+ * same local tangent plane as `closestApproach` — the centre's offset resolved along and across
+ * the unit course vector, and the chord half-length from the radius and the across distance:
+ * the first meeting is `along − √(r² − across²)`. Null when the course passes outside the circle
+ * or the circle lies behind the origin, with the across distance and the side reported so a
+ * refusal can say which; an origin already inside the circle is refused the same way.
+ */
+export function firstMeeting(
+  origin: [number, number],
+  courseDeg: number,
+  center: [number, number],
+  radiusM: number,
+): CourseMeeting {
+  const toRad = Math.PI / 180
+  const midLat = ((origin[1] + center[1]) / 2) * toRad
+  const eastM = (center[0] - origin[0]) * toRad * MEAN_EARTH_RADIUS_M * Math.cos(midLat)
+  const northM = (center[1] - origin[1]) * toRad * MEAN_EARTH_RADIUS_M
+  const ux = Math.sin(courseDeg * toRad)
+  const uy = Math.cos(courseDeg * toRad)
+  const alongM = eastM * ux + northM * uy
+  const acrossM = Math.abs(eastM * uy - northM * ux)
+  const behind = alongM < 0
+  if (acrossM > radiusM) return { alongM: null, acrossM, behind }
+  const first = alongM - Math.sqrt(radiusM * radiusM - acrossM * acrossM)
+  return { alongM: first >= 0 ? first : null, acrossM, behind }
+}

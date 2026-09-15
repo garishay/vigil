@@ -2,25 +2,32 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   BEHAVIORS,
   REMOTE_ID_STATES,
+  SCRIPTED_BEHAVIORS,
   UA_TYPES,
   generateScenario,
   gridTimeline,
+  injectOriginsOf,
   injectTracksAt,
   planScenario,
   timelineOf,
 } from './injects'
-import type { InjectScenario } from './injects'
+import type { InjectScenario, ScriptedMotion } from './injects'
 import { AO } from '../config/ao'
-import { SCENARIO } from '../config/scenario'
+import { SCENARIO, type CastEntry } from '../config/scenario'
+import { SCORING } from '../config/scoring'
 import { destinationPoint, distanceMeters } from './geo'
+import { detectPattern } from './patterns'
 import type { AdsbCapture } from './adsb'
+import { BEHAVIORS_SCENARIO } from './__fixtures__/behaviors'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
+import behaviorsGoldenRaw from './__fixtures__/injects-vigil-phl-001-behaviors.json?raw'
 
 // Both fixtures are loaded as raw text rather than as JSON module imports: parsing at runtime
 // keeps TypeScript from inferring a literal type for a 1.3 MB recording, which it does not enjoy.
 const capture = JSON.parse(captureRaw) as AdsbCapture
 const golden = JSON.parse(goldenRaw) as InjectScenario
+const behaviorsGolden = JSON.parse(behaviorsGoldenRaw) as InjectScenario
 
 /** The timeline the committed recording actually has — read, not assumed. */
 const TIMELINE = timelineOf(capture)
@@ -478,5 +485,239 @@ describe('the Remote ID broadcast on the picture (S1, #132, ruled A3)', () => {
     expect(frame0.some((track) => track.broadcast === null)).toBe(true)
     // The generator's own record carries it too — the golden's diff is this field and nothing else.
     expect(allTracks(golden).every((track) => 'broadcast' in track)).toBe(true)
+  })
+})
+
+describe('the cast (S2a, #133, ruled A1–A2)', () => {
+  const plan = planScenario(TIMELINE, BEHAVIORS_SCENARIO)
+  const castSpecs = plan.specs.filter((spec) => spec.script !== null)
+
+  it('leaves the deal exactly as it is without a cast — the 001 golden holds by construction', () => {
+    expect(plan.specs.slice(0, plan.specs.length - 3)).toEqual(planScenario(TIMELINE).specs)
+    expect(generateScenario(TIMELINE)).toEqual(golden)
+    expect(
+      SCRIPTED_BEHAVIORS.every((behavior) => !(BEHAVIORS as readonly string[]).includes(behavior)),
+    ).toBe(true)
+  })
+
+  it('numbers cast injects from inject-11, the same under every seed and every deal', () => {
+    expect(castSpecs.map((spec) => spec.id)).toEqual(['inject-11', 'inject-12', 'inject-13'])
+    expect(castSpecs.map((spec) => spec.launchId)).toEqual(['cast', 'cast', 'cast'])
+    const other = planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, seed: 'b' })
+    expect(other.specs.filter((spec) => spec.script !== null).map((spec) => spec.id)).toEqual([
+      'inject-11',
+      'inject-12',
+      'inject-13',
+    ])
+    expect(castSpecs.map((spec) => spec.behavior)).toEqual([...SCRIPTED_BEHAVIORS])
+  })
+
+  it('draws a cast inject’s label, UA type, and dropout chain from streams keyed by its id — deterministic, and untouched by the timeline', () => {
+    for (const spec of castSpecs) {
+      expect(spec.label).toMatch(/^UAS-[0-9A-F]{4}$/)
+      expect(UA_TYPES).toContain(spec.uaType)
+    }
+    const scripted = { ...BEHAVIORS_SCENARIO.cast![0], label: 'UAS-8F21' }
+    const named = planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, cast: [scripted] })
+    expect(named.specs.at(-1)!.label).toBe('UAS-8F21')
+    const longer = planScenario(gridTimeline(81, 15000), BEHAVIORS_SCENARIO)
+    const short = planScenario(gridTimeline(80, 15000), BEHAVIORS_SCENARIO)
+    expect(longer.specs.map((spec) => ({ ...spec, heard: spec.heard.slice(0, 80) }))).toEqual(
+      short.specs,
+    )
+  })
+
+  it('may carry no deal at all — cast-only — and refuses a scenario with neither (opt-in, ruled)', () => {
+    const castOnly = planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, minInjects: 0, maxInjects: 0 })
+    expect(castOnly.specs.map((spec) => spec.id)).toEqual(['inject-11', 'inject-12', 'inject-13'])
+    expect(castOnly.specs).toEqual(castSpecs)
+    expect(() =>
+      planScenario(TIMELINE, { ...SCENARIO, minInjects: 0, maxInjects: 0, cast: [] }),
+    ).toThrow(/needs a deal or a cast/)
+    // The floor still binds a deal when there is one, cast or no cast.
+    expect(() => planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, minInjects: 3 })).toThrow(
+      /at least 5/,
+    )
+  })
+
+  it('reproduces the committed behaviors golden, and 001’s own is byte-identical', () => {
+    expect(generateScenario(TIMELINE, BEHAVIORS_SCENARIO)).toEqual(behaviorsGolden)
+    // 8 tracks until the return appears at 120 s, 9 from then on.
+    expect([...new Set(behaviorsGolden.frames.map((frame) => frame.tracks.length))]).toEqual([8, 9])
+    expect(behaviorsGolden.frames.find((frame) => frame.tracks.length === 9)!.tMs).toBe(120_000)
+  })
+
+  it('holds a cast inject inside the envelope while it flies, and only a landed return on the ground', () => {
+    const { minAltitudeFt, maxAltitudeFt, maxGroundSpeedKt, maxVerticalRateFpm } = SCENARIO.envelope
+    for (const track of allTracks(behaviorsGolden)) {
+      if (track.onGround) {
+        expect(track.behavior).toBe('return-to-launch')
+        expect(track).toMatchObject({ altitudeFt: 0, groundSpeedKt: 0, headingDeg: null })
+        continue
+      }
+      expect(track.altitudeFt as number).toBeLessThanOrEqual(maxAltitudeFt)
+      expect(track.groundSpeedKt).toBeLessThanOrEqual(maxGroundSpeedKt)
+      expect(Math.abs(track.verticalRateFpm ?? 0)).toBeLessThanOrEqual(maxVerticalRateFpm)
+      // A return descends below the launch floor on its way onto the pad; nothing else does.
+      if (track.behavior !== 'return-to-launch') {
+        expect(track.altitudeFt as number).toBeGreaterThanOrEqual(minAltitudeFt)
+      }
+    }
+    expect(allTracks(behaviorsGolden).some((track) => track.onGround)).toBe(true)
+  })
+})
+
+describe('the shuttle (S2a, ruled A3)', () => {
+  const plan = planScenario(TIMELINE, BEHAVIORS_SCENARIO)
+  const spec = plan.specs.find((s) => s.behavior === 'shuttle')!
+  const script = spec.script as Extract<ScriptedMotion, { kind: 'shuttle' }>
+  const legS = script.legM / spec.speedMs
+  const track = (t: number) => injectTracksAt(plan, t).find((s) => s.id === spec.id)!
+
+  it('flies a triangle wave between its two points at one speed', () => {
+    expect(script.legM).toBeCloseTo(1001, 0)
+    expect(distanceMeters(track(0).position, spec.origin)).toBeLessThan(2)
+    expect(distanceMeters(track(legS).position, script.to)).toBeLessThan(2)
+    expect(distanceMeters(track(2 * legS).position, spec.origin)).toBeLessThan(2)
+    expect(distanceMeters(track(legS / 2).position, spec.origin)).toBeCloseTo(script.legM / 2, -1)
+    for (const t of [30, 60, 200, 300]) expect(track(t).groundSpeedKt).toBeCloseTo(15, 0)
+    // Outbound and return legs point opposite ways.
+    const out = track(60).headingDeg!
+    const back = track(60 + legS).headingDeg!
+    expect(Math.abs(((((back - out) % 360) + 360) % 360) - 180)).toBeLessThan(2)
+  })
+
+  it('is named a revisit by the detector once it has been out and back', () => {
+    const history = (t: number) =>
+      [...Array(Math.floor(t / 15) + 1)]
+        .map((_, i) => i * 15)
+        .filter((s) => s >= t - SCORING.pattern.windowS)
+        .map((s) => ({ tSec: s, position: track(s).position }))
+    expect(detectPattern(history(120), SCORING.pattern).kind).toBeNull()
+    expect(detectPattern(history(240), SCORING.pattern).kind).toBe('revisit')
+    expect(detectPattern(history(520), SCORING.pattern).kind).toBe('revisit')
+  })
+})
+
+describe('transit then orbit (S2a, ruled A4)', () => {
+  const plan = planScenario(TIMELINE, BEHAVIORS_SCENARIO)
+  const spec = plan.specs.find((s) => s.behavior === 'transit-orbit')!
+  const script = spec.script as Extract<ScriptedMotion, { kind: 'transit-orbit' }>
+  const track = (t: number) => injectTracksAt(plan, t).find((s) => s.id === spec.id)!
+  const site = AO.protectedSites[0].center
+
+  it('runs its course straight until it first meets the configured circle, then holds the radius', () => {
+    expect(script.meetS).toBeCloseTo(191.9, 0)
+    expect(script.meetM).toBeCloseTo(3456, -1)
+    for (const t of [30, 100, 180]) {
+      expect(track(t).headingDeg).toBeCloseTo(335, 0)
+      expect(distanceMeters(spec.origin, track(t).position)).toBeCloseTo(spec.speedMs * t, -1)
+    }
+    for (const t of [200, 300, 450, 600, 1000]) {
+      expect(distanceMeters(script.center, track(t).position)).toBeCloseTo(800, -1)
+      if (t > script.meetS + 15) expect(track(t).groundSpeedKt).toBeCloseTo(35, 0)
+    }
+    // Inside the ring from 122 s, and the closest approach to the site is on the circle.
+    expect(distanceMeters(site, track(122).position)).toBeCloseTo(5000, -3)
+    expect(distanceMeters(site, track(300).position)).toBeLessThan(3000)
+  })
+
+  it('is continuous across the transition — no jump, one speed', () => {
+    const before = track(script.meetS - 1).position
+    const after = track(script.meetS + 1).position
+    expect(distanceMeters(before, after)).toBeLessThan(2 * spec.speedMs + 5)
+    expect(distanceMeters(before, after)).toBeGreaterThan(spec.speedMs)
+  })
+
+  it('is named an orbit once the held turn passes the half circle', () => {
+    const history = (t: number) =>
+      [...Array(Math.floor(t / 15) + 1)]
+        .map((_, i) => i * 15)
+        .filter((s) => s >= t - SCORING.pattern.windowS)
+        .map((s) => ({ tSec: s, position: track(s).position }))
+    expect(detectPattern(history(180), SCORING.pattern).kind).toBeNull()
+    expect(detectPattern(history(420), SCORING.pattern).kind).toBe('orbit')
+  })
+
+  it('refuses at plan time a course that never meets its circle, in so many words', () => {
+    const entry = BEHAVIORS_SCENARIO.cast![1]
+    const off = {
+      ...entry,
+      orbit: { center: { bearingDeg: 60, rangeKm: 3.0 }, radiusM: 800 },
+    }
+    expect(() => planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, cast: [off] })).toThrow(
+      /cast inject-11: the course 335° never meets its orbit circle — the centre lies \d+\.\d km off the course, radius 800 m/,
+    )
+    const behind = { ...entry, courseDeg: 155 }
+    expect(() => planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, cast: [behind] })).toThrow(
+      /behind the origin/,
+    )
+  })
+})
+
+describe('return to launch (S2a, ruled A5, the descent clamp)', () => {
+  const plan = planScenario(TIMELINE, BEHAVIORS_SCENARIO)
+  const spec = plan.specs.find((s) => s.behavior === 'return-to-launch')!
+  const script = spec.script as Extract<ScriptedMotion, { kind: 'return-to-launch' }>
+  const find = (t: number) => injectTracksAt(plan, t).find((s) => s.id === spec.id)
+
+  it('appears at its start time, at its origin, and not before (opt-in, ruled)', () => {
+    expect(spec.startS).toBe(120)
+    expect(find(0)).toBeUndefined()
+    expect(find(119)).toBeUndefined()
+    const first = find(120)!
+    expect(distanceMeters(first.position, spec.origin)).toBeLessThan(2)
+    expect(first).toMatchObject({ onGround: false, altitudeFt: 200, identity: 'cooperative' })
+    expect(first.groundSpeedKt).toBeCloseTo(20, 0)
+    // Its origin is its own first frame, for the friendly condition (ruled).
+    expect(injectOriginsOf(plan)[spec.id]).toEqual(first.position)
+    expect(injectOriginsOf(plan)['inject-01']).toEqual(injectTracksAt(plan, 0)[0].position)
+  })
+
+  it('flies straight to the pad, descends onto it, and lands — still, on the ground', () => {
+    expect(script.arriveS).toBeCloseTo(38.9, 0)
+    const inbound = find(120 + 20)!
+    expect(inbound.headingDeg).toBeCloseTo(20, 0)
+    expect(inbound.onGround).toBe(false)
+    const landed = find(120 + 40)!
+    expect(distanceMeters(landed.position, script.pad)).toBeLessThan(2)
+    expect(landed).toMatchObject({
+      onGround: true,
+      altitudeFt: 0,
+      groundSpeedKt: 0,
+      headingDeg: null,
+      verticalRateFpm: 0,
+    })
+    expect(find(1000)).toMatchObject({ onGround: true, position: landed.position })
+  })
+
+  it('clamps the 60 s descent to the leg when the leg is shorter, and keeps 60 s on a longer one', () => {
+    // The mocked decoy's leg is 39 s: it descends from its first frame (ruled).
+    expect(script.descentS).toBeCloseTo(script.arriveS, 6)
+    expect(find(120)!.altitudeFt).toBe(200)
+    expect(find(120 + script.arriveS / 2)!.altitudeFt).toBeCloseTo(100, -1)
+    // A 2 km leg at 20 kt is 194 s: level until 60 s out, then down.
+    const longReturn: CastEntry = {
+      behavior: 'return-to-launch',
+      remoteId: 'broadcasting',
+      speedKt: 20,
+      altitudeFt: 200,
+      from: { bearingDeg: 200, rangeKm: 6.0 },
+      pad: { bearingDeg: 200, rangeKm: 4.0 },
+    }
+    const long = planScenario(TIMELINE, {
+      ...BEHAVIORS_SCENARIO,
+      cast: [longReturn],
+    })
+    const longScript = long.specs.at(-1)!.script as Extract<
+      ScriptedMotion,
+      { kind: 'return-to-launch' }
+    >
+    expect(longScript.arriveS).toBeCloseTo(194, 0)
+    expect(longScript.descentS).toBe(60)
+    const at = (t: number) => injectTracksAt(long, t).at(-1)!
+    expect(at(100).altitudeFt).toBe(200)
+    expect(at(longScript.arriveS - 30).altitudeFt).toBeCloseTo(100, -1)
+    expect(at(longScript.arriveS + 1)).toMatchObject({ onGround: true, altitudeFt: 0 })
   })
 })

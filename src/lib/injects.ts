@@ -20,12 +20,13 @@
 import { AO } from '../config/ao.ts'
 import type { AreaOfOperations } from '../config/ao.ts'
 import { SCENARIO } from '../config/scenario.ts'
-import type { ScenarioConfig } from '../config/scenario.ts'
+import type { CastEntry, Placement, ScenarioConfig } from '../config/scenario.ts'
 import {
   KT_TO_MS,
   bearingDegrees,
   destinationPoint,
   distanceMeters,
+  firstMeeting,
   offsetPoint,
   round,
 } from './geo.ts'
@@ -40,13 +41,24 @@ import type {
   UaType,
 } from './tracks.ts'
 
-/** Every behavior in the model (§5.2). Exported so the coverage guarantee is testable. */
+/**
+ * The behaviors the generator deals (§5.2) — the pool `coverThenFill` covers in every scenario.
+ * Exported so the coverage guarantee is testable. The cast behaviors are not in it (S2a, #133,
+ * ruled A1): a pool of eight would re-deal the default scenario and move its golden.
+ */
 export const BEHAVIORS = [
   'transit',
   'loiter',
   'orbit',
   'lawnmower',
   'approach-retreat',
+] as const satisfies readonly Behavior[]
+
+/** The behaviors a scenario's cast can script (S2a) — never dealt, so the deal is untouched. */
+export const SCRIPTED_BEHAVIORS = [
+  'shuttle',
+  'transit-orbit',
+  'return-to-launch',
 ] as const satisfies readonly Behavior[]
 
 /** Every Remote ID state in the model. */
@@ -116,6 +128,26 @@ function gridLength(timeline: Timeline): number {
 }
 
 /**
+ * A cast behavior's motion, decided at plan time (S2a, #133): the shuttle's far point and leg;
+ * the transit-orbit's circle with the metre along the course where it is first met, and the
+ * second; the return's pad with its arrival and the descent that ends on it. Closed-form in the
+ * inject's own time, like every other motion here.
+ */
+export type ScriptedMotion =
+  | { kind: 'shuttle'; to: [number, number]; legM: number }
+  | {
+      kind: 'transit-orbit'
+      center: [number, number]
+      radiusM: number
+      meetM: number
+      meetS: number
+    }
+  | { kind: 'return-to-launch'; pad: [number, number]; arriveS: number; descentS: number }
+
+/** The descent a return to launch flies onto its pad, seconds — clamped to a shorter leg (ruled). */
+const DESCENT_S = 60
+
+/**
  * One inject's entire future, decided at plan time. Every random draw in the scenario lives here;
  * everything after this point is arithmetic.
  */
@@ -147,6 +179,13 @@ export interface InjectSpec {
   /** Approach-retreat: closest approach to the site, and the full out-and-back period. */
   nearM: number
   periodS: number
+  /**
+   * Scenario seconds at which the inject first appears (S2a, opt-in): absent from the picture
+   * before it, its motion clocked from it. 0 for every dealt inject.
+   */
+  startS: number
+  /** A cast behavior's motion, precomputed at plan time; null for a dealt inject. */
+  script: ScriptedMotion | null
   /**
    * Per frame, whether the Remote ID broadcast was heard. Populated only for `intermittent` —
    * `broadcasting` is always heard and `silent` never is, so neither needs a timeline.
@@ -276,12 +315,75 @@ function positionAt(spec: InjectSpec, tSec: number): [number, number] {
         spec.nearM + (farM - spec.nearM) * away,
       )
     }
+    case 'shuttle': {
+      const script = scripted(spec, 'shuttle')
+      // A triangle wave between the two points — out along the leg, back along it, at one speed.
+      // The turnaround is instantaneous, as approach-retreat's reversal is: the one sample that
+      // straddles it reports the distance it actually covered.
+      const legS = script.legM / spec.speedMs
+      const phase = (t % (2 * legS)) / legS
+      const frac = phase <= 1 ? phase : 2 - phase
+      return destinationPoint(
+        spec.origin,
+        bearingDegrees(spec.origin, script.to),
+        script.legM * frac,
+      )
+    }
+    case 'transit-orbit': {
+      const script = scripted(spec, 'transit-orbit')
+      // Straight along the course until it first meets the configured circle, then around it
+      // from that point at the same speed, turning the way the dealt orbit turns. Continuous by
+      // construction: the meeting point lies on the course and on the circle (ruled A4).
+      if (t <= script.meetS) return destinationPoint(spec.origin, spec.courseDeg, spec.speedMs * t)
+      const entry = destinationPoint(spec.origin, spec.courseDeg, script.meetM)
+      const sweepDeg = ((spec.speedMs / script.radiusM) * (t - script.meetS) * 180) / Math.PI
+      return destinationPoint(
+        script.center,
+        (bearingDegrees(script.center, entry) + sweepDeg) % 360,
+        script.radiusM,
+      )
+    }
+    case 'return-to-launch': {
+      const script = scripted(spec, 'return-to-launch')
+      // Straight to the pad at speed; on it from the arrival on (ruled A5).
+      if (t >= script.arriveS) return script.pad
+      return destinationPoint(
+        spec.origin,
+        bearingDegrees(spec.origin, script.pad),
+        spec.speedMs * t,
+      )
+    }
   }
 }
 
-/** Altitude at `tSec`: a climb from the launch height onto a cruise height, then level. */
+/** The motion a cast behavior was planned with — absent only by a bug in the plan, never by data. */
+function scripted<K extends ScriptedMotion['kind']>(
+  spec: InjectSpec,
+  kind: K,
+): Extract<ScriptedMotion, { kind: K }> {
+  if (spec.script?.kind !== kind) {
+    throw new Error(`${spec.id} is a ${spec.behavior} without its ${kind} motion`)
+  }
+  return spec.script as Extract<ScriptedMotion, { kind: K }>
+}
+
+/**
+ * Altitude at `tSec`: a climb from the launch height onto a cruise height, then level. A return
+ * to launch descends onto its pad over the last `DESCENT_S` of its leg — clamped to the leg when
+ * the leg is shorter (ruled), so a short return descends from its first frame — and is on the
+ * ground from the arrival on.
+ */
 function altitudeAt(spec: InjectSpec, tSec: number): number {
-  const fraction = Math.min(1, Math.max(0, tSec) / spec.climbS)
+  const t = Math.max(0, tSec)
+  if (spec.script?.kind === 'return-to-launch') {
+    const { arriveS, descentS } = spec.script
+    if (t >= arriveS) return 0
+    const remainingS = arriveS - t
+    return remainingS >= descentS
+      ? spec.baseAltitudeFt
+      : (spec.baseAltitudeFt * remainingS) / descentS
+  }
+  const fraction = Math.min(1, t / spec.climbS)
   return spec.baseAltitudeFt + spec.climbFt * fraction
 }
 
@@ -308,7 +410,9 @@ function isHeard(spec: InjectSpec, intervalS: number, tSec: number): boolean {
  * added only by `trackAt`, for the generator's own record (#115, ruling 2).
  */
 function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTrack {
-  const t = Math.max(0, tSec)
+  // The inject's own clock (S2a): a cast inject with a start time flies from that instant, and
+  // its first frame is its origin, as a dealt inject's launch is.
+  const t = Math.max(0, tSec - spec.startS)
   // The kinematic window is clamped forward at the start of the run, so frame zero reports the
   // motion it is about to make rather than dividing by nothing.
   const to = Math.max(t, KINEMATIC_WINDOW_S)
@@ -318,9 +422,12 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
   const travelM = distanceMeters(a, b)
   const now = positionAt(spec, t)
   const position: [number, number] = [round(now[0], 5), round(now[1], 5)]
-  const heard = isHeard(spec, intervalS, t)
+  // The dropout chain is indexed on the scenario's frames, not the inject's own clock.
+  const heard = isHeard(spec, intervalS, Math.max(0, tSec))
   const identity: Identity =
     spec.remoteId === 'silent' ? 'non-cooperative' : heard ? 'cooperative' : 'unknown'
+  // A return to launch is on its pad from the arrival on — still, at ground level (ruled A5).
+  const landed = spec.script?.kind === 'return-to-launch' && t >= spec.script.arriveS
 
   return {
     id: spec.id,
@@ -334,12 +441,13 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
     broadcast: heard ? { label: spec.label, position } : null,
     position,
     altitudeFt: Math.round(altitudeAt(spec, t)) + 0,
-    onGround: false,
-    groundSpeedKt: round(travelM / KINEMATIC_WINDOW_S / KT_TO_MS, 1),
+    onGround: landed,
+    groundSpeedKt: landed ? 0 : round(travelM / KINEMATIC_WINDOW_S / KT_TO_MS, 1),
     // A hovering drone has no meaningful course, and the model already allows for that.
-    headingDeg: travelM < 1 ? null : round(bearingDegrees(a, b), 1),
-    verticalRateFpm:
-      Math.round(((altitudeAt(spec, to) - altitudeAt(spec, from)) / KINEMATIC_WINDOW_S) * 60) + 0,
+    headingDeg: landed || travelM < 1 ? null : round(bearingDegrees(a, b), 1),
+    verticalRateFpm: landed
+      ? 0
+      : Math.round(((altitudeAt(spec, to) - altitudeAt(spec, from)) / KINEMATIC_WINDOW_S) * 60) + 0,
     // Injects are freshly observed every frame; staleness accrual belongs to the replay clock.
     lastSeenSec: 0,
   }
@@ -365,16 +473,23 @@ export function planScenario(
   config: ScenarioConfig = SCENARIO,
   ao: AreaOfOperations = AO,
 ): InjectPlan {
-  if (config.minInjects < BEHAVIORS.length) {
+  // The floor binds the deal only when there is one (S2a, opt-in, ruled): a scenario with a cast
+  // may carry no deal — `maxInjects: 0` — and the study's scenarios are cast-only by design.
+  const cast = config.cast ?? []
+  const dealt = config.maxInjects > 0
+  if (dealt && config.minInjects < BEHAVIORS.length) {
     throw new Error(
       `minInjects is ${config.minInjects}; it must be at least ${BEHAVIORS.length} so every behavior appears in every scenario`,
     )
+  }
+  if (!dealt && cast.length === 0) {
+    throw new Error('a scenario needs a deal or a cast; this one has neither')
   }
   const rng = makeRng(config.seed)
   const intervalS = timeline.intervalMs / 1000
   const frameCount = gridLength(timeline)
   const site = ao.protectedSites[0]?.center ?? ao.center
-  const count = config.minInjects + rng.int(config.maxInjects - config.minInjects + 1)
+  const count = dealt ? config.minInjects + rng.int(config.maxInjects - config.minInjects + 1) : 0
   const behaviors = coverThenFill(rng, BEHAVIORS, count)
   const remoteIds = coverThenFill(rng, REMOTE_ID_STATES, count)
   const launchPoints = rng.shuffle(config.launchPoints).slice(0, count)
@@ -408,7 +523,7 @@ export function planScenario(
     const climbS = rng.range(90, 180)
     // Courses point at the protected site, off by a few degrees so the picture is not a starburst.
     const courseDeg = (bearingDegrees(origin, site) + rng.range(-12, 12) + 360) % 360
-    const label = `UAS-${rng.int(0x10000).toString(16).toUpperCase().padStart(4, '0')}`
+    const label = drawLabel(rng)
     const id = `inject-${String(index + 1).padStart(2, '0')}`
 
     // The UA type came after the golden was pinned, so it draws from its own per-inject stream
@@ -416,20 +531,6 @@ export function planScenario(
     // stands. Drawn for every inject — the stream is its own, so it costs nothing, and a silent
     // inject's value is simply never observed.
     const uaType = weightedPick(makeRng(`${config.seed}:${id}:ua-type`), config.uaTypes)
-
-    // The dropout chain is the only draw whose length depends on the timeline, so it gets its own
-    // stream, seeded by the scenario and the inject — never the shared one above.
-    const heard: boolean[] = []
-    if (remoteId === 'intermittent') {
-      const chain = makeRng(`${config.seed}:${id}:remote-id`)
-      let on = true
-      for (let frame = 0; frame < frameCount; frame++) {
-        if (frame > 0) {
-          on = chain.bool(on ? config.remoteId.pStayHeard : 1 - config.remoteId.pStaySilent)
-        }
-        heard.push(on)
-      }
-    }
 
     specs.push({
       id,
@@ -453,10 +554,137 @@ export function planScenario(
       // Derived, not drawn: the period that carries this inject from its launch point to its
       // closest approach and back, at the speed it was given.
       periodS: (2 * (distanceMeters(site, origin) - nearM)) / speedMs,
-      heard,
+      startS: 0,
+      script: null,
+      heard: dropoutChain(config, id, remoteId, frameCount),
     })
   }
+
+  // The cast (S2a, #133, ruled A2): scripted injects after the deal, numbered from inject-11 —
+  // past any deal's eight — so an entry's id is the same under every seed and every deal, which
+  // the study's run JSON needs. Nothing here reads the shared stream: the deal above is identical
+  // with a cast beside it or none, and every draw a cast inject still makes comes from a stream
+  // keyed by its id, so it is as much a function of seed and config as a dealt one.
+  if (cast.length > 89) {
+    throw new Error(`a cast of ${cast.length}; ids run inject-11 to inject-99, so at most 89`)
+  }
+  const place = (at: Placement): [number, number] =>
+    destinationPoint(ao.center, at.bearingDeg, at.rangeKm * 1000)
+  cast.forEach((entry, index) => {
+    const id = `inject-${11 + index}`
+    const origin = place(entry.from)
+    const speedMs = entry.speedKt * KT_TO_MS
+    const { courseDeg, script } = scriptOf(entry, id, origin, speedMs, place)
+    specs.push({
+      id,
+      label: entry.label ?? drawLabel(makeRng(`${config.seed}:${id}:label`)),
+      behavior: entry.behavior,
+      remoteId: entry.remoteId,
+      uaType: weightedPick(makeRng(`${config.seed}:${id}:ua-type`), config.uaTypes),
+      launchId: 'cast',
+      origin,
+      site,
+      courseDeg,
+      speedMs,
+      inboundS: 0,
+      // Level from the first frame (ruled A6): the cruise height is the base, and no climb.
+      baseAltitudeFt: entry.altitudeFt,
+      climbFt: 0,
+      climbS: 1,
+      radiusM: 0,
+      legM: 0,
+      laneM: 0,
+      nearM: 0,
+      periodS: 0,
+      startS: entry.startS ?? 0,
+      script,
+      heard: dropoutChain(config, id, entry.remoteId, frameCount),
+    })
+  })
   return { seed: config.seed, intervalS, specs }
+}
+
+/** `UAS-XXXX` off a stream — the deal's draw and the cast's, one shape. */
+const drawLabel = (rng: Rng) =>
+  `UAS-${rng.int(0x10000).toString(16).toUpperCase().padStart(4, '0')}`
+
+/**
+ * The dropout chain is the only draw whose length depends on the timeline, so it gets its own
+ * stream, seeded by the scenario and the inject — never the shared one. Empty for a state that
+ * needs no timeline.
+ */
+function dropoutChain(
+  config: ScenarioConfig,
+  id: string,
+  remoteId: RemoteIdStatus,
+  frameCount: number,
+): boolean[] {
+  const heard: boolean[] = []
+  if (remoteId === 'intermittent') {
+    const chain = makeRng(`${config.seed}:${id}:remote-id`)
+    let on = true
+    for (let frame = 0; frame < frameCount; frame++) {
+      if (frame > 0) {
+        on = chain.bool(on ? config.remoteId.pStayHeard : 1 - config.remoteId.pStaySilent)
+      }
+      heard.push(on)
+    }
+  }
+  return heard
+}
+
+/**
+ * A cast entry's motion, decided once from its placements: the course it reports, and the
+ * numbers `positionAt` reads. A transit-orbit whose course never meets its circle is refused
+ * here, in so many words, rather than flown to nowhere (ruled A4).
+ */
+function scriptOf(
+  entry: CastEntry,
+  id: string,
+  origin: [number, number],
+  speedMs: number,
+  place: (at: Placement) => [number, number],
+): { courseDeg: number; script: ScriptedMotion } {
+  switch (entry.behavior) {
+    case 'shuttle': {
+      const to = place(entry.to)
+      const legM = distanceMeters(origin, to)
+      return { courseDeg: bearingDegrees(origin, to), script: { kind: 'shuttle', to, legM } }
+    }
+    case 'transit-orbit': {
+      const center = place(entry.orbit.center)
+      const { radiusM } = entry.orbit
+      const meeting = firstMeeting(origin, entry.courseDeg, center, radiusM)
+      if (meeting.alongM === null) {
+        throw new Error(
+          `cast ${id}: the course ${entry.courseDeg}° never meets its orbit circle — the centre lies ${(meeting.acrossM / 1000).toFixed(1)} km off the course${meeting.behind ? ', behind the origin' : ''}, radius ${radiusM} m`,
+        )
+      }
+      return {
+        courseDeg: entry.courseDeg,
+        script: {
+          kind: 'transit-orbit',
+          center,
+          radiusM,
+          meetM: meeting.alongM,
+          meetS: meeting.alongM / speedMs,
+        },
+      }
+    }
+    case 'return-to-launch': {
+      const pad = place(entry.pad)
+      const arriveS = distanceMeters(origin, pad) / speedMs
+      return {
+        courseDeg: bearingDegrees(origin, pad),
+        script: {
+          kind: 'return-to-launch',
+          pad,
+          arriveS,
+          descentS: Math.min(DESCENT_S, arriveS),
+        },
+      }
+    }
+  }
 }
 
 /**
@@ -466,7 +694,28 @@ export function planScenario(
  * its 15-second samples, and injects need no such treatment because they can simply be asked.
  */
 export function injectTracksAt(plan: InjectPlan, tSec: number): InjectTrack[] {
-  return plan.specs.map((spec) => observedAt(spec, plan.intervalS, tSec))
+  // A cast inject with a start time is not in the picture before it (S2a, opt-in).
+  return plan.specs
+    .filter((spec) => tSec >= spec.startS)
+    .map((spec) => observedAt(spec, plan.intervalS, tSec))
+}
+
+/**
+ * Every inject's observed first-seen position, by id — where the picture first shows it: the
+ * recording's first frame for a dealt inject, its own start for a cast inject that appears later
+ * (S2a, ruled: its first frame is its origin, as a dealt inject's launch is). What the friendly
+ * condition reads as `origins`; the replay merges it with the aircraft's first samples.
+ */
+export function injectOriginsOf(
+  plan: InjectPlan,
+  fromS = 0,
+): Readonly<Record<string, [number, number]>> {
+  return Object.fromEntries(
+    plan.specs.map((spec) => [
+      spec.id,
+      observedAt(spec, plan.intervalS, Math.max(fromS, spec.startS)).position,
+    ]),
+  )
 }
 
 /** The whole scenario, sampled at the timeline's frame times, with the answer key: the golden. */
@@ -478,7 +727,9 @@ export function generateScenario(
   const plan = planScenario(timeline, config, ao)
   const frames: InjectFrame[] = timeline.frameTimesMs.map((tMs) => ({
     tMs,
-    tracks: plan.specs.map((spec) => trackAt(spec, plan.intervalS, tMs / 1000)),
+    tracks: plan.specs
+      .filter((spec) => tMs / 1000 >= spec.startS)
+      .map((spec) => trackAt(spec, plan.intervalS, tMs / 1000)),
   }))
   return { seed: plan.seed, frameCount: frames.length, intervalMs: timeline.intervalMs, frames }
 }

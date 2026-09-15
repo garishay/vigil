@@ -20,8 +20,20 @@ export type Identity = 'cooperative' | 'non-cooperative' | 'unknown'
  */
 export type RemoteIdStatus = 'broadcasting' | 'intermittent' | 'silent'
 
-/** Scripted inject motion. The pattern features in scope §6 exist to catch exactly these. */
-export type Behavior = 'transit' | 'loiter' | 'orbit' | 'lawnmower' | 'approach-retreat'
+/**
+ * Scripted inject motion. The pattern features in scope §6 exist to catch exactly these. The
+ * first five are dealt by the generator; the last three are the study's cast behaviors (S2a,
+ * #133), reachable only through a scenario's scripted cast.
+ */
+export type Behavior =
+  | 'transit'
+  | 'loiter'
+  | 'orbit'
+  | 'lawnmower'
+  | 'approach-retreat'
+  | 'shuttle'
+  | 'transit-orbit'
+  | 'return-to-launch'
 
 /** Everything true of any track, whichever layer produced it. */
 interface TrackBase {
