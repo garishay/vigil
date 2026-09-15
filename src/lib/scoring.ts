@@ -25,7 +25,10 @@
  * **Inside the ring the approach is complete** (ruled on #5, note 2): closing reads 100 for any
  * track inside a protected site's ring — the closest approach to the volume is now — where the
  * CPA/TCPA geometry, built for the approach, otherwise answers a question that no longer applies
- * and reads whichever way the nose happens to point. Outside the ring it is unchanged.
+ * and reads whichever way the nose happens to point. Outside the ring it reads the time to entry
+ * on the observed course (S3a, #135, ruled A1) — the projection's own estimate, one function for
+ * the factor and the drawer's Entry row, so the screen never prints two entry times — and nothing
+ * for a course that will not enter the ring.
  *
  * **The site set is an input, and the score carries it** (08a, ruled on #86). The sites are the
  * session's — the operator's, seeded from config — and each protected site's tier scales its
@@ -47,8 +50,9 @@ import {
   type ScoringConfig,
 } from '../config/scoring.ts'
 import type { AdsbCapture } from './adsb.ts'
-import { KT_TO_MS, closestApproach, distanceMeters } from './geo.ts'
+import { distanceMeters } from './geo.ts'
 import { detectPattern, type TrackHistories } from './patterns.ts'
+import { entryAt } from './projection.ts'
 import type { Track } from './tracks.ts'
 
 export type { Band, FactorId }
@@ -162,7 +166,8 @@ export const FACTORS: readonly { id: FactorId; label: string; intent: string }[]
   {
     id: 'closing',
     label: 'Closing',
-    intent: 'CPA distance and time-to-CPA relative to the protected site',
+    // The numbers off the config it is read from (#127 round 1): doctrine is configuration.
+    intent: `Time to entry into the protected ring on the observed course — 100 within ${SCORING.closing.entryFullMin} minutes, rolling off to nothing at ${SCORING.closing.entryZeroMin}; nothing for a course that misses the ring; complete inside it`,
   },
   {
     id: 'proximity',
@@ -389,50 +394,52 @@ function closing(
     const rangeM = distanceMeters(site.center, track.position)
     const scale = tiers[site.tier]
     const note = tierNote(site, tiers)
-    // Inside a ring the approach is complete, whichever way the track points (ruled on #5). The
-    // detail lines read in operator words and name the site in every case (#122, ruled): the
-    // slots are the same calls the factor already makes, and the values are untouched.
-    if (rangeM <= site.radiusM) {
-      candidates.push({
-        value: 100 * scale,
-        detail: `inside ${site.name}'s ring at ${km(rangeM)}${note}`,
-        rangeM,
-      })
-      continue
+    // Inside a ring the approach is complete, whichever way the track points (ruled on #5); the
+    // detail lines read in operator words and name the site in every case (#122, ruled).
+    // Outside the ring the factor reads the projection's own entry estimate — one geometry, one
+    // function, the same seconds the drawer's Entry row prints (S3a, #135, ruled A1) — and
+    // nothing for a course that will not enter. Every reading is a candidate, never a return: a
+    // hovering track inside another site's ring keeps its 100 (#87 review).
+    const path = entryAt(track, site)
+    switch (path.kind) {
+      case 'inside':
+        candidates.push({
+          value: 100 * scale,
+          detail: `inside ${site.name}'s ring at ${km(path.rangeM)}${note}`,
+          rangeM,
+        })
+        break
+      case 'unobserved':
+        candidates.push({ value: 0, detail: 'speed or heading not observed', rangeM })
+        break
+      case 'still':
+        candidates.push({ value: 0, detail: `not moving — not closing on ${site.name}`, rangeM })
+        break
+      case 'away':
+        candidates.push({
+          value: 0,
+          detail: `moving away from ${site.name} — will come no closer`,
+          rangeM,
+        })
+        break
+      case 'misses':
+        candidates.push({
+          value: 0,
+          detail: `will pass ${km(path.cpaM)} from ${site.name} — outside its ring`,
+          rangeM,
+        })
+        break
+      case 'entry': {
+        // The rounded minutes print as a number, except a 0, which reads as a defect (#122).
+        const minutes = Math.round(path.tSec / 60)
+        const when = minutes === 0 ? 'under a minute' : `${minutes} min`
+        candidates.push({
+          value: rolloff(path.tSec / 60, config.entryFullMin, config.entryZeroMin) * scale,
+          detail: `will enter ${site.name}'s ring in ${when}${note}`,
+          rangeM,
+        })
+      }
     }
-    if (track.groundSpeedKt === null || track.headingDeg === null) {
-      candidates.push({ value: 0, detail: 'speed or heading not observed', rangeM })
-      continue
-    }
-    const approach = closestApproach(
-      track.position,
-      track.headingDeg,
-      track.groundSpeedKt * KT_TO_MS,
-      site.center,
-    )
-    // A candidate, never a return: a hovering track inside another site's ring keeps its 100
-    // (#87 review).
-    if (approach === null) {
-      candidates.push({ value: 0, detail: `not moving — not closing on ${site.name}`, rangeM })
-      continue
-    }
-    const { cpaM, tcpaS } = approach
-    // The rounded minutes print as a number, except a 0, which reads as a defect (#122, ruled).
-    const minutes = Math.round(tcpaS / 60)
-    const when = minutes === 0 ? 'under a minute' : `${minutes} min`
-    candidates.push(
-      tcpaS <= 0
-        ? { value: 0, detail: `moving away from ${site.name} — will come no closer`, rangeM }
-        : {
-            value:
-              ((rolloff(cpaM, site.radiusM, site.radiusM * config.cpaRolloffRadii) *
-                rolloff(tcpaS / 60, config.tcpaFullMin, config.tcpaZeroMin)) /
-                100) *
-              scale,
-            detail: `will pass ${km(cpaM)} from ${site.name} in ${when}${note}`,
-            rangeM,
-          },
-    )
   }
   return worstCase(candidates)
 }

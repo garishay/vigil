@@ -102,7 +102,7 @@ export const formatEntryTime = (tSec: number) => {
 /**
  * The value under the drawer's Entry term — one format wherever the number appears (#102,
  * routing 3): `108 s to PHL Airfield · tier 1`, `Inside — PHL Airfield · tier 1`, and for no
- * entry inside the horizon `— none within 10 min`, the horizon the estimate was computed under
+ * entry inside the horizon `— none within 20 min`, the horizon the estimate was computed under
  * (#122, ruled) — whole minutes when it is one, else in the one format above (#124 review).
  */
 /** The horizon as the none reading names it: whole minutes when it is one, else the one format. */

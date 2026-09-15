@@ -438,8 +438,10 @@ describe('reasonTag (05b, ruled on #5)', () => {
   })
 
   it('names the site outside the ring, and gives a factor a word only at half the scale or more', () => {
-    // 7.2 km out, straight in at 19 kt: closing reads 44, under the gate; proximity 78 names the site.
-    const entry = ranked({ ...silent(at(7200)), groundSpeedKt: 19.1, headingDeg: 180 })
+    // 7.2 km out, straight in at 6 kt: 2.2 km to the ring at 3.1 m/s is 11.9 min, so the entry
+    // lever reads closing 45, under the gate (19 kt read 44 under the retired curve and reads
+    // 90 now — S3a, #135); proximity 78 names the site.
+    const entry = ranked({ ...silent(at(7200)), groundSpeedKt: 6, headingDeg: 180 })
     expect(entry.score.factors.find((f) => f.id === 'closing')!.value).toBeLessThan(50)
     expect(reasonTag(entry, AO.protectedSites)).toBe(
       'Non-cooperative, near PHL Airfield, low and slow',

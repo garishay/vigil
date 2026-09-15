@@ -1,8 +1,9 @@
 /**
  * Time to entry into a protected site, by dead reckoning (#102, ruled) — the decision number
- * behind the closing and proximity factors, displayed: "ninety seconds to the north gate", not a
- * score. Pure — no React, no map, no I/O — so the feeds seam (#115) and a live feed (#72) can
- * call it over whatever produced the picture.
+ * behind the geometry factors, displayed: "ninety seconds to the north gate", not a score; and
+ * since the closing lever (S3a, #135, ruled A1) the Closing factor's own input, `entryAt`, one
+ * geometry for the row and the factor. Pure — no React, no map, no I/O — so the feeds seam
+ * (#115) and a live feed (#72) can call it over whatever produced the picture.
  *
  * Straight-line projection from the observed position, on the observed ground track at the
  * observed ground speed, over the configured horizon, against every protected site: the moment
@@ -29,7 +30,9 @@
  * was last heard rather than at an estimate of now, and only that track carries the age out for
  * the display to say so.
  *
- * A display value, not a factor: nothing in the scoring path imports this module.
+ * The row is a display value, not a factor; the geometry under it is the factor's: `scoring.ts`
+ * imports `entryAt`, and nothing else from here — `timeToEntry` and the entry point stay the
+ * display's, under the one horizon the factor's own `entryZeroMin` sets (#36 [31], ruled A).
  */
 
 import type { ProtectedSite, SiteTier } from '../config/ao.ts'
@@ -90,6 +93,39 @@ export function projectPosition(track: Projectable, dtS: number): [number, numbe
   return destinationPoint(track.position, track.headingDeg, track.groundSpeedKt * KT_TO_MS * dtS)
 }
 
+/**
+ * One site's entry on the observed course — the geometry the Entry row prints and the closing
+ * factor scores (S3a, #135, ruled A1: one geometry, one function, so the screen never prints two
+ * entry times). `tSec` counts the position's age off, as the row does; `pathS` is the course's
+ * own seconds to the ring, what the entry point is projected along. The other readings are why
+ * there is no entry: inside already, nothing observed to project, not moving, opening, or a
+ * course whose closest approach lies outside the ring.
+ */
+export type EntryPath =
+  | { kind: 'inside'; rangeM: number }
+  | { kind: 'entry'; tSec: number; pathS: number }
+  | { kind: 'unobserved' }
+  | { kind: 'still' }
+  | { kind: 'away' }
+  | { kind: 'misses'; cpaM: number }
+
+export function entryAt(track: Projectable, site: EntrySite): EntryPath {
+  const rangeM = distanceMeters(site.center, track.position)
+  if (rangeM <= site.radiusM) return { kind: 'inside', rangeM }
+  if (track.groundSpeedKt === null || track.headingDeg === null) return { kind: 'unobserved' }
+  const speedMs = track.groundSpeedKt * KT_TO_MS
+  const approach = closestApproach(track.position, track.headingDeg, speedMs, site.center)
+  if (approach === null) return { kind: 'still' }
+  if (approach.tcpaS <= 0) return { kind: 'away' }
+  if (approach.cpaM >= site.radiusM) return { kind: 'misses', cpaM: approach.cpaM }
+  // Clamped at zero: the two frames can disagree by a metre at the ring itself.
+  const pathS = Math.max(
+    0,
+    approach.tcpaS - Math.sqrt(site.radiusM ** 2 - approach.cpaM ** 2) / speedMs,
+  )
+  return { kind: 'entry', tSec: Math.max(0, pathS - (track.positionAgeS ?? 0)), pathS }
+}
+
 export function timeToEntry(
   track: Projectable,
   sites: readonly EntrySite[],
@@ -105,25 +141,22 @@ export function timeToEntry(
   let inside: { site: EntrySite; rangeM: number } | null = null
   let best: EntryEstimate = { kind: 'none', horizonS: config.horizonS, coastedS }
   for (const site of sites) {
-    const rangeM = distanceMeters(site.center, track.position)
-    if (rangeM <= site.radiusM) {
-      if (inside === null || rangeM < inside.rangeM) inside = { site, rangeM }
+    const path = entryAt(track, site)
+    if (path.kind === 'inside') {
+      if (inside === null || path.rangeM < inside.rangeM) inside = { site, rangeM: path.rangeM }
       continue
     }
-    if (track.groundSpeedKt === null || track.headingDeg === null) continue
-    const speedMs = track.groundSpeedKt * KT_TO_MS
-    const approach = closestApproach(track.position, track.headingDeg, speedMs, site.center)
-    // Opening, or a path that misses the ring: no entry on this site, whatever the others say.
-    if (approach === null || approach.tcpaS <= 0 || approach.cpaM >= site.radiusM) continue
-    // Clamped at zero: the two frames can disagree by a metre at the ring itself.
-    const pathS = Math.max(
-      0,
-      approach.tcpaS - Math.sqrt(site.radiusM ** 2 - approach.cpaM ** 2) / speedMs,
-    )
-    const tSec = Math.max(0, pathS - (track.positionAgeS ?? 0))
-    if (tSec > config.horizonS) continue
-    if (best.kind === 'entry' && best.tSec <= tSec) continue
-    best = { kind: 'entry', ...named(site), tSec, point: projectPosition(track, pathS), coastedS }
+    // Opening, still, unobserved, or a path that misses the ring: no entry on this site,
+    // whatever the others say; nor one past the horizon the row reads under.
+    if (path.kind !== 'entry' || path.tSec > config.horizonS) continue
+    if (best.kind === 'entry' && best.tSec <= path.tSec) continue
+    best = {
+      kind: 'entry',
+      ...named(site),
+      tSec: path.tSec,
+      point: projectPosition(track, path.pathS),
+      coastedS,
+    }
   }
   return inside ? { kind: 'inside', ...named(inside.site), coastedS } : best
 }

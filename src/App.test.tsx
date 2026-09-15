@@ -1187,9 +1187,11 @@ describe('App pattern row under the clock (05a)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
     const rows = () =>
       within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
-    // At frame 0 nothing has a history: the row reads so, and the hero opens at rank 1 by a point.
-    expect(within(rows()[0]).getByText('TRK-05')).toBeInTheDocument()
-    fireEvent.click(within(rows()[0]).getByRole('button'))
+    // At frame 0 nothing has a history: the row reads so. Under the entry lever (S3a, #135) the
+    // hero opens at rank 2, two points behind the grid sweep at 9.6 km whose course enters the
+    // ring a minute sooner (it opened at rank 1 by a point under the retired curve).
+    expect(within(rows()[1]).getByText('TRK-05')).toBeInTheDocument()
+    fireEvent.click(within(rows()[1]).getByRole('button'))
     const breakdownRows = () =>
       within(screen.getByLabelText('Score breakdown')).getAllByRole('listitem')
     expect(within(breakdownRows()[3]).getByText('Movement')).toBeInTheDocument()
@@ -1444,9 +1446,11 @@ describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', 
 
   it('logs the onset at sim time, one per seek, and the handoff timeline carries the word', () => {
     start()
-    // Frame 0, 10 km out: identity, the envelope, and the hour lead; proximity at 50 trails.
+    // Frame 0, 10 km out: identity, closing — the entry lever reads 62 for a course into the
+    // ring in nine minutes (S3a, #135; 17 and no word under the retired curve) — and the envelope
+    // lead; the hour and proximity at 50 trail.
     expect(rowOf('TRK-05').querySelector('.queue__reason')).toHaveTextContent(
-      'Non-cooperative, low and slow, off-hours',
+      'Non-cooperative, closing, low and slow',
     )
     seek('990')
     fireEvent.click(within(rowOf('TRK-05')).getByRole('button'))
@@ -1473,17 +1477,19 @@ describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', 
 
   it('re-surfaces a dismissed track on a later crossing or onset, keeps it Dismissed, out of Active', () => {
     start()
-    // TRK-06 dismissed at 02:36:00 in caution; it crosses to warning at 02:38:15.
+    // UAS-CD84 dismissed at 02:36:00 in caution; it crosses to warning at 02:38:58. (TRK-06 was
+    // the track here under the retired curve, crossing at 02:38:15; under the entry lever it is
+    // warning from 02:31:13 — S3a, #135.)
     seek('360')
-    fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
+    fireEvent.click(within(rowOf('UAS-CD84')).getByRole('button'))
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
-    expect(rowOf('TRK-06')).toHaveClass('queue__row--terminal')
-    expect(screen.getByTestId('map').getAttribute('data-terminal')).toContain('inject-06')
-    seek('495')
-    expect(rowOf('TRK-06')).not.toHaveClass('queue__row--terminal')
-    expect(within(rowOf('TRK-06')).getByText('Re-surfaced')).toBeInTheDocument()
+    expect(rowOf('UAS-CD84')).toHaveClass('queue__row--terminal')
+    expect(screen.getByTestId('map').getAttribute('data-terminal')).toContain('inject-04')
+    seek('540')
+    expect(rowOf('UAS-CD84')).not.toHaveClass('queue__row--terminal')
+    expect(within(rowOf('UAS-CD84')).getByText('Re-surfaced')).toBeInTheDocument()
     // The map's dim set agrees with the row (#61's invariant, #82 review).
-    expect(screen.getByTestId('map').getAttribute('data-terminal')).not.toContain('inject-06')
+    expect(screen.getByTestId('map').getAttribute('data-terminal')).not.toContain('inject-04')
     expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Dismissed')
     // TRK-03 dismissed at 02:40:00 in warning; it names Revisiting at 02:47:30 with no crossing.
     seek('600')
@@ -1495,7 +1501,7 @@ describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', 
     expect(within(rowOf('TRK-03')).getByText('Re-surfaced')).toBeInTheDocument()
     // Terminal by the table: neither is Active.
     fireEvent.click(screen.getByRole('button', { name: 'Active' }))
-    expect(rows().some((row) => within(row).queryByText('TRK-06'))).toBe(false)
+    expect(rows().some((row) => within(row).queryByText('UAS-CD84'))).toBe(false)
     expect(rows().some((row) => within(row).queryByText('TRK-03'))).toBe(false)
   })
 })
@@ -1519,10 +1525,14 @@ describe('App Sites surface (08a, ruled on #86)', () => {
   const seek = (value: string) =>
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value } })
 
-  /** A silent inject at its first-seen position, from the plan App holds for the stub recording. */
+  /**
+   * A silent inject at its first-seen position, from the plan App holds for the stub recording:
+   * TRK-05, which opens in caution. (The first silent inject in cast order, TRK-03, opens in
+   * warning under the entry lever — S3a, #135 — so a ring placed on it logs no crossing.)
+   */
   const silentInject = () =>
     injectTracksAt(planInjects(gridTimeline(1, 15000)), 0).find(
-      (inject) => inject.identity === 'non-cooperative',
+      (inject) => inject.identity === 'non-cooperative' && inject.id === 'inject-05',
     )!
 
   it('opens on the config set, and a placed site re-scores the queue and logs the crossing at sim time', () => {
@@ -1915,22 +1925,28 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
   })
   afterEach(() => play.mockRestore())
   /**
-   * TRK-06 crosses into warning a little after 02:38 (02:38:11 on the recording's own frame
-   * grid). A seek to 02:38:00 writes every crossing before it; the ticks after write this one.
-   * Returns the sim time the card carries.
+   * One track's crossing into warning, raised on the clock: a seek to `seekS` writes every
+   * crossing before it and raises nothing; the ticks after write this one. Under the entry lever
+   * (S3a, #135) TRK-06 crosses at 02:31:13 (02:38:11 under the retired time-to-centre curve),
+   * UAS-CD84 at 02:38:58, UAS-A341 at 02:43:46. Returns the sim time the card carries.
    */
-  const raiseTrk06 = (replay: ReturnType<typeof manualClock>) => {
-    seek('480')
+  const raise = (
+    replay: ReturnType<typeof manualClock>,
+    ident: string,
+    seekS: string,
+    hhmm: string,
+  ) => {
+    seek(seekS)
     expect(cards()).toEqual([])
     for (let i = 0; i < 40 && cards().length === 0; i++) replay.tick()
-    const card = cards().find((text) => text.includes('TRK-06'))
-    expect(card).toMatch(/^(Warning|Re-surfaced)TRK-0602:38:\d\d$/)
+    const card = cards().find((text) => text.includes(ident))
+    expect(card).toMatch(new RegExp(`^(Warning|Re-surfaced)${ident}${hhmm}:[0-5][0-9]$`))
     return card!.slice(-8)
   }
 
   it('raises on a tick and not on a seek — a seek replays the record, the stack stays quiet (A1)', () => {
     const replay = start()
-    const at = raiseTrk06(replay)
+    const at = raise(replay, 'TRK-06', '60', '02:31')
     expect(cards()).toContain(`WarningTRK-06${at}`)
     // Never a real aircraft: every card names an inject.
     for (const card of cards()) expect(card).toMatch(/(TRK|UAS)-/)
@@ -1943,7 +1959,7 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
 
   it('acknowledges from the card: New becomes Assessing, the line is written at sim time, the card clears, the handoff carries it', () => {
     const replay = start()
-    const at = raiseTrk06(replay)
+    const at = raise(replay, 'TRK-06', '60', '02:31')
     // The card's body is a selection: the Queue opens with TRK-06 in the drawer.
     fireEvent.click(within(cardOf('TRK-06')).getByRole('button', { name: /Warning/ }))
     expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-current', 'page')
@@ -1962,9 +1978,9 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
 
   it('refuses Acknowledge behind the track’s frontier (#77), and clears the cards on Dismiss', () => {
     const replay = start()
-    raiseTrk06(replay)
+    raise(replay, 'TRK-06', '60', '02:31')
     const ack = () => within(cardOf('TRK-06')).getByRole('button', { name: 'Acknowledge' })
-    seek('300')
+    seek('30')
     expect(ack()).toBeDisabled()
     expect(within(stack()).getByRole('status')).toHaveTextContent(
       'Rewound — the workflow acts at the record’s frontier',
@@ -1983,8 +1999,8 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     // A seek replays the record: cards or not, no sound.
     seek('300')
     expect(play).not.toHaveBeenCalled()
-    // The ticks that raise TRK-06's card are one batch: one play.
-    raiseTrk06(replay)
+    // The ticks that raise UAS-A341's card are one batch: one play.
+    raise(replay, 'UAS-A341', '820', '02:43')
     expect(play).toHaveBeenCalledTimes(1)
     // The flipping label alone carries the state, as Play/Pause does — no aria-pressed, which
     // with a flipping label announces the state inverted (ruled A on #36 [18]).
@@ -1994,8 +2010,9 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     fireEvent.click(mute())
     expect(mute()).toHaveTextContent('Unmute')
     expect(mute()).not.toHaveAttribute('aria-pressed')
-    // Muted, the next raise — UAS-CD84's, a little after 02:38:58 — stacks its card and sounds
-    // nothing: the binding, not only the hook (#113 review).
+    // Muted, the next card — UAS-A341's orbit onset at 02:44:24; its warning re-crossing at
+    // 02:44:02 only re-stamps the pending card (A4) — stacks and sounds nothing: the binding,
+    // not only the hook (#113 review).
     const before = cards().length
     for (let i = 0; i < 90 && cards().length === before; i++) replay.tick()
     expect(cards().length).toBeGreaterThan(before)
@@ -2006,10 +2023,10 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     const replay = start()
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     seek('360')
-    fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
+    fireEvent.click(within(rowOf('UAS-CD84')).getByRole('button'))
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
-    const at = raiseTrk06(replay)
-    expect(cards()).toContain(`Re-surfacedTRK-06${at}`)
-    expect(cards()).not.toContain(`WarningTRK-06${at}`)
+    const at = raise(replay, 'UAS-CD84', '520', '02:38')
+    expect(cards()).toContain(`Re-surfacedUAS-CD84${at}`)
+    expect(cards()).not.toContain(`WarningUAS-CD84${at}`)
   })
 })

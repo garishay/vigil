@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import { AO } from '../config/ao'
 import { PROJECTION } from '../config/projection'
+import { SCORING } from '../config/scoring'
 import type { AdsbCapture } from './adsb'
 import { formatEntryTime } from './display'
 import { destinationPoint, distanceMeters } from './geo'
@@ -77,12 +78,14 @@ describe('timeToEntry', () => {
   })
 
   it('reads none past the horizon, opening, on a path that misses the ring, or with speed or heading unobserved', () => {
-    const none = { kind: 'none', horizonS: 600, coastedS: null }
-    // 4 km at 10 kt is 778 s: past the 600 s horizon, inside a 900 s one — the horizon is config.
-    const slow = { ...inbound, groundSpeedKt: 10 }
+    const none = { kind: 'none', horizonS: 1200, coastedS: null }
+    // 4 km at 5 kt is 1 555 s: past the 1 200 s horizon, inside an 1 800 s one — the horizon is
+    // config, and the config is the factor's own entryZeroMin: one horizon (#36 [31], ruled A).
+    const slow = { ...inbound, groundSpeedKt: 5 }
     expect(timeToEntry(slow, AO.protectedSites)).toEqual(none)
-    expect(PROJECTION.horizonS).toBe(600)
-    expect(timeToEntry(slow, AO.protectedSites, { horizonS: 900 })?.kind).toBe('entry')
+    expect(PROJECTION.horizonS).toBe(SCORING.closing.entryZeroMin * 60)
+    expect(PROJECTION.horizonS).toBe(1200)
+    expect(timeToEntry(slow, AO.protectedSites, { horizonS: 1800 })?.kind).toBe('entry')
     // A none carries the horizon it was computed under — the config's, whichever it was (#122).
     expect(timeToEntry(slow, AO.protectedSites, { horizonS: 300 })).toEqual({
       ...none,
@@ -177,7 +180,7 @@ describe('timeToEntry', () => {
       ),
     ).toEqual({
       kind: 'none',
-      horizonS: 600,
+      horizonS: 1200,
       coastedS: 12,
     })
   })

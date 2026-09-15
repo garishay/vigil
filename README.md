@@ -58,7 +58,7 @@ flowchart LR
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
-    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · the friendly launch cap · closing complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
+    score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · the friendly launch cap · closing on the projection's time to entry, complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
     life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings, pattern changes, loss and return logged at sim time, statuses carried · re-surface read off the log<br/>the sites in force on every snapshot"]
     hand["lib/handoff.ts<br/>escalation summary as copyable text<br/>evidence block frozen at the escalate snapshot · the site line from the record · timeline live"]
@@ -86,11 +86,13 @@ flowchart LR
     alerts["lib/alerts.ts<br/>a surface over the record: which entries earn a card, which clear one<br/>one pending card per track per kind · a tick raises, a seek replays · never a capped cooperative track"]
     alertcfg --> alerts
     life -- the log, entry by entry --> alerts
-    projcfg["config/projection.ts<br/>the horizon"]
-    proj["lib/projection.ts<br/>time to entry by dead reckoning: the observed position, track, and speed against every protected ring<br/>the soonest, its site named and tier carried · inside at zero · none past the horizon<br/>the entry point on the ring · the position's own age counted off, a coasting track captioned · a display value, never a factor"]
+    projcfg["config/projection.ts<br/>the horizon — the factor's entryZeroMin, one number"]
+    proj["lib/projection.ts<br/>time to entry by dead reckoning: the observed position, track, and speed against every protected ring<br/>the soonest, its site named and tier carried · inside at zero · none past the horizon<br/>the entry point on the ring · the position's own age counted off, a coasting track captioned · entryAt: the one entry estimate the Closing factor scores and the Entry row prints (S3a)"]
+    scorecfg -- entryZeroMin --> projcfg
     projcfg --> proj
     model --> proj
     proj -- the value on every snapshot --> life
+    proj -- entryAt, per ring --> score
   end
   photos["data/photos.ts + usePhoto<br/>one photo per opened ADS-B track, by hex<br/>runtime lookup · session cache · fails soft to the silhouette"]
   fx -. fetched at startup .-> load
