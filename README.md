@@ -86,8 +86,9 @@ flowchart LR
     alerts["lib/alerts.ts<br/>a surface over the record: which entries earn a card, which clear one<br/>one pending card per track per kind · a tick raises, a seek replays · never a capped cooperative track"]
     alertcfg --> alerts
     life -- the log, entry by entry --> alerts
-    projcfg["config/projection.ts<br/>the horizon"]
+    projcfg["config/projection.ts<br/>the horizon — the factor's entryZeroMin, one number"]
     proj["lib/projection.ts<br/>time to entry by dead reckoning: the observed position, track, and speed against every protected ring<br/>the soonest, its site named and tier carried · inside at zero · none past the horizon<br/>the entry point on the ring · the position's own age counted off, a coasting track captioned · entryAt: the one entry estimate the Closing factor scores and the Entry row prints (S3a)"]
+    scorecfg -- entryZeroMin --> projcfg
     projcfg --> proj
     model --> proj
     proj -- the value on every snapshot --> life

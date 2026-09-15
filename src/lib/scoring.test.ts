@@ -23,9 +23,9 @@ import { SCORING, type FactorId } from '../config/scoring'
 import { frameTracks } from '../data/capture'
 import type { AdsbCapture } from './adsb'
 import { scoreTotal } from './display'
-import { destinationPoint } from './geo'
+import { KT_TO_MS, destinationPoint } from './geo'
 import type { InjectScenario } from './injects'
-import { timeToEntry, type EntryEstimate } from './projection'
+import { entryAt, timeToEntry, type EntryEstimate } from './projection'
 import type { AdsbTrack, GeneratedInjectTrack, Track } from './tracks'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
@@ -221,6 +221,42 @@ describe('closing geometry', () => {
         6,
       )
     }
+  })
+
+  it('names the worst-case site while the Entry row names the soonest — two sites, two labelled lines, the seconds agreeing site for site (#36 [30], ruled A)', () => {
+    // Straight in from 10 km at 20.25 kt: PHL's ring, tier 1, in 480 s — 66.7 on the ramp. A
+    // tier-2 ring 1 km across with its edge 60 s ahead on the same course reads 100 × 0.5 = 50.
+    // The factor keeps 08a's worst case (#86) and names PHL; the row keeps #102's soonest and
+    // names the nearer site: two sites, two labelled lines, and each line's seconds are entryAt's
+    // for its own site — never one site with two times. In either order.
+    const track = inject({ position: at(10_000), groundSpeedKt: 20.25 })
+    const near: ProtectedSite = {
+      id: 'site-2',
+      name: 'Site 2',
+      center: destinationPoint(track.position, 180, 20.25 * KT_TO_MS * 60 + 1000),
+      radiusM: 1000,
+      tier: 2,
+    }
+    const phl = entryAt(track, SITE)
+    const nearer = entryAt(track, near)
+    if (phl.kind !== 'entry' || nearer.kind !== 'entry') throw new Error('both courses enter')
+    expect(phl.tSec).toBeCloseTo(480, 0)
+    expect(nearer.tSec).toBeCloseTo(60, 0)
+    for (const sites of [
+      [SITE, near],
+      [near, SITE],
+    ]) {
+      const closing = scoreTrack(track, sites, NIGHT).factors.find((f) => f.id === 'closing')!
+      expect(closing.detail).toBe("will enter PHL Airfield's ring in 8 min")
+      expect(closing.value).toBeCloseTo(100 * (1 - (phl.tSec / 60 - 2) / 18), 6)
+      const row = timeToEntry(track, sites)!
+      expect(row).toMatchObject({ kind: 'entry', siteId: 'site-2', tier: 2 })
+      if (row.kind === 'entry') expect(row.tSec).toBeCloseTo(nearer.tSec, 6)
+    }
+    // Alone, the nearer site's candidate is the half its tier leaves: the worst case chose PHL.
+    const alone = scoreTrack(track, [near], NIGHT).factors.find((f) => f.id === 'closing')!
+    expect(alone.value).toBeCloseTo(50, 6)
+    expect(alone.detail).toBe("will enter Site 2's ring in 1 min · tier 2 × 0.5")
   })
 
   it('reads a rounded 0 min as "under a minute", never a printed zero (#122, ruled A3)', () => {

@@ -31,8 +31,8 @@
  * the display to say so.
  *
  * The row is a display value, not a factor; the geometry under it is the factor's: `scoring.ts`
- * imports `entryAt`, and nothing else from here — `timeToEntry`, its horizon, and the entry
- * point stay the display's.
+ * imports `entryAt`, and nothing else from here — `timeToEntry` and the entry point stay the
+ * display's, under the one horizon the factor's own `entryZeroMin` sets (#36 [31], ruled A).
  */
 
 import type { ProtectedSite, SiteTier } from '../config/ao.ts'
