@@ -4,6 +4,7 @@ import App from './App'
 import { AO } from './config/ao'
 import { DEFAULT_RECORDING, recordingNamed, type RecordingEntry } from './config/recordings'
 import { SCENARIO } from './config/scenario'
+import { SCENARIO_02A } from './config/scenarios/02a'
 import type { SessionState } from './data/useSession'
 import type { Schedule } from './data/usePlayback'
 import type { AdsbCapture } from './lib/adsb'
@@ -126,7 +127,7 @@ const ready = (
   status: 'ready',
   session: {
     feeds: [{ kind: 'recording', id: entry.id }],
-    scenario: scenarioOn ? { on: true, seed: SCENARIO.seed } : { on: false },
+    scenario: scenarioOn ? { on: true, name: '001', seed: SCENARIO.seed } : { on: false },
   },
   feeds: [recordingFeed(entry, capture)],
   scenario: scenarioOn ? scenarioFeed(timelineOf(capture)) : null,
@@ -208,6 +209,21 @@ describe('App shell', () => {
   it('names the seed, so the picture on screen can be reproduced', () => {
     render(<App schedule={never} />)
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
+  })
+
+  it('names the session’s seed under a named scenario, not the config’s (S3b, #135)', () => {
+    // The study's link opens 02a: the strip must say study-02a, or the picture cannot be
+    // reproduced from what it shows. Before S3b the two seeds were always the same one.
+    useSession.mockReturnValue({
+      ...ready(CAPTURE),
+      session: {
+        feeds: [{ kind: 'recording', id: DEFAULT_RECORDING.id }],
+        scenario: { on: true, name: '02a', seed: 'study-02a' },
+      },
+      scenario: scenarioFeed(timelineOf(CAPTURE), SCENARIO_02A),
+    })
+    render(<App schedule={never} />)
+    expect(screen.getByText('Seed').nextSibling).toHaveTextContent('study-02a')
   })
 
   it('shows the sim clock at the recording’s configured start — the hour the picture is scored at (04a)', () => {

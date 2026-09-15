@@ -67,8 +67,10 @@ export type CastEntry = {
    * (S2b, #134, ruled A1): a constant vector, applied on every heard frame. Absent, the broadcast
    * claims the observed position — consistent, as every dealt inject is. At or beyond the
    * scorer's `mismatchM` the picture withholds the ident and reads the mismatch (#36 [27]).
+   * `fromS` (S3b, #135, ruled) is the scenario second the lie begins: consistent before it, the
+   * offset from it — a step, so a track the operator was already watching turns; 0 when absent.
    */
-  broadcastOffset?: { bearingDeg: number; distanceM: number }
+  broadcastOffset?: { bearingDeg: number; distanceM: number; fromS?: number }
 } & (
   | { behavior: 'shuttle'; from: Placement; to: Placement }
   | {

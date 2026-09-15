@@ -190,10 +190,11 @@ export interface InjectSpec {
   script: ScriptedMotion | null
   /**
    * Where the broadcast claims to be, relative to the observed track (S2b, #134): a constant
-   * vector on every heard frame; null for a dealt inject and for a cast entry without one, whose
-   * broadcast claims the observed position.
+   * vector on every heard frame from `fromS` on (S3b, #135; 0 for a lie from the first frame);
+   * null for a dealt inject and for a cast entry without one, whose broadcast claims the
+   * observed position.
    */
-  broadcastOffset: { bearingDeg: number; distanceM: number } | null
+  broadcastOffset: { bearingDeg: number; distanceM: number; fromS: number } | null
   /**
    * Per frame, whether the Remote ID broadcast was heard. Populated only for `intermittent` —
    * `broadcasting` is always heard and `silent` never is, so neither needs a timeline.
@@ -437,8 +438,12 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
   const landed = spec.script?.kind === 'return-to-launch' && t >= spec.script.arriveS
   // Where the broadcast says the drone is (S2b, #134): the observed position, or that position
   // displaced by the entry's constant vector — a broadcast that lies by the same amount every
-  // frame. The sensor's track is untouched either way.
-  const claimed = spec.broadcastOffset ? claimedPosition(position, spec.broadcastOffset) : position
+  // frame from `fromS` on, and claims the observed position before it (S3b, #135). The sensor's
+  // track is untouched either way.
+  const claimed =
+    spec.broadcastOffset && tSec >= spec.broadcastOffset.fromS
+      ? claimedPosition(position, spec.broadcastOffset)
+      : position
 
   return {
     id: spec.id,
@@ -629,7 +634,9 @@ export function planScenario(
       periodS: 0,
       startS: entry.startS ?? 0,
       script,
-      broadcastOffset: entry.broadcastOffset ?? null,
+      broadcastOffset: entry.broadcastOffset
+        ? { ...entry.broadcastOffset, fromS: entry.broadcastOffset.fromS ?? 0 }
+        : null,
       heard: dropoutChain(config, id, entry.remoteId, frameCount),
     })
   })

@@ -6,6 +6,13 @@
 is [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002). Open
 one, press Play, read the Queue. Every merge to `main` redeploys it.
 
+The operator study’s scenarios open by name (S3b): **Study-02a-vigil**
+[`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a) ·
+**Demo-02a-vigil** [`?recording=vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02a) ·
+**Study-02b-vigil** [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b) ·
+**Demo-02b-vigil** [`?recording=vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02b).
+`?scenario=on` is the default deal, `off` none; the raw-mode rows arrive with S4a (`mode=raw`).
+
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
 small-UAS tracks (the injects) — scores every track against a protected site using transparent,
@@ -50,7 +57,10 @@ flowchart LR
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
-      cfg["config/scenario.ts<br/>seed · envelope · launch points · the cast"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 dealt behaviors · 3 cast behaviors, scripted · 3 Remote ID states · UA type"]
+      scenarios["config/scenarios.ts + scenarios/<br/>the registry: 001 the default · 02a · 02b, cast-only files, one row per entry<br/>cast.ts: six builders over the three cast behaviors — threat · shuttle · silentMover · mover · hover · returning"]
+    cfg --> scenarios
+    scenarios --> gen
+    cfg["config/scenario.ts<br/>seed · envelope · launch points · the cast"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 dealt behaviors · 3 cast behaviors, scripted · 3 Remote ID states · UA type"]
       gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
     ao["config/ao.ts<br/>AO: center · bbox · time zone · protected sites with their tier"]
@@ -130,6 +140,7 @@ flowchart LR
   sites -- session set: scorer, map, panel --> app
   cfg -- seed: strip --> app
   recs -- ?recording= selection · the default --> app
+  scenarios -- ?scenario= name · on the first · off none --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot, map fill --> app
   life -- log · status · re-surface: drawer, state filter, row --> app
   proj -- time to entry for the selected track: drawer, map line --> app

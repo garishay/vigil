@@ -603,7 +603,7 @@ export default function App({
   const statusFields = [
     { label: 'Cooperative', value: count(adsb.length) },
     { label: 'Injects', value: count(injects.length) },
-    { label: 'Seed', value: SCENARIO.seed },
+    { label: 'Seed', value: scenario?.seed ?? SCENARIO.seed },
     // The recording and the day it was flown (#84, ruled), and the clock it opens: held back with
     // the counts until the recording is in, since all three are read off the loaded file.
     {

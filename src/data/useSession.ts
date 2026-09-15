@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { recordingNamed } from '../config/recordings'
-import { SCENARIO } from '../config/scenario'
+import { scenarioNamed } from '../config/scenarios'
 import { captureUrl, loadCapture } from './capture'
 import { recordingFeed, scenarioFeed } from '../lib/feeds'
 import type { RecordingFeed, ScenarioFeed } from '../lib/feeds'
@@ -58,8 +58,9 @@ export function useSession(
             return recordingFeed(entry, await loadCapture(captureUrl(entry)))
           }),
         )
+        // The named config from the registry (S3b): its seed is the session's (ruling 5).
         const scenario = session.scenario.on
-          ? scenarioFeed(feeds[0].timeline, { ...SCENARIO, seed: session.scenario.seed })
+          ? scenarioFeed(feeds[0].timeline, scenarioNamed(session.scenario.name).config)
           : null
         return { session, feeds, scenario }
       })
