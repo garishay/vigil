@@ -99,6 +99,9 @@ const { mapInstance, setData, clickHandlers, MapConstructor, NavigationControl }
       // The source id travels with the data, so a test can say *which* layer it is asserting on.
       getSource: vi.fn((id: string) => ({ setData: (data: unknown) => setDataFn(id, data) })),
       remove: vi.fn(),
+      // Raw mode (S4a) repaints and toggles layers from an effect.
+      setLayoutProperty: vi.fn(),
+      setPaintProperty: vi.fn(),
       on: vi.fn((event: string, arg2: unknown, arg3?: unknown) => {
         if (event === 'load') (arg2 as () => void)()
         if (event === 'click' && typeof arg2 === 'string')
@@ -240,15 +243,20 @@ describe('MapView', () => {
     const [projectionId, projectionSource] = mapInstance.addSource.mock.calls[3]
     expect(projectionId).toBe('selected-projection')
     expect(projectionSource.data.features).toEqual([])
-    const [injectId, injectSource] = mapInstance.addSource.mock.calls[4]
+    // S4a adds the heading ticks beside the projected path: under the injects, raw only.
+    const [headingId, headingSource] = mapInstance.addSource.mock.calls[4]
+    expect(headingId).toBe('heading-ticks')
+    expect(headingSource.data.features).toEqual([])
+    const [injectId, injectSource] = mapInstance.addSource.mock.calls[5]
     expect(injectId).toBe('inject-tracks')
     expect(injectSource.data.features).toEqual([])
     // 03a adds the selection ring: its own source, empty, layered above everything.
-    const [selectId, selectSource] = mapInstance.addSource.mock.calls[5]
+    const [selectId, selectSource] = mapInstance.addSource.mock.calls[6]
     expect(selectId).toBe('selected-track')
     expect(selectSource.data.features).toEqual([])
-    // 08b adds the friendly ring layer beside the protected line; #102 the projected path.
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(10)
+    // 08b adds the friendly ring layer beside the protected line; #102 the projected path;
+    // S4a the heading ticks and the two label layers, hidden until raw.
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(13)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.indexOf('selected-trail-line')).toBeLessThan(order.indexOf('inject-tracks-halo'))
     expect(order.indexOf('selected-projection-line')).toBeGreaterThan(
@@ -619,5 +627,51 @@ describe('MapView', () => {
     const { unmount } = render(<MapView ao={AO} />)
     unmount()
     expect(mapInstance.remove).toHaveBeenCalled()
+  })
+})
+
+describe('raw mode (S4a, #136, ruled A4)', () => {
+  it('paints every dot one neutral, shows a label and a heading tick per track, and draws no legend', () => {
+    render(<MapView ao={AO} mode="raw" tracks={TRACKS} injects={INJECTS} />)
+    for (const id of ['heading-ticks-line', 'adsb-tracks-label', 'inject-tracks-label']) {
+      expect(mapInstance.setLayoutProperty).toHaveBeenCalledWith(id, 'visibility', 'visible')
+    }
+    const neutral = '#c5cfdc'
+    for (const [layer, prop] of [
+      ['adsb-tracks-dot', 'circle-color'],
+      ['adsb-tracks-dot', 'circle-stroke-color'],
+      ['inject-tracks-halo', 'circle-color'],
+      ['inject-tracks-dot', 'circle-color'],
+      ['inject-tracks-dot', 'circle-stroke-color'],
+    ]) {
+      expect(mapInstance.setPaintProperty).toHaveBeenCalledWith(layer, prop, neutral)
+    }
+    // The ident rides every feature, for the label layers to print.
+    expect(dataFor('adsb-tracks').features.map((f) => f.properties.ident)).toEqual([
+      'AAL423',
+      'a3303d',
+    ])
+    expect(dataFor('inject-tracks').features.map((f) => f.properties.ident)).toEqual([
+      'TRK-01',
+      'TRK-02',
+    ])
+    // A tick for each moving, airborne track with a heading: the parked aircraft gets none.
+    const ticks = dataFor('heading-ticks').features
+    expect(ticks.map((f) => f.properties.id)).toEqual(['adsb-a06461', 'inject-01', 'inject-02'])
+    expect(ticks[0].geometry).toMatchObject({ type: 'LineString' })
+    expect(screen.queryByRole('group', { name: 'Map legend' })).toBeNull()
+  })
+
+  it('keeps Vigil’s paint and the raw layers hidden when the mode is vigil', () => {
+    render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} />)
+    for (const id of ['heading-ticks-line', 'adsb-tracks-label', 'inject-tracks-label']) {
+      expect(mapInstance.setLayoutProperty).toHaveBeenCalledWith(id, 'visibility', 'none')
+    }
+    const neutralCalls = mapInstance.setPaintProperty.mock.calls.filter(
+      (call) => call[2] === '#c5cfdc',
+    )
+    expect(neutralCalls).toHaveLength(0)
+    expect(dataFor('heading-ticks').features).toEqual([])
+    expect(screen.getByRole('group', { name: 'Map legend' })).toBeInTheDocument()
   })
 })

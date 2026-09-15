@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { recordingNamed } from '../config/recordings'
 import { scenarioNamed } from '../config/scenarios'
+import { STUDY } from '../config/study'
 import { captureUrl, loadCapture } from './capture'
 import { recordingFeed, scenarioFeed } from '../lib/feeds'
 import type { RecordingFeed, ScenarioFeed } from '../lib/feeds'
@@ -58,9 +59,19 @@ export function useSession(
             return recordingFeed(entry, await loadCapture(captureUrl(entry)))
           }),
         )
-        // The named config from the registry (S3b): its seed is the session's (ruling 5).
+        // The named config from the registry (S3b): its seed is the session's (ruling 5). In
+        // raw mode the same picture goes through the association rule at raw's own distance
+        // (S4a, #136, ruled A2; #131) — the one thing raw computes; Vigil's feed keeps the
+        // scorer's threshold, the default.
         const scenario = session.scenario.on
-          ? scenarioFeed(feeds[0].timeline, scenarioNamed(session.scenario.name).config)
+          ? session.mode === 'raw'
+            ? scenarioFeed(
+                feeds[0].timeline,
+                scenarioNamed(session.scenario.name).config,
+                undefined,
+                STUDY.rawAssociationM,
+              )
+            : scenarioFeed(feeds[0].timeline, scenarioNamed(session.scenario.name).config)
           : null
         return { session, feeds, scenario }
       })

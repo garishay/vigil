@@ -58,6 +58,19 @@ export const BAND_COLOR: Record<WarmBand, string> = { caution: '#f5b942', warnin
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
 
 /**
+ * The raw drawer's Source row (S4a, #136, ruled A5; #131's fairness spec): where the identity
+ * came from — *ADS-B* for an aircraft, *Remote ID* for an inject the association rule labelled
+ * from a broadcast, *sensor* for one it did not. Observed, never derived: the label is the
+ * rule's, and the rule is the one thing raw computes.
+ */
+export const sourceWord = (track: Track): string =>
+  track.source === 'adsb' ? 'ADS-B' : track.callsign !== null ? 'Remote ID' : 'sensor'
+
+/** The raw drawer's Position row: latitude, longitude to four decimals — the observed field itself. */
+export const formatPosition = ([lon, lat]: readonly [number, number]) =>
+  `${lat.toFixed(4)}, ${lon.toFixed(4)}`
+
+/**
  * The site row's second line (08a, 08b): the kind and, for a protected site, the tier —
  * `Protected · tier 1`, `Friendly launch area`.
  */

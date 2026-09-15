@@ -50,3 +50,16 @@ describe('Playback', () => {
     expect(screen.getByText('—')).toBeInTheDocument()
   })
 })
+
+describe('Playback in raw mode (S4a, #136, ruled A3)', () => {
+  it('shows the elapsed time only — no seek, no Pause, no length — and a dash before the recording is in', () => {
+    const { unmount } = render(<Playback playback={state()} raw />)
+    expect(screen.getByText('03:07')).toBeInTheDocument()
+    expect(screen.queryByText('03:07 / 19:45')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.queryByRole('slider')).toBeNull()
+    unmount()
+    render(<Playback playback={state({ durationS: null })} raw />)
+    expect(screen.getByText('—')).toBeInTheDocument()
+  })
+})

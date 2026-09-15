@@ -4,6 +4,8 @@ import { useSession } from './useSession'
 import { PHL } from '../config/ao'
 import { SCENARIO } from '../config/scenario'
 import { SCENARIO_02A } from '../config/scenarios/02a'
+import { SCENARIO_02B } from '../config/scenarios/02b'
+import { scenarioFeed } from '../lib/feeds'
 import type { AdsbCapture } from '../lib/adsb'
 import { planScenario, timelineOf } from '../lib/injects'
 
@@ -127,5 +129,36 @@ describe('useSession (#115)', () => {
       status: 'error',
       message: 'could not load the ADS-B recording: HTTP 404',
     })
+  })
+})
+
+describe('raw mode’s feed (S4a, #136, ruled A2)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('runs the same picture through the rule at the study’s distance in raw, and at the scorer’s in vigil', async () => {
+    const long: AdsbCapture = {
+      ...CAPTURE,
+      frames: Array.from({ length: 80 }, (_, i) => ({ tMs: i * 15000, records: [] })),
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => long })),
+    )
+    const { result } = renderHook(() =>
+      useSession('?feed=recording:vigil-phl-002&scenario=02b&mode=raw', {}),
+    )
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    if (result.current.status !== 'ready') throw new Error('not ready')
+    expect(result.current.session.mode).toBe('raw')
+    // 02b's threat lies by 1.1 km from 510 s — inside raw's 1 500 m, so raw keeps its label…
+    const raw = result.current.scenario!.pictureAt(600).find((track) => track.id === 'inject-11')
+    expect(raw).toMatchObject({ callsign: 'UAS-8F21', identity: 'cooperative' })
+    // …and past the scorer's 1 000 m, so Vigil withholds it — the study's discriminator.
+    const vigil = scenarioFeed(timelineOf(long), SCENARIO_02B)
+      .pictureAt(600)
+      .find((track) => track.id === 'inject-11')
+    expect(vigil).toMatchObject({ callsign: null, identity: 'non-cooperative' })
   })
 })

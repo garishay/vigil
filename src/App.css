@@ -497,6 +497,15 @@
   grid-template-columns: 26rem 1fr;
 }
 
+/* Raw mode (S4a): no rail — the map fills the body, and the drawer opens beside it on a click. */
+.shell__body--raw {
+  grid-template-columns: 1fr;
+}
+
+.shell__body--raw.shell__body--drawer {
+  grid-template-columns: 26rem 1fr;
+}
+
 .chips {
   display: flex;
   /* Wraps, as the approved mockup draws it: seven state chips outrun the 22 rem rail, and an

@@ -22,21 +22,35 @@ const refusal = (search: string, env = {}) => {
 describe('resolveSession (#115, ruling 6)', () => {
   it('opens the demo with no query and no env: the default recording, the scenario on', () => {
     expect(BUILD_DEFAULTS).toEqual({ feeds: 'recording:vigil-phl-001', scenario: 'on' })
-    expect(resolveSession('')).toEqual({ feeds: [rec(DEFAULT_RECORDING.id)], scenario: ON })
-    expect(resolveSession('?other=1')).toEqual({ feeds: [rec('vigil-phl-001')], scenario: ON })
+    expect(resolveSession('')).toEqual({
+      feeds: [rec(DEFAULT_RECORDING.id)],
+      scenario: ON,
+      mode: 'vigil',
+    })
+    expect(resolveSession('?other=1')).toEqual({
+      feeds: [rec('vigil-phl-001')],
+      scenario: ON,
+      mode: 'vigil',
+    })
   })
 
   it('reads the build’s env as layer (a), and the URL over it as layer (c)', () => {
     const env = { VITE_DEFAULT_FEEDS: 'recording:vigil-phl-002', VITE_DEFAULT_SCENARIO: 'off' }
-    expect(resolveSession('', env)).toEqual({ feeds: [rec('vigil-phl-002')], scenario: OFF })
+    expect(resolveSession('', env)).toEqual({
+      feeds: [rec('vigil-phl-002')],
+      scenario: OFF,
+      mode: 'vigil',
+    })
     expect(resolveSession('?feed=recording:vigil-phl-001&scenario=on', env)).toEqual({
       feeds: [rec('vigil-phl-001')],
       scenario: ON,
+      mode: 'vigil',
     })
     // Each variable on its own: the other keeps the build's fallback.
     expect(resolveSession('', { VITE_DEFAULT_SCENARIO: 'off' })).toEqual({
       feeds: [rec('vigil-phl-001')],
       scenario: OFF,
+      mode: 'vigil',
     })
   })
 
@@ -44,10 +58,12 @@ describe('resolveSession (#115, ruling 6)', () => {
     expect(resolveSession('?recording=vigil-phl-002')).toEqual({
       feeds: [rec('vigil-phl-002')],
       scenario: ON,
+      mode: 'vigil',
     })
     expect(resolveSession('?feed=recording:vigil-phl-002&scenario=off')).toEqual({
       feeds: [rec('vigil-phl-002')],
       scenario: OFF,
+      mode: 'vigil',
     })
   })
 
@@ -55,6 +71,7 @@ describe('resolveSession (#115, ruling 6)', () => {
     expect(resolveSession('?feed=recording:vigil-phl-002&recording=vigil-phl-002')).toEqual({
       feeds: [rec('vigil-phl-002')],
       scenario: ON,
+      mode: 'vigil',
     })
     expect(refusal('?feed=recording:vigil-phl-001&recording=vigil-phl-002')).toBe(
       '?recording= and ?feed= name different recordings — say one',
@@ -152,6 +169,7 @@ describe('resolveSession (#115, ruling 6)', () => {
     expect(resolveSession('', { VITE_DEFAULT_FEEDS: '', VITE_DEFAULT_SCENARIO: '' })).toEqual({
       feeds: [rec('vigil-phl-001')],
       scenario: ON,
+      mode: 'vigil',
     })
   })
 
@@ -192,6 +210,7 @@ describe('resolveSession (#115, ruling 6)', () => {
     expect(resolveSession('?feed= recording:vigil-phl-002 ,')).toEqual({
       feeds: [rec('vigil-phl-002')],
       scenario: ON,
+      mode: 'vigil',
     })
     expect(() => resolveSession('?recording=vigil-phl-002', {}, RECORDINGS.slice(0, 1))).toThrow(
       'No recording named "vigil-phl-002"',
@@ -206,5 +225,22 @@ describe('resolveSession (#115, ruling 6)', () => {
     expect(() => resolveSession('?scenario=02a', {}, RECORDINGS, other)).toThrow(
       '?scenario= reads on, off, or a scenario name — other — not "02a"',
     )
+  })
+})
+
+describe('?mode= — the study’s condition (S4a, #136, ruled A1)', () => {
+  it('reads raw or vigil, vigil when absent, and refuses anything else in the resolver’s words', () => {
+    expect(resolveSession('?feed=recording:vigil-phl-002&scenario=02a&mode=raw')).toEqual({
+      feeds: [rec('vigil-phl-002')],
+      scenario: { on: true, name: '02a', seed: 'study-02a' },
+      mode: 'raw',
+    })
+    expect(resolveSession('?mode=vigil').mode).toBe('vigil')
+    expect(resolveSession('').mode).toBe('vigil')
+    expect(refusal('?mode=fast')).toBe('?mode= reads raw or vigil, not "fast"')
+    expect(refusal('?mode=')).toBe('?mode= reads raw or vigil, not ""')
+    expect(refusal('?mode=raw&mode=vigil')).toBe('?mode= is given more than once — give it once')
+    // URL only: the env carries no mode — a run's parameter, not a build's.
+    expect(resolveSession('', { VITE_DEFAULT_SCENARIO: '02a' }).mode).toBe('vigil')
   })
 })

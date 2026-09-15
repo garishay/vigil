@@ -18,6 +18,8 @@ import {
   mismatchLine,
   roundHeading,
   trackIdent,
+  formatPosition,
+  sourceWord,
 } from '../lib/display'
 import { handoffText } from '../lib/handoff'
 import { IDENTITY_LABEL } from '../lib/identity'
@@ -29,6 +31,7 @@ import {
   type TrackEvent,
 } from '../lib/lifecycle'
 import type { EntryEstimate } from '../lib/projection'
+import type { Mode } from '../lib/session'
 import type { RankedTrack } from '../lib/ranking'
 import { ifHeard } from '../lib/scoring'
 
@@ -122,8 +125,17 @@ export function ReviewDrawer({
   tSec,
   trail,
   entryEstimate = null,
+  mode = 'vigil',
 }: {
   entry: RankedTrack
+  /**
+   * Raw mode (S4a, #136, ruled A5; #131's fairness spec): the observed rows only — Status, Range
+   * to the site's centre as the Queue defines it, Identity, Source, Position, Altitude, Speed,
+   * Heading, First seen — and Assess, Escalate, Dismiss. Rank, the score block, the corroboration
+   * and mismatch lines, the Entry row, the silhouette and photo, the history line, the event log,
+   * the handoff, and Resolve are not drawn.
+   */
+  mode?: Mode
   sites: readonly ProtectedSite[]
   /**
    * Time to entry into a protected site (#102), computed once by the caller over the picture and
@@ -224,7 +236,29 @@ export function ReviewDrawer({
           },
         ]
       : []
-  const rows: { label: string; value: string; className?: string; note?: string | null }[] = [
+  const raw = mode === 'raw'
+  const rawRows: { label: string; value: string; className?: string; note?: string | null }[] = [
+    { label: 'Status', value: STATUS_LABEL[status], className: 'drawer__status' },
+    { label: 'Range', value: `${formatRangeKm(rangeM)} to ${siteName}` },
+    { label: 'Identity', value: IDENTITY_LABEL[track.identity] },
+    { label: 'Source', value: sourceWord(track) },
+    { label: 'Position', value: formatPosition(track.position) },
+    {
+      label: 'Altitude',
+      value: dash(track.altitudeFt === null ? null : `${track.altitudeFt} ft`),
+    },
+    {
+      label: 'Speed',
+      value: dash(track.groundSpeedKt === null ? null : `${track.groundSpeedKt} kt`),
+    },
+    {
+      label: 'Heading',
+      value: dash(track.headingDeg === null ? null : `${roundHeading(track.headingDeg)}°`),
+    },
+    // The record's first entry is the sighting (06b): observed, at sim time.
+    { label: 'First seen', value: clock(log[0]?.tSec ?? tSec) },
+  ]
+  const vigilRows: { label: string; value: string; className?: string; note?: string | null }[] = [
     { label: 'Status', value: STATUS_LABEL[status], className: 'drawer__status' },
     { label: 'Rank', value: `${rank}` },
     { label: 'Range', value: `${formatRangeKm(rangeM)} to ${siteName}` },
@@ -263,6 +297,9 @@ export function ReviewDrawer({
     },
     { label: 'Seen', value: `${track.lastSeenSec} s ago` },
   ]
+  const rows = raw ? rawRows : vigilRows
+  // Raw offers the three actions the fairness spec names; Resolve is Vigil's fourth (ruled).
+  const actions = raw ? ACTIONS.filter(({ action }) => action !== 'resolve') : ACTIONS
 
   // The panel renders from the log, not from transient UI state, so an escalated track shows its
   // handoff after Resolve, a close-and-reopen, or a surface switch — regenerated in full.
@@ -300,20 +337,20 @@ export function ReviewDrawer({
       {/* The mismatch line (S1, #132): what the track's Remote ID broadcast claims against what
           the sensor observes, off the score's own reading — one element, so raw mode can hide it
           (S4a). A track with a mismatch is heard, so the corroboration line below yields to it. */}
-      {entry.score.mismatch && (
+      {!raw && entry.score.mismatch && (
         <p className="drawer__mismatch">{mismatchLine(entry.score.mismatch)}</p>
       )}
 
       {/* The corroboration line (#103): what a track not heard on Remote ID would score if it
           were, off the same score — a render-time derivation, no state, not an event, not on the
           handoff or the snapshot. Heard injects and ADS-B tracks render nothing here. */}
-      {corroboration && (
+      {!raw && corroboration && (
         <p className="drawer__corroboration">
           If heard on Remote ID: {Math.round(corroboration.composite)} ({corroboration.band})
         </p>
       )}
 
-      <TrackVisuals track={track} lookupPhoto={lookupPhoto} />
+      {!raw && <TrackVisuals track={track} lookupPhoto={lookupPhoto} />}
 
       <dl className="drawer__kinematics">
         {rows.map((row) => (
@@ -327,14 +364,16 @@ export function ReviewDrawer({
         ))}
       </dl>
 
-      <ScoreBreakdown score={entry.score} />
+      {!raw && <ScoreBreakdown score={entry.score} />}
 
       {/* The trail the map draws behind the selected track (06b): recorded samples for an
           aircraft, frame-grid instants for an inject, the current position last. */}
-      <p className="drawer__history">
-        History: {trail.count} known {trail.count === 1 ? 'position' : 'positions'} over the last{' '}
-        {Math.round(trail.windowS / 60)} min
-      </p>
+      {!raw && (
+        <p className="drawer__history">
+          History: {trail.count} known {trail.count === 1 ? 'position' : 'positions'} over the last{' '}
+          {Math.round(trail.windowS / 60)} min
+        </p>
+      )}
 
       {/* Disabled rather than hidden, so the whole action vocabulary stays visible (§7.1).
           Described by the rewound line below when it applies: `disabled` takes all four out of
@@ -346,7 +385,7 @@ export function ReviewDrawer({
         aria-label="Lifecycle actions"
         aria-describedby={rewound ? 'drawer-rewound-state drawer-rewound-times' : undefined}
       >
-        {ACTIONS.map(({ action, label }) => (
+        {actions.map(({ action, label }) => (
           <button
             key={action}
             type="button"
@@ -403,7 +442,7 @@ export function ReviewDrawer({
         />
       )}
 
-      {handoff !== null && (
+      {!raw && handoff !== null && (
         <section className="drawer__handoff" aria-label="Handoff summary">
           <div className="drawer__subhead">
             <h4 className="drawer__subtitle">Handoff — copyable</h4>
@@ -422,17 +461,19 @@ export function ReviewDrawer({
         </section>
       )}
 
-      <section className="drawer__events" aria-label="Event log">
-        <h4 className="drawer__subtitle">Event log</h4>
-        <ol className="drawer__log">
-          {log.map((event) => (
-            <li className="drawer__event" key={event.seq}>
-              <span className="drawer__eventclock">{clock(event.tSec)}</span>
-              <span>{describeEvent(event, contacts, dispositions, clock)}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
+      {!raw && (
+        <section className="drawer__events" aria-label="Event log">
+          <h4 className="drawer__subtitle">Event log</h4>
+          <ol className="drawer__log">
+            {log.map((event) => (
+              <li className="drawer__event" key={event.seq}>
+                <span className="drawer__eventclock">{clock(event.tSec)}</span>
+                <span>{describeEvent(event, contacts, dispositions, clock)}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </aside>
   )
 }

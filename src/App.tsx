@@ -105,6 +105,11 @@ const STATE_FILTERS: { id: StateFilter; label: string }[] = [
 const matchesState = (status: Status, filter: StateFilter): boolean =>
   filter === 'all' || (filter === 'active' ? !isTerminal(status) : status === filter)
 
+/** Raw mode's empty inputs to the map, one identity each, so nothing re-pushes a source per render. */
+const NO_LINE: readonly [number, number][] = []
+const NO_IDS: readonly string[] = []
+const NO_BANDS: ReadonlyMap<string, WarmBand> = new Map()
+
 /** Where this browser keeps an edited site plan between sessions (#90) — the plan's own text. */
 const SITE_PLAN_KEY = 'vigil.site-plan'
 
@@ -137,6 +142,11 @@ export default function App({
   const ready = session.status === 'ready' ? session : null
   const feed = ready?.feeds[0] ?? null
   const scenario = ready?.scenario ?? null
+  // The study's condition (S4a, #136): resolved once with the session, never switched in a run.
+  // Raw hides everything derived and raises nothing; the engine runs underneath as it does in
+  // Vigil, so the record — and S4b's run JSON — keep one shape in both modes (ruled A2, A7).
+  const mode = ready?.session.mode ?? 'vigil'
+  const raw = mode === 'raw'
 
   // Selection and filters persist across surface switches — client state only (§7.1 ruling, #3).
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -448,7 +458,8 @@ export default function App({
   // replays the record and only clears (ruled A1, A2 on #101). The same guarded
   // set-during-render pattern: the state it writes is what the re-render checks, so one commit
   // folds an entry once.
-  const raising = playback.lastMove === 'tick'
+  // In raw nothing raises (ruled A6): the fold still clears, and no card or tone is ever made.
+  const raising = !raw && playback.lastMove === 'tick'
   const alertsStale = Object.entries(eventLogs).some(
     ([id, log]) => log.length > (alertsRead[id] ?? 0),
   )
@@ -606,7 +617,8 @@ export default function App({
   const statusFields = [
     { label: 'Cooperative', value: count(adsb.length) },
     { label: 'Injects', value: count(injects.length) },
-    { label: 'Seed', value: ready ? (scenario?.seed ?? '—') : pending },
+    // Raw hides the seed: it names the scenario a subject must not know (ruled A3).
+    ...(raw ? [] : [{ label: 'Seed', value: ready ? (scenario?.seed ?? '—') : pending }]),
     // The recording and the day it was flown (#84, ruled), and the clock it opens: held back with
     // the counts until the recording is in, since all three are read off the loaded file.
     {
@@ -666,6 +678,7 @@ export default function App({
       tSec={tSec}
       trail={{ count: trail.length, windowS: REPLAY.trailS }}
       entryEstimate={entryEstimate}
+      mode={mode}
       onClose={(event) => {
         const keyboard = event.detail === 0
         setKeyboardClose(keyboard)
@@ -678,27 +691,31 @@ export default function App({
   // reviewing); the Review surface shows the same drawer alone, at the same 26 rem (ruled B1, #3).
   const drawerColumn = surfaceId === 'queue' && drawer
   const bodyClasses = ['shell__body']
-  if (drawerColumn) bodyClasses.push('shell__body--drawer')
+  if (drawerColumn || (raw && drawer)) bodyClasses.push('shell__body--drawer')
   if (surfaceId === 'review') bodyClasses.push('shell__body--review')
+  // Raw (S4a, ruled A3): no rail — the map fills the body, the drawer opens beside it on a click.
+  if (raw) bodyClasses.push('shell__body--raw')
 
   return (
     <div className="shell">
       <header className="shell__header">
         <h1 className="shell__wordmark">Vigil</h1>
-        <nav className="nav" aria-label="Surfaces">
-          {SURFACES.map((s) => (
-            <button
-              key={s.id}
-              ref={s.id === 'review' ? reviewNavRef : undefined}
-              type="button"
-              className="nav__item"
-              aria-current={s.id === surfaceId ? 'page' : undefined}
-              onClick={() => changeSurface(s.id)}
-            >
-              {s.label}
-            </button>
-          ))}
-        </nav>
+        {!raw && (
+          <nav className="nav" aria-label="Surfaces">
+            {SURFACES.map((s) => (
+              <button
+                key={s.id}
+                ref={s.id === 'review' ? reviewNavRef : undefined}
+                type="button"
+                className="nav__item"
+                aria-current={s.id === surfaceId ? 'page' : undefined}
+                onClick={() => changeSurface(s.id)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </nav>
+        )}
         <p className="shell__notice">Demonstration only — not for operational use</p>
       </header>
 
@@ -709,21 +726,23 @@ export default function App({
             <dd>{field.value}</dd>
           </div>
         ))}
-        <Playback playback={playback} />
-        <div className="strip__field strip__field--alerts">
-          <dt>Alerts</dt>
-          <dd>
-            {/* The flipping label alone, Play/Pause's shape: a label and aria-pressed that both
+        <Playback playback={playback} raw={raw} />
+        {!raw && (
+          <div className="strip__field strip__field--alerts">
+            <dt>Alerts</dt>
+            <dd>
+              {/* The flipping label alone, Play/Pause's shape: a label and aria-pressed that both
                 flip announce the state inverted (ruled A on #36 [18]). */}
-            <button
-              type="button"
-              className="playback__toggle"
-              onClick={() => setMuted((current) => !current)}
-            >
-              {muted ? 'Unmute' : 'Mute'}
-            </button>
-          </dd>
-        </div>
+              <button
+                type="button"
+                className="playback__toggle"
+                onClick={() => setMuted((current) => !current)}
+              >
+                {muted ? 'Unmute' : 'Mute'}
+              </button>
+            </dd>
+          </div>
+        )}
         <div className="strip__field strip__field--ao">
           <dt>AO</dt>
           <dd>{AO.name}</dd>
@@ -731,70 +750,71 @@ export default function App({
       </dl>
 
       <main className={bodyClasses.join(' ')}>
-        <section className="rail" aria-labelledby="rail-title">
-          <div className="rail__head">
-            <h2 className="rail__title" id="rail-title">
-              {surface.title}
-            </h2>
+        {!raw && (
+          <section className="rail" aria-labelledby="rail-title">
+            <div className="rail__head">
+              <h2 className="rail__title" id="rail-title">
+                {surface.title}
+              </h2>
+              {surfaceId === 'queue' && (
+                <span className="rail__count" aria-label="Tracks in queue">
+                  {count(visible.length)}
+                </span>
+              )}
+              {surfaceId === 'sites' && (
+                <span className="rail__count" aria-label="Sites in the set">
+                  {sites.length}
+                </span>
+              )}
+            </div>
+            <p className="rail__body">{surface.body}</p>
+            {problem !== null && (
+              <p className="rail__error" role="alert">
+                {problem}
+              </p>
+            )}
             {surfaceId === 'queue' && (
-              <span className="rail__count" aria-label="Tracks in queue">
-                {count(visible.length)}
-              </span>
+              <>
+                <div className="chips" role="group" aria-label="Filter by layer">
+                  {FILTERS.map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      className="chip"
+                      aria-pressed={layerFilter === filter.id}
+                      onClick={() => setLayerFilter(filter.id)}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="chips" role="group" aria-label="Filter by state">
+                  {STATE_FILTERS.map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      className="chip"
+                      aria-pressed={stateFilter === filter.id}
+                      onClick={() => setStateFilter(filter.id)}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+                <Queue
+                  ranked={visible}
+                  selectedId={selectedId}
+                  restoreFocus={keyboardClose}
+                  statusFor={(id) => statusOf(eventLogs[id])}
+                  resurfacedFor={(entry) =>
+                    resurfaced(eventLogs[entry.track.id], entry.track.source, entry.score.friendly)
+                  }
+                  sites={sites}
+                  onSelect={setSelectedId}
+                />
+              </>
             )}
-            {surfaceId === 'sites' && (
-              <span className="rail__count" aria-label="Sites in the set">
-                {sites.length}
-              </span>
-            )}
-          </div>
-          <p className="rail__body">{surface.body}</p>
-          {problem !== null && (
-            <p className="rail__error" role="alert">
-              {problem}
-            </p>
-          )}
-          {surfaceId === 'queue' && (
-            <>
-              <div className="chips" role="group" aria-label="Filter by layer">
-                {FILTERS.map((filter) => (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    className="chip"
-                    aria-pressed={layerFilter === filter.id}
-                    onClick={() => setLayerFilter(filter.id)}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-              <div className="chips" role="group" aria-label="Filter by state">
-                {STATE_FILTERS.map((filter) => (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    className="chip"
-                    aria-pressed={stateFilter === filter.id}
-                    onClick={() => setStateFilter(filter.id)}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-              <Queue
-                ranked={visible}
-                selectedId={selectedId}
-                restoreFocus={keyboardClose}
-                statusFor={(id) => statusOf(eventLogs[id])}
-                resurfacedFor={(entry) =>
-                  resurfaced(eventLogs[entry.track.id], entry.track.source, entry.score.friendly)
-                }
-                sites={sites}
-                onSelect={setSelectedId}
-              />
-            </>
-          )}
-          {/* A zero count over blank space reads as a broken picture; say the filters did it.
+            {/* A zero count over blank space reads as a broken picture; say the filters did it.
               Only once the recording is in — a loading or errored picture is empty for its own
               reason, and already says so (#36 [7], ruled A). A polite live region, so the
               operator who just pressed the chip hears why the count fell to 0 — the rail__error
@@ -802,69 +822,70 @@ export default function App({
               toggling, because a region inserted in the same commit as its text is one some
               screen readers never announce — and the filters persist across surfaces, so a
               return to the Queue would otherwise remount it already filled (#51 review). */}
-          <p className="rail__empty" role="status">
-            {surfaceId === 'queue' && ready !== null && visible.length === 0
-              ? 'No tracks match the filters.'
-              : null}
-          </p>
-          {surfaceId === 'review' &&
-            (drawer ?? <p className="rail__empty">Select a track from the Queue.</p>)}
-          {surfaceId === 'sites' && (
-            <SitesPanel
-              set={siteSet}
-              config={AO.protectedSites}
-              configAreas={AO.friendlyAreas}
-              ao={AO}
-              selectedId={selectedSiteId}
-              placing={placing}
-              notice={siteNotice}
-              rewound={sitesRewound}
-              clock={clock}
-              tSec={tSec}
-              frontier={recordFrontier}
-              onSelect={setSelectedSiteId}
-              onPlacing={(next) => {
-                setPlacing(next)
-                setSiteNotice(null)
-              }}
-              onUpdate={(id, patch: SitePatch) =>
-                editSites((set) => updateSite(set, id, patch, tSec, AO))
-              }
-              // A move armed on a site that is then removed or reset away must not outlive it
-              // (#87 review): both clear the selection and disarm the map.
-              onRemove={(id) => {
-                if (editSites((set) => removeSite(set, id, tSec))) {
-                  setSelectedSiteId(null)
-                  setPlacing(null)
-                }
-              }}
-              onLoad={(text) => {
-                // A load the module refuses is not applied; its reason goes back to the panel's
-                // load line rather than the placement hint.
-                if (sitesRewound) return 'Rewound — the workflow acts at the record’s frontier'
-                try {
-                  commitSites(parseSitePlan(text, AO, siteSet, tSec))
-                  setSelectedSiteId(null)
-                  setPlacing(null)
-                  // A load is an edit like the others: a placement's stale refusal clears with it.
+            <p className="rail__empty" role="status">
+              {surfaceId === 'queue' && ready !== null && visible.length === 0
+                ? 'No tracks match the filters.'
+                : null}
+            </p>
+            {surfaceId === 'review' &&
+              (drawer ?? <p className="rail__empty">Select a track from the Queue.</p>)}
+            {surfaceId === 'sites' && (
+              <SitesPanel
+                set={siteSet}
+                config={AO.protectedSites}
+                configAreas={AO.friendlyAreas}
+                ao={AO}
+                selectedId={selectedSiteId}
+                placing={placing}
+                notice={siteNotice}
+                rewound={sitesRewound}
+                clock={clock}
+                tSec={tSec}
+                frontier={recordFrontier}
+                onSelect={setSelectedSiteId}
+                onPlacing={(next) => {
+                  setPlacing(next)
                   setSiteNotice(null)
-                  return null
-                } catch (error) {
-                  return error instanceof Error ? error.message : String(error)
+                }}
+                onUpdate={(id, patch: SitePatch) =>
+                  editSites((set) => updateSite(set, id, patch, tSec, AO))
                 }
-              }}
-              onReset={() => {
-                if (
-                  editSites((set) => resetSites(set, AO.protectedSites, tSec, AO.friendlyAreas))
-                ) {
-                  setSelectedSiteId(null)
-                  setPlacing(null)
-                }
-              }}
-            />
-          )}
-        </section>
-        {drawerColumn}
+                // A move armed on a site that is then removed or reset away must not outlive it
+                // (#87 review): both clear the selection and disarm the map.
+                onRemove={(id) => {
+                  if (editSites((set) => removeSite(set, id, tSec))) {
+                    setSelectedSiteId(null)
+                    setPlacing(null)
+                  }
+                }}
+                onLoad={(text) => {
+                  // A load the module refuses is not applied; its reason goes back to the panel's
+                  // load line rather than the placement hint.
+                  if (sitesRewound) return 'Rewound — the workflow acts at the record’s frontier'
+                  try {
+                    commitSites(parseSitePlan(text, AO, siteSet, tSec))
+                    setSelectedSiteId(null)
+                    setPlacing(null)
+                    // A load is an edit like the others: a placement's stale refusal clears with it.
+                    setSiteNotice(null)
+                    return null
+                  } catch (error) {
+                    return error instanceof Error ? error.message : String(error)
+                  }
+                }}
+                onReset={() => {
+                  if (
+                    editSites((set) => resetSites(set, AO.protectedSites, tSec, AO.friendlyAreas))
+                  ) {
+                    setSelectedSiteId(null)
+                    setPlacing(null)
+                  }
+                }}
+              />
+            )}
+          </section>
+        )}
+        {raw ? drawer : drawerColumn}
         <MapView
           ao={AO}
           sites={sites}
@@ -879,25 +900,30 @@ export default function App({
           // state it cannot explain. The suppression is presentation-only (`selectionShown`),
           // so a Home round trip cannot reset the ease stamp and re-fly the camera (#47).
           selectedId={selectedId}
-          selectionShown={surfaceId !== 'home'}
+          selectionShown={raw || surfaceId !== 'home'}
           trail={trail}
-          projection={projection}
-          terminalIds={terminalIds}
-          bands={bands}
+          // Raw (ruled A4): no projected path, no dim, no band fill — the derived readings the
+          // fairness spec hides; the trail and the ring stay.
+          projection={raw ? NO_LINE : projection}
+          terminalIds={raw ? NO_IDS : terminalIds}
+          bands={raw ? NO_BANDS : bands}
+          mode={mode}
           onSelect={selectTrack}
         >
-          <AlertStack
-            alerts={alerts}
-            identOf={(id) => {
-              const entry = ranked.find((candidate) => candidate.track.id === id)
-              return entry ? trackIdent(entry.track) : id
-            }}
-            clock={clock}
-            tSec={tSec}
-            frontierOf={(id) => eventLogs[id]?.at(-1)?.tSec ?? tSec}
-            onOpen={selectTrack}
-            onAcknowledge={acknowledge}
-          />
+          {!raw && (
+            <AlertStack
+              alerts={alerts}
+              identOf={(id) => {
+                const entry = ranked.find((candidate) => candidate.track.id === id)
+                return entry ? trackIdent(entry.track) : id
+              }}
+              clock={clock}
+              tSec={tSec}
+              frontierOf={(id) => eventLogs[id]?.at(-1)?.tSec ?? tSec}
+              onOpen={selectTrack}
+              onAcknowledge={acknowledge}
+            />
+          )}
         </MapView>
       </main>
     </div>

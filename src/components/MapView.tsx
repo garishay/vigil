@@ -5,10 +5,11 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
 import { IdentityLegend } from './IdentityDot'
 import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao'
-import { circlePolygon } from '../lib/geo'
-import { BAND_COLOR, type WarmBand } from '../lib/display'
+import { circlePolygon, destinationPoint } from '../lib/geo'
+import { BAND_COLOR, trackIdent, type WarmBand } from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
-import type { AdsbTrack, InjectTrack } from '../lib/tracks'
+import type { Mode } from '../lib/session'
+import type { AdsbTrack, InjectTrack, Track } from '../lib/tracks'
 
 const SITES_SOURCE = 'protected-sites'
 const ADSB_SOURCE = 'adsb-tracks'
@@ -16,6 +17,15 @@ const INJECT_SOURCE = 'inject-tracks'
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
 const PROJECTION_SOURCE = 'selected-projection'
+/** Raw mode's heading ticks (S4a): one short line per moving track, along its observed heading. */
+const HEADING_SOURCE = 'heading-ticks'
+/** The tick's length on the ground, metres — the mockup's stub, readable at the AO's zoom. */
+const HEADING_TICK_M = 300
+/**
+ * Raw mode's one colour (S4a, #136, ruled A4; #131's fairness spec): every dot, every tick, every
+ * label the same neutral — no band fill, no identity colour. Identity is read off the label.
+ */
+const RAW_COLOR = '#c5cfdc'
 
 /** One frozen empty array, so the default prop is not a new identity every render. */
 const NO_TERMINAL: readonly string[] = []
@@ -156,6 +166,8 @@ function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
       properties: {
         id: track.id,
         callsign: track.callsign ?? '',
+        // The label raw mode prints beside the dot (S4a): the ident, observed.
+        ident: trackIdent(track),
         onGround: track.onGround,
         terminal: terminalIds.includes(track.id),
       },
@@ -180,11 +192,34 @@ function injectFeatures(
       properties: {
         id: track.id,
         callsign: track.callsign ?? '',
+        ident: trackIdent(track),
         identity: track.identity,
         terminal: terminalIds.includes(track.id),
         band: bands.get(track.id) ?? 'calm',
       },
     })),
+  }
+}
+
+/** Raw mode's heading ticks: a moving, airborne track with a heading gets a stub along it. */
+function headingFeatures(tracks: readonly Track[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: tracks
+      .filter(
+        (track) => !track.onGround && track.headingDeg !== null && (track.groundSpeedKt ?? 0) > 0,
+      )
+      .map((track) => ({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: [
+            track.position,
+            destinationPoint(track.position, track.headingDeg as number, HEADING_TICK_M),
+          ],
+        },
+        properties: { id: track.id },
+      })),
   }
 }
 
@@ -207,6 +242,7 @@ export function MapView({
   projection = NO_LINE,
   terminalIds = NO_TERMINAL,
   bands = NO_BANDS,
+  mode = 'vigil',
   onSelect,
   children,
 }: {
@@ -256,6 +292,13 @@ export function MapView({
    * the ring, like the trail; faded and neutral, with no marker at either end (ruled A7).
    */
   projection?: readonly [number, number][]
+  /**
+   * The study's condition (S4a, #136, ruled A4): in `raw` every dot wears one neutral colour, a
+   * label prints each track's ident and a tick its heading, and the legend is not drawn — the
+   * layers exist in both modes, toggled and repainted from an effect, since the session may
+   * resolve after the map has built. `vigil` is the map as built.
+   */
+  mode?: Mode
   onSelect?: (id: string) => void
   /** Overlays that live in the map's frame beside the legend — the alert stack (#101). */
   children?: ReactNode
@@ -381,6 +424,30 @@ export function MapView({
         source: PROJECTION_SOURCE,
         paint: { 'line-color': PROJECTION_COLOR, 'line-width': 1.5, 'line-opacity': 0.6 },
       })
+      // Raw mode's heading ticks (S4a), under every dot and hidden until the mode says raw.
+      map.addSource(HEADING_SOURCE, { type: 'geojson', data: headingFeatures([]) })
+      map.addLayer({
+        id: `${HEADING_SOURCE}-line`,
+        type: 'line',
+        source: HEADING_SOURCE,
+        layout: { visibility: 'none' },
+        paint: { 'line-color': RAW_COLOR, 'line-width': 1.5, 'line-opacity': 0.9 },
+      })
+      // Raw mode's labels (S4a): the ident beside each aircraft's dot, hidden until raw.
+      map.addLayer({
+        id: `${ADSB_SOURCE}-label`,
+        type: 'symbol',
+        source: ADSB_SOURCE,
+        layout: {
+          visibility: 'none',
+          'text-field': ['get', 'ident'],
+          'text-size': 11,
+          'text-anchor': 'left',
+          'text-offset': [0.6, 0],
+          'text-allow-overlap': true,
+        },
+        paint: { 'text-color': RAW_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
+      })
       // Added last, so injects draw above cooperative traffic rather than under it.
       map.addSource(INJECT_SOURCE, {
         type: 'geojson',
@@ -409,6 +476,22 @@ export function MapView({
           'circle-stroke-color': IDENTITY_STROKE,
           'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.5, 1],
         },
+      })
+
+      // Raw mode's labels for the injects (S4a), above their dots, hidden until raw.
+      map.addLayer({
+        id: `${INJECT_SOURCE}-label`,
+        type: 'symbol',
+        source: INJECT_SOURCE,
+        layout: {
+          visibility: 'none',
+          'text-field': ['get', 'ident'],
+          'text-size': 11,
+          'text-anchor': 'left',
+          'text-offset': [0.9, 0],
+          'text-allow-overlap': true,
+        },
+        paint: { 'text-color': RAW_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
       })
 
       // The selection ring rides its own source, above everything, and holds zero or one point.
@@ -486,6 +569,35 @@ export function MapView({
       ?.setData(injectFeatures(injects, terminalIds, bands))
   }, [injects, terminalIds, bands, styleReady])
 
+  // Raw mode (S4a): the neutral paint on every dot, the labels and the ticks shown; Vigil's
+  // paint and hidden layers otherwise. From an effect, since the mode resolves with the session.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    const raw = mode === 'raw'
+    const visibility = raw ? 'visible' : 'none'
+    for (const id of [`${HEADING_SOURCE}-line`, `${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
+      map.setLayoutProperty(id, 'visibility', visibility)
+    }
+    map.setPaintProperty(`${ADSB_SOURCE}-dot`, 'circle-color', raw ? RAW_COLOR : ADSB_COLOR)
+    map.setPaintProperty(`${ADSB_SOURCE}-dot`, 'circle-stroke-color', raw ? RAW_COLOR : ADSB_COLOR)
+    map.setPaintProperty(`${INJECT_SOURCE}-halo`, 'circle-color', raw ? RAW_COLOR : IDENTITY_STROKE)
+    map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-color', raw ? RAW_COLOR : BAND_FILL)
+    map.setPaintProperty(
+      `${INJECT_SOURCE}-dot`,
+      'circle-stroke-color',
+      raw ? RAW_COLOR : IDENTITY_STROKE,
+    )
+  }, [mode, styleReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !styleReady) return
+    map
+      .getSource<GeoJSONSource>(HEADING_SOURCE)
+      ?.setData(headingFeatures(mode === 'raw' ? [...tracks, ...injects] : []))
+  }, [tracks, injects, mode, styleReady])
+
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
@@ -527,7 +639,7 @@ export function MapView({
         role="application"
         aria-label={`Airspace map centered on ${ao.name}`}
       />
-      <IdentityLegend />
+      {mode !== 'raw' && <IdentityLegend />}
       {children}
     </div>
   )

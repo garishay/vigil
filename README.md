@@ -11,7 +11,10 @@ The operator study’s scenarios open by name (S3b): **Study-02a-vigil**
 **Demo-02a-vigil** [`?recording=vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02a) ·
 **Study-02b-vigil** [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b) ·
 **Demo-02b-vigil** [`?recording=vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02b).
-`?scenario=on` is the default deal, `off` none; the raw-mode rows arrive with S4a (`mode=raw`).
+The unaided condition (S4a): **Study-02a-raw**
+[`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) ·
+**Study-02b-raw** [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw).
+`?scenario=on` is the default deal, `off` none; `?mode=vigil`, the default, is the app as built.
 
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
@@ -150,6 +153,7 @@ flowchart LR
   cfg -- seed: strip --> app
   recs -- ?recording= selection · the default --> app
   scenarios -- ?scenario= name · on the first · off none --> app
+  studycfg -- ?mode=raw: the rule at 1 500 m, every derived reading hidden --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot, map fill --> app
   life -- log · status · re-surface: drawer, state filter, row --> app
   proj -- time to entry for the selected track: drawer, map line --> app
