@@ -25,6 +25,7 @@ import type { AdsbCapture } from './adsb'
 import { scoreTotal } from './display'
 import { destinationPoint } from './geo'
 import type { InjectScenario } from './injects'
+import { timeToEntry, type EntryEstimate } from './projection'
 import type { AdsbTrack, GeneratedInjectTrack, Track } from './tracks'
 import captureRaw from '../../public/adsb-phl.json?raw'
 import goldenRaw from './__fixtures__/injects-vigil-phl-001.json?raw'
@@ -175,39 +176,61 @@ describe('cooperativity', () => {
 
 describe('closing geometry', () => {
   // Outside the ring, where the geometry applies: inside it the approach is complete (05a, below).
-  it('scores a track heading straight in, minutes out, at 100', () => {
-    // 6 km at 120 kt is 97 s to CPA — inside the two-minute full band — and the CPA is the site.
+  // The lever (S3a, #135, ruled A1): the factor reads the time to entry into the ring on the
+  // observed course — the projection's own estimate — 100 within two minutes, nothing past
+  // twenty, nothing for a course that misses the ring. The CPA roll-off over ring radii is gone.
+  it('scores a track that will enter the ring within two minutes at 100', () => {
+    // 6 km at 120 kt: 1 km to the ring at 61.7 m/s is 16 s — inside the two-minute full band.
     expect(factor(inject({ position: at(6000), groundSpeedKt: 120 }), 'closing')).toMatchObject({
       value: 100,
-      detail: 'will pass 0.0 km from PHL Airfield in 2 min',
+      detail: "will enter PHL Airfield's ring in under a minute",
     })
   })
 
-  it('rolls off with time-to-CPA', () => {
-    // 10 km at 20 kt: 972 s = 16.2 min, on the 2 → 20 min ramp: 100 × (1 − 14.2 / 18) ≈ 21.
-    expect(factor(inject({ position: at(10_000) }), 'closing').value).toBeCloseTo(21.1, 0)
-    // 30 km: 48 min, past the end of the ramp.
+  it('rolls off with time to entry, and reads nothing past the horizon', () => {
+    // 10 km at 20 kt: 5 km to the ring at 10.29 m/s is 486 s = 8.1 min, on the 2 → 20 min ramp:
+    // 100 × (1 − 6.1 / 18) ≈ 66. (16.2 min to the centre and 21 under the retired curve.)
+    expect(factor(inject({ position: at(10_000) }), 'closing').value).toBeCloseTo(66.1, 0)
+    // 30 km: 25 km to the ring, 40 min, past the end of the ramp — entryZeroMin is the horizon.
     expect(factor(inject({ position: at(30_000) }), 'closing').value).toBe(0)
   })
 
-  it('rolls off with CPA distance outside the ring', () => {
-    // 10 km north-west of the site heading east: passes 10 km north, CPA at two ring radii,
-    // which is halfway down the 1 → 3 radii ramp; TCPA 10 km at 20 kt as above.
+  it('reads nothing for a course that misses the ring, and says how far off it passes', () => {
+    // 10 km north-west of the site heading east: passes 10 km north, twice the ring's radius,
+    // so it never enters — 0, where the retired CPA ramp read 10.
     const abeam = inject({ position: at(Math.hypot(10_000, 10_000), 315), headingDeg: 90 })
-    expect(factor(abeam, 'closing').value).toBeCloseTo(0.5 * 21.1, 0)
-    expect(factor(abeam, 'closing').detail).toMatch(
-      /^will pass 10\.0 km from PHL Airfield in 16 min$/,
-    )
+    expect(factor(abeam, 'closing')).toMatchObject({
+      value: 0,
+      detail: 'will pass 10.0 km from PHL Airfield — outside its ring',
+    })
+  })
+
+  it('reads the same entry estimate the drawer’s Entry row prints — one geometry, one function (ruled A1)', () => {
+    // The value is the roll-off of the projection's own seconds to the ring, on every course
+    // that enters; a second geometry could not print the same number twice by accident.
+    for (const track of [
+      inject({ position: at(7200), groundSpeedKt: 19.1 }),
+      inject({ position: at(10_000) }),
+      inject({ position: at(6000, 40), headingDeg: 200, groundSpeedKt: 45 }),
+    ]) {
+      const entry = timeToEntry(track, SITES, { horizonS: 20 * 60 })!
+      expect(entry.kind).toBe('entry')
+      const minutes = (entry as Extract<EntryEstimate, { kind: 'entry' }>).tSec / 60
+      expect(factor(track, 'closing').value).toBeCloseTo(
+        Math.max(0, Math.min(100, 100 * (1 - (minutes - 2) / 18))),
+        6,
+      )
+    }
   })
 
   it('reads a rounded 0 min as "under a minute", never a printed zero (#122, ruled A3)', () => {
-    // 6 km at 400 kt is 29 s to CPA: Math.round(29 / 60) is 0, and the number is the same one
-    // the value is made from — only the printed form folds the zero into words. At 30 s the
-    // round reaches 1 and the number prints again.
+    // 1 km to the ring at 65 kt (33.4 m/s) is 29.9 s: Math.round(29.9 / 60) is 0, and the number
+    // is the same one the value is made from — only the printed form folds the zero into words.
+    // At 64.7 kt the entry is 30.0 s, the round reaches 1, and the number prints again.
     const fast = (groundSpeedKt: number) =>
       factor(inject({ position: at(6000), groundSpeedKt }), 'closing').detail
-    expect(fast(400)).toBe('will pass 0.0 km from PHL Airfield in under a minute')
-    expect(fast(380)).toBe('will pass 0.0 km from PHL Airfield in 1 min')
+    expect(fast(65)).toBe("will enter PHL Airfield's ring in under a minute")
+    expect(fast(64.7)).toBe("will enter PHL Airfield's ring in 1 min")
   })
 
   it('scores a track that is opening at 0, and says so', () => {
@@ -1152,12 +1175,13 @@ describe('the corroboration line (#103, ruled)', () => {
         band: rerun.band,
       })
     }
-    // The fixture's numbers: 69 (caution) today, 45 (caution) if heard — 49 before S1 lowered
-    // the heard value from 25 to 10 (#132, ruled A2).
+    // The fixture's numbers: 79 (warning) today, 55 (caution) if heard — 69 and 45 under the
+    // retired closing curve, and 49 before S1 lowered the heard value (#132, ruled A2): at 7.2 km
+    // on 346° at 19.1 kt the entry lever reads 90 where time-to-centre read 44 (S3a, #135).
     const today = scoreTrack(silent, SITES, NIGHT)
-    expect(Math.round(today.composite)).toBe(69)
+    expect(Math.round(today.composite)).toBe(79)
     const line = ifHeard(silent, today)!
-    expect(Math.round(line.composite)).toBe(45)
+    expect(Math.round(line.composite)).toBe(55)
     expect(line.band).toBe('caution')
     // The holding case reads its own score back: equal is an answer.
     const holding = scoreTrack({ ...silent, identity: 'unknown' }, SITES, {

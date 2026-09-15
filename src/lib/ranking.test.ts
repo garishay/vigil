@@ -204,13 +204,15 @@ describe('determinism', () => {
     // 04 · adsb-a28904. The engine reads the three silent injects, then the three broadcasting
     // ones by geometry, then the capped ADS-B block — led by the arrival inside the ring that
     // the placeholder put fourth, since inside the ring its approach is complete (05a). The
-    // composites are over 95 with the pattern row at 0 — no history at frame 0 — and the hero
-    // opens at 10 km, one point clear of the nearer grid sweep (ruled on #5, note 3). The three
-    // heard rows read 51 · 46 · 36 — 54 · 50 · 40 before S1 lowered the heard value from 25 to
-    // 10 (#132, ruled A2): the order holds, the silent three are untouched.
+    // composites are over 95 with the pattern row at 0 — no history at frame 0. Under the entry
+    // lever (S3a, #135, ruled A1) every inject's course enters the ring, so closing reads its
+    // entry time — 9 to 10 min for the silent three, 2 to 8 for the heard — and the grid sweep
+    // at 9.6 km opens on top at 70, warning, two points over the hero, which opens caution at
+    // 68 and takes the top as it loiters (§13). Before the lever: 05 · 03 · 06 at 59 · 58 · 56,
+    // the hero one point clear (ruled on #5, note 3); the heard three 51 · 46 · 36 (S1, #132).
     expect(ids.slice(0, 7)).toEqual([
-      'inject-05',
       'inject-03',
+      'inject-05',
       'inject-06',
       'inject-01',
       'inject-04',
@@ -219,7 +221,7 @@ describe('determinism', () => {
     ])
     const ranked = rankTracks(frame0, SITES)
     expect(ranked.slice(0, 6).map((r) => Math.round(r.score.composite))).toEqual([
-      59, 58, 56, 51, 46, 36,
+      70, 68, 67, 58, 52, 45,
     ])
     expect(ranked[6].score).toMatchObject({ composite: 30, capped: true })
     expect(ranked.find((r) => r.track.id === 'adsb-c00b80')?.rank).toBeGreaterThan(6)
@@ -326,9 +328,12 @@ describe('arrival order', () => {
       adsb('a00002', 2000),
       inject(3, 'unknown', 12_000),
     ]
+    // Under the entry lever (S3a, #135) the unknown inject at 12 km, straight in, reads its
+    // entry time — 7 km at 20 kt, 11 min, closing 48 — and edges the heard one inside the ring;
+    // before it the heard one led (02 · 03 · 01). The tie and the tail are as they were.
     const expected = [
-      'inject-02',
       'inject-03',
+      'inject-02',
       'inject-01',
       'adsb-a00002',
       'adsb-a00003',

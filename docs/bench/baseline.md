@@ -8,17 +8,17 @@ A crossing is the first upward crossing; a flap is an upward re-crossing into a 
 
 | behavior | n | to caution min / mean / max | reached | rank at caution min / mean / max | to warning min / mean / max | reached | rank at warning min / mean / max | flaps total / max |
 |---|---|---|---|---|---|---|---|---|
-| transit | 30 | 0:00 / 0:01 / 0:27 | 30/30 | 1 / 4 / 6 | 0:00 / 4:54 / 14:09 | 9/30 | 1 / 2 / 4 | 5 / 2 |
-| loiter | 29 | 0:00 / 0:34 / 4:14 | 29/29 | 1 / 4 / 8 | 0:08 / 9:28 / 16:11 | 29/29 | 1 / 3 / 6 | 10 / 3 |
-| orbit | 35 | 0:00 / 0:29 / 2:57 | 35/35 | 1 / 4 / 8 | 0:00 / 8:24 / 17:31 | 35/35 | 1 / 3 / 5 | 51 / 9 |
-| lawnmower | 34 | 0:00 / 1:17 / 7:56 | 34/34 | 1 / 4 / 8 | 0:11 / 9:41 / 19:39 | 31/34 | 1 / 3 / 6 | 13 / 3 |
-| approach-retreat | 31 | 0:00 / 0:00 / 0:00 | 31/31 | 1 / 3 / 7 | 0:00 / 6:09 / 11:00 | 31/31 | 1 / 3 / 5 | 50 / 5 |
+| transit | 30 | 0:00 / 0:00 / 0:00 | 30/30 | 1 / 4 / 7 | 0:00 / 4:12 / 14:09 | 10/30 | 1 / 2 / 4 | 5 / 2 |
+| loiter | 29 | 0:00 / 0:00 / 0:00 | 29/29 | 1 / 4 / 8 | 0:00 / 8:25 / 16:11 | 29/29 | 1 / 3 / 6 | 9 / 3 |
+| orbit | 35 | 0:00 / 0:00 / 0:00 | 35/35 | 1 / 4 / 8 | 0:00 / 6:46 / 17:31 | 35/35 | 1 / 3 / 5 | 52 / 9 |
+| lawnmower | 34 | 0:00 / 0:01 / 0:25 | 34/34 | 1 / 4 / 8 | 0:00 / 6:32 / 19:39 | 31/34 | 1 / 3 / 6 | 7 / 3 |
+| approach-retreat | 31 | 0:00 / 0:00 / 0:00 | 31/31 | 1 / 4 / 7 | 0:00 / 6:02 / 11:00 | 31/31 | 1 / 3 / 5 | 52 / 5 |
 
-By Remote ID state — broadcasting: n 47 · caution 47 · warning 34 · flaps 38 · intermittent: n 53 · caution 53 · warning 42 · flaps 82 · silent: n 59 · caution 59 · warning 59 · flaps 9
+By Remote ID state — broadcasting: n 47 · caution 47 · warning 34 · flaps 40 · intermittent: n 53 · caution 53 · warning 43 · flaps 76 · silent: n 59 · caution 59 · warning 59 · flaps 9
 
 ## vigil-phl-001 — real aircraft (uncapped composite)
 
-176 aircraft · caution 17 · warning 0
+176 aircraft · caution 16 · warning 0
 
 | track | callsign | band | max uncapped |
 |---|---|---|---|
@@ -32,25 +32,24 @@ By Remote ID state — broadcasting: n 47 · caution 47 · warning 34 · flaps 3
 | adsb-ab663f | ASH6235 | caution | 51.7 |
 | adsb-aa1219 | AAL1898 | caution | 51.3 |
 | adsb-a04bbe | AAL847 | caution | 50.9 |
+| adsb-aaec3e | N8024Q | caution | 50.2 |
 | adsb-a74fa2 | JIA5290 | caution | 49.9 |
 | adsb-c00b80 | JZA858 | caution | 49.4 |
 | adsb-a3fb6f | DAL1100 | caution | 49.3 |
-| adsb-aaec3e | N8024Q | caution | 48.8 |
 | adsb-a615d0 | SWA2791 | caution | 47.6 |
-| adsb-a4824c | N39VA | caution | 43.3 |
 | adsb-aa7130 | N772HM | caution | 42.9 |
 
 ## vigil-phl-002 — injects (159 over 25 seeds)
 
 | behavior | n | to caution min / mean / max | reached | rank at caution min / mean / max | to warning min / mean / max | reached | rank at warning min / mean / max | flaps total / max |
 |---|---|---|---|---|---|---|---|---|
-| transit | 30 | 0:00 / 1:53 / 5:09 | 30/30 | 1 / 3 / 6 | 2:05 / 4:34 / 7:21 | 5/30 | 1 / 1 / 2 | 7 / 2 |
-| loiter | 29 | 0:00 / 3:24 / 9:38 | 29/29 | 1 / 4 / 8 | 2:58 / 9:54 / 19:14 | 16/29 | 1 / 2 / 4 | 14 / 5 |
-| orbit | 35 | 0:00 / 2:23 / 7:24 | 35/35 | 1 / 4 / 8 | 2:17 / 9:29 / 19:44 | 20/35 | 1 / 2 / 4 | 12 / 3 |
-| lawnmower | 34 | 0:00 / 2:57 / 12:05 | 34/34 | 1 / 4 / 8 | 3:07 / 9:27 / 18:44 | 22/34 | 1 / 2 / 4 | 10 / 2 |
-| approach-retreat | 31 | 0:00 / 1:14 / 3:32 | 31/31 | 1 / 3 / 7 | 1:13 / 6:51 / 16:59 | 16/31 | 1 / 2 / 5 | 31 / 2 |
+| transit | 30 | 0:00 / 0:16 / 1:42 | 30/30 | 1 / 4 / 7 | 0:00 / 1:59 / 4:27 | 5/30 | 1 / 1 / 2 | 2 / 1 |
+| loiter | 29 | 0:00 / 0:46 / 3:53 | 29/29 | 1 / 4 / 8 | 0:00 / 7:59 / 19:14 | 16/29 | 1 / 2 / 4 | 12 / 4 |
+| orbit | 35 | 0:00 / 0:35 / 3:15 | 35/35 | 1 / 4 / 8 | 0:00 / 7:12 / 19:44 | 20/35 | 1 / 2 / 4 | 5 / 1 |
+| lawnmower | 34 | 0:00 / 0:53 / 6:04 | 34/34 | 1 / 4 / 8 | 0:00 / 6:33 / 18:44 | 22/34 | 1 / 2 / 4 | 5 / 1 |
+| approach-retreat | 31 | 0:00 / 0:08 / 0:55 | 31/31 | 1 / 4 / 7 | 0:00 / 6:16 / 18:33 | 17/31 | 1 / 2 / 5 | 30 / 2 |
 
-By Remote ID state — broadcasting: n 47 · caution 47 · warning 0 · flaps 12 · intermittent: n 53 · caution 53 · warning 20 · flaps 53 · silent: n 59 · caution 59 · warning 59 · flaps 9
+By Remote ID state — broadcasting: n 47 · caution 47 · warning 0 · flaps 12 · intermittent: n 53 · caution 53 · warning 21 · flaps 33 · silent: n 59 · caution 59 · warning 59 · flaps 9
 
 ## vigil-phl-002 — real aircraft (uncapped composite)
 

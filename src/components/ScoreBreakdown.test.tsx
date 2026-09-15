@@ -11,7 +11,11 @@ const SITE = AO.protectedSites[0]
 const north = (rangeM: number) => destinationPoint(SITE.center, 0, rangeM)
 const NIGHT: ScoringContext = { tSec: 0, minuteOfDay: 150, memory: {} }
 
-/** The handoff tests' silent drone: 7.2 km out, straight-ish in, no history — scores 69, caution. */
+/**
+ * The handoff tests' silent drone: 7.2 km out, straight-ish in, no history — scores 79, warning,
+ * under the entry lever (S3a, #135): 2.2 km to the ring at 19.1 kt is 3 min 50 s, closing 90
+ * (69, caution, with closing 44 under the retired time-to-centre curve).
+ */
 const SILENT: InjectTrack = {
   id: 'inject-05',
   source: 'inject',
@@ -67,10 +71,10 @@ describe('ScoreBreakdown', () => {
   it('heads with the score, its band, and the one-decimal total it is made from (#63)', () => {
     render(<ScoreBreakdown score={score(SILENT)} />)
     const section = screen.getByLabelText('Score breakdown')
-    expect(section).toHaveAttribute('data-band', 'caution')
-    expect(within(section).getByText('Score 69')).toBeInTheDocument()
-    expect(within(section).getByText('caution')).toBeInTheDocument()
-    expect(within(section).getByText(/^— 65\.6\/95$/)).toBeInTheDocument()
+    expect(section).toHaveAttribute('data-band', 'warning')
+    expect(within(section).getByText('Score 79')).toBeInTheDocument()
+    expect(within(section).getByText('warning')).toBeInTheDocument()
+    expect(within(section).getByText(/^— 74\.7\/95$/)).toBeInTheDocument()
     expect(within(section).queryByText(/Capped at/)).not.toBeInTheDocument()
   })
 
@@ -84,7 +88,7 @@ describe('ScoreBreakdown', () => {
     )
     expect(items.map((row) => row.querySelector('.breakdown__numbers')?.textContent)).toEqual([
       '25 / 25',
-      '9 / 20',
+      '18 / 20',
       '12 / 15',
       '0 / 15',
       '10 / 10',
@@ -128,7 +132,7 @@ describe('ScoreBreakdown', () => {
     expect(caption.nextElementSibling).toHaveClass('breakdown__factors')
     // The Closing row reads in operator words off the same score (#122).
     expect(
-      within(rows()[1]).getByText(/^will pass \d+\.\d km from PHL Airfield in \d+ min$/),
+      within(rows()[1]).getByText(/^will enter PHL Airfield's ring in \d+ min$/),
     ).toBeInTheDocument()
   })
 

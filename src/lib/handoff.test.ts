@@ -78,12 +78,14 @@ describe('handoffText', () => {
         '  entry 3 min 50 s to PHL Airfield · tier 1',
         // The site the range was measured to, as the record carries it (08a).
         '  PHL Airfield · protected · tier 1 · 5.0 km',
-        // The factor lines sum to the total on the Score line within rounding (25 + 9 + 12 + 0
-        // + 10 + 10 = 66 ≈ 65.6); the total reproduces the score — 65.6 / 95 = 69 % — which a sum
-        // of rounded parts would not (66 / 95 = 69.5 %) (ruled on #63, rounds 1 and 2). No
-        // history in this picture, so the pattern row reads 0 (05a).
-        'Score: 69 (caution) — 65.6/95',
-        '  Identity 25/25 · Closing 9/20',
+        // The factor lines sum to the total on the Score line within rounding (25 + 18 + 12 + 0
+        // + 10 + 10 = 75 ≈ 74.7); the total reproduces the score — 74.7 / 95 = 79 % — which a sum
+        // of rounded parts would not (75 / 95 = 78.9 %) (ruled on #63, rounds 1 and 2). No
+        // history in this picture, so the pattern row reads 0 (05a). Closing reads the entry
+        // lever's 90 — 3 min 50 s to the ring, the Entry line's own number (S3a, #135) — where
+        // the retired time-to-centre curve read 44 and the score 69, caution.
+        'Score: 79 (warning) — 74.7/95',
+        '  Identity 25/25 · Closing 18/20',
         '  Proximity 12/15 · Movement 0/15',
         '  Flight profile 10/10 · Off-hours 10/10',
         'Timeline:',
@@ -343,8 +345,10 @@ describe('handoffText — the evidence block is the escalation’s (06b)', () =>
       observed: observedSnapshot(then),
       recipient: 'phl-tower',
     })
+    // The fixture reads warning under the entry lever (S3a, #135), so a crossing from a snapshot
+    // at 20 lands there in one step — caution, under the retired curve's 69.
     expect(text(then, log)).toContain(
-      '  02:30:00  New — first seen\n  02:30:30  Caution — up from calm\n  02:30:40  Assessing — claimed',
+      '  02:30:00  New — first seen\n  02:30:30  Warning — up from calm\n  02:30:40  Assessing — claimed',
     )
   })
 })

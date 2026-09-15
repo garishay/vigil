@@ -64,11 +64,14 @@ export interface ScoringConfig {
     decayS: number
   }
   /**
-   * Closing geometry: CPA scores 100 at or inside the ring and rolls off to 0 at `cpaRolloffRadii`
-   * ring radii; time-to-CPA scores 100 at or under `tcpaFullMin` and rolls off to 0 at
-   * `tcpaZeroMin`. The factor is their product, so a track has to be both heading in and near.
+   * Closing geometry (S3a, #135, ruled A1): the time to entry into the ring on the observed
+   * course — the projection's own estimate, one function for the factor and the Entry row —
+   * scores 100 at or under `entryFullMin` and rolls off to 0 at `entryZeroMin`, the factor's
+   * horizon; a course that will not enter the ring scores nothing, and inside the ring the
+   * approach is complete. The CPA roll-off over ring radii is retired: a course that enters has
+   * its closest approach inside the ring by definition, and one that misses reads nothing.
    */
-  closing: { cpaRolloffRadii: number; tcpaFullMin: number; tcpaZeroMin: number }
+  closing: { entryFullMin: number; entryZeroMin: number }
   /** Proximity: 100 inside the ring, rolling off to 0 at `rolloffRadii` ring radii. */
   proximity: { rolloffRadii: number }
   /**
@@ -143,7 +146,7 @@ export const SCORING: ScoringConfig = {
     dwellS: 30,
     decayS: 120,
   },
-  closing: { cpaRolloffRadii: 3, tcpaFullMin: 2, tcpaZeroMin: 20 },
+  closing: { entryFullMin: 2, entryZeroMin: 20 },
   proximity: { rolloffRadii: 3 },
   tierMultiplier: { 1: 1, 2: 0.5 },
   pattern: {

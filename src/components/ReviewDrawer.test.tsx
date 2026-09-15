@@ -212,10 +212,11 @@ describe('ReviewDrawer', () => {
   it('reads a silent inject the corroboration line under the header, and keeps it off the handoff (#103)', () => {
     const ranked = entry(SILENT, 1, 4200)
     renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
-    // The drawer's own fixture: 69 (caution) today, 45 (caution) if heard — the scorer's number
-    // (49 before S1 lowered the heard value from 25 to 10, #132 ruled A2).
-    expect(screen.getByText('Score 69')).toBeInTheDocument()
-    const line = screen.getByText('If heard on Remote ID: 45 (caution)')
+    // The drawer's own fixture: 79 (warning) today, 55 (caution) if heard — the scorer's number
+    // under the entry lever (S3a, #135); 69 and 45 under the retired curve, 49 before S1 lowered
+    // the heard value from 25 to 10 (#132, ruled A2).
+    expect(screen.getByText('Score 79')).toBeInTheDocument()
+    const line = screen.getByText('If heard on Remote ID: 55 (caution)')
     expect(line.tagName).toBe('P')
     expect(line).toHaveClass('drawer__corroboration')
     expect(line.previousElementSibling).toHaveClass('drawer__header')
