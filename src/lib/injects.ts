@@ -189,6 +189,12 @@ export interface InjectSpec {
   /** A cast behavior's motion, precomputed at plan time; null for a dealt inject. */
   script: ScriptedMotion | null
   /**
+   * Where the broadcast claims to be, relative to the observed track (S2b, #134): a constant
+   * vector on every heard frame; null for a dealt inject and for a cast entry without one, whose
+   * broadcast claims the observed position.
+   */
+  broadcastOffset: { bearingDeg: number; distanceM: number } | null
+  /**
    * Per frame, whether the Remote ID broadcast was heard. Populated only for `intermittent` —
    * `broadcasting` is always heard and `silent` never is, so neither needs a timeline.
    */
@@ -429,6 +435,10 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
     spec.remoteId === 'silent' ? 'non-cooperative' : heard ? 'cooperative' : 'unknown'
   // A return to launch is on its pad from the arrival on — still, at ground level (ruled A5).
   const landed = spec.script?.kind === 'return-to-launch' && t >= spec.script.arriveS
+  // Where the broadcast says the drone is (S2b, #134): the observed position, or that position
+  // displaced by the entry's constant vector — a broadcast that lies by the same amount every
+  // frame. The sensor's track is untouched either way.
+  const claimed = spec.broadcastOffset ? claimedPosition(position, spec.broadcastOffset) : position
 
   return {
     id: spec.id,
@@ -437,9 +447,10 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
     callsign: heard ? spec.label : null,
     // Heard with the ident, lost with it: the same observed/not-observed rule (#22).
     uaType: heard ? spec.uaType : null,
-    // The broadcast's own content, on the same rule (S1, #132): its position is the observed one
-    // until a scenario offsets it (S2b, #134), so every committed inject reads consistent.
-    broadcast: heard ? { label: spec.label, position } : null,
+    // The broadcast's own content, on the same rule (S1, #132): the position it claims — the
+    // observed one unless the cast entry offsets it (S2b, #134), so every committed inject reads
+    // consistent. The feed's association rule reads this against `position`.
+    broadcast: heard ? { label: spec.label, position: claimed } : null,
     position,
     // Zero altitude only on the ground (the model's rule): an airborne reading rounds no lower
     // than 1 ft, so the last fraction of a descent cannot print 0 before the arrival (#142 round 1).
@@ -454,6 +465,15 @@ function observedAt(spec: InjectSpec, intervalS: number, tSec: number): InjectTr
     // Injects are freshly observed every frame; staleness accrual belongs to the replay clock.
     lastSeenSec: 0,
   }
+}
+
+/** The observed position displaced by a broadcast's constant offset, quantized as positions are. */
+function claimedPosition(
+  position: [number, number],
+  offset: { bearingDeg: number; distanceM: number },
+): [number, number] {
+  const claimed = destinationPoint(position, offset.bearingDeg, offset.distanceM)
+  return [round(claimed[0], 5), round(claimed[1], 5)]
 }
 
 /** The same inject with its answer key — the generator's own record, never the picture's. */
@@ -559,6 +579,7 @@ export function planScenario(
       periodS: (2 * (distanceMeters(site, origin) - nearM)) / speedMs,
       startS: 0,
       script: null,
+      broadcastOffset: null,
       heard: dropoutChain(config, id, remoteId, frameCount),
     })
   }
@@ -608,6 +629,7 @@ export function planScenario(
       periodS: 0,
       startS: entry.startS ?? 0,
       script,
+      broadcastOffset: entry.broadcastOffset ?? null,
       heard: dropoutChain(config, id, entry.remoteId, frameCount),
     })
   })

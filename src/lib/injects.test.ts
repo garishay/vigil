@@ -15,7 +15,7 @@ import type { InjectScenario, ScriptedMotion } from './injects'
 import { AO } from '../config/ao'
 import { SCENARIO, type CastEntry } from '../config/scenario'
 import { SCORING } from '../config/scoring'
-import { destinationPoint, distanceMeters } from './geo'
+import { bearingDegrees, destinationPoint, distanceMeters } from './geo'
 import { detectPattern } from './patterns'
 import type { AdsbCapture } from './adsb'
 import { BEHAVIORS_SCENARIO } from './__fixtures__/behaviors'
@@ -493,7 +493,7 @@ describe('the cast (S2a, #133, ruled A1–A2)', () => {
   const castSpecs = plan.specs.filter((spec) => spec.script !== null)
 
   it('leaves the deal exactly as it is without a cast — the 001 golden holds by construction', () => {
-    expect(plan.specs.slice(0, plan.specs.length - 3)).toEqual(planScenario(TIMELINE).specs)
+    expect(plan.specs.filter((spec) => spec.script === null)).toEqual(planScenario(TIMELINE).specs)
     expect(generateScenario(TIMELINE)).toEqual(golden)
     expect(
       SCRIPTED_BEHAVIORS.every((behavior) => !(BEHAVIORS as readonly string[]).includes(behavior)),
@@ -501,15 +501,21 @@ describe('the cast (S2a, #133, ruled A1–A2)', () => {
   })
 
   it('numbers cast injects from inject-11, the same under every seed and every deal', () => {
-    expect(castSpecs.map((spec) => spec.id)).toEqual(['inject-11', 'inject-12', 'inject-13'])
-    expect(castSpecs.map((spec) => spec.launchId)).toEqual(['cast', 'cast', 'cast'])
+    expect(castSpecs.map((spec) => spec.id)).toEqual([
+      'inject-11',
+      'inject-12',
+      'inject-13',
+      'inject-14',
+    ])
+    expect(castSpecs.map((spec) => spec.launchId)).toEqual(['cast', 'cast', 'cast', 'cast'])
     const other = planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, seed: 'b' })
     expect(other.specs.filter((spec) => spec.script !== null).map((spec) => spec.id)).toEqual([
       'inject-11',
       'inject-12',
       'inject-13',
+      'inject-14',
     ])
-    expect(castSpecs.map((spec) => spec.behavior)).toEqual([...SCRIPTED_BEHAVIORS])
+    expect(castSpecs.map((spec) => spec.behavior)).toEqual([...SCRIPTED_BEHAVIORS, 'transit-orbit'])
   })
 
   it('draws a cast inject’s label, UA type, and dropout chain from streams keyed by its id — deterministic, and untouched by the timeline', () => {
@@ -529,7 +535,12 @@ describe('the cast (S2a, #133, ruled A1–A2)', () => {
 
   it('may carry no deal at all — cast-only — and refuses a scenario with neither (opt-in, ruled)', () => {
     const castOnly = planScenario(TIMELINE, { ...BEHAVIORS_SCENARIO, minInjects: 0, maxInjects: 0 })
-    expect(castOnly.specs.map((spec) => spec.id)).toEqual(['inject-11', 'inject-12', 'inject-13'])
+    expect(castOnly.specs.map((spec) => spec.id)).toEqual([
+      'inject-11',
+      'inject-12',
+      'inject-13',
+      'inject-14',
+    ])
     expect(castOnly.specs).toEqual(castSpecs)
     expect(() =>
       planScenario(TIMELINE, { ...SCENARIO, minInjects: 0, maxInjects: 0, cast: [] }),
@@ -542,9 +553,11 @@ describe('the cast (S2a, #133, ruled A1–A2)', () => {
 
   it('reproduces the committed behaviors golden, and 001’s own is byte-identical', () => {
     expect(generateScenario(TIMELINE, BEHAVIORS_SCENARIO)).toEqual(behaviorsGolden)
-    // 8 tracks until the return appears at 120 s, 9 from then on.
-    expect([...new Set(behaviorsGolden.frames.map((frame) => frame.tracks.length))]).toEqual([8, 9])
-    expect(behaviorsGolden.frames.find((frame) => frame.tracks.length === 9)!.tMs).toBe(120_000)
+    // 9 tracks until the return appears at 120 s, 10 from then on (inject-14 since S2b).
+    expect([...new Set(behaviorsGolden.frames.map((frame) => frame.tracks.length))]).toEqual([
+      9, 10,
+    ])
+    expect(behaviorsGolden.frames.find((frame) => frame.tracks.length === 10)!.tMs).toBe(120_000)
   })
 
   it('holds a cast inject inside the envelope while it flies, and only a landed return on the ground', () => {
@@ -800,6 +813,61 @@ describe('round 1 of #142 — the cast refuses what it cannot fly, and flies wha
     // Zero altitude only on the ground, on every frame of the golden.
     for (const track of allTracks(behaviorsGolden)) {
       if (track.altitudeFt === 0) expect(track.onGround).toBe(true)
+    }
+  })
+})
+
+describe('the broadcast offset (S2b, #134, ruled A1)', () => {
+  const plan = planScenario(TIMELINE, BEHAVIORS_SCENARIO)
+  const lying = plan.specs.find((spec) => spec.broadcastOffset !== null)!
+  const at = (t: number) => injectTracksAt(plan, t).find((track) => track.id === lying.id)!
+
+  it('moves the broadcast’s claimed position by the entry’s constant vector, and nothing else', () => {
+    expect(lying.id).toBe('inject-14')
+    expect(lying.broadcastOffset).toEqual({ bearingDeg: 90, distanceM: 1100 })
+    for (const t of [0, 60, 120, 300, 600]) {
+      const track = at(t)
+      expect(track.broadcast).not.toBeNull()
+      expect(distanceMeters(track.position, track.broadcast!.position)).toBeCloseTo(1100, 0)
+      expect(bearingDegrees(track.position, track.broadcast!.position)).toBeCloseTo(90, 0)
+      expect(track.broadcast!.label).toBe('UAS-8F21')
+    }
+    // The sensor's track is untouched: the same motion as the same entry without the offset,
+    // and the generator's record still says heard — the feed decides what the picture shows.
+    const straight = planScenario(TIMELINE, {
+      ...BEHAVIORS_SCENARIO,
+      cast: BEHAVIORS_SCENARIO.cast!.map((entry) =>
+        entry.broadcastOffset ? { ...entry, broadcastOffset: undefined } : entry,
+      ),
+    })
+    const same = (t: number) => injectTracksAt(straight, t).find((track) => track.id === lying.id)!
+    for (const t of [0, 60, 300]) {
+      expect({ ...at(t), broadcast: null }).toEqual({ ...same(t), broadcast: null })
+      expect(same(t).broadcast!.position).toEqual(same(t).position)
+    }
+    expect(at(60)).toMatchObject({ identity: 'cooperative', callsign: 'UAS-8F21' })
+  })
+
+  it('is a function of the entry alone — no seed, timeline, or dealt inject reads it', () => {
+    const other = planScenario(gridTimeline(81, 15000), { ...BEHAVIORS_SCENARIO, seed: 'b' })
+    const spec = other.specs.find((s) => s.id === lying.id)!
+    expect(spec.broadcastOffset).toEqual(lying.broadcastOffset)
+    for (const spec of plan.specs.filter((s) => s.id !== lying.id)) {
+      expect(spec.broadcastOffset).toBeNull()
+    }
+    for (const track of injectTracksAt(planScenario(TIMELINE), 300)) {
+      if (track.broadcast) expect(track.broadcast.position).toEqual(track.position)
+    }
+  })
+
+  it('reproduces the behaviors golden with inject-14, and 001’s own is byte-identical', () => {
+    expect(generateScenario(TIMELINE, BEHAVIORS_SCENARIO)).toEqual(behaviorsGolden)
+    expect(generateScenario(TIMELINE)).toEqual(golden)
+    const fourteen = allTracks(behaviorsGolden).filter((track) => track.id === 'inject-14')
+    expect(fourteen).toHaveLength(80)
+    for (const track of fourteen) {
+      expect(track).toMatchObject({ identity: 'cooperative', callsign: 'UAS-8F21' })
+      expect(distanceMeters(track.position, track.broadcast!.position)).toBeCloseTo(1100, 0)
     }
   })
 })

@@ -95,10 +95,16 @@ export function classify(track: Track): AirframeClass {
     )
   }
   const { altitudeFt, groundSpeedKt } = track
+  // What the caption says about the ident (#143 round 1): a track with no broadcast heard none;
+  // a track whose broadcast the association rule withheld heard one that is not its own — the
+  // drawer's mismatch line names it — so the caption must not claim silence.
+  const ident = track.broadcast
+    ? 'the Remote ID heard is not associated with this track'
+    : 'no ident heard'
   // A null is a gap, not a low number (#35) — and not a high one either: the caption must not
   // claim the envelope was evaluated when a reading it needs was never observed (#55 review).
   if (altitudeFt === null || groundSpeedKt === null) {
-    return labelled('unknown', 'none', 'no ident heard; altitude or speed not observed')
+    return labelled('unknown', 'none', `${ident}; altitude or speed not observed`)
   }
   const lowAndSlow =
     altitudeFt <= KINEMATIC_CLASS.maxAltitudeFt && groundSpeedKt <= KINEMATIC_CLASS.maxGroundSpeedKt
@@ -107,8 +113,8 @@ export function classify(track: Track): AirframeClass {
       airframe: 'unknown',
       label: 'Small UAS (kinematic class)',
       basis: 'kinematic',
-      caption: `from the observed envelope — ${altitudeFt} ft, ${groundSpeedKt} kt; no ident heard`,
+      caption: `from the observed envelope — ${altitudeFt} ft, ${groundSpeedKt} kt; ${ident}`,
     }
   }
-  return labelled('unknown', 'none', 'no ident heard; outside the small-UAS envelope')
+  return labelled('unknown', 'none', `${ident}; outside the small-UAS envelope`)
 }

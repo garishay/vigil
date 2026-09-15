@@ -25,7 +25,9 @@ import { REPLAY } from '../config/replay.ts'
 import type { ReplayConfig } from '../config/replay.ts'
 import { SCENARIO } from '../config/scenario.ts'
 import type { ScenarioConfig } from '../config/scenario.ts'
+import { SCORING } from '../config/scoring.ts'
 import type { AdsbCapture } from './adsb.ts'
+import { distanceMeters } from './geo.ts'
 import { injectTracksAt, planScenario, timelineOf } from './injects.ts'
 import type { InjectPlan, Timeline } from './injects.ts'
 import { indexCapture, pictureAt } from './replay.ts'
@@ -151,18 +153,55 @@ export interface ScenarioFeed extends Picture {
   pictureAt(tSec: number): InjectTrack[]
 }
 
+/**
+ * The association rule (S2b, #134, ruled A2) — the one thing a fused display computes, shared by
+ * raw mode and Vigil: a Remote ID broadcast labels a track only when the position it claims lies
+ * within `associationM` of where the sensor observes the track. Beyond it the ident is withheld
+ * — Non-cooperative, no callsign, no UA type (#36 [27]: a broadcast that puts the drone
+ * somewhere else is not the track's) — and the broadcast stays on the track, for the scorer's
+ * mismatch reading and the lines that say why. An aircraft, or an inject with no broadcast, is
+ * returned as it came. Pure; raw mode calls it at its own distance (S4a), Vigil's scenario feed
+ * at the scorer's threshold, so the row and the ident cannot disagree.
+ */
+/** How far an authored offset must sit from the threshold, metres — twice the position grid's noise. */
+const OFFSET_GUARD_M = 2
+
+export function associate(track: Track, associationM: number): Track {
+  if (track.source !== 'inject' || track.broadcast === null) return track
+  if (distanceMeters(track.position, track.broadcast.position) < associationM) return track
+  return { ...track, identity: 'non-cooperative', callsign: null, uaType: null }
+}
+
 export function scenarioFeed(
   timeline: Timeline,
   config: ScenarioConfig = SCENARIO,
   ao: AreaOfOperations = AO,
+  // The key the mismatch reading itself uses (S1): one threshold for the label and the row.
+  associationM: number = SCORING.cooperativity.mismatchM,
 ): ScenarioFeed {
   const plan = planScenario(timeline, config, ao)
+  // A position is quantized to five decimals (about a metre), so a distance the rule measures
+  // wobbles by up to a metre from frame to frame. An offset written on the threshold itself
+  // would flip the ident and the Identity row every few frames — refused here, where the
+  // threshold is known, in so many words (#143 round 1).
+  for (const spec of plan.specs) {
+    const offsetM = spec.broadcastOffset?.distanceM
+    if (offsetM !== undefined && Math.abs(offsetM - associationM) < OFFSET_GUARD_M) {
+      throw new Error(
+        `cast ${spec.id}: a broadcast offset of ${offsetM} m sits on the ${associationM} m association threshold within the position grid's noise — write it at least ${OFFSET_GUARD_M} m either side`,
+      )
+    }
+  }
   return {
     seed: plan.seed,
     plan,
     clock: 'recording',
     coastS: 0,
-    pictureAt: (tSec) => injectTracksAt(plan, tSec),
+    // The generator's record, through the rule: what Vigil shows. The generator itself stays
+    // the record — the golden, the bench, the memory fold, and the origins read it directly,
+    // which is safe because the score of a mismatched track is the same either way (ruled A3).
+    pictureAt: (tSec) =>
+      injectTracksAt(plan, tSec).map((track) => associate(track, associationM) as InjectTrack),
     healthAt: () => ({ ageS: 0, reason: null }),
   }
 }
