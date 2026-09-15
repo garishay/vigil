@@ -824,7 +824,8 @@ describe('the broadcast offset (S2b, #134, ruled A1)', () => {
 
   it('moves the broadcast’s claimed position by the entry’s constant vector, and nothing else', () => {
     expect(lying.id).toBe('inject-14')
-    expect(lying.broadcastOffset).toEqual({ bearingDeg: 90, distanceM: 1100 })
+    // `fromS` 0 when the entry names none: the lie from the first frame (S3b, #135).
+    expect(lying.broadcastOffset).toEqual({ bearingDeg: 90, distanceM: 1100, fromS: 0 })
     for (const t of [0, 60, 120, 300, 600]) {
       const track = at(t)
       expect(track.broadcast).not.toBeNull()
@@ -846,6 +847,32 @@ describe('the broadcast offset (S2b, #134, ruled A1)', () => {
       expect(same(t).broadcast!.position).toEqual(same(t).position)
     }
     expect(at(60)).toMatchObject({ identity: 'cooperative', callsign: 'UAS-8F21' })
+  })
+
+  it('begins the lie at fromS — the broadcast consistent before it, the offset from it, a step (S3b, #135, ruled)', () => {
+    // The study's 02b threat: a track the operator was already watching turns. On a 15 s grid
+    // with fromS 30 the frames at 0 and 15 claim the observed position; 30 and 45 claim 1.1 km
+    // east; the sensor's track is the same either way, and the record still says heard.
+    const stepped = planScenario(TIMELINE, {
+      ...BEHAVIORS_SCENARIO,
+      cast: BEHAVIORS_SCENARIO.cast!.map((entry) =>
+        entry.broadcastOffset
+          ? { ...entry, broadcastOffset: { ...entry.broadcastOffset, fromS: 30 } }
+          : entry,
+      ),
+    })
+    const spec = stepped.specs.find((s) => s.id === lying.id)!
+    expect(spec.broadcastOffset).toEqual({ bearingDeg: 90, distanceM: 1100, fromS: 30 })
+    const from = (t: number) => injectTracksAt(stepped, t).find((track) => track.id === lying.id)!
+    for (const t of [0, 15, 29]) expect(from(t).broadcast!.position).toEqual(from(t).position)
+    for (const t of [30, 45, 300]) {
+      expect(distanceMeters(from(t).position, from(t).broadcast!.position)).toBeCloseTo(1100, 0)
+      expect(bearingDegrees(from(t).position, from(t).broadcast!.position)).toBeCloseTo(90, 0)
+    }
+    for (const t of [0, 30, 300]) {
+      expect({ ...from(t), broadcast: null }).toEqual({ ...at(t), broadcast: null })
+      expect(from(t)).toMatchObject({ identity: 'cooperative', callsign: 'UAS-8F21' })
+    }
   })
 
   it('is a function of the entry alone — no seed, timeline, or dealt inject reads it', () => {

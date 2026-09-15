@@ -3,7 +3,8 @@ import { BUILD_DEFAULTS, SessionRefusal, parseFeedRef, resolveSession } from './
 import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings'
 import { SCENARIO } from '../config/scenario'
 
-const ON = { on: true, seed: SCENARIO.seed }
+/** `on` is the registry's first — the default deal, named default (S3b, #135; #36 [26] A). */
+const ON = { on: true, name: 'default', seed: SCENARIO.seed }
 const OFF = { on: false }
 const rec = (id: string) => ({ kind: 'recording', id })
 
@@ -96,11 +97,38 @@ describe('resolveSession (#115, ruling 6)', () => {
     )
   })
 
-  it('reads ?scenario= as on or off and nothing else, in the URL or the env', () => {
-    expect(refusal('?scenario=maybe')).toBe('?scenario= reads on or off, not "maybe"')
-    expect(refusal('?scenario=')).toBe('?scenario= reads on or off, not ""')
+  it('reads ?scenario= as on, off, or a scenario name, in the URL or the env, and lists the names it knows in the refusal (S3b, #135; #36 [26] A)', () => {
+    // A name opens that scenario file — the study's link as #131 writes it; `on` is the first.
+    expect(resolveSession('?feed=recording:vigil-phl-002&scenario=02a').scenario).toEqual({
+      on: true,
+      name: '02a',
+      seed: 'study-02a',
+    })
+    expect(resolveSession('?recording=vigil-phl-002&scenario=02b').scenario).toEqual({
+      on: true,
+      name: '02b',
+      seed: 'study-02b',
+    })
+    expect(resolveSession('?scenario=default').scenario).toEqual(ON)
+    // The env reads the same grammar, and the URL still wins over it.
+    expect(resolveSession('', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual({
+      on: true,
+      name: '02b',
+      seed: 'study-02b',
+    })
+    expect(resolveSession('?scenario=on', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual(ON)
+    expect(resolveSession('?scenario=off', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual(OFF)
+    // Anything else is refused in a sentence that names the registry — so the sentence is the
+    // registry's, never a stale list.
+    const names = 'default, 02a, 02b'
+    expect(refusal('?scenario=maybe')).toBe(
+      `?scenario= reads on, off, or a scenario name — ${names} — not "maybe"`,
+    )
+    expect(refusal('?scenario=')).toBe(
+      `?scenario= reads on, off, or a scenario name — ${names} — not ""`,
+    )
     expect(refusal('', { VITE_DEFAULT_SCENARIO: 'yes' })).toBe(
-      'VITE_DEFAULT_SCENARIO reads on or off, not "yes"',
+      `VITE_DEFAULT_SCENARIO reads on, off, or a scenario name — ${names} — not "yes"`,
     )
   })
 
@@ -168,9 +196,15 @@ describe('resolveSession (#115, ruling 6)', () => {
     expect(() => resolveSession('?recording=vigil-phl-002', {}, RECORDINGS.slice(0, 1))).toThrow(
       'No recording named "vigil-phl-002"',
     )
-    expect(resolveSession('', {}, RECORDINGS, 'other-seed').scenario).toEqual({
+    // The scenario registry is a parameter too: `on` is whatever it lists first.
+    const other = [{ name: 'other', config: { ...SCENARIO, seed: 'other-seed' } }]
+    expect(resolveSession('', {}, RECORDINGS, other).scenario).toEqual({
       on: true,
+      name: 'other',
       seed: 'other-seed',
     })
+    expect(() => resolveSession('?scenario=02a', {}, RECORDINGS, other)).toThrow(
+      '?scenario= reads on, off, or a scenario name — other — not "02a"',
+    )
   })
 })

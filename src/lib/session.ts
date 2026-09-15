@@ -12,11 +12,12 @@
 
 import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings.ts'
 import type { RecordingEntry } from '../config/recordings.ts'
-import { SCENARIO } from '../config/scenario.ts'
+import { SCENARIOS, type NamedScenario } from '../config/scenarios.ts'
 import { CLOCK_OF_KIND, FEED_KINDS, feedRefText } from './feeds.ts'
 import type { FeedKind, FeedRef } from './feeds.ts'
 
-export type ScenarioState = { on: true; seed: string } | { on: false }
+/** The scenario switch as a name (S3b, #135, ruled A5; #36 [26] A): `on` is the registry's first, `off` none. */
+export type ScenarioState = { on: true; name: string; seed: string } | { on: false }
 
 export interface SessionConfig {
   feeds: readonly FeedRef[]
@@ -69,10 +70,20 @@ function parseFeeds(text: string): FeedRef[] {
   return refs
 }
 
-function parseScenario(where: string, text: string): boolean {
-  if (text === 'on') return true
-  if (text === 'off') return false
-  return refuse(`${where} reads on or off, not "${text}"`)
+/**
+ * `on`, `off`, or a scenario the registry names (#36 [26] A): `on` is the registry's first — the
+ * default deal — and the refusal lists the names it knows, so the sentence is the registry's.
+ */
+function parseScenario(
+  where: string,
+  text: string,
+  registry: readonly NamedScenario[],
+): NamedScenario | null {
+  if (text === 'off') return null
+  const named = text === 'on' ? registry[0] : registry.find((scenario) => scenario.name === text)
+  if (named) return named
+  const names = registry.map((scenario) => scenario.name).join(', ')
+  return refuse(`${where} reads on, off, or a scenario name — ${names} — not "${text}"`)
 }
 
 /** Where the picker would go for a live feed: the number of the Issue that brings it. */
@@ -101,7 +112,7 @@ export function resolveSession(
   search: string,
   env: SessionEnv = {},
   registry: readonly RecordingEntry[] = RECORDINGS,
-  seed: string = SCENARIO.seed,
+  scenarios: readonly NamedScenario[] = SCENARIOS,
 ): SessionConfig {
   const params = new URLSearchParams(search)
 
@@ -145,10 +156,17 @@ export function resolveSession(
   const scenarioParams = params.getAll('scenario')
   if (scenarioParams.length > 1) refuse('?scenario= is given more than once — give it once')
   const scenarioParam: string | null = scenarioParams[0] ?? null
-  const on =
+  const named =
     scenarioParam !== null
-      ? parseScenario('?scenario=', scenarioParam)
-      : parseScenario('VITE_DEFAULT_SCENARIO', env.VITE_DEFAULT_SCENARIO || BUILD_DEFAULTS.scenario)
+      ? parseScenario('?scenario=', scenarioParam, scenarios)
+      : parseScenario(
+          'VITE_DEFAULT_SCENARIO',
+          env.VITE_DEFAULT_SCENARIO || BUILD_DEFAULTS.scenario,
+          scenarios,
+        )
 
-  return { feeds, scenario: on ? { on: true, seed } : { on: false } }
+  return {
+    feeds,
+    scenario: named ? { on: true, name: named.name, seed: named.config.seed } : { on: false },
+  }
 }
