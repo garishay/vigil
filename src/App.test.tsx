@@ -2159,3 +2159,26 @@ describe('raw mode (S4a, #136, ruled) — the fairness spec, line by line', () =
     expect(map().getAttribute('data-bands')).not.toBe('')
   })
 })
+
+describe('raw mode while the recording loads (#148 round 1)', () => {
+  it('wears the raw shell from the first render — no nav, no rail, no seek, no Seed, no Alerts, no legend — never a Vigil flash', () => {
+    useSession.mockReturnValue({
+      status: 'loading',
+      session: {
+        feeds: [{ kind: 'recording', id: 'vigil-phl-002' }],
+        scenario: { on: true, name: '02a', seed: 'study-02a' },
+        mode: 'raw',
+      },
+    })
+    render(<App schedule={never} />)
+    expect(screen.queryByRole('navigation', { name: 'Surfaces' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Picture summary' })).toBeNull()
+    expect(screen.queryByRole('slider', { name: 'Seek' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Play|Pause)$/ })).toBeNull()
+    expect(screen.queryByText('Seed')).toBeNull()
+    expect(screen.queryByText('Alerts')).toBeNull()
+    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('…')
+    expect(screen.getByText('Playback').nextSibling).toHaveTextContent('—')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-mode', 'raw')
+  })
+})

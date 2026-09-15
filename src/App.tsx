@@ -145,7 +145,12 @@ export default function App({
   // The study's condition (S4a, #136): resolved once with the session, never switched in a run.
   // Raw hides everything derived and raises nothing; the engine runs underneath as it does in
   // Vigil, so the record — and S4b's run JSON — keep one shape in both modes (ruled A2, A7).
-  const mode = ready?.session.mode ?? 'vigil'
+  // Read while loading too — the URL resolves synchronously (#148 round 1) — so a raw link never
+  // shows Vigil's shell before the recording is in.
+  const mode =
+    session.status === 'ready' || session.status === 'loading'
+      ? (session.session?.mode ?? 'vigil')
+      : 'vigil'
   const raw = mode === 'raw'
 
   // Selection and filters persist across surface switches — client state only (§7.1 ruling, #3).

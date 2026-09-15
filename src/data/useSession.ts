@@ -9,7 +9,12 @@ import { SessionRefusal, resolveSession } from '../lib/session'
 import type { SessionConfig, SessionEnv } from '../lib/session'
 
 export type SessionState =
-  | { status: 'loading' }
+  /**
+   * Loading carries the session the URL resolved to, synchronously, so the shell can wear the
+   * requested mode before the recording is in (S4a, #148 round 1): a study subject on a raw
+   * link must never see Vigil's shell flash. Absent only for a test's bare loading state.
+   */
+  | { status: 'loading'; session?: SessionConfig }
   | {
       status: 'ready'
       session: SessionConfig
@@ -38,7 +43,17 @@ export function useSession(
   search: string = window.location.search,
   env: SessionEnv = import.meta.env as SessionEnv,
 ): SessionState {
-  const [state, setState] = useState<SessionState>({ status: 'loading' })
+  // The URL resolves synchronously; only the recording's fetch is asynchronous. Resolving here
+  // gives the first render the mode (S4a); the effect below resolves again on its own path.
+  const [state, setState] = useState<SessionState>(() => {
+    try {
+      return { status: 'loading', session: resolveSession(search, env) }
+    } catch (error) {
+      return error instanceof SessionRefusal
+        ? { status: 'refused', reason: error.message }
+        : { status: 'error', message: (error as Error).message }
+    }
+  })
   // The two variables as primitives, so a caller's fresh env object per render re-runs nothing.
   const feedsEnv = env.VITE_DEFAULT_FEEDS
   const scenarioEnv = env.VITE_DEFAULT_SCENARIO

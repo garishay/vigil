@@ -162,3 +162,26 @@ describe('raw mode’s feed (S4a, #136, ruled A2)', () => {
     expect(vigil).toMatchObject({ callsign: null, identity: 'non-cooperative' })
   })
 })
+
+describe('the mode before the recording is in (#148 round 1)', () => {
+  it('carries the resolved session on the loading state synchronously, so the first render knows it is raw', () => {
+    vi.stubGlobal('fetch', fetcher)
+    const { result } = renderHook(() =>
+      useSession('?feed=recording:vigil-phl-002&scenario=02a&mode=raw', {}),
+    )
+    // Before any await: the recording is still loading, the mode is already known.
+    expect(result.current).toMatchObject({ status: 'loading', session: { mode: 'raw' } })
+    vi.unstubAllGlobals()
+  })
+
+  it('refuses synchronously too — a bad link never reaches a loading shell', () => {
+    vi.stubGlobal('fetch', fetcher)
+    const { result } = renderHook(() => useSession('?mode=fast', {}))
+    expect(result.current).toEqual({
+      status: 'refused',
+      reason: '?mode= reads raw or vigil, not "fast"',
+    })
+    expect(fetcher).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+})
