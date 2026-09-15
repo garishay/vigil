@@ -26,6 +26,17 @@ const HEADING_TICK_M = 300
  * label the same neutral — no band fill, no identity colour. Identity is read off the label.
  */
 const RAW_COLOR = '#c5cfdc'
+/**
+ * The font stack raw's labels are set in — the one the basemap's own symbol layers declare, so
+ * the glyph fetch that a `glyphs` root makes is one the tile server serves (#148 review).
+ */
+const RAW_LABEL_FONT = [
+  'Montserrat Regular',
+  'Open Sans Regular',
+  'Noto Sans Regular',
+  'HanWangHeiLight Regular',
+  'NanumBarunGothic Regular',
+]
 
 /** One frozen empty array, so the default prop is not a new identity every render. */
 const NO_TERMINAL: readonly string[] = []
@@ -441,6 +452,10 @@ export function MapView({
         layout: {
           visibility: 'none',
           'text-field': ['get', 'ident'],
+          /* The stack the basemap's own symbol layers declare (CARTO Dark Matter): with a
+             `glyphs` root, MapLibre requests the stack by name, and an undeclared one paints
+             nothing — silently (#148 review). */
+          'text-font': RAW_LABEL_FONT,
           'text-size': 11,
           'text-anchor': 'left',
           'text-offset': [0.6, 0],
@@ -486,6 +501,10 @@ export function MapView({
         layout: {
           visibility: 'none',
           'text-field': ['get', 'ident'],
+          /* The stack the basemap's own symbol layers declare (CARTO Dark Matter): with a
+             `glyphs` root, MapLibre requests the stack by name, and an undeclared one paints
+             nothing — silently (#148 review). */
+          'text-font': RAW_LABEL_FONT,
           'text-size': 11,
           'text-anchor': 'left',
           'text-offset': [0.9, 0],
@@ -590,12 +609,20 @@ export function MapView({
     )
   }, [mode, styleReady])
 
+  // Whether the tick source holds anything: in Vigil it is left empty — created so — and never
+  // re-pushed per tick for a layer nothing shows (#148 review); cleared once if raw is left.
+  const ticksShownRef = useRef(false)
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    map
-      .getSource<GeoJSONSource>(HEADING_SOURCE)
-      ?.setData(headingFeatures(mode === 'raw' ? [...tracks, ...injects] : []))
+    const source = map.getSource<GeoJSONSource>(HEADING_SOURCE)
+    if (mode !== 'raw') {
+      if (ticksShownRef.current) source?.setData(headingFeatures([]))
+      ticksShownRef.current = false
+      return
+    }
+    ticksShownRef.current = true
+    source?.setData(headingFeatures([...tracks, ...injects]))
   }, [tracks, injects, mode, styleReady])
 
   useEffect(() => {

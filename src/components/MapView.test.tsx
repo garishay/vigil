@@ -671,7 +671,36 @@ describe('raw mode (S4a, #136, ruled A4)', () => {
       (call) => call[2] === '#c5cfdc',
     )
     expect(neutralCalls).toHaveLength(0)
-    expect(dataFor('heading-ticks').features).toEqual([])
+    // Nothing pushes the tick source in Vigil: created empty, left as it was (#148 review).
+    expect(setData.mock.calls.some((call) => call[0] === 'heading-ticks')).toBe(false)
     expect(screen.getByRole('group', { name: 'Map legend' })).toBeInTheDocument()
+  })
+})
+
+describe('the heading-tick source in Vigil (#148 review)', () => {
+  it('is never re-pushed per tick when nothing shows it — the source stays as it was created', () => {
+    const { rerender } = render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} />)
+    // Fresh identities every second, as App's memos hand them over on every tick of the clock.
+    rerender(<MapView ao={AO} tracks={[...TRACKS]} injects={[...INJECTS]} />)
+    rerender(<MapView ao={AO} tracks={[...TRACKS]} injects={[...INJECTS]} />)
+    const pushes = setData.mock.calls.filter((call) => call[0] === 'heading-ticks')
+    expect(pushes).toHaveLength(0)
+  })
+
+  it('names the font stack the basemap declares on both label layers', () => {
+    render(<MapView ao={AO} />)
+    const labels = mapInstance.addLayer.mock.calls
+      .map(([layer]) => layer)
+      .filter((layer) => layer.type === 'symbol')
+    expect(labels).toHaveLength(2)
+    for (const layer of labels) {
+      expect(layer.layout['text-font']).toEqual([
+        'Montserrat Regular',
+        'Open Sans Regular',
+        'Noto Sans Regular',
+        'HanWangHeiLight Regular',
+        'NanumBarunGothic Regular',
+      ])
+    }
   })
 })
