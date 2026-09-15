@@ -8,7 +8,10 @@
  * The placements are the gate's (#133): the shuttle a 1 km tangential chord at 7.5 km, the
  * transit-then-orbit from 7.2 km on a course through a circle 3 km out, the return from 6.0 km
  * to a pad at 5.6 km — with a start time on the return, so the golden exercises an inject that
- * appears mid-run (the ruled opt-in) as well as one on the ground.
+ * appears mid-run (the ruled opt-in) as well as one on the ground. The fourth entry (S2b, #134,
+ * ruled A5) is the study's threat shape on its own bearing — heard, labelled `UAS-8F21`, its
+ * broadcast claiming a point 1.1 km east of where the sensor sees it — so the golden carries
+ * the generator's record of a lying broadcast, and a test reads it through the feed as `TRK-14`.
  */
 
 import { SCENARIO } from '../../config/scenario.ts'
@@ -42,6 +45,17 @@ export const BEHAVIORS_SCENARIO: ScenarioConfig = {
       startS: 120,
       from: { bearingDeg: 200, rangeKm: 6.0 },
       pad: { bearingDeg: 200, rangeKm: 5.6 },
+    },
+    {
+      behavior: 'transit-orbit',
+      remoteId: 'broadcasting',
+      label: 'UAS-8F21',
+      speedKt: 35,
+      altitudeFt: 200,
+      from: { bearingDeg: 245, rangeKm: 7.2 },
+      courseDeg: 65,
+      orbit: { center: { bearingDeg: 240, rangeKm: 3.0 }, radiusM: 800 },
+      broadcastOffset: { bearingDeg: 90, distanceM: 1100 },
     },
   ],
 }

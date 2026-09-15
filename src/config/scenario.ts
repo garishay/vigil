@@ -62,6 +62,13 @@ export type CastEntry = {
    * before it, and its first frame is its origin, as a dealt inject's launch is. 0 when absent.
    */
   startS?: number
+  /**
+   * Where the Remote ID broadcast claims to be, relative to where the sensor observes the track
+   * (S2b, #134, ruled A1): a constant vector, applied on every heard frame. Absent, the broadcast
+   * claims the observed position — consistent, as every dealt inject is. At or beyond the
+   * scorer's `mismatchM` the picture withholds the ident and reads the mismatch (#36 [27]).
+   */
+  broadcastOffset?: { bearingDeg: number; distanceM: number }
 } & (
   | { behavior: 'shuttle'; from: Placement; to: Placement }
   | {

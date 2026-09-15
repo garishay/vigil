@@ -6,6 +6,7 @@ import {
   feedRefText,
   mergePicture,
   recordingFeed,
+  associate,
   scenarioFeed,
 } from './feeds'
 import type { Feed } from './feeds'
@@ -15,7 +16,12 @@ import { REPLAY } from '../config/replay'
 import type { AdsbCapture } from './adsb'
 import { injectTracksAt, planScenario, timelineOf } from './injects'
 import { indexCapture, pictureAt } from './replay'
-import type { AdsbTrack, Track } from './tracks'
+import { minuteOfDay, rememberIdentities, scoreTrack } from './scoring'
+import { reasonTag, trackIdent } from './display'
+import { SCORING } from '../config/scoring'
+import { BEHAVIORS_SCENARIO } from './__fixtures__/behaviors'
+import type { AdsbTrack, InjectTrack, Track } from './tracks'
+import captureRaw from '../../public/adsb-phl.json?raw'
 
 /** Two frames, fifteen seconds apart, one aircraft in each: the smallest recording that coasts. */
 const CAPTURE: AdsbCapture = {
@@ -179,5 +185,90 @@ describe('the merge', () => {
 
   it('is empty with no feed and no scenario', () => {
     expect(mergePicture([], null, 0)).toEqual([])
+  })
+})
+
+describe('the association rule (S2b, #134, ruled A2–A4; #36 [27])', () => {
+  const real = JSON.parse(captureRaw) as AdsbCapture
+  const timeline = timelineOf(real)
+  const feed = scenarioFeed(timeline, BEHAVIORS_SCENARIO)
+  const generator = planScenario(timeline, BEHAVIORS_SCENARIO)
+  const record = (t: number) =>
+    injectTracksAt(generator, t).find((track) => track.id === 'inject-14')!
+  const picture = (t: number) => feed.pictureAt(t).find((track) => track.id === 'inject-14')!
+  const evening = { tSec: 60, minuteOfDay: minuteOfDay('18:02', 0), memory: {} }
+
+  it('labels a track with its broadcast only within the distance, and withholds the ident beyond it — the broadcast kept', () => {
+    const lying = record(60)
+    expect(lying).toMatchObject({ identity: 'cooperative', callsign: 'UAS-8F21' })
+    expect(lying.uaType).not.toBeNull()
+    const withheld = associate(lying, 1000) as InjectTrack
+    expect(withheld).toMatchObject({
+      identity: 'non-cooperative',
+      callsign: null,
+      uaType: null,
+      broadcast: lying.broadcast,
+    })
+    expect(withheld.position).toEqual(lying.position)
+    // Within the distance the generator's label stands; at 1.1 km, a metre either side.
+    expect(associate(lying, 1101)).toBe(lying)
+    expect(associate(lying, 1099)).not.toBe(lying)
+    // An aircraft and a broadcast-less inject come back as they came.
+    const aircraft = pictureAt(indexCapture(real), 0)[0]
+    expect(associate(aircraft, 1000)).toBe(aircraft)
+    const silent = injectTracksAt(generator, 60).find((track) => track.broadcast === null)!
+    expect(associate(silent, 1000)).toBe(silent)
+  })
+
+  it('the acceptance line: the same track reads UAS-8F21 under the 1.5 km rule and TRK-14 · Remote ID mismatch in Vigil', () => {
+    const vigil = picture(60)
+    const raw = associate(record(60), 1500) as InjectTrack
+    const score = scoreTrack(vigil, AO.protectedSites, evening)
+    const entry = { track: vigil, rank: 1, rangeM: score.rangeM, siteId: score.siteId, score }
+    const line = `${trackIdent(raw)} under the association rule and ${trackIdent(vigil)} – ${reasonTag(entry, AO.protectedSites).split(',')[0]} in Vigil`
+    expect(line).toBe(
+      'UAS-8F21 under the association rule and TRK-14 – Remote ID mismatch in Vigil',
+    )
+    expect(raw.identity).toBe('cooperative')
+    expect(vigil.identity).toBe('non-cooperative')
+    expect(score.mismatch).toMatchObject({ label: 'UAS-8F21' })
+    expect(score.mismatch!.distanceM).toBeCloseTo(1100, 0)
+  })
+
+  it('runs at the scorer’s threshold by default, so a session’s row and its ident cannot disagree', () => {
+    // Every frame Vigil shows of the lying inject is withheld; the same feed at a wider distance
+    // — raw's — is not; and the consistent injects are untouched at either.
+    for (const t of [0, 300, 900]) {
+      expect(picture(t)).toMatchObject({ identity: 'non-cooperative', callsign: null })
+    }
+    const wide = scenarioFeed(timeline, BEHAVIORS_SCENARIO, AO, 1500)
+    expect(wide.pictureAt(60).find((track) => track.id === 'inject-14')).toMatchObject({
+      identity: 'cooperative',
+      callsign: 'UAS-8F21',
+    })
+    const consistent = feed.pictureAt(60).filter((track) => track.id !== 'inject-14')
+    expect(consistent).toEqual(
+      injectTracksAt(generator, 60).filter((track) => track.id !== 'inject-14'),
+    )
+    expect(SCORING.cooperativity.mismatchM).toBe(1000)
+  })
+
+  it('cannot move a score: the reading is off the broadcast, so the generator’s record and the picture score alike', () => {
+    for (const t of [60, 300, 900]) {
+      const before = scoreTrack(record(t), AO.protectedSites, { ...evening, tSec: t })
+      const after = scoreTrack(picture(t), AO.protectedSites, { ...evening, tSec: t })
+      expect(after.composite).toBe(before.composite)
+      expect(after.mismatch).toEqual(before.mismatch)
+    }
+    // The memory fold on the generator's record stamps nothing for the lying broadcast (S1 r1),
+    // so reading the generator directly, as the bench and the fold do, is the same picture.
+    expect(rememberIdentities({}, [record(60)], 60)['inject-14']).toEqual({ lastHeardTSec: null })
+  })
+
+  it('leaves every committed picture as it was — no committed entry carries an offset', () => {
+    const committed = scenarioFeed(timeline)
+    for (const t of [0, 300, 1185]) {
+      expect(committed.pictureAt(t)).toEqual(injectTracksAt(committed.plan, t))
+    }
   })
 })
