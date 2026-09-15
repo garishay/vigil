@@ -13,6 +13,7 @@ const SILENT: InjectTrack = {
   id: 'inject-03',
   source: 'inject',
   uaType: null,
+  broadcast: null,
   identity: 'non-cooperative',
   callsign: null,
   position: [-75.28671, 39.94708],
@@ -28,6 +29,7 @@ const UNHEARD: InjectTrack = {
   ...SILENT,
   id: 'inject-01',
   uaType: null,
+  broadcast: null,
   identity: 'unknown',
 }
 
@@ -35,6 +37,7 @@ const HEARD: InjectTrack = {
   ...SILENT,
   id: 'inject-04',
   uaType: null,
+  broadcast: null,
   identity: 'cooperative',
   callsign: 'UAS-CD84',
 }

@@ -19,6 +19,8 @@ import {
   siteLine,
   siteOriginLine,
   capLine,
+  mismatchHandoffLine,
+  mismatchLine,
 } from './display'
 import type { EntryEstimate } from './projection'
 import { scoreTrack, type Score, type ScoringContext } from './scoring'
@@ -47,6 +49,7 @@ const SCORE: Score = {
   siteId: 'phl-airfield',
   sites: PHL_SITES,
   friendly: false,
+  mismatch: null,
   factors: [
     {
       id: 'cooperativity',
@@ -266,6 +269,7 @@ describe('describeEvent — band crossings (06b)', () => {
         siteId: 'phl-airfield',
         sites: PHL_SITES,
         friendly: false,
+        mismatch: null,
         entry: null,
         altitudeFt: 63,
         groundSpeedKt: 19.1,
@@ -310,6 +314,7 @@ describe('describeEvent — pattern entries and the first-seen word (05b)', () =
     siteId: 'phl-airfield',
     sites: PHL_SITES,
     friendly: false,
+    mismatch: null,
     entry: null,
     altitudeFt: 230,
     groundSpeedKt: 6,
@@ -388,6 +393,7 @@ describe('reasonTag (05b, ruled on #5)', () => {
       behavior: 'loiter',
       remoteId: 'silent',
       uaType: null,
+      broadcast: null,
       identity: 'non-cooperative',
       callsign: null,
       position: [-75.20547, 39.81341],
@@ -562,6 +568,7 @@ describe('the friendly launch cap on the row and in the record (08b, ruled on #8
       id: 'inject-02',
       source: 'inject',
       uaType: null,
+      broadcast: null,
       identity: 'cooperative',
       callsign: 'UAS-A341',
       position: destinationPoint(SITE.center, 0, 3000),
@@ -621,6 +628,7 @@ describe('describeEvent — Acknowledged (#101, 101a)', () => {
         siteId: 'phl-airfield',
         sites: PHL_SITES,
         friendly: false,
+        mismatch: null,
         entry: null,
         altitudeFt: 63,
         groundSpeedKt: 19.1,
@@ -652,5 +660,55 @@ describe('describeEvent — Acknowledged (#101, 101a)', () => {
     expect(describeEvent({ ...base, from: 'escalated', to: 'escalated' }, [], [], clock)).toBe(
       'Acknowledged',
     )
+  })
+})
+
+describe('the mismatch reading on the row and in the lines (S1, #132)', () => {
+  const SITE = AO.protectedSites[0]
+  /** The study’s threat shape: a sensor track 7.2 km out, straight in at 35 kt, within hours. */
+  const observedAt = destinationPoint(SITE.center, 155, 7200)
+  const threat: InjectTrack = {
+    id: 'inject-06',
+    source: 'inject',
+    uaType: null,
+    broadcast: { label: 'UAS-8F21', position: destinationPoint(observedAt, 90, 1100) },
+    identity: 'non-cooperative',
+    callsign: null,
+    position: observedAt,
+    altitudeFt: 200,
+    onGround: false,
+    groundSpeedKt: 35,
+    headingDeg: 335,
+    verticalRateFpm: 0,
+    lastSeenSec: 0,
+  }
+  const ranked = (track: Track): RankedTrack => {
+    const score = scoreTrack(track, AO.protectedSites, { tSec: 0, minuteOfDay: 1082, memory: {} })
+    return { track, rank: 1, rangeM: score.rangeM, siteId: score.siteId, score }
+  }
+
+  it('words the Identity row Remote ID mismatch on the tag, ahead of the geometry', () => {
+    const entry = ranked(threat)
+    expect(entry.score.mismatch).toMatchObject({ label: 'UAS-8F21' })
+    expect(reasonTag(entry, AO.protectedSites)).toBe(
+      'Remote ID mismatch, closing, near PHL Airfield',
+    )
+    // The same track with its broadcast gone is silent, and the row says so.
+    expect(reasonTag(ranked({ ...threat, broadcast: null }), AO.protectedSites)).toBe(
+      'Non-cooperative, closing, near PHL Airfield',
+    )
+  })
+
+  it('prints the drawer’s sentence and the handoff’s, the handoff’s inside the 53-character fit', () => {
+    const mismatch = { label: 'UAS-8F21', distanceM: 1100 }
+    expect(mismatchLine(mismatch)).toBe(
+      'Remote ID UAS-8F21 broadcasts 1.1 km from the observed track',
+    )
+    expect(mismatchHandoffLine(mismatch)).toBe(
+      'Remote ID UAS-8F21 broadcasts 1.1 km from the track',
+    )
+    expect(mismatchHandoffLine(mismatch)).toHaveLength(51)
+    // Ten kilometres and more still fit — the widest distance the format prints at this label.
+    expect(mismatchHandoffLine({ ...mismatch, distanceM: 12_345 })).toHaveLength(52)
   })
 })

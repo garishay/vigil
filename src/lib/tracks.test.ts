@@ -66,6 +66,7 @@ describe('the shared track model', () => {
         id: 'inject-01',
         source: 'inject',
         uaType: null,
+        broadcast: null,
         identity: 'non-cooperative',
       },
     ]
@@ -83,6 +84,7 @@ describe('the shared track model', () => {
       behavior: 'transit',
       remoteId,
       uaType: null,
+      broadcast: null,
       identity: identities[i],
     }))
     expect(injects.map((inject) => inject.identity)).toEqual(identities)

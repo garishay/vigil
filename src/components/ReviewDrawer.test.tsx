@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ReviewDrawer } from './ReviewDrawer'
 import type { ProtectedSite } from '../config/ao'
 import { simClock } from '../lib/display'
+import { destinationPoint } from '../lib/geo'
 import { CONTACTS } from '../config/contacts'
 import { DISPOSITIONS } from '../config/dispositions'
 import { appendEvent, firstSeen, observedSnapshot, type TrackEvent } from '../lib/lifecycle'
@@ -15,6 +16,7 @@ const SILENT: InjectTrack = {
   id: 'inject-05',
   source: 'inject',
   uaType: null,
+  broadcast: null,
   identity: 'non-cooperative',
   callsign: null,
   position: [-75.20547, 39.81341],
@@ -210,9 +212,10 @@ describe('ReviewDrawer', () => {
   it('reads a silent inject the corroboration line under the header, and keeps it off the handoff (#103)', () => {
     const ranked = entry(SILENT, 1, 4200)
     renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
-    // The drawer's own fixture: 69 (caution) today, 49 (caution) if heard — the scorer's number.
+    // The drawer's own fixture: 69 (caution) today, 45 (caution) if heard — the scorer's number
+    // (49 before S1 lowered the heard value from 25 to 10, #132 ruled A2).
     expect(screen.getByText('Score 69')).toBeInTheDocument()
-    const line = screen.getByText('If heard on Remote ID: 49 (caution)')
+    const line = screen.getByText('If heard on Remote ID: 45 (caution)')
     expect(line.tagName).toBe('P')
     expect(line).toHaveClass('drawer__corroboration')
     expect(line.previousElementSibling).toHaveClass('drawer__header')
@@ -651,5 +654,42 @@ describe('ReviewDrawer', () => {
     const handoff = screen.getByLabelText('Handoff text') as HTMLTextAreaElement
     await waitFor(() => expect(handoff.selectionEnd).toBe(handoff.value.length))
     expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeInTheDocument()
+  })
+})
+
+describe('the mismatch line (S1, #132)', () => {
+  const MISMATCHED: InjectTrack = {
+    ...SILENT,
+    id: 'inject-06',
+    broadcast: { label: 'UAS-8F21', position: destinationPoint(SILENT.position, 90, 1100) },
+  }
+
+  it('prints the sentence under the header, one element, and no corroboration line', () => {
+    const ranked = entry(MISMATCHED, 1, 4200)
+    renderDrawer(ranked, { log: walk(ranked, 'assess', 'escalate') })
+    const line = screen.getByText('Remote ID UAS-8F21 broadcasts 1.1 km from the observed track')
+    expect(line.tagName).toBe('P')
+    expect(line).toHaveClass('drawer__mismatch')
+    expect(line.previousElementSibling).toHaveClass('drawer__header')
+    expect(screen.queryByText(/If heard on Remote ID/)).toBeNull()
+    // The Identity row carries the same evidence, and the handoff its frozen line (opt-in H).
+    expect(
+      screen.getByText('Remote ID broadcasts 1.1 km from the observed track'),
+    ).toBeInTheDocument()
+    const handoff = screen.getByLabelText('Handoff text') as HTMLTextAreaElement
+    expect(handoff.value).toContain('\nRemote ID UAS-8F21 broadcasts 1.1 km from the track\n')
+  })
+
+  it('prints nothing for a heard, consistent inject', () => {
+    const heard: InjectTrack = {
+      ...SILENT,
+      id: 'inject-01',
+      identity: 'cooperative',
+      callsign: 'UAS-7CD5',
+      broadcast: { label: 'UAS-7CD5', position: SILENT.position },
+    }
+    renderDrawer(entry(heard, 5, 6500))
+    expect(screen.queryByText(/broadcasts/)).toBeNull()
+    expect(screen.queryByText(/If heard on Remote ID/)).toBeNull()
   })
 })

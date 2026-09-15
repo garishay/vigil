@@ -23,6 +23,7 @@ import {
   type Status,
   type TrackEvent,
 } from './lifecycle'
+import { destinationPoint } from './geo'
 import type { RankedTrack } from './ranking'
 import { bandOf, scoreTrack } from './scoring'
 import type { InjectTrack } from './tracks'
@@ -37,6 +38,7 @@ const OBSERVED: ObservedSnapshot = {
   siteId: 'phl-airfield',
   sites: PHL_SITES,
   friendly: false,
+  mismatch: null,
   entry: null,
   altitudeFt: 63,
   groundSpeedKt: 19.1,
@@ -196,6 +198,7 @@ describe('learner-ready shape (§8.3b)', () => {
     id: 'inject-05',
     source: 'inject',
     uaType: null,
+    broadcast: null,
     identity: 'non-cooperative',
     callsign: null,
     position: [-75.20547, 39.81341],
@@ -218,6 +221,7 @@ describe('learner-ready shape (§8.3b)', () => {
       siteId: 'phl-airfield',
       sites: PHL_SITES,
       friendly: false,
+      mismatch: null,
       altitudeFt: 63,
       groundSpeedKt: null,
       headingDeg: track.headingDeg,
@@ -323,6 +327,7 @@ describe('learner-ready shape (§8.3b)', () => {
         'groundSpeedKt',
         'headingDeg',
         'identity',
+        'mismatch',
         'pattern',
         'rangeM',
         'score',
@@ -354,6 +359,7 @@ describe('band crossings (06b)', () => {
       id: 'inject-05',
       source: 'inject',
       uaType: null,
+      broadcast: null,
       identity: 'non-cooperative',
       callsign: null,
       position: [-75.20547, 39.81341],
@@ -381,6 +387,7 @@ describe('band crossings (06b)', () => {
       siteId: 'phl-airfield',
       sites: PHL_SITES,
       friendly: false,
+      mismatch: null,
     },
   })
   const openedAt = (score: number) =>
@@ -449,6 +456,7 @@ describe('band crossings are forward only (#75 review)', () => {
       id: 'inject-05',
       source: 'inject',
       uaType: null,
+      broadcast: null,
       identity: 'non-cooperative',
       callsign: null,
       position: [-75.20547, 39.81341],
@@ -476,6 +484,7 @@ describe('band crossings are forward only (#75 review)', () => {
       siteId: 'phl-airfield',
       sites: PHL_SITES,
       friendly: false,
+      mismatch: null,
     },
   })
 
@@ -506,6 +515,7 @@ describe('pattern entries and the re-surface (05b, ruled on #5)', () => {
     id: 'inject-05',
     source: 'inject',
     uaType: null,
+    broadcast: null,
     identity: 'non-cooperative',
     callsign: null,
     position: [-75.20547, 39.81341],
@@ -709,6 +719,7 @@ describe('the friendly-launch guard on re-surface (08b, ruled on #86)', () => {
     id: 'inject-02',
     source: 'inject',
     uaType: null,
+    broadcast: null,
     identity: 'cooperative',
     callsign: 'UAS-A341',
     position: [-75.2819, 39.7859],
@@ -732,6 +743,7 @@ describe('the friendly-launch guard on re-surface (08b, ruled on #86)', () => {
       uncapped: score,
       capped: false,
       friendly: false,
+      mismatch: null,
       band: bandOf(score, SCORING.bands),
       factors: [],
       pattern: null,
@@ -773,5 +785,39 @@ describe('acknowledge (#101, ruled A6)', () => {
     const dismissed = appendEvent(opened(), 'dismiss', input())
     expect(() => appendEvent(dismissed, 'acknowledge', input())).toThrow(/illegal/)
     expect(canAct('dismissed', 'acknowledge')).toBe(false)
+  })
+})
+
+describe('the mismatch reading on the snapshot (S1, #132, opt-in S)', () => {
+  const observedAt: [number, number] = [-75.20547, 39.81341]
+  const track: InjectTrack = {
+    id: 'inject-06',
+    source: 'inject',
+    uaType: null,
+    broadcast: { label: 'UAS-8F21', position: destinationPoint(observedAt, 90, 1100) },
+    identity: 'non-cooperative',
+    callsign: null,
+    position: observedAt,
+    altitudeFt: 63,
+    onGround: false,
+    groundSpeedKt: 19.1,
+    headingDeg: 345.6,
+    verticalRateFpm: 85,
+    lastSeenSec: 0,
+  }
+  const context = { tSec: 0, minuteOfDay: 150, memory: {} }
+  const ranked = (t: InjectTrack): RankedTrack => {
+    const score = scoreTrack(t, AO.protectedSites, context)
+    return { track: t, rank: 1, rangeM: score.rangeM, siteId: score.siteId, score }
+  }
+
+  it('carries the reading the row made, and null when it made none', () => {
+    const snapshot = observedSnapshot(ranked(track))
+    expect(snapshot.mismatch).toMatchObject({ label: 'UAS-8F21' })
+    expect(snapshot.mismatch!.distanceM).toBeCloseTo(1100, 0)
+    expect(snapshot.factors.cooperativity).toBe(SCORING.cooperativity.mismatch)
+    expect(observedSnapshot(ranked({ ...track, broadcast: null })).mismatch).toBeNull()
+    // Two observed positions and a label the broadcast carried — nothing from the answer key.
+    expect(JSON.stringify(snapshot)).not.toMatch(/behavior|remoteId|silent|broadcasting/)
   })
 })

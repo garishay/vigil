@@ -51,6 +51,7 @@ function inject(over: Partial<GeneratedInjectTrack> = {}): GeneratedInjectTrack 
     behavior: 'transit',
     remoteId: 'silent',
     uaType: null,
+    broadcast: null,
     identity: 'non-cooperative',
     callsign: null,
     position: at(1000),
@@ -757,11 +758,11 @@ describe('the hand-computed scenario', () => {
     headingDeg: null,
   })
   //   B — heard Remote ID drone 10 km north, no heading broadcast, 20 kt, 200 ft.
-  //   cooperativity: heard → 25 × 25 % = 6.25
+  //   cooperativity: heard → 10 × 25 % = 2.5 (25 × 25 % = 6.25 before S1 lowered heard to 10)
   //   closing: heading not observed → 0
   //   proximity: 10 km on the 5 → 15 km ramp → 50 × 15 % = 7.5
   //   kinematic: inside the box → 10
-  //   time: 10                          → 33.75, scored as 33.8 ÷ 95 = 35.58
+  //   time: 10                          → 30, scored as 30 ÷ 95 = 31.58
   const C = adsb({
     id: 'adsb-c',
     icaoHex: 'c',
@@ -790,15 +791,15 @@ describe('the hand-computed scenario', () => {
   //                                      → 11.25, scored as 11.3 ÷ 95 = 11.89
   //
   //   The score is made from the weighted total to one decimal — the number the record prints —
-  //   which is why B, C, and D land a hair above the exact quotient (ruled on #63, round 2).
+  //   which is why C and D land a hair above the exact quotient (ruled on #63, round 2).
 
   it('matches the arithmetic', () => {
     const composite = (track: Track) => scoreTrack(track, SITES, NIGHT)
     expect(composite(A)).toMatchObject({ weighted: 80, total: 80 })
     expect(composite(A).composite).toBeCloseTo((80 / 95) * 100, 9)
-    expect(composite(B).weighted).toBeCloseTo(33.75, 9)
-    expect(composite(B).total).toBe(33.8)
-    expect(composite(B).composite).toBeCloseTo((33.8 / 95) * 100, 9)
+    expect(composite(B).weighted).toBeCloseTo(30, 9)
+    expect(composite(B).total).toBe(30)
+    expect(composite(B).composite).toBeCloseTo((30 / 95) * 100, 9)
     expect(composite(C)).toMatchObject({ composite: 30, total: 46.3, capped: true })
     expect(composite(C).uncapped).toBeCloseTo((46.3 / 95) * 100, 9)
     expect(composite(D).composite).toBeCloseTo((11.3 / 95) * 100, 9)
@@ -922,6 +923,7 @@ describe('scoreFromSnapshot (06b)', () => {
       siteId: 'phl-airfield',
       sites: PHL_SITES,
       friendly: false,
+      mismatch: null,
     }
     const score = scoreFromSnapshot(observed)
     expect(score.siteId).toBe('phl-airfield')
@@ -1000,6 +1002,7 @@ describe('the site tier (08a, ruled on #86)', () => {
       siteId: score.siteId,
       sites: score.sites,
       friendly: score.friendly,
+      mismatch: score.mismatch,
     })
     expect(rebuilt.sites).toBe(score.sites)
     expect(rebuilt.composite).toBe(score.composite)
@@ -1097,6 +1100,7 @@ describe('the friendly launch cap (08b, ruled on #86)', () => {
       siteId: score.siteId,
       sites: score.sites,
       friendly: score.friendly,
+      mismatch: score.mismatch,
     })
     expect(rebuilt.friendly).toBe(true)
     expect(rebuilt.capped).toBe(true)
@@ -1148,11 +1152,12 @@ describe('the corroboration line (#103, ruled)', () => {
         band: rerun.band,
       })
     }
-    // The fixture's numbers: 69 (caution) today, 49 (caution) if heard.
+    // The fixture's numbers: 69 (caution) today, 45 (caution) if heard — 49 before S1 lowered
+    // the heard value from 25 to 10 (#132, ruled A2).
     const today = scoreTrack(silent, SITES, NIGHT)
     expect(Math.round(today.composite)).toBe(69)
     const line = ifHeard(silent, today)!
-    expect(Math.round(line.composite)).toBe(49)
+    expect(Math.round(line.composite)).toBe(45)
     expect(line.band).toBe('caution')
     // The holding case reads its own score back: equal is an answer.
     const holding = scoreTrack({ ...silent, identity: 'unknown' }, SITES, {
@@ -1172,18 +1177,19 @@ describe('the corroboration line (#103, ruled)', () => {
   })
 
   it('reads the band off the printed whole number, as the chip does (#63): 69.7 prints 70 and reads warning', () => {
-    // Weights that land the heard composite between 69.5 and 70 (#112 review): cooperativity 15,
-    // kinematic 11, time 11, the geometry and pattern rows at 0 — heard 25 × 15/100 = 3.75, plus
-    // 11 + 11 = 25.75 → 25.8 to one decimal, over 37 → 69.73. Unrounded that is caution; the
-    // printed 70 is warning, and the literal word is what is pinned.
+    // Weights that land the heard composite between 69.5 and 70 (#112 review): cooperativity 25,
+    // kinematic 25, time 24, the geometry and pattern rows at 0 — heard 10 × 25/100 = 2.5, plus
+    // 25 + 24 = 51.5 to one decimal, over 74 → 69.59 (15 / 11 / 11 and 69.73 before S1 lowered
+    // heard to 10). Unrounded that is caution; the printed 70 is warning, and the literal word is
+    // what is pinned.
     const config = {
       ...SCORING,
-      weights: { cooperativity: 15, closing: 0, proximity: 0, pattern: 0, kinematic: 11, time: 11 },
+      weights: { cooperativity: 25, closing: 0, proximity: 0, pattern: 0, kinematic: 25, time: 24 },
     }
     const track = inject({ altitudeFt: 200, groundSpeedKt: 20 })
     const score = scoreTrack(track, SITES, { ...NIGHT, config })
     const line = ifHeard(track, score, config)!
-    expect(line.composite).toBeCloseTo(69.73, 2)
+    expect(line.composite).toBeCloseTo(69.59, 2)
     expect(Math.round(line.composite)).toBe(70)
     expect(line.band).toBe('warning')
     expect(bandOf(line.composite, config.bands)).toBe('caution')
@@ -1193,5 +1199,172 @@ describe('the corroboration line (#103, ruled)', () => {
     const config = { ...SCORING, weights: { ...SCORING.weights, cooperativity: 0 } }
     const score = scoreTrack(silent, SITES, { ...NIGHT, config })
     expect(ifHeard(silent, score, config)!.composite).toBe(score.composite)
+  })
+})
+
+describe('the mismatch reading (S1, #132, ruled A1–A4)', () => {
+  const CONSISTENT = { label: 'UAS-8F21', position: at(1000) }
+  /** The same broadcast claiming a point `metres` east of where the track is observed. */
+  const claiming = (metres: number) => ({
+    label: 'UAS-8F21',
+    position: destinationPoint(at(1000), 90, metres),
+  })
+  const heard = (over: Partial<GeneratedInjectTrack> = {}) =>
+    inject({
+      identity: 'cooperative',
+      callsign: 'UAS-8F21',
+      remoteId: 'broadcasting',
+      broadcast: CONSISTENT,
+      ...over,
+    })
+
+  it('reads a consistent broadcast as heard, at the ruled 10, and carries no reading', () => {
+    expect(SCORING.cooperativity.heard).toBe(10)
+    const score = scoreTrack(heard(), SITES, NIGHT)
+    expect(score.mismatch).toBeNull()
+    expect(factor(heard(), 'cooperativity')).toMatchObject({
+      value: 10,
+      detail: 'Remote ID heard this frame',
+    })
+    // An ADS-B track carries no broadcast field at all.
+    expect(scoreTrack(adsb(), SITES, NIGHT).mismatch).toBeNull()
+  })
+
+  it('reads a broadcast a kilometre or more from the track as the mismatch — silence’s value, with the evidence', () => {
+    const track = heard({ broadcast: claiming(1200) })
+    const score = scoreTrack(track, SITES, NIGHT)
+    expect(score.mismatch).toMatchObject({ label: 'UAS-8F21' })
+    expect(score.mismatch!.distanceM).toBeCloseTo(1200, 0)
+    expect(factor(track, 'cooperativity')).toMatchObject({
+      value: SCORING.cooperativity.mismatch,
+      detail: 'Remote ID broadcasts 1.2 km from the observed track',
+    })
+    expect(SCORING.cooperativity.mismatch).toBe(SCORING.cooperativity.silent)
+    // The threshold is the config's: a metre over reads the mismatch, a metre under is consistent.
+    const { mismatchM } = SCORING.cooperativity
+    expect(
+      scoreTrack(heard({ broadcast: claiming(mismatchM + 1) }), SITES, NIGHT).mismatch,
+    ).not.toBeNull()
+    expect(
+      scoreTrack(heard({ broadcast: claiming(mismatchM - 1) }), SITES, NIGHT).mismatch,
+    ).toBeNull()
+  })
+
+  it('reads the broadcast whatever the identity says, and scores the track as it would silent', () => {
+    // S2b’s shape for the threat: a sensor track with no ident of its own, a broadcast nearby
+    // that is not where the track is. The reading is the broadcast’s; the identity is not read.
+    const sensorTrack = inject({ broadcast: claiming(1100) })
+    const silent = inject()
+    const withMismatch = scoreTrack(sensorTrack, SITES, NIGHT)
+    expect(withMismatch.mismatch).toMatchObject({ label: 'UAS-8F21' })
+    expect(factor(sensorTrack, 'cooperativity').value).toBe(SCORING.cooperativity.mismatch)
+    expect(withMismatch.composite).toBe(scoreTrack(silent, SITES, NIGHT).composite)
+    // A cooperative identity does not soften it: the reading wins over the ident.
+    expect(scoreTrack(heard({ broadcast: claiming(1100) }), SITES, NIGHT).composite).toBe(
+      withMismatch.composite,
+    )
+  })
+
+  it('gives no corroboration line under the mismatch — the track is heard, falsely', () => {
+    const sensorTrack = inject({ broadcast: claiming(1100) })
+    expect(ifHeard(sensorTrack, scoreTrack(sensorTrack, SITES, NIGHT))).toBeNull()
+    // Without the broadcast the same silent track gets its line back.
+    expect(ifHeard(inject(), scoreTrack(inject(), SITES, NIGHT))).not.toBeNull()
+  })
+
+  it('rebuilds the reading from the record (opt-in S)', () => {
+    const score = scoreTrack(inject({ broadcast: claiming(1100) }), SITES, NIGHT)
+    const rebuilt = scoreFromSnapshot({
+      score: score.composite,
+      uncapped: score.uncapped,
+      pattern: score.pattern,
+      factors: Object.fromEntries(score.factors.map((f) => [f.id, f.value])) as Record<
+        FactorId,
+        number
+      >,
+      weights: Object.fromEntries(score.factors.map((f) => [f.id, f.weight])) as Record<
+        FactorId,
+        number
+      >,
+      rangeM: score.rangeM,
+      siteId: score.siteId,
+      sites: score.sites,
+      friendly: score.friendly,
+      mismatch: score.mismatch,
+    })
+    expect(rebuilt.mismatch).toEqual(score.mismatch)
+  })
+
+  it('reads a heard, consistent drone calm when it is not closing and names no pattern — at the worst geometry (ruled A2)', () => {
+    // A hover a metre outside the ring, low and slow, at 02:30: closing 0 (not moving), proximity
+    // 100, kinematic 100, off-hours 100, Identity 10 — 37.5 of 95, which prints 39 (the gate’s
+    // check 1). Within hours the same track reads 29.
+    const hover = heard({
+      position: at(5001),
+      broadcast: { label: 'UAS-8F21', position: at(5001) },
+      groundSpeedKt: 0,
+      headingDeg: null,
+      altitudeFt: 200,
+    })
+    const night = scoreTrack(hover, SITES, NIGHT)
+    expect(night.total).toBe(37.5)
+    expect(Math.round(night.composite)).toBe(39)
+    expect(night.band).toBe('calm')
+    const day = scoreTrack(hover, SITES, DAY)
+    expect(Math.round(day.composite)).toBe(29)
+    expect(day.band).toBe('calm')
+  })
+})
+
+describe('a lying broadcast vouches for nothing (#140 round 1)', () => {
+  // S2b's realistic shape until the association rule lands: the generator marks a heard frame
+  // cooperative, and the broadcast it heard claims a point 1.1 km from where the track is.
+  const lying = inject({
+    identity: 'cooperative',
+    callsign: 'UAS-8F21',
+    remoteId: 'broadcasting',
+    broadcast: { label: 'UAS-8F21', position: destinationPoint(at(1000), 90, 1100) },
+  })
+  const silent = inject()
+
+  it('is not a friendly launch — the cap does not swallow the reading, and the score equals silence', () => {
+    // First seen inside a declared friendly area, heard this frame: the friendly condition's
+    // easiest case, and the one place the reading must not be capped away.
+    const pad = { id: 'area-1', name: 'Drone unit pad', center: at(1000), radiusM: 500 }
+    const context: ScoringContext = {
+      ...NIGHT,
+      friendly: [pad],
+      origins: { 'inject-01': at(1000) },
+    }
+    const score = scoreTrack(lying, SITES, context)
+    expect(score.mismatch).toMatchObject({ label: 'UAS-8F21' })
+    expect(score.friendly).toBe(false)
+    expect(score.capped).toBe(false)
+    expect(score.composite).toBe(scoreTrack(silent, SITES, context).composite)
+    // The same broadcast, consistent, from the same pad: friendly, capped — 08b as ruled.
+    const consistent = { ...lying, broadcast: { label: 'UAS-8F21', position: at(1000) } }
+    expect(scoreTrack(consistent, SITES, context)).toMatchObject({ friendly: true, capped: true })
+  })
+
+  it('does not stamp the identity memory, so a spoofer that goes quiet reads as never heard', () => {
+    expect(rememberIdentities({}, [lying], 100)).toEqual({
+      'inject-01': { lastHeardTSec: null },
+    })
+    const consistent = { ...lying, broadcast: { label: 'UAS-8F21', position: at(1000) } }
+    expect(rememberIdentities({}, [consistent], 100)).toEqual({
+      'inject-01': { lastHeardTSec: 100 },
+    })
+    // The frame after the lying broadcast stops: silence's 100, not the dwell's 10 "holding".
+    const memory = rememberIdentities({}, [lying], 100)
+    const quiet = { ...lying, identity: 'unknown' as const, callsign: null, broadcast: null }
+    expect(factor(quiet, 'cooperativity', { ...NIGHT, tSec: 110, memory })).toMatchObject({
+      value: SCORING.cooperativity.silent,
+      detail: 'no ident heard',
+    })
+    // The threshold is the config's here too: a sweep that widens it hears the same broadcast.
+    const wide = { ...SCORING.cooperativity, mismatchM: 2000 }
+    expect(rememberIdentities({}, [lying], 100, wide)).toEqual({
+      'inject-01': { lastHeardTSec: 100 },
+    })
   })
 })

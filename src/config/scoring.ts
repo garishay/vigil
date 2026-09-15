@@ -43,16 +43,23 @@ export interface ScoringConfig {
   /** §6 default weights. The composite normalizes by their sum, so the scale is always 0–100. */
   weights: Record<FactorId, number>
   /**
-   * The cooperativity spectrum, as factor values: ADS-B near the floor, a heard Remote ID low,
-   * a track that has gone quiet degrading toward Unknown, a track never heard at the top.
-   * `dwellS` holds the heard value after the last ident; `decayS` is the linear run from there
-   * to the Unknown plateau. Both are observed history — nothing reads the generator's label.
+   * The cooperativity spectrum, as factor values: ADS-B near the floor, a heard Remote ID whose
+   * broadcast position is consistent low, a track that has gone quiet degrading toward Unknown,
+   * a track never heard at the top, and a heard broadcast that lies `mismatchM` or more from the
+   * observed track at the top with it — the mismatch reading (S1, #132, ruled): a broadcast that
+   * says the drone is somewhere else is not an ident, and reads as silence does; what it adds is
+   * the explanation, on the row, in the drawer, and on the handoff. `dwellS` holds the heard
+   * value after the last ident; `decayS` is the linear run from there to the Unknown plateau.
+   * All of it is observed — nothing reads the generator's label.
    */
   cooperativity: {
     adsb: number
     heard: number
     unknown: number
     silent: number
+    mismatch: number
+    /** Metres between the broadcast position and the observed track at which a heard broadcast is a mismatch. */
+    mismatchM: number
     dwellS: number
     decayS: number
   }
@@ -122,7 +129,20 @@ export interface ScoringConfig {
 
 export const SCORING: ScoringConfig = {
   weights: { cooperativity: 25, closing: 20, proximity: 15, pattern: 15, kinematic: 10, time: 10 },
-  cooperativity: { adsb: 5, heard: 25, unknown: 70, silent: 100, dwellS: 30, decayS: 120 },
+  cooperativity: {
+    adsb: 5,
+    // 10, not 25 (S1, #132, ruled A2): a heard, consistent drone that is not closing and names no
+    // pattern reads calm at the worst geometry — a hover at the ring's edge, low and slow, off
+    // hours — 37.5 of 95, which prints 39. The study's recording plays within hours, where the
+    // same case reads 29.
+    heard: 10,
+    unknown: 70,
+    silent: 100,
+    mismatch: 100,
+    mismatchM: 1000,
+    dwellS: 30,
+    decayS: 120,
+  },
   closing: { cpaRolloffRadii: 3, tcpaFullMin: 2, tcpaZeroMin: 20 },
   proximity: { rolloffRadii: 3 },
   tierMultiplier: { 1: 1, 2: 0.5 },

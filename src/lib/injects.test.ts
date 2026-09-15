@@ -461,3 +461,22 @@ describe('guardrails (§2)', () => {
     }
   })
 })
+
+describe('the Remote ID broadcast on the picture (S1, #132, ruled A3)', () => {
+  const plan = planScenario(TIMELINE)
+
+  it('rides with the ident — heard together, lost together — and claims the observed position', () => {
+    for (const tMs of TIMELINE.frameTimesMs) {
+      for (const track of injectTracksAt(plan, tMs / 1000)) {
+        if (track.callsign === null) expect(track.broadcast).toBeNull()
+        else expect(track.broadcast).toEqual({ label: track.callsign, position: track.position })
+      }
+    }
+    // The golden exercises both: a broadcasting inject always carries one, a silent one never.
+    const frame0 = injectTracksAt(plan, 0)
+    expect(frame0.some((track) => track.broadcast !== null)).toBe(true)
+    expect(frame0.some((track) => track.broadcast === null)).toBe(true)
+    // The generator's own record carries it too — the golden's diff is this field and nothing else.
+    expect(allTracks(golden).every((track) => 'broadcast' in track)).toBe(true)
+  })
+})

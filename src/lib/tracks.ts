@@ -110,6 +110,19 @@ export interface AdsbTrack extends TrackBase {
 export type UaType = 'multirotor' | 'aeroplane' | 'hybrid-lift'
 
 /**
+ * The Remote ID broadcast heard this frame, as the message carries it (ASTM F3411, public
+ * context): the label it identifies as, and the position it claims to be at. Observed — it is the
+ * content of a message that arrived — and so the scorer may read it (S1, #132): a broadcast whose
+ * position lies a kilometre from the track the sensor observes is the mismatch reading. The
+ * generator fills the position with the observed one; a scenario offset is S2b's (#134).
+ */
+export interface RemoteIdBroadcast {
+  label: string
+  /** [longitude, latitude] — where the broadcast says the aircraft is. */
+  position: [number, number]
+}
+
+/**
  * A simulated small UAS as the picture sees it. The only kind of track that can score as a
  * threat. Carries no answer key: the behavior it was scripted with and the Remote ID status it
  * was dealt stay on `GeneratedInjectTrack`, which the picture is never handed (#115, ruling 2).
@@ -123,6 +136,8 @@ export interface InjectTrack extends TrackBase {
    * a silent inject reads null on every frame. Display only (#22); nothing scores it.
    */
   uaType: UaType | null
+  /** The broadcast heard this frame, on the same heard-or-not rule as `callsign`; null otherwise. */
+  broadcast: RemoteIdBroadcast | null
 }
 
 /**

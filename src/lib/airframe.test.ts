@@ -33,6 +33,7 @@ const inject = (extra: Partial<GeneratedInjectTrack> = {}): GeneratedInjectTrack
   behavior: 'loiter',
   remoteId: 'silent',
   uaType: null,
+  broadcast: null,
   identity: 'non-cooperative',
   callsign: null,
   position: [-75.20547, 39.81341],
