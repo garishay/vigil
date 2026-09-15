@@ -4,7 +4,7 @@
  * in km from the AO centre, never a coordinate (§5.2). The generator has three cast behaviors
  * (S2a, #133); the six kinds compose them rather than adding a fourth: a hover is a shuttle over
  * 30 m at 1 kt with its leg laid radially outward, so the range never dips under the placement's
- * — heard and under 2 kt, the study audit's word for hovering; a mover is a shuttle on a 12 km
+ * — heard and under 2 kt, the study audit's word for hovering; a mover is a shuttle on a 13 km
  * leg, longer than a recording flies at 20 kt, so it never turns.
  *
  * A leg's far end is computed on the local plane from the placement's own polar numbers: at the
@@ -15,6 +15,8 @@
 import type { CastEntry, Placement } from '../scenario.ts'
 
 const rad = (deg: number) => (deg * Math.PI) / 180
+/** To a tenth of a degree — the file holds clean numbers, not the sum's floating-point tail. */
+const tenth = (deg: number) => Math.round(deg * 10) / 10
 
 /** A placement, written as the cast table reads: bearing° / km from the AO centre. */
 export const at = (bearingDeg: number, rangeKm: number): Placement => ({ bearingDeg, rangeKm })
@@ -24,14 +26,11 @@ export function along(from: Placement, courseDeg: number, m: number): Placement 
   const x = from.rangeKm * 1000 * Math.sin(rad(from.bearingDeg)) + m * Math.sin(rad(courseDeg))
   const y = from.rangeKm * 1000 * Math.cos(rad(from.bearingDeg)) + m * Math.cos(rad(courseDeg))
   const bearingDeg = ((Math.atan2(x, y) * 180) / Math.PI + 360) % 360
-  return {
-    bearingDeg: Math.round(bearingDeg * 10) / 10,
-    rangeKm: Math.round(Math.hypot(x, y)) / 1000,
-  }
+  return { bearingDeg: tenth(bearingDeg), rangeKm: Math.round(Math.hypot(x, y)) / 1000 }
 }
 
-/** A mover's leg: longer than the recording at 20 kt (12.2 km in 1 185 s), so it never turns. */
-export const LEG_M = 12_000
+/** A mover's leg: 13 km, past the 12.2 km a 20 kt track flies in the recording's 1 185 s, so it never turns (#145 round 1). */
+export const LEG_M = 13_000
 /** A hover's leg: still to the picture, the detector names loiter; under 2 kt to the audit. */
 export const HOVER_LEG_M = 30
 
@@ -117,7 +116,7 @@ export const threat = (
 
 const turn = (place: Placement, deg: number): Placement => ({
   ...place,
-  bearingDeg: (place.bearingDeg + deg + 360) % 360,
+  bearingDeg: tenth((place.bearingDeg + deg + 360) % 360),
 })
 
 /** The same entry on other bearings: every placement and course turned by `deg` about the centre. */
@@ -129,7 +128,7 @@ export function rotated(entry: CastEntry, deg: number): CastEntry {
       return {
         ...entry,
         from: turn(entry.from, deg),
-        courseDeg: (entry.courseDeg + deg + 360) % 360,
+        courseDeg: tenth((entry.courseDeg + deg + 360) % 360),
         orbit: { ...entry.orbit, center: turn(entry.orbit.center, deg) },
       }
     case 'return-to-launch':

@@ -9,7 +9,7 @@ import { SCORING } from './scoring'
 import type { AdsbCapture } from '../lib/adsb'
 import { scenarioFeed } from '../lib/feeds'
 import { destinationPoint, distanceMeters } from '../lib/geo'
-import { injectTracksAt, timelineOf } from '../lib/injects'
+import { gridTimeline, injectTracksAt, planScenario, timelineOf } from '../lib/injects'
 import { entryAt } from '../lib/projection'
 import { historiesAt, indexCapture, memoryAt, originsOf } from '../lib/replay'
 import { bandOf, scoreTrack } from '../lib/scoring'
@@ -316,4 +316,27 @@ describe('the study casts on the 1 Hz grid, through the feed (S3b, #135, ruled)'
       }
     }
   }, 120_000)
+})
+
+describe('the movers never turn inside the recording (#145 round 1)', () => {
+  it('lays a leg past what 20 kt flies in 1 185 s, and every mover holds its heading from the first frame to the last', () => {
+    // 002 is 80 frames at 15 s — 1 185 s; at 20 kt that is 12.2 km. A 12 km leg ran out 19 s
+    // early and two movers turned around; the leg is 13 km, and the heading at the last tick is
+    // the heading at the first, for every straight mover of both casts (the 1 km shuttle turns
+    // by design; a hover's leg is 30 m).
+    const lastS = 79 * 15
+    expect(LEG_M).toBeGreaterThan(20 * 0.514444 * lastS)
+    for (const config of STUDY) {
+      const plan = planScenario(gridTimeline(80, 15000), config)
+      const movers = cast(config)
+        .map((entry, i) => ({ entry, id: `inject-${11 + i}` }))
+        .filter(({ entry }) => kind(entry) === 'mover' || kind(entry) === 'silent mover')
+      expect(movers).toHaveLength(10)
+      for (const { id } of movers) {
+        const first = injectTracksAt(plan, 0).find((track) => track.id === id)!
+        const last = injectTracksAt(plan, lastS).find((track) => track.id === id)!
+        expect(last.headingDeg).toBeCloseTo(first.headingDeg!, 0)
+      }
+    }
+  })
 })
