@@ -142,7 +142,8 @@ export function recordingFeed(
 /**
  * The scenario as a feed: the same seam, sampled continuously from the plan, on the active
  * clock's origin — a recording's own frame times (ruling 5; #39 A). An inject is in the picture
- * on every tick, so it neither coasts nor ages.
+ * on every tick from its start — a cast inject may appear later (S2a, #133) — so it neither
+ * coasts nor ages.
  */
 export interface ScenarioFeed extends Picture {
   readonly seed: string

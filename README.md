@@ -50,7 +50,7 @@ flowchart LR
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
-      cfg["config/scenario.ts<br/>seed · envelope · launch points"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 behaviors · 3 Remote ID states · UA type"]
+      cfg["config/scenario.ts<br/>seed · envelope · launch points · the cast"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 dealt behaviors · 3 cast behaviors, scripted · 3 Remote ID states · UA type"]
       gold[("lib/__fixtures__/injects-&lt;seed&gt;.json<br/>golden: same seed, same picture")]
     end
     ao["config/ao.ts<br/>AO: center · bbox · time zone · protected sites with their tier"]

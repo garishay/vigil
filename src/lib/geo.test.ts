@@ -5,6 +5,7 @@ import {
   closestApproach,
   destinationPoint,
   distanceMeters,
+  firstMeeting,
   offsetPoint,
   round,
 } from './geo'
@@ -175,5 +176,71 @@ describe('round', () => {
 
   it('lets NaN through rather than laundering it into a zero', () => {
     expect(round(NaN, 2)).toBeNaN()
+  })
+})
+
+describe('firstMeeting (S2a, #133)', () => {
+  const north = (m: number) => destinationPoint(PHL_CENTER, 0, m)
+
+  it('finds the first point on the circle when the course runs straight through its centre', () => {
+    // Centre 3 km north, radius 800 m, heading north: the circle is met 2 200 m along.
+    const meeting = firstMeeting(PHL_CENTER, 0, north(3000), 800)
+    expect(meeting.alongM).toBeCloseTo(2200, -1)
+    expect(meeting.acrossM).toBeCloseTo(0, 0)
+    expect(meeting.behind).toBe(false)
+  })
+
+  it('takes the chord into account when the course passes abeam of the centre', () => {
+    // Centre 3 km ahead and 500 m to the east: 3000 − √(800² − 500²) = 2375.5 m along.
+    const center = destinationPoint(north(3000), 90, 500)
+    const meeting = firstMeeting(PHL_CENTER, 0, center, 800)
+    expect(meeting.alongM).toBeCloseTo(2375.5, 0)
+    expect(meeting.acrossM).toBeCloseTo(500, 0)
+  })
+
+  it('reports a miss with the distance off the course, and a circle behind the origin as behind', () => {
+    const wide = firstMeeting(PHL_CENTER, 0, destinationPoint(north(3000), 90, 1000), 800)
+    expect(wide.alongM).toBeNull()
+    expect(wide.acrossM).toBeCloseTo(1000, 0)
+    expect(wide.behind).toBe(false)
+    const behind = firstMeeting(PHL_CENTER, 180, north(3000), 800)
+    expect(behind.alongM).toBeNull()
+    expect(behind.behind).toBe(true)
+    // An origin already inside the circle has no first meeting ahead either.
+    expect(firstMeeting(PHL_CENTER, 0, north(300), 800).alongM).toBeNull()
+  })
+
+  it('agrees with the spherical step back: the point it names lies on the circle', () => {
+    const center = destinationPoint(north(3000), 90, 500)
+    const meeting = firstMeeting(PHL_CENTER, 0, center, 800)
+    const point = destinationPoint(PHL_CENTER, 0, meeting.alongM!)
+    expect(distanceMeters(center, point)).toBeCloseTo(800, 0)
+  })
+})
+
+describe('firstMeeting — the side and the inside (#142 round 1)', () => {
+  const north = (m: number) => destinationPoint(PHL_CENTER, 0, m)
+
+  it('signs the across distance by side: a centre to the left of the course reads negative', () => {
+    const right = firstMeeting(PHL_CENTER, 0, destinationPoint(north(3000), 90, 500), 800)
+    const left = firstMeeting(PHL_CENTER, 0, destinationPoint(north(3000), 270, 500), 800)
+    expect(right.acrossM).toBeCloseTo(500, 0)
+    expect(left.acrossM).toBeCloseTo(-500, 0)
+    expect(left.alongM).toBeCloseTo(right.alongM!, 0)
+    // The same geometry on a southbound course flips the side.
+    const south = firstMeeting(north(6000), 180, destinationPoint(north(3000), 90, 500), 800)
+    expect(south.acrossM).toBeCloseTo(-500, 0)
+  })
+
+  it('tells an origin already inside the circle apart from a miss and from a circle behind', () => {
+    const inside = firstMeeting(PHL_CENTER, 0, north(300), 800)
+    expect(inside).toMatchObject({ alongM: null, inside: true, behind: false })
+    const atCentre = firstMeeting(PHL_CENTER, 0, PHL_CENTER, 800)
+    expect(atCentre).toMatchObject({ alongM: null, inside: true })
+    expect(firstMeeting(PHL_CENTER, 0, north(3000), 800).inside).toBe(false)
+    expect(firstMeeting(PHL_CENTER, 180, north(3000), 800)).toMatchObject({
+      inside: false,
+      behind: true,
+    })
   })
 })
