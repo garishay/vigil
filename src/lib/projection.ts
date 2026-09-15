@@ -1,8 +1,9 @@
 /**
  * Time to entry into a protected site, by dead reckoning (#102, ruled) — the decision number
- * behind the closing and proximity factors, displayed: "ninety seconds to the north gate", not a
- * score. Pure — no React, no map, no I/O — so the feeds seam (#115) and a live feed (#72) can
- * call it over whatever produced the picture.
+ * behind the geometry factors, displayed: "ninety seconds to the north gate", not a score; and
+ * since the closing lever (S3a, #135, ruled A1) the Closing factor's own input, `entryAt`, one
+ * geometry for the row and the factor. Pure — no React, no map, no I/O — so the feeds seam
+ * (#115) and a live feed (#72) can call it over whatever produced the picture.
  *
  * Straight-line projection from the observed position, on the observed ground track at the
  * observed ground speed, over the configured horizon, against every protected site: the moment
@@ -29,7 +30,9 @@
  * was last heard rather than at an estimate of now, and only that track carries the age out for
  * the display to say so.
  *
- * A display value, not a factor: nothing in the scoring path imports this module.
+ * The row is a display value, not a factor; the geometry under it is the factor's: `scoring.ts`
+ * imports `entryAt`, and nothing else from here — `timeToEntry`, its horizon, and the entry
+ * point stay the display's.
  */
 
 import type { ProtectedSite, SiteTier } from '../config/ao.ts'
