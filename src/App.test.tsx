@@ -337,6 +337,8 @@ describe('App shell', () => {
     useSession.mockReturnValue({ status: 'loading' })
     render(<App schedule={never} />)
     expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('…')
+    // The seed too: no scenario is in force until the session is (#145 round 2).
+    expect(screen.getByText('Seed').nextSibling).toHaveTextContent('…')
     expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '0')
   })
 
@@ -362,6 +364,7 @@ describe('App shell', () => {
     expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('—')
     expect(screen.getByText('Injects').nextSibling).toHaveTextContent('—')
     expect(screen.getByText('Recording').nextSibling).toHaveTextContent('—')
+    expect(screen.getByText('Seed').nextSibling).toHaveTextContent('—')
     expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '0')
   })
 
@@ -372,6 +375,8 @@ describe('App shell', () => {
     render(<App schedule={never} />)
     expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2')
     expect(screen.getByText('Injects').nextSibling).toHaveTextContent('0')
+    // No scenario, no seed to reproduce it from: a dash, not the config's (#145 round 2).
+    expect(screen.getByText('Seed').nextSibling).toHaveTextContent('—')
     expect(screen.getByTestId('map')).toHaveAttribute('data-injects', '0')
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')

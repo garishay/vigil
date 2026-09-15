@@ -340,3 +340,18 @@ describe('the movers never turn inside the recording (#145 round 1)', () => {
     }
   })
 })
+
+describe('the rotation turns a broadcast offset with the track (#145 round 2)', () => {
+  it('keeps the lie on the same side of its track: 02a’s threat turned 225° claims its broadcast on 315°, not 90°', () => {
+    const turned = rotated(cast(SCENARIO_02A)[0], 225)
+    expect(turned).toMatchObject({
+      from: at(110, 7.2),
+      courseDeg: 290,
+      orbit: { center: at(105, 3.0), radiusM: 800 },
+      broadcastOffset: { bearingDeg: 315, distanceM: 1100 },
+    })
+    // An entry without an offset is turned as before, and nothing else on the entry moves.
+    expect(rotated(cast(SCENARIO_02A)[1], 225).broadcastOffset).toBeUndefined()
+    expect(rotated(cast(SCENARIO_02A)[0], 360)).toEqual(cast(SCENARIO_02A)[0])
+  })
+})

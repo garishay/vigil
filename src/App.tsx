@@ -12,7 +12,6 @@ import { CONTACTS, type ContactId } from './config/contacts'
 import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { DEFAULT_RECORDING } from './config/recordings'
 import { REPLAY } from './config/replay'
-import { SCENARIO } from './config/scenario'
 import { SCORING } from './config/scoring'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useSession } from './data/useSession'
@@ -603,7 +602,7 @@ export default function App({
   const statusFields = [
     { label: 'Cooperative', value: count(adsb.length) },
     { label: 'Injects', value: count(injects.length) },
-    { label: 'Seed', value: scenario?.seed ?? SCENARIO.seed },
+    { label: 'Seed', value: ready ? (scenario?.seed ?? '—') : pending },
     // The recording and the day it was flown (#84, ruled), and the clock it opens: held back with
     // the counts until the recording is in, since all three are read off the loaded file.
     {

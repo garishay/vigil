@@ -119,19 +119,27 @@ const turn = (place: Placement, deg: number): Placement => ({
   bearingDeg: tenth((place.bearingDeg + deg + 360) % 360),
 })
 
-/** The same entry on other bearings: every placement and course turned by `deg` about the centre. */
+/**
+ * The same entry on other bearings: every placement and course turned by `deg` about the centre
+ * — a broadcast offset's bearing too, so a lie stays on the same side of its track (#145 round 2).
+ */
 export function rotated(entry: CastEntry, deg: number): CastEntry {
-  switch (entry.behavior) {
+  const offset = entry.broadcastOffset && {
+    ...entry.broadcastOffset,
+    bearingDeg: tenth((entry.broadcastOffset.bearingDeg + deg + 360) % 360),
+  }
+  const turned = offset ? { ...entry, broadcastOffset: offset } : entry
+  switch (turned.behavior) {
     case 'shuttle':
-      return { ...entry, from: turn(entry.from, deg), to: turn(entry.to, deg) }
+      return { ...turned, from: turn(turned.from, deg), to: turn(turned.to, deg) }
     case 'transit-orbit':
       return {
-        ...entry,
-        from: turn(entry.from, deg),
-        courseDeg: tenth((entry.courseDeg + deg + 360) % 360),
-        orbit: { ...entry.orbit, center: turn(entry.orbit.center, deg) },
+        ...turned,
+        from: turn(turned.from, deg),
+        courseDeg: tenth((turned.courseDeg + deg + 360) % 360),
+        orbit: { ...turned.orbit, center: turn(turned.orbit.center, deg) },
       }
     case 'return-to-launch':
-      return { ...entry, from: turn(entry.from, deg), pad: turn(entry.pad, deg) }
+      return { ...turned, from: turn(turned.from, deg), pad: turn(turned.pad, deg) }
   }
 }
