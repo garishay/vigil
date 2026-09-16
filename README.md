@@ -256,7 +256,7 @@ as a numbered hop on its path, each threat's trail and ring entry, and the analy
 _never opened_ overlay, drawn identically in both conditions (S5b). The threats are the bench's
 roles table (`scripts/study.ts`), one on 02a and 02b, two on 03a and 03b; a 03 run's CSV row
 carries the attention numbers beside the standoff — the non-threats opened before any threat, each
-threat's first open and standoff, the false escalations (tracks that never enter the ring) and the
+threat's first open and standoff, the false escalations (tracks that never enter the ring, and any real aircraft) and the
 escalations of later entrants on their own column, the order — and its frame freezes at the last
 threat's escalation with one decision line per threat (S5c-i). The Vigil annotations, the paired
 frame with one row per threat, and the study figure follow in S5c-ii and S5d.

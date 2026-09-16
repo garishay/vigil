@@ -8,7 +8,7 @@ import { pictureAt } from '../../src/lib/replay.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
 import { BEYOND_S, runMetrics, threatsOf } from './metrics.ts'
-import { entrySecondOf } from './regenerate.ts'
+import { rangeM, SITE } from './regenerate.ts'
 
 // Vitest runs from the repo root, as the tool does; the fixtures are named from there.
 const fixturePath = (name: string) => `tools/replay/__fixtures__/${name}`
@@ -494,41 +494,53 @@ describe('runMetrics — the hand calculation on the 03 fixtures (S5c-i, #138 re
 describe('the attention numbers — round 1 (#159)', () => {
   const on03a = (events: RunEvent[]) =>
     runMetrics(record(events, { scenario: '03a', mode: 'raw' }), study.index, plans['03a'])
-  const plan = plans['03a']
   const durationS = study.index.durationS
 
-  it('classes an escalated real aircraft from the recording: inside the run throws, never entering is false, entering after the run is a later entrant', () => {
-    // A PHL arrival crossing the ring inside the run: the third class, refused in words.
-    expect(entrySecondOf(study.index, plan, 'adsb-a43667', 0, durationS)).toBe(527)
-    expect(() =>
+  it('counts an escalated real aircraft false whatever its path — inside the run, after it, or never — and never throws for one (#36 [40] B)', () => {
+    // A real track's ring entry from the recording's own picture, for the pin's facts alone: the
+    // tool reads no real track's path any more.
+    const realEntry = (id: string) => {
+      for (let tSec = 0; tSec <= durationS; tSec++) {
+        const track = pictureAt(study.index, tSec).find((candidate) => candidate.id === id)
+        if (track && rangeM(track, SITE) <= SITE.radiusM) return tSec
+      }
+      return null
+    }
+    // A PHL arrival crossing the ring inside the run: at scenario second 527, 03a's Begin + 47.
+    expect(realEntry('adsb-a43667')).toBe(527)
+    expect(
       on03a([
         { t: 10, type: 'select', track: 'adsb-a43667' },
         { t: 20, type: 'escalate', track: 'adsb-a43667' },
       ]),
-    ).toThrow(
-      'S09 run 1: adsb-a43667 is not a threat but is inside the ring within the run (entry 47 s from Begin) — neither a never-entrant nor a later entrant',
-    )
-    // Real tracks in the picture at Begin + 10, classed by the recording's own positions.
+    ).toMatchObject({ falseEscalations: 1, escalationsOfLaterEntrants: 0 })
+    // One that never enters inside the recording, and one entering after the window: false too.
     const real = pictureAt(study.index, STUDY.beginS + 10)
-    const entries = real.map(
-      (track) => [track.id, entrySecondOf(study.index, plan, track.id, 0, durationS)] as const,
-    )
+    const entries = real.map((track) => [track.id, realEntry(track.id)] as const)
     const never = entries.find(([, entry]) => entry === null)!
     const later = entries.find(([, entry]) => entry !== null && entry - STUDY.beginS > 218)!
     expect(never).toBeDefined()
     expect(later).toBeDefined()
+    for (const [id] of [never, later]) {
+      expect(
+        on03a([
+          { t: 10, type: 'select', track: id },
+          { t: 12, type: 'escalate', track: id },
+        ]),
+      ).toMatchObject({ falseEscalations: 1, escalationsOfLaterEntrants: 0 })
+    }
+    // The entry classes and their throws are the injects': the hover as cut is false, a band
+    // row a later entrant, and the two synthetic rows above still refuse.
     expect(
       on03a([
-        { t: 10, type: 'select', track: never[0] },
-        { t: 12, type: 'escalate', track: never[0] },
+        { t: 10, type: 'select', track: 'inject-13' },
+        { t: 20, type: 'escalate', track: 'inject-13' },
+        { t: 30, type: 'select', track: 'inject-42' },
+        { t: 40, type: 'escalate', track: 'inject-42' },
+        { t: 50, type: 'select', track: 'adsb-a43667' },
+        { t: 60, type: 'escalate', track: 'adsb-a43667' },
       ]),
-    ).toMatchObject({ falseEscalations: 1, escalationsOfLaterEntrants: 0 })
-    expect(
-      on03a([
-        { t: 10, type: 'select', track: later[0] },
-        { t: 12, type: 'escalate', track: later[0] },
-      ]),
-    ).toMatchObject({ falseEscalations: 0, escalationsOfLaterEntrants: 1 })
+    ).toMatchObject({ falseEscalations: 2, escalationsOfLaterEntrants: 1 })
   })
 
   it('settles a tie between a bait’s open and the first threat’s open by record position, as every tie is', () => {

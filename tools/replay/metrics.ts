@@ -7,10 +7,11 @@
  * centre less the ring's radius, signed, metres exact; the figure rounds it — whether it was
  * missed, and its ring entry over the whole recording, from Begin. The freeze is the last
  * threat's first Escalate, or the scenario's own window when any threat is missed; S5a's fields
- * read threat 1's. Every escalation of a non-threat is classed by that track's ring entry over
- * the recording, an inject's from the plan and a real track's from the recording: never
- * entering is a false escalation; entering after the run is a later entrant, its own count,
- * folded into neither; anything else — inside the ring within the run, or an inject whose plan
+ * read threat 1's. Every escalation of a non-threat: a track from the recording's real layer —
+ * an aircraft — counts false whatever its path, since the brief calls escalating one an error
+ * (#36 [40] B); an inject is classed by its ring entry over the recording, read from the plan:
+ * never entering is a false escalation; entering after the run is a later entrant, its own
+ * count, folded into neither; anything else — inside the ring within the run, or a plan that
  * enters past the recording's end — cannot be read and throws in words. Looks before first
  * correct are the selections before the first Escalate on any threat — every look when none is.
  * Opened before the first threat is the distinct non-threats selected before any threat is,
@@ -25,7 +26,7 @@ import type { InjectPlan } from '../../src/lib/injects.ts'
 import type { ReplayIndex } from '../../src/lib/replay.ts'
 import type { RunAnswers, RunRecord } from '../../src/lib/run.ts'
 import type { Mode } from '../../src/lib/session.ts'
-import { entrySecond, entrySecondOf, rangeM, SITE, trackAtSecond } from './regenerate.ts'
+import { entrySecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 
 /** One threat's numbers (#138 re-gate; the #131 amendment): its first open, its first Escalate, the standoff then, its entry. */
 export interface ThreatMetrics {
@@ -136,16 +137,18 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
   // The freeze: the last threat's first Escalate, or the run's end when any threat is missed —
   // one threat, and it is that threat's Escalate or the miss, as S5a wrote it.
   const freezeT = anyMiss ? runS : Math.max(...threats.map((threat) => threat.timeToEscalateS!))
-  // Every escalation of a non-threat, classed by the track's ring entry over the recording (the
-  // addendum on #138) — an inject's from the plan, a real track's from the recording (round 1):
-  // never entering is false; entering after the run is a later entrant.
+  // Every escalation of a non-threat: a track from the recording's real layer counts false
+  // whatever its path — the brief calls escalating an aircraft an error (#36 [40] B, round 2);
+  // an inject is classed by its ring entry over the recording (the addendum on #138): never
+  // entering is false, entering after the run is a later entrant.
   const others = record.events.filter(
     (event) => event.type === 'escalate' && !threatIds.includes(event.track),
   )
+  const isInject = (id: string) => plan.specs.some((spec) => spec.id === id)
   const entryOf = new Map<string, number | null>()
   for (const event of others) {
-    if (entryOf.has(event.track)) continue
-    const entry = entrySecondOf(index, plan, event.track, 0, index.durationS)
+    if (!isInject(event.track) || entryOf.has(event.track)) continue
+    const entry = entrySecond(plan, event.track, 0, index.durationS)
     entryOf.set(event.track, entry)
     // The addendum's two classes are the four casts' only ones (the bench's line 2, its entry
     // list); a run that escalates anything else cannot be read and says so (E5, extended).
@@ -154,10 +157,8 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
         `${record.subject} run ${record.run}: ${event.track} is not a threat but is inside the ring within the run (entry ${entry - beginS} s from Begin) — neither a never-entrant nor a later entrant`,
       )
     }
-    // The plan runs on past the recording; the recording does not, so a real track that never
-    // enters inside it is a never-entrant as far as the run can know.
     const beyond =
-      entry === null && plan.specs.some((spec) => spec.id === event.track)
+      entry === null
         ? entrySecond(plan, event.track, index.durationS + 1, index.durationS + BEYOND_S)
         : null
     if (beyond !== null) {
@@ -200,7 +201,9 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
     standoffM: first.standoffM,
     timeToEscalateS: first.timeToEscalateS,
     miss: first.miss,
-    falseEscalations: others.filter((event) => (entryOf.get(event.track) ?? null) === null).length,
+    falseEscalations: others.filter(
+      (event) => !isInject(event.track) || (entryOf.get(event.track) ?? null) === null,
+    ).length,
     escalationsOfLaterEntrants: others.filter((event) => laterEntrant(event.track)).length,
     looksBeforeFirstCorrect: record.events.filter(
       (event, i) => event.type === 'select' && (firstEscalateIndex < 0 || i < firstEscalateIndex),
