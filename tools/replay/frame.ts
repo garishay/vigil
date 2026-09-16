@@ -264,6 +264,26 @@ export const FOOTNOTE_LINES = [
 ] as const
 export const FOOTNOTE = FOOTNOTE_LINES.join(' ')
 
+/** The theme's tokens, for the pair and the study figure (S5d) — one palette, fixed in the SVGs. */
+export const THEME = COLOR
+/** The two conditions' dot colours on the pair's block and the study figure (S5d): raw amber, Vigil the accent. */
+export const CONDITION_COLOR = { raw: '#c9a227', vigil: COLOR.accent } as const
+
+/** A frame drawn into a larger document (S5d): the clip id it may use, and the Queue box's cap. */
+export interface FrameOptions {
+  /** The clip path's id — unique within a document that holds two frames. */
+  clipId?: string
+  /** The Queue box's rows on the pair: its top rows and a count of the rest; every row when absent. */
+  queueCap?: number
+}
+
+/** A frame's document without its `<svg>` wrapper: its size and its lines, for the frame and the pair. */
+export interface FrameDocument {
+  width: number
+  height: number
+  lines: string[]
+}
+
 const text = (x: number, y: number, content: string, attrs: string): string =>
   `<text x="${x}" y="${y}" font-family="${FONT}" ${attrs}>${esc(content)}</text>`
 
@@ -298,7 +318,20 @@ const polyline = (points: readonly (readonly [number, number])[], attrs: string)
 
 /** The frame as an SVG document. */
 export function frameSvg(input: FrameInput): string {
+  const { width, height, lines } = frameDocument(input)
+  const { record } = input
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-subject="${escAttr(record.subject)}" data-scenario="${escAttr(record.scenario)}" data-mode="${record.mode}" data-run="${record.run}">`,
+    ...lines,
+    '</svg>',
+    '',
+  ].join('\n')
+}
+
+/** The frame's document body: everything between the wrapper's tags, in order. */
+export function frameDocument(input: FrameInput, options: FrameOptions = {}): FrameDocument {
   const { record, metrics, study, plan } = input
+  const clipId = options.clipId ?? 'panel'
   const { beginS } = STUDY
   const freezeS = beginS + metrics.freezeT
   const looks = looksOnFrame(record, metrics.freezeT)
@@ -554,7 +587,14 @@ export function frameSvg(input: FrameInput): string {
   // composite, and the Queue's own reason tag. On the map it would cover a threat when the
   // cast puts fourteen above calm (S5c-ii's gate).
   const queueY = HEADER_H + PANEL.height + FOOT_H
-  const queueH = record.mode === 'vigil' ? 30 + candidates.length * 18 + 6 : 0
+  // On the pair the box shows its top rows and counts the rest (S5d); the frame every row.
+  const shown =
+    options.queueCap !== undefined && candidates.length > options.queueCap
+      ? candidates.slice(0, options.queueCap)
+      : candidates
+  const more = candidates.length - shown.length
+  const queueRows = shown.length + (more > 0 ? 1 : 0)
+  const queueH = record.mode === 'vigil' ? 30 + queueRows * 18 + 6 : 0
   const queue =
     record.mode === 'vigil'
       ? [
@@ -565,10 +605,20 @@ export function frameSvg(input: FrameInput): string {
             `Queue at ${mmss(metrics.freezeT)} · ${candidates.length} above calm`,
             `class="vigil-queue-title" font-size="12" font-weight="700" fill="${COLOR.text}"`,
           ),
-          ...candidates.map(
+          ...shown.map(
             (candidate, i) =>
               `<text x="46" y="${queueY + 38 + i * 18}" font-family="${FONT}" class="vigil-queue-line" data-id="${escAttr(candidate.track.id)}" font-size="11" fill="${COLOR.muted}"><tspan font-weight="700" fill="${bandFill(candidate.band)}">${candidate.rank}</tspan> ${esc(`${trackIdent(candidate.track)} ${candidate.composite} · ${reasonTag(candidate, AO.protectedSites)}`)}</text>`,
           ),
+          ...(more > 0
+            ? [
+                text(
+                  46,
+                  queueY + 38 + shown.length * 18,
+                  `… ${more} more above calm, on the run's own frame`,
+                  `class="vigil-queue-more" font-size="11" font-style="italic" fill="${COLOR.faint}"`,
+                ),
+              ]
+            : []),
         ]
       : []
   const captionY = queueY + (record.mode === 'vigil' ? queueH + 12 : 0)
@@ -585,12 +635,11 @@ export function frameSvg(input: FrameInput): string {
     ),
   ]
 
-  return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${PANEL.width}" height="${height}" viewBox="0 0 ${PANEL.width} ${height}" data-subject="${escAttr(record.subject)}" data-scenario="${escAttr(record.scenario)}" data-mode="${record.mode}" data-run="${record.run}">`,
+  const lines_ = [
     `<rect width="${PANEL.width}" height="${height}" fill="${COLOR.bg}"/>`,
     ...header,
-    `<defs><clipPath id="panel"><rect x="0" y="0" width="${PANEL.width}" height="${PANEL.height}"/></clipPath></defs>`,
-    `<g class="map" transform="translate(0 ${HEADER_H})" clip-path="url(#panel)">`,
+    `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${PANEL.width}" height="${PANEL.height}"/></clipPath></defs>`,
+    `<g class="map" transform="translate(0 ${HEADER_H})" clip-path="url(#${clipId})">`,
     `<rect width="${PANEL.width}" height="${PANEL.height}" fill="${COLOR.panel}"/>`,
     ...parts,
     '</g>',
@@ -599,9 +648,8 @@ export function frameSvg(input: FrameInput): string {
     ),
     ...queue,
     ...caption,
-    '</svg>',
-    '',
-  ].join('\n')
+  ]
+  return { width: PANEL.width, height, lines: lines_ }
 }
 
 /** The file a run's frame is written to: `<subject>-<scenario>-<mode>-<run>.svg`. */

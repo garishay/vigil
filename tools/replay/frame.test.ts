@@ -12,6 +12,7 @@ import {
   FOOTNOTE_LINES,
   bandFill,
   entryWords,
+  frameDocument,
   frameName,
   frameSvg,
   headerLine,
@@ -856,6 +857,54 @@ describe('the frame — round 1 (#160)', () => {
     ]) {
       expect(frameSvg(fixture(name))).not.toMatch(
         /\b(x|y|cx|cy|x1|y1|x2|y2|r|width|height)="-?\d+\.\d{2,}"/,
+      )
+    }
+  })
+})
+
+describe('the frame’s document for the pair (S5d-i, ruled G2)', () => {
+  it('gives its body apart from the wrapper, a clip id of the caller’s, and the Queue box capped on request', () => {
+    const input = fixture('S05-03a-vigil-1')
+    const whole = frameDocument(input)
+    expect(whole).toMatchObject({ width: 900, height: 1332 })
+    expect(frameSvg(input)).toBe(
+      [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1332" viewBox="0 0 900 1332" data-subject="S05" data-scenario="03a" data-mode="vigil" data-run="1">',
+        ...whole.lines,
+        '</svg>',
+        '',
+      ].join('\n'),
+    )
+    expect(whole.lines.join('\n')).toContain('<clipPath id="panel">')
+    const capped = frameDocument(input, { clipId: 'panel-right', queueCap: 5 })
+    const body = capped.lines.join('\n')
+    expect(body).toContain('<clipPath id="panel-right">')
+    expect(body).toContain('clip-path="url(#panel-right)"')
+    expect(tagsOf(body, 'vigil-queue-line')).toHaveLength(5)
+    expect(textsOf(body, 'vigil-queue-more')).toEqual([
+      "… 9 more above calm, on the run's own frame",
+    ])
+    // Nine rows fewer, one count line more: eight lines of 18 px.
+    expect(capped.height).toBe(1332 - 8 * 18)
+    // A cap the box fits under changes nothing.
+    expect(frameDocument(fixture('S03-02a-vigil-1'), { queueCap: 5 }).lines).toEqual(
+      frameDocument(fixture('S03-02a-vigil-1')).lines,
+    )
+  })
+
+  it('holds the eight fixture frames byte for byte as expected files', () => {
+    for (const name of [
+      'S03-02a-raw-1',
+      'S03-02a-vigil-1',
+      'S04-02b-raw-1',
+      'S04-02b-vigil-1',
+      'S05-03a-raw-1',
+      'S05-03a-vigil-1',
+      'S06-03b-raw-1',
+      'S06-03b-vigil-1',
+    ]) {
+      expect(frameSvg(fixture(name))).toBe(
+        readFileSync(`tools/replay/__fixtures__/frames/${name}.svg`, 'utf8'),
       )
     }
   })

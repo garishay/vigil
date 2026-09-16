@@ -1,13 +1,15 @@
 /**
  * The replay tool (S5, #138; #131): run JSON in, the study's numbers out — offline, the scenario
  * regenerated from its seed on the study recording's own frame grid, through the app's pure
- * modules and nothing reimplemented. S5a is the core and the CSV; S5b the frame per run; the
- * Vigil annotations (S5c) and the pair and the study figure (S5d) follow.
+ * modules and nothing reimplemented. S5a is the core and the CSV; S5b the frame per run; S5c
+ * the Vigil annotations; S5d-i the pair; the study figure (S5d-ii) follows.
  *
  *   node tools/replay.ts <run.json> [more.json ...] [--out <dir>]
  *                                                          the CSV for those runs, printed;
  *                                                          each run's frame written under
- *                                                          --out as <subject>-<scenario>-<mode>-<run>.svg
+ *                                                          --out as <subject>-<scenario>-<mode>-<run>.svg;
+ *                                                          exactly two runs also write the pair,
+ *                                                          pair-<subject>-<scenario>.svg
  *   node tools/replay.ts --study <dir | run.json ...> [--out <dir>]
  *                                                          study.csv written under --out
  *
@@ -20,12 +22,15 @@ import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { csvText } from './replay/csv.ts'
 import { frameName, frameSvg } from './replay/frame.ts'
+import { pairName, pairSvg } from './replay/pair.ts'
 import { loadStudy, planFor, readRun, type Study } from './replay/load.ts'
 import { runMetrics, type RunMetrics } from './replay/metrics.ts'
 import type { InjectPlan } from '../src/lib/injects.ts'
 import type { RunRecord } from '../src/lib/run.ts'
 
 export const DEFAULT_OUT = 'study'
+/** The pair's Queue boxes show this many rows and count the rest; the run's own frame shows every row (S5d-i, ruled G2). */
+export const PAIR_QUEUE_CAP = 5
 
 export interface Args {
   study: boolean
@@ -120,7 +125,18 @@ export function main(argv: readonly string[], log: (line: string) => void = () =
     named.set(name, run.file)
     return { out: join(args.out, name), svg: frameSvg({ ...run, study }) }
   })
-  for (const { out, svg } of frames) {
+  // Exactly two runs: the pair too, drawn before anything is written like the frames.
+  const pair =
+    runs.length === 2
+      ? {
+          out: join(args.out, pairName(runs[0].record, runs[1].record)),
+          svg: pairSvg(
+            { left: { ...runs[0], study }, right: { ...runs[1], study } },
+            { queueCap: PAIR_QUEUE_CAP },
+          ),
+        }
+      : null
+  for (const { out, svg } of [...frames, ...(pair ? [pair] : [])]) {
     writeFileSync(out, svg)
     log(`${out}: written\n`)
   }
