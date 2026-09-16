@@ -53,7 +53,7 @@ flowchart LR
     study["scripts/study.ts<br/>npm run bench:study<br/>the operator study's acceptance: each study scenario through the feed beside 002 over the window<br/>the four lines · the cue audit on airborne ticks · above calm · flaps · every ring entry — held byte for byte by test"] --> sb[("docs/bench/study-02a.md · study-02b.md")]
     fx --> study
     fx --> bench
-    replaytool["tools/replay.ts + tools/replay/<br/>npm run replay · --study <dir> --out <dir><br/>the study's replay (S5): run JSON in, validated in so many words · the scenario regenerated from its seed at t + beginS through associate at the run's mode<br/>standoff at decision · time to escalate · miss · false escalations · looks · the study CSV (S5a); the frames follow (S5b–S5d)"] --> studyout[("study/ — gitignored<br/>study.csv · the fixtures under tools/replay/__fixtures__ are the only runs the repo holds")]
+    replaytool["tools/replay.ts + tools/replay/<br/>npm run replay · --study <dir> --out <dir><br/>the study's replay (S5): run JSON in, validated in so many words · the scenario regenerated from its seed at t + beginS through associate at the run's mode<br/>standoff at decision · time to escalate · miss · false escalations · looks · the study CSV (S5a)<br/>the frame per run (S5b): the picture at the freeze, the ring, the threat's trail, every look as a hop on the path, the analyst's never-opened overlay, the caption — identical in both modes; engine.ts scores a second as the bench does · the Vigil annotations (S5c) and the pair and the study figure (S5d) follow"] --> studyout[("study/ — gitignored<br/>study.csv · one SVG per run · the fixtures under tools/replay/__fixtures__ are the only runs the repo holds")]
     fx --> replaytool
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
@@ -240,8 +240,11 @@ frame grid through the app's pure modules. `npm run replay -- <run.json> …` pr
 those runs; `npm run replay -- --study <dir> [--out <dir>]` writes `study.csv` for every `.json`
 file in the directory under `study/` at the repo root, which is gitignored: the four fixtures
 under `tools/replay/__fixtures__/` are the only runs the repo holds. A file that is not a run is
-refused with its path and the field. The frames — the per-run map, the paired frame with the
-standoff band, the dots-on-axis figure — follow in S5b–S5d.
+refused with its path and the field. The bare form also writes each run's **frame** beside the
+CSV — `<subject>-<scenario>-<mode>-<run>.svg`, the picture at the moment of escalation with every
+look as a numbered hop on its path, the threat's trail and ring entry, and the analyst's
+_never opened_ overlay, drawn identically in both conditions (S5b). The paired frame with the
+standoff band and the dots-on-axis figure follow in S5c–S5d.
 
 ## How this repo is built
 
