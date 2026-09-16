@@ -114,4 +114,33 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     expect(existsSync(join(out, 'never'))).toBe(false)
     expect(() => metricsOf([join(FIXTURES, '..', 'load.ts')], study)).toThrow(RunRefusal)
   })
+
+  it('draws every frame before writing any: a run the frame refuses, or two runs sharing a name, leaves nothing behind (#151 round 1)', () => {
+    const batch = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(batch)
+    const good = readFileSync(join(FIXTURES, 'S03-02a-raw-1.json'), 'utf8')
+    writeFileSync(join(batch, 'a-good.json'), good)
+    // A look at the threat at t 0 on a second run: the loader accepts it, the frame refuses it —
+    // after the good run, which must not have been written.
+    writeFileSync(
+      join(batch, 'b-bad.json'),
+      good
+        .replace('"run": 1', '"run": 2')
+        .replace(
+          '{"t":14,"type":"select","track":"inject-11"}',
+          '{"t":0,"type":"select","track":"inject-11"}',
+        ),
+    )
+    const out = join(batch, 'out')
+    expect(() => main([batch, '--out', out])).toThrow(
+      'look #1 at t 0 names inject-11, not in the picture then',
+    )
+    expect(existsSync(join(out, 'S03-02a-raw-1.svg'))).toBe(false)
+    // Two files, one identity: refused in words, nothing written.
+    writeFileSync(join(batch, 'b-bad.json'), good)
+    expect(() => main([batch, '--out', out])).toThrow(
+      `S03-02a-raw-1.svg: two runs in this batch share subject S03, scenario 02a, mode raw, run 1 — ${join(batch, 'a-good.json')} and ${join(batch, 'b-bad.json')}`,
+    )
+    expect(existsSync(join(out, 'S03-02a-raw-1.svg'))).toBe(false)
+  })
 })

@@ -105,9 +105,23 @@ export function main(argv: readonly string[], log: (line: string) => void = () =
     writeFileSync(out, csv)
     return `${out}: ${files.length} run${files.length === 1 ? '' : 's'}\n`
   }
-  for (const run of runs) {
-    const out = join(args.out, frameName(run.record))
-    writeFileSync(out, frameSvg({ ...run, study }))
+  // Every frame drawn, and every name checked, before anything is written: a run the frame
+  // refuses, or two runs that would share a file, leaves no partial set behind (#151 round 1).
+  const named = new Map<string, string>()
+  const frames = runs.map((run) => {
+    const name = frameName(run.record)
+    const first = named.get(name)
+    if (first !== undefined) {
+      const { subject, scenario, mode, run: index } = run.record
+      throw new Error(
+        `${name}: two runs in this batch share subject ${subject}, scenario ${scenario}, mode ${mode}, run ${index} — ${first} and ${run.file}`,
+      )
+    }
+    named.set(name, run.file)
+    return { out: join(args.out, name), svg: frameSvg({ ...run, study }) }
+  })
+  for (const { out, svg } of frames) {
+    writeFileSync(out, svg)
     log(`${out}: written\n`)
   }
   return csv

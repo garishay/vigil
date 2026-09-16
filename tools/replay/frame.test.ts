@@ -8,6 +8,7 @@ import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import {
   captionLines,
   FOOTNOTE,
+  FOOTNOTE_LINES,
   frameName,
   frameSvg,
   headerLine,
@@ -158,9 +159,25 @@ describe('the frame (S5b, #138, ruled B2, B3) — the scene', () => {
         'inject-17',
         'inject-37',
       ])
-      expect(textsOf(svg, 'footnote')).toEqual([FOOTNOTE])
+      // The one sentence on two lines, since SVG text does not wrap (#151 round 1).
+      expect(textsOf(svg, 'footnote')).toEqual([...FOOTNOTE_LINES])
+      expect(textsOf(svg, 'footnote').join(' ')).toBe(FOOTNOTE)
       expect((svg.match(/>never opened</g) ?? []).length).toBe(4)
     }
+    // "Never" is about the whole run: a candidate opened after the freeze is not marked (#151 round 1).
+    const later = frameSvg(
+      synthetic([
+        { t: 14, type: 'select', track: THREAT_ID },
+        { t: 58, type: 'escalate', track: THREAT_ID },
+        { t: 80, type: 'select', track: 'inject-12' },
+      ]),
+    )
+    expect(tagsOf(later, 'never-opened').map((mark) => mark['data-id'])).toEqual([
+      'inject-13',
+      'inject-17',
+      'inject-37',
+    ])
+    expect(tagsOf(later, 'hop')).toHaveLength(1)
     expect(FOOTNOTE).toBe(
       "\"never opened\" marks the engine's above-calm tracks at the freeze that the run never opened: the analyst's overlay, drawn on both conditions; raw's screen never showed that set.",
     )
@@ -186,6 +203,33 @@ describe('the frame — the header and the caption box (ruled B3, B4)', () => {
     ])
     expect(mmss(58)).toBe('0:58')
     expect(mmss(124)).toBe('2:04')
+    // Before Begin — an entry the metrics read as negative — prints signed, never `-2:-40` (#151 round 1).
+    expect(mmss(-100)).toBe('-1:40')
+    expect(mmss(0)).toBe('0:00')
+  })
+
+  it('counts a look at a track beyond the panel in the subtitle, its hop kept off the panel (#151 round 1)', () => {
+    const input = fixture('S03-02a-raw-1')
+    const picture = pictureAtSecond(study.index, input.plan, STUDY.beginS + 14, 'raw')
+    const far = picture.find((track) => {
+      const [x, y] = project(track.position)
+      return x < 0 || x > 900 || y < 0 || y > 700
+    })!
+    const svg = frameSvg(
+      synthetic([
+        { t: 14, type: 'select', track: far.id },
+        { t: 30, type: 'select', track: THREAT_ID },
+        { t: 58, type: 'escalate', track: THREAT_ID },
+      ]),
+    )
+    expect(textsOf(svg, 'subtitle')).toEqual([
+      "The subject's selection sequence from the run JSON, replayed as a path. 2 looks, 1 beyond the panel.",
+    ])
+    const hops = tagsOf(svg, 'hop')
+    expect(hops).toHaveLength(2)
+    expect(hops[0]['data-id']).toBe(far.id)
+    expect([Number(hops[0].cx), Number(hops[0].cy)]).toEqual(expectedPx(far.position))
+    expect(tagsOf(svg, 'path')[0].points.startsWith(`${hops[0].cx},${hops[0].cy} `)).toBe(true)
   })
 
   it('writes the caption for the 02a raw fixture exactly, and the same template for a Vigil run', () => {
@@ -239,6 +283,35 @@ describe('the frame — the header and the caption box (ruled B3, B4)', () => {
       'MISSED — never escalated; 2 looks.',
     ])
   })
+
+  it('reads two looks on one second by position: the actions belong to the look before them in the record (#151 round 1)', () => {
+    const lines = captionLines(
+      synthetic([
+        { t: 20, type: 'select', track: THREAT_ID },
+        { t: 20, type: 'select', track: THREAT_ID },
+        { t: 25, type: 'assess', track: THREAT_ID },
+        { t: 58, type: 'escalate', track: THREAT_ID },
+      ]),
+    )
+    expect(lines).toEqual([
+      'Look #1 · 0:20 — opened the threat.',
+      'It read as UAS-8F21 · Remote ID.',
+      'Look #2 · 0:20 — opened the threat; assessed at 0:25, escalated at 0:58.',
+      'It read as UAS-8F21 · Remote ID.',
+      'Look #2 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry.',
+    ])
+    // An action on the same second as a later look, written before it, belongs to the earlier look.
+    const tied = captionLines(
+      synthetic([
+        { t: 20, type: 'select', track: THREAT_ID },
+        { t: 30, type: 'assess', track: THREAT_ID },
+        { t: 30, type: 'select', track: THREAT_ID },
+        { t: 58, type: 'escalate', track: THREAT_ID },
+      ]),
+    )
+    expect(tied[0]).toBe('Look #1 · 0:20 — opened the threat; assessed at 0:30.')
+    expect(tied[2]).toBe('Look #2 · 0:30 — opened the threat; escalated at 0:58.')
+  })
 })
 
 describe('the frame — identical in both modes, deterministic (ruled B3, B7)', () => {
@@ -249,16 +322,16 @@ describe('the frame — identical in both modes, deterministic (ruled B3, B7)', 
     const b = frameSvg(asVigil).split('\n')
     expect(a).toHaveLength(b.length)
     const differing = a.map((line, i) => [line, b[i]]).filter(([x, y]) => x !== y)
-    // 80 header + 700 panel + 36 footnote + 94 caption (three lines) = 910.
+    // 80 header + 700 panel + 48 footnote (two lines) + 94 caption (three lines) = 922.
     expect(differing.map(([x]) => x)).toEqual([
-      '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="910" viewBox="0 0 900 910" data-subject="S03" data-scenario="02a" data-mode="raw" data-run="1">',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="922" viewBox="0 0 900 922" data-subject="S03" data-scenario="02a" data-mode="raw" data-run="1">',
       '<text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">UNAIDED · frozen at the moment of escalation — 0:58</text>',
-      '<text x="46" y="870" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as UAS-8F21 · Remote ID.</text>',
+      '<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as UAS-8F21 · Remote ID.</text>',
     ])
     expect(differing.map(([, y]) => y)).toEqual([
-      '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="910" viewBox="0 0 900 910" data-subject="S03" data-scenario="02a" data-mode="vigil" data-run="1">',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="922" viewBox="0 0 900 922" data-subject="S03" data-scenario="02a" data-mode="vigil" data-run="1">',
       '<text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">WITH VIGIL · frozen at the moment of escalation — 0:58</text>',
-      '<text x="46" y="870" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-11 · sensor.</text>',
+      '<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-11 · sensor.</text>',
     ])
   })
 

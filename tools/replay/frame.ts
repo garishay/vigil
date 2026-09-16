@@ -23,7 +23,7 @@ import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 /** The map panel: 30 km by 23.3 km at 30 px per km, the ring's centre at its middle. */
 export const PANEL = { width: 900, height: 700, pxPerKm: 30 } as const
 const HEADER_H = 80
-const FOOT_H = 36
+const FOOT_H = 48
 const LINE_H = 22
 const FONT = 'system-ui, sans-serif'
 /** The theme's tokens (src/index.css), fixed here: an SVG carries no stylesheet. */
@@ -56,9 +56,11 @@ export function project([lon, lat]: readonly [number, number]): [number, number]
 const inPanel = ([x, y]: readonly [number, number]): boolean =>
   x >= 0 && x <= PANEL.width && y >= 0 && y <= PANEL.height
 
-/** Sim seconds from Begin as the frame prints them: `0:58`, `2:04`. */
-export const mmss = (seconds: number): string =>
-  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+/** Sim seconds from Begin as the frame prints them: `0:58`, `2:04`; before Begin, `-1:40` (#151 round 1). */
+export const mmss = (seconds: number): string => {
+  const whole = Math.abs(seconds)
+  return `${seconds < 0 ? '-' : ''}${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+}
 
 /** Text content: the three characters XML reserves; a quote is plain text there. */
 const esc = (text: string): string =>
@@ -99,20 +101,24 @@ const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' 
  * that second in the run's mode — then the decision line.
  */
 export function captionLines({ record, metrics, study, plan }: FrameInput): string[] {
-  const looks = looksOnFrame(record, metrics.freezeT)
+  // By position in the record, not by second: two looks on one second are two looks, and an
+  // action belongs to the look before it in the record's order (#151 round 1).
+  const looks = record.events
+    .map((event, index) => ({ event, index }))
+    .filter(({ event }) => event.type === 'select' && event.t <= metrics.freezeT)
   const threatLooks = looks
-    .map((event, i) => ({ event, k: i + 1 }))
+    .map(({ event, index }, i) => ({ event, index, k: i + 1 }))
     .filter(({ event }) => event.track === THREAT_ID)
   const lines: string[] = []
-  threatLooks.forEach(({ event, k }, j) => {
-    const next = threatLooks[j + 1]?.event.t ?? Infinity
+  threatLooks.forEach(({ event, index, k }, j) => {
+    const nextIndex = threatLooks[j + 1]?.index ?? Infinity
     const actions = record.events
       .filter(
-        (action) =>
+        (action, i) =>
           action.track === THREAT_ID &&
           VERB[action.type] !== undefined &&
-          action.t >= event.t &&
-          action.t < next &&
+          i > index &&
+          i < nextIndex &&
           action.t <= metrics.freezeT,
       )
       .map((action) => `${VERB[action.type]} at ${mmss(action.t)}`)
@@ -144,9 +150,15 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
   return lines
 }
 
-/** The one footnote sentence under the map (ruled on A5). */
-export const FOOTNOTE =
-  "\"never opened\" marks the engine's above-calm tracks at the freeze that the run never opened: the analyst's overlay, drawn on both conditions; raw's screen never showed that set."
+/**
+ * The one footnote sentence under the map (ruled on A5), on two lines: SVG text does not wrap,
+ * and the sentence at 11 px runs past a 900 px panel in most faces (#151 round 1).
+ */
+export const FOOTNOTE_LINES = [
+  '"never opened" marks the engine\'s above-calm tracks at the freeze that the run never opened:',
+  "the analyst's overlay, drawn on both conditions; raw's screen never showed that set.",
+] as const
+export const FOOTNOTE = FOOTNOTE_LINES.join(' ')
 
 const text = (x: number, y: number, content: string, attrs: string): string =>
   `<text x="${x}" y="${y}" font-family="${FONT}" ${attrs}>${esc(content)}</text>`
@@ -255,7 +267,11 @@ export function frameSvg(input: FrameInput): string {
   }
 
   // The analyst's overlay: the engine's above-calm injects at the freeze the run never opened.
-  const opened = new Set(looks.map((event) => event.track))
+  // "Never opened" is about the whole run, as the footnote says: a track opened after the freeze
+  // is not marked (#151 round 1).
+  const opened = new Set(
+    record.events.filter((event) => event.type === 'select').map((event) => event.track),
+  )
   const candidates = candidatesAt(rankedAtSecond(study, plan, freezeS))
   for (const candidate of candidates) {
     if (opened.has(candidate.track.id)) continue
@@ -307,6 +323,7 @@ export function frameSvg(input: FrameInput): string {
     )
   }
 
+  const beyond = hops.filter((hop) => !inPanel(hop.point)).length
   const header = [
     text(
       30,
@@ -317,11 +334,13 @@ export function frameSvg(input: FrameInput): string {
     text(
       30,
       64,
-      `The subject's selection sequence from the run JSON, replayed as a path. ${plural(looks.length, 'look')}.`,
+      // A look at a track beyond the panel keeps its hop off the panel, clipped; the count says
+      // so, so the header and the frame agree (#151 round 1).
+      `The subject's selection sequence from the run JSON, replayed as a path. ${plural(looks.length, 'look')}${beyond > 0 ? `, ${beyond} beyond the panel` : ''}.`,
       `class="subtitle" font-size="13" fill="${COLOR.muted}"`,
     ),
   ]
-  const footY = HEADER_H + PANEL.height + 22
+  const footY = HEADER_H + PANEL.height + 20
   const captionY = HEADER_H + PANEL.height + FOOT_H
   const caption = [
     `<rect x="30" y="${captionY}" width="${PANEL.width - 60}" height="${captionH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
@@ -344,7 +363,9 @@ export function frameSvg(input: FrameInput): string {
     `<rect width="${PANEL.width}" height="${PANEL.height}" fill="${COLOR.panel}"/>`,
     ...parts,
     '</g>',
-    text(30, footY, FOOTNOTE, `class="footnote" font-size="11" fill="${COLOR.faint}"`),
+    ...FOOTNOTE_LINES.map((line, i) =>
+      text(30, footY + i * 14, line, `class="footnote" font-size="11" fill="${COLOR.faint}"`),
+    ),
     ...caption,
     '</svg>',
     '',
