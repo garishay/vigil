@@ -25,8 +25,13 @@ const BAND_KM = 3
 /** A lane's first dot sits this far from the axis; a stack steps this much further. */
 const LANE = 12
 const STEP = 14
-/** Two dots on one lane closer than this take their labels on alternate sides. */
-const CROWD_PX = 12
+/** Two dots on one lane closer than a label's width take their labels on alternate sides. */
+const CROWD_PX = 20
+/** The axis title's row above the unaided lane's labels; the tick labels' row below the Vigil lane's. */
+const TITLE_UP = 30
+const TICKS_DOWN = 42
+/** One axis's block, title to tick labels. */
+const AXIS_H = 100
 
 const esc = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -78,8 +83,13 @@ const axis = (y: number, title: string, left: string, right: string, titleY: num
     `class="axis-title" font-size="13" font-weight="600" fill="${THEME.text}"`,
   ),
   `<line class="axis" x1="${AXIS_X}" y1="${y}" x2="${AXIS_X + AXIS_W}" y2="${y}" stroke="${THEME.faint}"/>`,
-  text(AXIS_X, y + 24, left, `font-size="11" fill="${THEME.faint}"`),
-  text(AXIS_X + AXIS_W, y + 24, right, `font-size="11" fill="${THEME.faint}" text-anchor="end"`),
+  text(AXIS_X, y + TICKS_DOWN, left, `font-size="11" fill="${THEME.faint}"`),
+  text(
+    AXIS_X + AXIS_W,
+    y + TICKS_DOWN,
+    right,
+    `font-size="11" fill="${THEME.faint}" text-anchor="end"`,
+  ),
   ...MODES.map((mode) =>
     text(
       AXIS_X - 12,
@@ -141,7 +151,12 @@ function standoffAxis(
   const lines = axis(y, title, `← inside · −${BAND_KM} km`, `+${BAND_KM} km · outside →`, titleY)
   lines.push(
     `<line x1="${sX(0)}" y1="${y - 10}" x2="${sX(0)}" y2="${y + 10}" stroke="${THEME.muted}"/>`,
-    text(sX(0), y + 24, 'ring', `font-size="11" fill="${THEME.muted}" text-anchor="middle"`),
+    text(
+      sX(0),
+      y + TICKS_DOWN,
+      'ring',
+      `font-size="11" fill="${THEME.muted}" text-anchor="middle"`,
+    ),
   )
   const placed: Placed[] = runs.flatMap((m): Placed[] => {
     const threat = m.threats[threatIndex]
@@ -231,7 +246,12 @@ function timeAxis(
     if (s < runS) {
       lines.push(
         `<line x1="${tX(s)}" y1="${y - 3}" x2="${tX(s)}" y2="${y + 3}" stroke="${THEME.faint}"/>`,
-        text(tX(s), y + 24, mmss(s), `font-size="11" fill="${THEME.faint}" text-anchor="middle"`),
+        text(
+          tX(s),
+          y + TICKS_DOWN,
+          mmss(s),
+          `font-size="11" fill="${THEME.faint}" text-anchor="middle"`,
+        ),
       )
     }
   }
@@ -307,8 +327,10 @@ export function studySvg(runs: readonly RunMetrics[]): string {
     family(
       `Corroboration pair (${[...new Set(corroboration.map((m) => m.scenario))].join(', ')}) — standoff at decision`,
     )
-    body.push(...standoffAxis(y, y - 22, 'standoff at the threat’s escalation', corroboration, 0))
-    y += 60
+    body.push(
+      ...standoffAxis(y, y - TITLE_UP, 'standoff at the threat’s escalation', corroboration, 0),
+    )
+    y += AXIS_H - 24
     body.push(...countsLines(y, corroboration, 1))
     y += 60
   }
@@ -324,31 +346,37 @@ export function studySvg(runs: readonly RunMetrics[]): string {
     body.push(
       ...countAxis(
         y + extra,
-        y - 22,
+        y - TITLE_UP,
         'non-threats opened before the first threat',
         prioritization,
         opened,
       ),
     )
-    y += 80 + 2 * extra
+    y += AXIS_H + 2 * extra
     for (let t = 0; t < threats; t++) {
       body.push(
         ...timeAxis(
           y,
-          y - 22,
+          y - TITLE_UP,
           `first open of threat ${t + 1} on the run’s window`,
           prioritization,
           runS,
           (m) => m.threats[t]?.firstOpenS ?? null,
         ),
       )
-      y += 80
+      y += AXIS_H
     }
     for (let t = 0; t < threats; t++) {
       body.push(
-        ...standoffAxis(y, y - 22, `standoff at decision · threat ${t + 1}`, prioritization, t),
+        ...standoffAxis(
+          y,
+          y - TITLE_UP,
+          `standoff at decision · threat ${t + 1}`,
+          prioritization,
+          t,
+        ),
       )
-      y += 80
+      y += AXIS_H
     }
     body.push(...countsLines(y, prioritization, threats))
     y += 60
