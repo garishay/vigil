@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { THREAT_ID } from '../../scripts/study.ts'
 import { STUDY } from '../../src/config/study.ts'
+import { AO } from '../../src/config/ao.ts'
+import { reasonTag } from '../../src/lib/display.ts'
 import { candidatesAt, rankedAtSecond } from './engine.ts'
 import { loadStudy, planFor } from './load.ts'
 
@@ -43,5 +45,44 @@ describe('the engine at a scenario second (S5b, #138, ruled B1)', () => {
     )
     expect(early).toContain(THREAT_ID)
     expect(early.every((id) => id.startsWith('inject-'))).toBe(true)
+  })
+})
+
+describe('the engine carries the score (S5c-ii, #138, ruled C1)', () => {
+  it('puts the app’s score and its site on each entry, so the reason tag and the mismatch line read it as the Queue does', () => {
+    const [first] = rankedAtSecond(study, planFor('02a', study.timeline), FREEZE)
+    expect(Math.round(first.score.composite)).toBe(first.composite)
+    expect(first.score.band).toBe(first.band)
+    expect(first.siteId).toBe(first.score.siteId)
+    expect(first.score.mismatch).toMatchObject({ label: 'UAS-8F21' })
+    expect(Math.round(first.score.mismatch!.distanceM)).toBe(1100)
+    expect(reasonTag(first, AO.protectedSites)).toBe(
+      'Remote ID mismatch, closing, near PHL Airfield',
+    )
+  })
+
+  it('reads fourteen above calm at the 03a Vigil fixture’s freeze, 551 s, with the Queue’s own tags', () => {
+    const tags = candidatesAt(
+      rankedAtSecond(study, planFor('03a', study.timeline), STUDY.beginS + 71),
+    ).map(
+      (entry) =>
+        `${entry.rank} ${entry.track.id} ${entry.composite} · ${reasonTag(entry, AO.protectedSites)}`,
+    )
+    expect(tags).toEqual([
+      '1 inject-11 73 · Non-cooperative, closing, near PHL Airfield',
+      '2 inject-12 73 · Non-cooperative, closing, near PHL Airfield',
+      '3 inject-42 68 · Non-cooperative, closing, near PHL Airfield',
+      '4 inject-13 68 · Loitering, non-cooperative, near PHL Airfield',
+      '5 inject-41 67 · Non-cooperative, closing, near PHL Airfield',
+      '6 inject-16 63 · Non-cooperative, closing, near PHL Airfield',
+      '7 inject-15 61 · Orbiting, non-cooperative, low and slow',
+      '8 inject-43 59 · Non-cooperative, closing, low and slow',
+      '9 inject-45 57 · Non-cooperative, closing, low and slow',
+      '10 inject-44 54 · Non-cooperative, closing, low and slow',
+      '11 inject-14 51 · Non-cooperative, near PHL Airfield, low and slow',
+      '12 inject-46 50 · Non-cooperative, near PHL Airfield, low and slow',
+      '13 inject-47 48 · Non-cooperative, near PHL Airfield, low and slow',
+      '14 inject-37 45 · Closing, near PHL Airfield, low and slow',
+    ])
   })
 })
