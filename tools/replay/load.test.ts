@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { loadStudy, parseRun, planFor, readRun, RunRefusal } from './load.ts'
+import { loadStudy, parseRun, planFor, readRun, RunRefusal, runSOf } from './load.ts'
 
 // Vitest runs from the repo root, as the tool does; the fixtures are named from there.
 const FIXTURES = 'tools/replay/__fixtures__/'
@@ -46,12 +46,13 @@ describe('parseRun (S5a, #138, ruled A2)', () => {
     expect(refusal({ subject: 'Gary Smith' })).toBe(
       'run.json: subject is a subject code, not "Gary Smith"',
     )
-    // A study scenario only: the default deal has no cast, so its run has no threat to measure.
+    // A study scenario only: the default deal has no cast, so its run has no threat to measure;
+    // every scenario the bench baselines, since S5c-i (#138 re-gate).
     expect(refusal({ scenario: '02c' })).toBe(
-      'run.json: scenario "02c" — the replay reads a study scenario: 02a, 02b',
+      'run.json: scenario "02c" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
     )
     expect(refusal({ scenario: 'default' })).toBe(
-      'run.json: scenario "default" — the replay reads a study scenario: 02a, 02b',
+      'run.json: scenario "default" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
     )
     expect(refusal({ mode: 'fast' })).toBe('run.json: mode reads "fast", not raw or vigil')
     expect(refusal({ run: 0 })).toBe('run.json: run is a run number from 1, not 0')
@@ -120,5 +121,24 @@ describe('loadStudy and planFor', () => {
     expect(planFor('02a', study.timeline).seed).toBe('study-02a')
     expect(planFor('02b', study.timeline).seed).toBe('study-02b')
     expect(planFor('02a', study.timeline)).toEqual(planFor('02a', study.timeline))
+  })
+})
+
+describe('the loader on the prioritization pair (S5c-i, #138 re-gate, ruled N2)', () => {
+  const on = (scenario: string, t: number) =>
+    refusal({ scenario, events: [{ t, type: 'select', track: 'inject-11' }] })
+
+  it('reads a 03 record with the registry’s window as its bound — 218 on 03a, 179 on 03b, 360 on 02', () => {
+    expect(runSOf('02a')).toBe(360)
+    expect(runSOf('02b')).toBe(360)
+    expect(runSOf('03a')).toBe(218)
+    expect(runSOf('03b')).toBe(179)
+    expect(on('03a', 218)).toBeNull()
+    expect(on('03a', 219)).toBe("run.json: events[0].t is 219 — a run's t runs 0 to 218")
+    expect(on('03b', 179)).toBeNull()
+    expect(on('03b', 180)).toBe("run.json: events[0].t is 180 — a run's t runs 0 to 179")
+    expect(on('02b', 360)).toBeNull()
+    expect(on('02b', 361)).toBe("run.json: events[0].t is 361 — a run's t runs 0 to 360")
+    expect(planFor('03a', loadStudy().timeline).seed).toBe('study-03a')
   })
 })

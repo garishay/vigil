@@ -262,13 +262,17 @@ export function frameSvg(input: FrameInput): string {
     const first = injectTracksAt(plan, firstS).find((track) => track.id === threat.id)!
     const [fx, fy] = project(first.position)
     const tag = many ? `${threat.id} · ` : ''
+    // Two labels on a short trail collide at x + 8 (the re-gate's mockup); on the pair the T0
+    // label goes below-left, anchored end, the entry label above-right (E6).
+    const t0X = many ? fx - 8 : fx + 8
+    const t0Anchor = many ? ' text-anchor="end"' : ''
     parts.push(
       `<circle class="trail-first"${idAttr} cx="${fx}" cy="${fy}" r="2.5" fill="${COLOR.muted}"/>`,
       text(
-        fx + 8,
+        t0X,
         fy + 14,
         `${tag}T0 · ${(rangeM(first) / 1000).toFixed(1)} km`,
-        `font-size="11" fill="${COLOR.faint}"`,
+        `font-size="11" fill="${COLOR.faint}"${t0Anchor}`,
       ),
     )
     if (entryS !== null) {

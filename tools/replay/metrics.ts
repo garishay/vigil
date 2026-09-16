@@ -67,6 +67,13 @@ export interface RunMetrics {
   answers: RunAnswers
 }
 
+/**
+ * How far past the recording's end the plan is read for a non-threat's ring entry (E5, extended):
+ * a track on an entering course whose entry lies past the end is not a never-entrant, so it is
+ * never counted false — the run throws instead. An hour covers any cast row's leg.
+ */
+export const BEYOND_S = 3600
+
 /** The threat set of a scenario: the bench's roles table, by the study files' numbering — never the tool's own list. */
 export const threatsOf = (scenario: string): readonly string[] => {
   const roles = STUDY_CAST[scenario]
@@ -117,8 +124,25 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
   )
   const entryOf = new Map<string, number | null>()
   for (const event of others) {
-    if (!entryOf.has(event.track))
-      entryOf.set(event.track, entrySecond(plan, event.track, 0, index.durationS))
+    if (entryOf.has(event.track)) continue
+    const entry = entrySecond(plan, event.track, 0, index.durationS)
+    entryOf.set(event.track, entry)
+    // The addendum's two classes are the four casts' only ones (the bench's line 2, its entry
+    // list); a run that escalates anything else cannot be read and says so (E5, extended).
+    if (entry !== null && entry - beginS <= runS) {
+      throw new Error(
+        `${record.subject} run ${record.run}: ${event.track} is not a threat but is inside the ring within the run (entry ${entry - beginS} s from Begin) — neither a never-entrant nor a later entrant`,
+      )
+    }
+    const beyond =
+      entry === null
+        ? entrySecond(plan, event.track, index.durationS + 1, index.durationS + BEYOND_S)
+        : null
+    if (beyond !== null) {
+      throw new Error(
+        `${record.subject} run ${record.run}: ${event.track} is not a threat but is on an entering course — its entry lies ${beyond - index.durationS} s past the recording's end — not a never-entrant, so never a false escalation`,
+      )
+    }
   }
   const laterEntrant = (id: string) => {
     const entry = entryOf.get(id) ?? null

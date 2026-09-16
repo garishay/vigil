@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { THREAT_ID } from '../../scripts/study.ts'
 import { AO } from '../../src/config/ao.ts'
@@ -22,10 +23,16 @@ import { runMetrics } from './metrics.ts'
 import { pictureAtSecond } from './regenerate.ts'
 
 const study = loadStudy()
-const plans = { '02a': planFor('02a', study.timeline), '02b': planFor('02b', study.timeline) }
+const plans = {
+  '02a': planFor('02a', study.timeline),
+  '02b': planFor('02b', study.timeline),
+  '03a': planFor('03a', study.timeline),
+  '03b': planFor('03b', study.timeline),
+}
+type Study = keyof typeof plans
 const fixture = (name: string) => {
   const record = readRun(`tools/replay/__fixtures__/${name}.json`)
-  const plan = plans[record.scenario as '02a' | '02b']
+  const plan = plans[record.scenario as Study]
   return { record, plan, study, metrics: runMetrics(record, study.index, plan) }
 }
 const synthetic = (events: RunEvent[], patch: Partial<RunRecord> = {}) => {
@@ -40,7 +47,7 @@ const synthetic = (events: RunEvent[], patch: Partial<RunRecord> = {}) => {
     answers: { demand: 1, pressure: 2, confidence: 3 },
     ...patch,
   }
-  const plan = plans[record.scenario as '02a' | '02b']
+  const plan = plans[record.scenario as Study]
   return { record, plan, study, metrics: runMetrics(record, study.index, plan) }
 }
 
@@ -346,5 +353,177 @@ describe('the frame — identical in both modes, deterministic (ruled B3, B7)', 
     expect(() => frameSvg(synthetic([{ t: 0, type: 'select', track: THREAT_ID }]))).toThrow(
       'S09 run 1: look #1 at t 0 names inject-11, not in the picture then',
     )
+  })
+})
+
+describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, ruled N6, E3, E6, E7)', () => {
+  const on03 = (scenario: '03a' | '03b', events: RunEvent[], mode: 'raw' | 'vigil' = 'raw') =>
+    synthetic(events, { scenario, mode, subject: 'S05' })
+  const shape: RunEvent[] = [
+    { t: 12, type: 'select', track: 'inject-13' },
+    { t: 27, type: 'select', track: 'inject-14' },
+    { t: 41, type: 'select', track: 'inject-12' },
+    { t: 58, type: 'escalate', track: 'inject-12' },
+    { t: 66, type: 'select', track: 'inject-42' },
+    { t: 84, type: 'select', track: 'inject-11' },
+    { t: 97, type: 'escalate', track: 'inject-11' },
+    { t: 130, type: 'select', track: 'inject-41' },
+    { t: 150, type: 'escalate', track: 'inject-41' },
+  ]
+  const labelTag = (svg: string, content: string) => {
+    const match = svg.match(
+      new RegExp(`<text[^>]*>${content.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}</text>`),
+    )
+    return match ? attrs(match[0]) : null
+  }
+
+  it('draws each threat’s trail with its marks, the id on the pair’s labels, the T0 label below-left anchored end (E6)', () => {
+    const input = on03('03a', shape)
+    const svg = frameSvg(input)
+    const trails = tagsOf(svg, 'trail')
+    expect(trails.map((trail) => trail['data-id'])).toEqual(['inject-11', 'inject-12'])
+    expect(tagsOf(svg, 'trail-first').map((mark) => mark['data-id'])).toEqual([
+      'inject-11',
+      'inject-12',
+    ])
+    expect(tagsOf(svg, 'entry').map((mark) => mark['data-id'])).toEqual(['inject-11', 'inject-12'])
+    for (const id of ['inject-11', 'inject-12']) {
+      const first = tagsOf(svg, 'trail-first').find((mark) => mark['data-id'] === id)!
+      const track = injectTracksAt(input.plan, STUDY.beginS).find(
+        (candidate) => candidate.id === id,
+      )!
+      expect([Number(first.cx), Number(first.cy)]).toEqual(expectedPx(track.position))
+      const km = (distanceMeters(AO.protectedSites[0].center, track.position) / 1000).toFixed(1)
+      const t0 = labelTag(svg, `${id} · T0 · ${km} km`)!
+      expect(t0).toMatchObject({ 'text-anchor': 'end' })
+      expect(Number(t0.x)).toBe(Math.round((Number(first.cx) - 8) * 10) / 10)
+      expect(Number(t0.y)).toBe(Math.round((Number(first.cy) + 14) * 10) / 10)
+    }
+    expect(labelTag(svg, 'inject-11 · 1:42 ring entry')).not.toBeNull()
+    expect(labelTag(svg, 'inject-12 · 3:08 ring entry')).not.toBeNull()
+    // The trails run from Begin to the freeze at +97 — 98 points each.
+    expect(trails[0].points.split(' ')).toHaveLength(98)
+    expect(trails[1].points.split(' ')).toHaveLength(98)
+  })
+
+  it('colours a hop on either threat in the warning colour, the rest in the accent', () => {
+    const svg = frameSvg(on03('03a', shape))
+    const hops = tagsOf(svg, 'hop')
+    expect(hops.map((hop) => hop['data-id'])).toEqual([
+      'inject-13',
+      'inject-14',
+      'inject-12',
+      'inject-42',
+      'inject-11',
+    ])
+    expect(hops.map((hop) => hop.fill)).toEqual([
+      '#4c9aff',
+      '#4c9aff',
+      '#ff6b57',
+      '#4c9aff',
+      '#ff6b57',
+    ])
+  })
+
+  it('heads the pair’s frame at the last escalation, or MISSED naming the threats, at the scenario’s own window (E3)', () => {
+    const last = on03('03a', shape)
+    expect(headerLine(last.record, last.metrics)).toBe(
+      'UNAIDED · frozen at the moment of the last escalation — 1:37',
+    )
+    const oneMissed = on03(
+      '03b',
+      [
+        { t: 95, type: 'select', track: 'inject-11' },
+        { t: 118, type: 'escalate', track: 'inject-11' },
+      ],
+      'vigil',
+    )
+    expect(headerLine(oneMissed.record, oneMissed.metrics)).toBe(
+      'WITH VIGIL · MISSED inject-12 — frozen at +2:59',
+    )
+    const bothMissed = on03('03a', [{ t: 12, type: 'select', track: 'inject-13' }])
+    expect(headerLine(bothMissed.record, bothMissed.metrics)).toBe(
+      'UNAIDED · MISSED inject-11, inject-12 — frozen at +3:38',
+    )
+  })
+
+  it('names each threat in the caption and writes one decision line per threat in row order (E7)', () => {
+    expect(captionLines(on03('03a', shape))).toEqual([
+      'Look #3 · 0:41 — opened inject-12 (threat 2); escalated at 0:58.',
+      'It read as TRK-12 · sensor.',
+      'Look #5 · 1:24 — opened inject-11 (threat 1); escalated at 1:37.',
+      'It read as TRK-11 · sensor.',
+      'Look #5 · 1:37 — escalated inject-11 0.1 km outside the ring · 0:05 before entry.',
+      'Look #3 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry.',
+    ])
+    expect(
+      captionLines(
+        on03('03b', [
+          { t: 15, type: 'select', track: 'inject-42' },
+          { t: 95, type: 'select', track: 'inject-11' },
+          { t: 108, type: 'assess', track: 'inject-11' },
+          { t: 118, type: 'escalate', track: 'inject-11' },
+          { t: 140, type: 'select', track: 'inject-41' },
+        ]),
+      ),
+    ).toEqual([
+      'Look #2 · 1:35 — opened inject-11 (threat 1); assessed at 1:48, escalated at 1:58.',
+      'It read as TRK-11 · sensor.',
+      'Look #2 · 1:58 — escalated inject-11 0.1 km inside the ring · 0:12 after entry.',
+      'MISSED inject-12 — never escalated; 3 looks.',
+    ])
+  })
+
+  it('leaves the corroboration pair’s frames byte for byte as S5b wrote them — no id on a trail, the T0 label at x + 8', () => {
+    for (const name of ['S03-02a-raw-1', 'S03-02a-vigil-1', 'S04-02b-raw-1', 'S04-02b-vigil-1']) {
+      const svg = frameSvg(fixture(name))
+      expect(svg).toBe(readFileSync(`tools/replay/__fixtures__/frames/${name}.svg`, 'utf8'))
+      expect(tagsOf(svg, 'trail')[0]['data-id']).toBeUndefined()
+      expect(tagsOf(svg, 'trail-first')[0]['data-id']).toBeUndefined()
+      const [first] = tagsOf(svg, 'trail-first')
+      const t0 = labelTag(svg, 'T0 · 7.2 km')!
+      expect(t0['text-anchor']).toBeUndefined()
+      expect(Number(t0.x)).toBe(Math.round((Number(first.cx) + 8) * 10) / 10)
+    }
+  })
+})
+
+describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
+  it('writes the caption for the S05 03a raw fixture and the S06 03b raw fixture exactly', () => {
+    const raw = fixture('S05-03a-raw-1')
+    expect(headerLine(raw.record, raw.metrics)).toBe(
+      'UNAIDED · frozen at the moment of the last escalation — 1:37',
+    )
+    expect(captionLines(raw)).toEqual([
+      'Look #3 · 0:41 — opened inject-12 (threat 2); assessed at 0:50, escalated at 0:58.',
+      'It read as TRK-12 · sensor.',
+      'Look #5 · 1:24 — opened inject-11 (threat 1); assessed at 1:30, escalated at 1:37.',
+      'It read as TRK-11 · sensor.',
+      'Look #5 · 1:37 — escalated inject-11 0.1 km outside the ring · 0:05 before entry.',
+      'Look #3 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry.',
+    ])
+    const missed = fixture('S06-03b-raw-1')
+    expect(headerLine(missed.record, missed.metrics)).toBe(
+      'UNAIDED · MISSED inject-12 — frozen at +2:59',
+    )
+    expect(captionLines(missed)).toEqual([
+      'Look #3 · 1:35 — opened inject-11 (threat 1); assessed at 1:48, escalated at 1:58.',
+      'It read as TRK-11 · sensor.',
+      'Look #3 · 1:58 — escalated inject-11 0.1 km inside the ring · 0:12 after entry.',
+      'MISSED inject-12 — never escalated; 4 looks.',
+    ])
+    // The Vigil frames read the same idents: the 03 threats are silent, so no mode changes them.
+    const vigil = fixture('S06-03b-vigil-1')
+    expect(headerLine(vigil.record, vigil.metrics)).toBe(
+      'WITH VIGIL · frozen at the moment of the last escalation — 1:28',
+    )
+    expect(captionLines(vigil)[1]).toBe('It read as TRK-11 · sensor.')
+    // Five hops on the raw frame up to the freeze at +97; the sixth look at +130 is after it.
+    const svg = frameSvg(raw)
+    expect(tagsOf(svg, 'hop')).toHaveLength(5)
+    expect(textsOf(svg, 'subtitle')).toEqual([
+      "The subject's selection sequence from the run JSON, replayed as a path. 5 looks.",
+    ])
+    expect(frameSvg(raw)).toBe(frameSvg(raw))
   })
 })
