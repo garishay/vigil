@@ -284,6 +284,13 @@ describe('?subject= and ?run= — a study run (S4b, #137, ruled A1; #131)', () =
     expect(refusal('?subject=S03&run=')).toBe('?run= is a run number from 1, not ""')
     expect(refusal('?subject=S03&run=1.5')).toBe('?run= is a run number from 1, not "1.5"')
     expect(refusal('?subject=S03&run=two')).toBe('?run= is a run number from 1, not "two"')
+    // Past the safe integer range two links would read as one run (#149 round 1).
+    expect(refusal('?subject=S03&run=99999999999999999999')).toBe(
+      '?run= is a run number from 1, not "99999999999999999999"',
+    )
+    expect(resolveSession('?scenario=02a&subject=S03&run=9007199254740991').study?.run).toBe(
+      9007199254740991,
+    )
     expect(refusal('?subject=S03&run=1&run=2')).toBe('?run= is given more than once — give it once')
     expect(refusal('?subject=S03&subject=S04&run=1')).toBe(
       '?subject= is given more than once — give it once',

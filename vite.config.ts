@@ -14,7 +14,8 @@ function buildString(): string {
     execSync(`git ${args}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
   let commit = 'unknown'
   try {
-    commit = git('rev-parse --short HEAD') + (git('status --porcelain') === '' ? '' : '-dirty')
+    // Tracked files only (`-uno`): a stray untracked file is not a change to what was built.
+    commit = git('rev-parse --short HEAD') + (git('status --porcelain -uno') === '' ? '' : '-dirty')
   } catch {
     // No repository under the build: the version alone still names it.
   }

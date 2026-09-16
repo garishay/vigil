@@ -232,9 +232,16 @@ export default function App({
   const tSec = playback.tSec
   // The run's three states (S4b): the brief up until Begin; running; ended at the window's end
   // — or the recording's, if it is shorter — with the picture frozen under the end screen.
-  // `began_at` is the wall clock at Begin, the stamp the run JSON carries.
+  // `began_at` is the wall clock at Begin, the stamp the run JSON carries. A run ends only after
+  // it began: a recording that ends at or before Begin holds the brief with Begin withheld,
+  // rather than opening on an end screen no run can fill (#149 round 1).
   const [beganAt, setBeganAt] = useState<string | null>(null)
-  const runEnded = inStudy && index !== null && tSec >= Math.min(RUN_WINDOW.toS, index.durationS)
+  const canBegin = index !== null && index.durationS > RUN_WINDOW.fromS
+  const runEnded =
+    inStudy &&
+    beganAt !== null &&
+    index !== null &&
+    tSec >= Math.min(RUN_WINDOW.toS, index.durationS)
   const runActive = inStudy && beganAt !== null && !runEnded
   // Every selection between Begin and the end, in order — the run JSON's `select` events
   // (ruled A5): which track, at which tick. The record holds the actions; this holds the looks.
@@ -765,7 +772,7 @@ export default function App({
   const runName = study
     ? `${resolved?.scenario.on ? resolved.scenario.name : 'off'} · ${mode} · subject ${study.subject} · run ${study.run}`
     : null
-  const overlay = study && beganAt === null && !runEnded
+  const overlay = study && beganAt === null
   const json = useMemo(() => {
     if (!study || !runEnded || beganAt === null || !ready) return null
     if (QUESTIONS.some((question) => answers[question.id] === undefined)) return null
@@ -1016,7 +1023,7 @@ export default function App({
         <RunBrief
           title={`Vigil · study run — ${runName}`}
           brief={BRIEF}
-          ready={ready !== null}
+          ready={canBegin}
           onBegin={() => {
             setBeganAt(now())
             playback.play()

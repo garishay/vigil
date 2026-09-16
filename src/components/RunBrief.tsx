@@ -2,8 +2,8 @@
  * The brief a study run opens on (S4b, #137, ruled A2; #131): an opaque overlay over the whole
  * shell — the run's name, the parent's text word for word, one button. Under it the clock is
  * held at Begin's tick and nothing of the picture is readable. Begin is offered once the
- * recording is in, since the clock has nothing to run on before; pressing it is the parent's
- * Begin — the shell stamps `began_at` and starts the clock.
+ * recording is in and reaches past Begin, since the clock has nothing to run on otherwise;
+ * pressing it is the parent's Begin — the shell stamps `began_at` and starts the clock.
  */
 export function RunBrief({
   title,

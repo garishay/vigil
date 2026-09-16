@@ -2271,6 +2271,30 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '')
   })
 
+  it('holds the brief with Begin withheld on a recording that ends at or before Begin — never an end screen no run can fill (#149 round 1)', () => {
+    // Thirty-three frames at 15 s: the recording ends at 480 s, Begin's own tick.
+    const short = ready({
+      ...CAPTURE,
+      frames: [...Array(33)].map((_, i) => ({
+        tMs: i * 15000,
+        records: CAPTURE.frames[0].records,
+      })),
+    })
+    if (short.status !== 'ready') throw new Error('a ready session')
+    useSession.mockReturnValue({
+      ...short,
+      session: { ...short.session, study: { subject: 'S03', run: 1 } },
+    })
+    render(<App schedule={never} />)
+    expect(dialog()).toHaveAccessibleName(
+      'Vigil · study run — default · vigil · subject S03 · run 1',
+    )
+    expect(within(dialog()).getByRole('button', { name: 'Begin' })).toBeDisabled()
+    expect(screen.queryByText(/^Run complete/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Copy run' })).toBeNull()
+    expect(field('Playback')).toHaveTextContent('+00:00')
+  })
+
   it('offers Begin only once the recording is in, the count held back until then', () => {
     useSession.mockReturnValue({
       status: 'loading',

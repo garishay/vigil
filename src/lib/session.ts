@@ -133,8 +133,13 @@ function parseStudy(params: URLSearchParams): StudyRun | null {
   if (subject === null && run === null) return null
   if (subject === null || run === null) return refuse('a run link names both ?subject= and ?run=')
   if (!SUBJECT_CODE.test(subject)) refuse(`?subject= is a subject code, not "${subject}"`)
-  if (!/^[1-9][0-9]*$/.test(run)) refuse(`?run= is a run number from 1, not "${run}"`)
-  return { subject, run: Number(run) }
+  // A whole number from 1 that a JSON number holds exactly: past the safe range two links
+  // would collapse to one run, and past what a double holds the JSON would read null (#149).
+  const index = Number(run)
+  if (!/^[1-9][0-9]*$/.test(run) || !Number.isSafeInteger(index)) {
+    refuse(`?run= is a run number from 1, not "${run}"`)
+  }
+  return { subject, run: index }
 }
 
 /** Where the picker would go for a live feed: the number of the Issue that brings it. */
