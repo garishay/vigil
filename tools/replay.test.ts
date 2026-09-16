@@ -50,15 +50,32 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     ])
   })
 
-  it('prints the CSV for named runs, and writes study.csv under --out for --study', () => {
-    const printed = main([
-      join(FIXTURES, 'S03-02a-vigil-1.json'),
-      join(FIXTURES, 'S03-02a-raw-1.json'),
-    ])
+  it('prints the CSV for named runs and writes their frames under --out; writes study.csv under --out for --study', () => {
+    const frames = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(frames)
+    const logged: string[] = []
+    const printed = main(
+      [
+        join(FIXTURES, 'S03-02a-vigil-1.json'),
+        join(FIXTURES, 'S03-02a-raw-1.json'),
+        '--out',
+        frames,
+      ],
+      (line) => logged.push(line),
+    )
     const lines = printed.split('\n')
     expect(lines[0]).toBe(CSV_COLUMNS.join(','))
     expect(lines[1]).toMatch(/^S03,02a,raw,1,/)
     expect(lines[2]).toMatch(/^S03,02a,vigil,1,/)
+    // Each run's frame, named by subject, scenario, mode, and run, and the line that names it (S5b).
+    expect(logged).toEqual([
+      `${join(frames, 'S03-02a-vigil-1.svg')}: written\n`,
+      `${join(frames, 'S03-02a-raw-1.svg')}: written\n`,
+    ])
+    const svg = readFileSync(join(frames, 'S03-02a-raw-1.svg'), 'utf8')
+    expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true)
+    expect(svg).toContain('UNAIDED · frozen at the moment of escalation — 0:58')
+    expect(existsSync(join(frames, 'study.csv'))).toBe(false)
     const out = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(out)
     expect(main(['--study', FIXTURES, '--out', out])).toBe(`${join(out, 'study.csv')}: 4 runs\n`)
@@ -74,7 +91,8 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
         '',
       ].join('\n'),
     )
-    expect(written).toBe(main([FIXTURES]))
+    expect(written).toBe(main([FIXTURES, '--out', frames]))
+    expect(existsSync(join(frames, 'S04-02b-vigil-1.svg'))).toBe(true)
   })
 
   it('builds one plan per scenario across the runs, and stops on a refused file with nothing written', () => {
