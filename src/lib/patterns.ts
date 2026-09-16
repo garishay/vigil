@@ -88,7 +88,10 @@ export function loiterDwell(history: TrackHistory, config: PatternConfig['loiter
  * seconds after each grid instant — and a leg shorter than `lastLegM` is dropped from the run
  * (#155, R2 on #152): positions sit on a metre grid, so a short leg's bearing is noise, and the
  * run broke at it and re-formed every grid step, naming and un-naming an orbit fourteen times in
- * one run. The run then ends on the last full leg, at most one grid step behind the clock.
+ * one run. The run then ends on the last full leg, at most one grid step behind the clock. A
+ * kept partial leg is still tested against `minTurnDeg` on its turn from the full leg before it
+ * — about half a step's turn plus — and the floor is set where the bench reads no residual
+ * change, not where the arithmetic has margin (#157).
  */
 export function heldTurn(
   history: TrackHistory,

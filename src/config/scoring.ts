@@ -96,9 +96,14 @@ export interface ScoringConfig {
    * 450 m holds the golden loiter's wander (309 m × √2) and 150 s excludes a 12 kt straight line
    * and a grid sweep's U-turn; 400 m clears the lane spacing the scenario draws. The orbit's
    * last leg — the current position's, a partial grid step — is dropped from the turn when
-   * shorter than `lastLegM` (#155, R2 on #152): positions sit on a metre grid, so a 30 m leg's
-   * bearing reads within ±2°, under the 3° minimum turn, where a 10 m leg reads ±6° and broke
-   * the run for the first seconds of every grid step.
+   * shorter than `lastLegM` (#155, R2 on #152): positions sit on a metre grid, so a short leg's
+   * bearing is noise — about ±6° at 10 m — and the run broke at it for the first seconds of
+   * every grid step. The number is set where the bench reads no residual change: none on the
+   * study's orbit bait at 30 or 50 m (four at 15 m), none on the 25-seed deal's 35 orbits. Its
+   * margin by arithmetic is thin — what the run tests is the turn between the kept partial leg
+   * and the full leg before it, about half a step's turn plus, 5.3° at 30 m on the bait's 8 kt
+   * circle, against 2–3° of grid error on a 30 m leg — so the bench, not the sentence, is what
+   * holds it (#157 carries the structural alternatives).
    */
   pattern: {
     windowS: number
