@@ -23,6 +23,13 @@ export interface StudyConfig {
     /** A heard, consistent, not-closing track never reaches this composite. */
     heardCalmUnder: number
   }
+  /**
+   * The prioritization pair's lines (S7, #152, ruled A8; S7b): the lock — ranks 1 and 2 the
+   * threats in entry order through the first entry — may land this many ticks after T_lock; a
+   * tangential bait's course misses the ring by at least this on every airborne tick; the leak
+   * tell is threat 1 opened on raw under this many seconds by both volunteers.
+   */
+  prioritization: { lockToleranceTicks: number; baitMissM: number; leakOpenS: number }
   /** The cue audit's definitions, on airborne ticks only — a landed track counts for nothing. */
   audit: {
     /** *Closing*: the closing factor at or above this on a tick in the window. */
@@ -39,6 +46,7 @@ export const STUDY: StudyConfig = {
   runS: 360,
   rawAssociationM: 1500,
   acceptance: { entryLeadS: 60, marginAtLeast: 5, heardCalmUnder: 40 },
+  prioritization: { lockToleranceTicks: 3, baitMissM: 1000, leakOpenS: 30 },
   audit: { closingAtLeast: 50, insideM: 6500, hoveringUnderKt: 2 },
 }
 
