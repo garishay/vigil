@@ -429,3 +429,15 @@ describe('the reason tag and the re-surface (05b, ruled on #5)', () => {
     expect(within(still).getByText('Dismissed')).toBeInTheDocument()
   })
 })
+
+describe('a study run (S4b, #36 [38], ruled A)', () => {
+  it('reads the source word on the badge — ADS-B, Remote ID, sensor — never the layer, and wears no layer fill', () => {
+    render(<Queue ranked={RANKED} run />)
+    const [silent, , airliner, heard] = rows()
+    expect(within(silent).getByText('sensor')).toHaveClass('queue__badge', 'queue__badge--source')
+    expect(within(heard).getByText('Remote ID')).toHaveClass('queue__badge--source')
+    expect(within(airliner).getByText('ADS-B')).toHaveClass('queue__badge--source')
+    expect(screen.queryByText('INJECT')).toBeNull()
+    expect(document.querySelector('.queue__badge[data-layer]')).toBeNull()
+  })
+})

@@ -228,7 +228,12 @@ export function resolveSession(
         )
 
   // The study run (S4b): URL only, as the mode is — the link fixes scenario, mode, and subject.
+  // A run names a study scenario (#36 [36], ruled B): with the scenario off there is no threat
+  // to find and nothing for the replay to regenerate, so the link is refused, not run.
   const study = parseStudy(params)
+  if (study !== null && named === null) {
+    refuse('a run link names a study scenario — ?scenario=off is not a run')
+  }
 
   return {
     feeds,

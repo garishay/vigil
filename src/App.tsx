@@ -687,7 +687,10 @@ export default function App({
           { label: 'Injects', value: count(injects.length) },
         ]),
     // Raw hides the seed: it names the scenario a subject must not know (ruled A3).
-    ...(raw ? [] : [{ label: 'Seed', value: ready ? (scenario?.seed ?? '—') : pending }]),
+    // A study run hides it in both modes (S4b, #36 [37], ruled A): the seed is the scenario's name.
+    ...(raw || inStudy
+      ? []
+      : [{ label: 'Seed', value: ready ? (scenario?.seed ?? '—') : pending }]),
     // The recording and the day it was flown (#84, ruled), and the clock it opens: held back with
     // the counts until the recording is in, since all three are read off the loaded file.
     {
@@ -769,9 +772,9 @@ export default function App({
   // The run's overlays (S4b): the brief until Begin, the end screen from the window's end. The
   // shell under either is inert — no click, no Tab reaches it — so the picture is neither read
   // nor acted on through the overlay; the handlers above refuse anyway.
-  const runName = study
-    ? `${resolved?.scenario.on ? resolved.scenario.name : 'off'} · ${mode} · subject ${study.subject} · run ${study.run}`
-    : null
+  // The run's name on the brief and the end screen: the subject and the run only (#36 [37],
+  // ruled A) — the scenario and the mode are the researcher's, carried by the JSON.
+  const runName = study ? `subject ${study.subject} · run ${study.run}` : null
   const overlay = study && beganAt === null
   const json = useMemo(() => {
     if (!study || !runEnded || beganAt === null || !ready) return null
@@ -868,19 +871,23 @@ export default function App({
             )}
             {surfaceId === 'queue' && (
               <>
-                <div className="chips" role="group" aria-label="Filter by layer">
-                  {FILTERS.map((filter) => (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      className="chip"
-                      aria-pressed={layerFilter === filter.id}
-                      onClick={() => setLayerFilter(filter.id)}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
+                {/* The layer chips are withheld in a study run (#36 [38], ruled A): a filter named
+                  INJECT is the cue the single count removed. The demo keeps them. */}
+                {!inStudy && (
+                  <div className="chips" role="group" aria-label="Filter by layer">
+                    {FILTERS.map((filter) => (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        className="chip"
+                        aria-pressed={layerFilter === filter.id}
+                        onClick={() => setLayerFilter(filter.id)}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="chips" role="group" aria-label="Filter by state">
                   {STATE_FILTERS.map((filter) => (
                     <button
@@ -903,6 +910,7 @@ export default function App({
                     resurfaced(eventLogs[entry.track.id], entry.track.source, entry.score.friendly)
                   }
                   sites={sites}
+                  run={inStudy}
                   onSelect={select}
                 />
               </>

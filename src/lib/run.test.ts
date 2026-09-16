@@ -185,9 +185,9 @@ describe('runRecord and runJson (S4b, ruled A6)', () => {
     expect(runJson({ ...input('raw'), logs: {}, selections: [] })).toContain('"events": [],')
   })
 
-  it('names the scenario off when the link ran without one, and refuses a session that is not a run', () => {
+  it('refuses a session that is not a run, and one with the scenario off — the resolver refuses both first (#36 [36])', () => {
     const off = { ...session('raw'), scenario: { on: false as const } }
-    expect(runRecord({ ...input('raw'), session: off }).scenario).toBe('off')
+    expect(() => runRecord({ ...input('raw'), session: off })).toThrow(/scenario/)
     const demo = { ...session('raw'), study: null }
     expect(() => runRecord({ ...input('raw'), session: demo })).toThrow(/study run/)
   })

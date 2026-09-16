@@ -69,15 +69,21 @@ export function RunEnd({
           </button>
           {json === null && <span className="run__hint">Enabled once all three are answered</span>}
         </div>
+        {/* Behind a disclosure, closed by default (#36 [39], ruled A): the subject copies without
+          reading the ids; the textarea stays mounted for the copy fallback and for a subject who
+          cannot copy. */}
         {json !== null && (
-          <textarea
-            ref={textRef}
-            className="run__json"
-            readOnly
-            value={json}
-            rows={Math.min(16, json.split('\n').length)}
-            aria-label="Run JSON"
-          />
+          <details className="run__details">
+            <summary className="run__summary">Show JSON</summary>
+            <textarea
+              ref={textRef}
+              className="run__json"
+              readOnly
+              value={json}
+              rows={Math.min(16, json.split('\n').length)}
+              aria-label="Run JSON"
+            />
+          </details>
         )}
       </div>
     </div>

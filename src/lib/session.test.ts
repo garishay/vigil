@@ -298,4 +298,19 @@ describe('?subject= and ?run= — a study run (S4b, #137, ruled A1; #131)', () =
     // URL only, as the mode is: the env names no subject.
     expect(resolveSession('', { VITE_DEFAULT_SCENARIO: '02a' }).study).toBeNull()
   })
+
+  it('refuses a run link with the scenario off, from the URL or the env — a run names a study scenario (#36 [36], ruled B)', () => {
+    expect(refusal('?scenario=off&subject=S03&run=1')).toBe(
+      'a run link names a study scenario — ?scenario=off is not a run',
+    )
+    expect(refusal('?subject=S03&run=1', { VITE_DEFAULT_SCENARIO: 'off' })).toBe(
+      'a run link names a study scenario — ?scenario=off is not a run',
+    )
+    // The default deal is a scenario; a run on it resolves, and the demo with the scenario off still opens.
+    expect(resolveSession('?scenario=on&subject=S03&run=1').study).toEqual({
+      subject: 'S03',
+      run: 1,
+    })
+    expect(resolveSession('?scenario=off').study).toBeNull()
+  })
 })

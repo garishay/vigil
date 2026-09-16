@@ -27,7 +27,7 @@ export type RunAnswers = Record<QuestionId, number>
 
 export interface RunRecord {
   subject: string
-  /** The scenario's name — the seed's home — or `off` when the link ran without one. */
+  /** The scenario's name — the seed's home; a run link always names one (#36 [36]). */
   scenario: string
   mode: Mode
   run: number
@@ -98,13 +98,17 @@ export interface RunInput {
   answers: RunAnswers
 }
 
-/** The record, keys in the contract's order. Throws for a session that is not a study run. */
+/**
+ * The record, keys in the contract's order. Throws for a session that is not a study run or
+ * has no scenario — states the resolver refuses before a run can open.
+ */
 export function runRecord(input: RunInput): RunRecord {
   const { session, answers } = input
   if (session.study === null) throw new Error('runRecord needs a study run — ?subject= and ?run=')
+  if (!session.scenario.on) throw new Error('runRecord needs a scenario — a run link names one')
   return {
     subject: session.study.subject,
-    scenario: session.scenario.on ? session.scenario.name : 'off',
+    scenario: session.scenario.name,
     mode: session.mode,
     run: session.study.run,
     build: input.build,

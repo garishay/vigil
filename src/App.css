@@ -284,7 +284,8 @@
   letter-spacing: 0.08em;
 }
 
-.queue__badge[data-layer='inject'] {
+.queue__badge[data-layer='inject'],
+.queue__badge--source {
   background: var(--panel-raised);
   color: var(--text);
 }
@@ -599,9 +600,19 @@
   font-size: 0.75rem;
 }
 
+.run__details {
+  margin-top: 0.75rem;
+}
+
+.run__summary {
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
 .run__json {
   width: 100%;
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg);

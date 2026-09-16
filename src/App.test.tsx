@@ -2249,7 +2249,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
 
   it('opens on the brief — the run named, the text word for word, one button — with the clock held at Begin, one track count, and the shell inert', () => {
     const replay = start('raw')
-    expect(dialog()).toHaveAccessibleName('Vigil · study run — default · raw · subject S03 · run 1')
+    expect(dialog()).toHaveAccessibleName('Vigil · study run — subject S03 · run 1')
     expect(within(dialog()).getByText(BRIEF)).toBeInTheDocument()
     expect(within(dialog()).getByRole('button', { name: 'Begin' })).toBeEnabled()
     // Held at Begin's tick: 001's 02:30:00 + 480 s, the elapsed time +00:00, no tick scheduled.
@@ -2286,9 +2286,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       session: { ...short.session, study: { subject: 'S03', run: 1 } },
     })
     render(<App schedule={never} />)
-    expect(dialog()).toHaveAccessibleName(
-      'Vigil · study run — default · vigil · subject S03 · run 1',
-    )
+    expect(dialog()).toHaveAccessibleName('Vigil · study run — subject S03 · run 1')
     expect(within(dialog()).getByRole('button', { name: 'Begin' })).toBeDisabled()
     expect(screen.queryByText(/^Run complete/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Copy run' })).toBeNull()
@@ -2306,7 +2304,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       },
     })
     render(<App schedule={never} />)
-    expect(dialog()).toHaveAccessibleName('Vigil · study run — 02a · vigil · subject S03 · run 2')
+    expect(dialog()).toHaveAccessibleName('Vigil · study run — subject S03 · run 2')
     expect(within(dialog()).getByRole('button', { name: 'Begin' })).toBeDisabled()
     expect(field('Tracks')).toHaveTextContent('…')
     expect(field('Playback')).toHaveTextContent('—')
@@ -2325,6 +2323,8 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(field('Playback')).toHaveTextContent('+00:01')
     expect(field('Tracks')).toHaveTextContent(/^[0-9]+$/)
     expect(screen.queryByText('Cooperative')).toBeNull()
+    // The Seed names the scenario: hidden in a study run in both modes (#36 [37], ruled A).
+    expect(screen.queryByText('Seed')).toBeNull()
     expect(screen.queryByRole('slider', { name: 'Seek' })).toBeNull()
     expect(screen.queryByRole('button', { name: /^(Play|Pause)$/ })).toBeNull()
   })
@@ -2352,9 +2352,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(screen.queryByRole('dialog')).toBeNull()
     replay.tick()
     expect(field('Playback')).toHaveTextContent('+06:00')
-    expect(dialog()).toHaveAccessibleName(
-      'Run complete — default · raw · subject S03 · run 1 · +06:00',
-    )
+    expect(dialog()).toHaveAccessibleName('Run complete — subject S03 · run 1 · +06:00')
     // Frozen: a further tick moves nothing; the shell is inert and a click selects nothing new.
     replay.tick(5)
     expect(field('Playback')).toHaveTextContent('+06:00')
@@ -2372,6 +2370,11 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     answer('Confidence in your decisions', '5')
     expect(copyRun).toBeEnabled()
     expect(within(dialog()).queryByText('Enabled once all three are answered')).toBeNull()
+    // The JSON behind a Show JSON disclosure, closed by default, the textarea inside it for the
+    // copy fallback (#36 [39], ruled A).
+    const details = within(dialog()).getByText('Show JSON').closest('details') as HTMLElement
+    expect(details).not.toHaveAttribute('open')
+    expect(details).toContainElement(within(dialog()).getByLabelText('Run JSON'))
     const json = runJsonText()
     expect(JSON.parse(json)).toEqual({
       subject: 'S03',
@@ -2404,7 +2407,17 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     begin()
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     replay.tick(20)
+    // No layer chips in a run, the state chips kept; every badge a source word, never INJECT
+    // (#36 [38], ruled A).
+    expect(screen.queryByRole('group', { name: 'Filter by layer' })).toBeNull()
+    expect(screen.getByRole('group', { name: 'Filter by state' })).toBeInTheDocument()
     const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
+    expect(screen.queryByText('INJECT')).toBeNull()
+    for (const row of rows) {
+      expect(row.querySelector('.queue__badge--source')?.textContent).toMatch(
+        /^(ADS-B|Remote ID|sensor)$/,
+      )
+    }
     fireEvent.click(within(rows[0]).getByRole('button'))
     const id = screen.getByTestId('map').getAttribute('data-selected')
     expect(id).not.toBe('')
@@ -2418,9 +2431,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     fireEvent.click(within(drawer).getByRole('button', { name: 'Assess' }))
     expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
     replay.tick(330)
-    expect(dialog()).toHaveAccessibleName(
-      'Run complete — default · vigil · subject S03 · run 1 · +06:00',
-    )
+    expect(dialog()).toHaveAccessibleName('Run complete — subject S03 · run 1 · +06:00')
     // Refused after the end: the drawer's Dismiss changes nothing and logs nothing.
     fireEvent.click(within(drawer).getByRole('button', { name: 'Dismiss' }))
     expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
@@ -2444,6 +2455,11 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(screen.getByRole('button', { name: 'Sites' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^(Play|Pause)$/ })).toBeInTheDocument()
     expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+    // The demo keeps the Seed, the layer chips, and the INJECT badge (#36 [37], [38]).
+    expect(screen.getByText('Seed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    expect(screen.getByRole('group', { name: 'Filter by layer' })).toBeInTheDocument()
+    expect(screen.getAllByText('INJECT').length).toBeGreaterThan(1)
     unmount()
     useSession.mockReturnValue(ready(CAPTURE, DEFAULT_RECORDING, true, 'raw'))
     render(<App schedule={never} />)
