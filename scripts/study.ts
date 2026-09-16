@@ -27,7 +27,7 @@
  *
  * Run: `npm run bench:study` writes `docs/bench/study-<name>.md` for every study scenario, which
  * `study.test.ts` holds byte for byte and reads the lines off, so a scenario or scoring edit that
- * breaks the study fails CI. Without `--write` the two files print instead.
+ * breaks the study fails CI. Without `--write` the files print instead.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -112,8 +112,9 @@ export interface TrackRun {
   source: Track['source']
   /** The label raw mode would show — the last one heard on an airborne tick, or null. */
   label: string | null
-  /** The band on each tick of the window, in order. */
+  /** The band on each tick of the window, in order — and keyed by tick, for a track not in the picture on every tick. */
   bands: Band[]
+  bandAt: Map<number, Band>
   /** The named pattern on each tick, `null` as a word, in order. */
   kinds: string[]
   /** The queue position on each tick of the window, both layers ranked, keyed by tick. */
@@ -124,8 +125,8 @@ export interface TrackRun {
   firstWarningS: number | null
   /** The course's least miss of the ring on an airborne tick, metres beyond the ring; null when it never read a miss. */
   minMissM: number | null
-  /** Whether the course read an entry on any airborne tick. */
-  everEntryCourse: boolean
+  /** What the course read on each airborne tick of the window: a miss of the ring, opening, an entry, inside it, or nothing readable (still, unobserved). */
+  course: { misses: number; away: number; entry: number; inside: number; other: number }
   /** Whether the position lay inside the ring on any tick of the window. */
   insideInWindow: boolean
   /** The closing factor's range over airborne ticks. */
@@ -154,15 +155,17 @@ export interface Prioritization {
   rowOrderIsEntryOrder: boolean
   firstEntryS: number | null
   lastEntryS: number | null
+  /** A threat already inside the ring before Begin, if any — the lock is then not measurable. */
+  entryBeforeBegin: { id: string; enteredS: number } | null
   /** T_lock as stated, and the measured lock: the first tick from which ranks 1 and 2 are the threats in entry order through the first entry; null when never. */
   lockStatedS: number
   lockS: number | null
-  /** Ticks at or before the first entry on which the order did not hold. */
+  /** Ticks from Begin to the first entry on which the order did not hold — all of them before the lock, by its definition. */
   invertedTicks: number
   /** The narrowest margins to the first entry: threat 1 over threat 2, and rank 2 over rank 3 with who was third. */
   threatMargin: { min: number; atS: number } | null
   rank3Margin: { min: number; atS: number; over: string } | null
-  tangential: { id: string; minMissM: number | null; everEntry: boolean }[]
+  tangential: { id: string; minMissM: number | null; ticks: TrackRun['course'] }[]
   /** Injects other than the threats whose position lay inside the ring on any tick of the window. */
   baitsEntered: string[]
   orbit: {
@@ -309,12 +312,13 @@ export function runStudy(
         source: track.source,
         label: null,
         bands: [],
+        bandAt: new Map(),
         kinds: [],
         rankAt: new Map(),
         compositeAt: new Map(),
         firstWarningS: null,
         minMissM: null,
-        everEntryCourse: false,
+        course: { misses: 0, away: 0, entry: 0, inside: 0, other: 0 },
         insideInWindow: false,
         closingMin: Infinity,
         closingMax: -Infinity,
@@ -379,6 +383,7 @@ export function runStudy(
       const run = runOf(track)
       const band = bandOf(Math.round(score.composite), scoring.bands)
       run.bands.push(band)
+      run.bandAt.set(tSec, band)
       run.kinds.push(score.pattern ?? 'null')
       run.rankAt.set(tSec, i + 1)
       run.compositeAt.set(tSec, score.composite)
@@ -397,8 +402,11 @@ export function runStudy(
           if (course.kind === 'misses') {
             const missM = course.cpaM - site.radiusM
             run.minMissM = run.minMissM === null ? missM : Math.min(run.minMissM, missM)
-          }
-          if (course.kind === 'entry') run.everEntryCourse = true
+            run.course.misses++
+          } else if (course.kind === 'away') run.course.away++
+          else if (course.kind === 'entry') run.course.entry++
+          else if (course.kind === 'inside') run.course.inside++
+          else run.course.other++
         }
         if (distanceMeters(site.center, track.position) <= config.audit.insideM) run.inside = true
         if (track.source === 'inject') {
@@ -530,20 +538,27 @@ function prioritizationOf(
 ): Prioritization {
   const runOf = (id: string) => {
     const run = runs.get(id)
-    if (!run) throw new Error(`no ${id} in the picture — the bench's cast table names it`)
+    // Every plan spec has a run once the fold has seen it, so the guard is the picture, not the map.
+    if (!run || run.rankAt.size === 0)
+      throw new Error(`${id} is named by the cast table but never in the window's picture`)
     return run
   }
   const threats = roles.threats.map((id) => {
     const run = runOf(id)
     const enteredS = run.enteredS
+    // Read by tick: a track not in the picture on a tick from Begin to its entry was not warning on it.
     const warningToEntry =
       enteredS !== null &&
       enteredS >= begin &&
       Array.from({ length: enteredS - begin + 1 }, (_, k) => begin + k).every(
-        (t) => run.bands[t - begin] === 'warning',
+        (t) => run.bandAt.get(t) === 'warning',
       )
     return { id, enteredS, firstWarningS: run.firstWarningS, warningToEntry }
   })
+  const early = threats
+    .filter((t) => t.enteredS !== null && t.enteredS < begin)
+    .sort((a, b) => a.enteredS! - b.enteredS!)[0]
+  const entryBeforeBegin = early ? { id: early.id, enteredS: early.enteredS! } : null
   const entered = threats.filter((t) => t.enteredS !== null) as { id: string; enteredS: number }[]
   const byEntry = [...entered].sort((a, b) => a.enteredS - b.enteredS)
   const rowOrderIsEntryOrder =
@@ -558,29 +573,44 @@ function prioritizationOf(
     second.rankAt.get(t) === 2
   let lockS: number | null = null
   let invertedTicks = 0
-  const lastTick = firstEntryS === null ? end : Math.min(firstEntryS, end)
-  for (let t = lastTick; t >= begin; t--) {
-    if (inOrder(t)) lockS = t
-    else break
-  }
-  for (let t = begin; t <= lastTick; t++) if (!inOrder(t)) invertedTicks++
   let threatMargin: Prioritization['threatMargin'] = null
   let rank3Margin: Prioritization['rank3Margin'] = null
-  if (first && second) {
-    for (let t = begin; t <= lastTick; t++) {
-      const a = first.compositeAt.get(t)
-      const b = second.compositeAt.get(t)
-      if (a === undefined || b === undefined) continue
-      if (threatMargin === null || a - b < threatMargin.min) threatMargin = { min: a - b, atS: t }
-      const third = [...runs.values()].find((run) => run.rankAt.get(t) === 3)
-      const c = third?.compositeAt.get(t)
-      if (third && c !== undefined && (rank3Margin === null || b - c < rank3Margin.min))
-        rank3Margin = { min: b - c, atS: t, over: third.id }
+  // A threat inside the ring before Begin leaves nothing to lock on: the line says so instead of
+  // reading a clean zero off an empty range.
+  const lastTick = firstEntryS === null ? end : Math.min(firstEntryS, end)
+  if (entryBeforeBegin === null) {
+    for (let t = lastTick; t >= begin; t--) {
+      if (inOrder(t)) lockS = t
+      else break
+    }
+    for (let t = begin; t <= lastTick; t++) if (!inOrder(t)) invertedTicks++
+    if (first && second) {
+      const holder = (t: number, rank: number) =>
+        [...runs.values()].find((run) => run.rankAt.get(t) === rank)
+      for (let t = begin; t <= lastTick; t++) {
+        const a = first.compositeAt.get(t)
+        const b = second.compositeAt.get(t)
+        if (a === undefined || b === undefined) continue
+        if (threatMargin === null || a - b < threatMargin.min) threatMargin = { min: a - b, atS: t }
+        // Rank 2 over rank 3 reads whoever holds those ranks on the tick — the threat only while the
+        // order holds — so the number is a margin on every tick, the inverted ones included.
+        const runnerUp = holder(t, 2)
+        const third = holder(t, 3)
+        const b2 = runnerUp?.compositeAt.get(t)
+        const c = third?.compositeAt.get(t)
+        if (
+          third &&
+          b2 !== undefined &&
+          c !== undefined &&
+          (rank3Margin === null || b2 - c < rank3Margin.min)
+        )
+          rank3Margin = { min: b2 - c, atS: t, over: third.id }
+      }
     }
   }
   const tangential = (roles.tangential ?? []).map((id) => {
     const run = runOf(id)
-    return { id, minMissM: run.minMissM, everEntry: run.everEntryCourse }
+    return { id, minMissM: run.minMissM, ticks: { ...run.course } }
   })
   const baitsEntered = [...runs.values()]
     .filter(
@@ -611,6 +641,7 @@ function prioritizationOf(
     rowOrderIsEntryOrder,
     firstEntryS,
     lastEntryS,
+    entryBeforeBegin,
     lockStatedS: roles.lockS ?? begin,
     lockS,
     invertedTicks,
@@ -724,16 +755,37 @@ function prioritizationLines(result: StudyResult, begin: number): string[] {
   lines.push(
     `threats in row order: ${p.threats.map((t) => `${t.id} enters ${at(t.enteredS, begin)}`).join(' · ')} — row order is entry order ${check(p.rowOrderIsEntryOrder)} · both inside the run ${check(bothInside)} · warning on every tick from Begin to entry ${check(p.threats.every((t) => t.warningToEntry))}`,
   )
-  const lockOk =
-    p.lockS !== null && p.lockS <= p.lockStatedS + c.lockToleranceTicks && p.invertedTicks === 0
+  // The verdict is the tolerance's: a lock at or before T_lock + the tolerance passes, whatever
+  // the ticks before it read — they are the inverted ticks the line counts, all before the lock.
+  const lockOk = p.lockS !== null && p.lockS <= p.lockStatedS + c.lockToleranceTicks
+  const lockRead = p.entryBeforeBegin
+    ? `not measured — ${p.entryBeforeBegin.id} entered the ring at ${p.entryBeforeBegin.enteredS} s, before Begin`
+    : `${p.lockS === null ? 'never' : `from ${at(p.lockS, begin)}`}, ${p.invertedTicks} inverted ticks before it`
   lines.push(
-    `lock — ranks 1 and 2 the threats in entry order through the first entry: ${p.lockS === null ? 'never' : `from ${at(p.lockS, begin)}`}, ${p.invertedTicks} inverted ticks — T_lock ${at(p.lockStatedS, begin)}, tolerance ${c.lockToleranceTicks} ticks ${check(lockOk)} · threat 1 over threat 2 min ${p.threatMargin ? `${p.threatMargin.min.toFixed(2)} at ${p.threatMargin.atS} s` : '—'} · rank 2 over rank 3 min ${p.rank3Margin ? `${p.rank3Margin.min.toFixed(2)} at ${p.rank3Margin.atS} s (${p.rank3Margin.over})` : '—'}`,
+    `lock — ranks 1 and 2 the threats in entry order through the first entry: ${lockRead} — T_lock ${at(p.lockStatedS, begin)}, tolerance ${c.lockToleranceTicks} ticks ${check(lockOk)} · threat 1 over threat 2 min ${p.threatMargin ? `${p.threatMargin.min.toFixed(2)} at ${p.threatMargin.atS} s` : '—'} · rank 2 over rank 3 min ${p.rank3Margin ? `${p.rank3Margin.min.toFixed(2)} at ${p.rank3Margin.atS} s (${p.rank3Margin.over})` : '—'}`,
   )
-  const missOk = p.tangential.every(
-    (b) => !b.everEntry && b.minMissM !== null && b.minMissM >= c.baitMissM,
-  )
+  // The miss prints rounded and the verdict reads the rounded number, as the corroboration lead
+  // line does; every airborne tick is accounted for — a miss, opening, inside the ring, entering,
+  // or unreadable — and the verdict holds only with no tick inside or entering.
+  const missOf = (b: Prioritization['tangential'][number]) =>
+    b.minMissM === null ? null : Math.round(b.minMissM)
+  const missOk = p.tangential.every((b) => {
+    const miss = missOf(b)
+    return miss !== null && miss >= c.baitMissM && b.ticks.inside === 0 && b.ticks.entry === 0
+  })
+  const courseRead = (b: Prioritization['tangential'][number]) =>
+    [
+      `misses by ≥ ${missOf(b) ?? '—'} m on ${b.ticks.misses} airborne ticks`,
+      `opening on ${b.ticks.away}`,
+      b.ticks.inside > 0 ? `inside the ring on ${b.ticks.inside}` : null,
+      b.ticks.entry > 0 ? `on an entering course on ${b.ticks.entry}` : null,
+      b.ticks.other > 0 ? `unreadable on ${b.ticks.other}` : null,
+      b.ticks.inside === 0 && b.ticks.entry === 0 ? 'never inside or entering' : null,
+    ]
+      .filter((part) => part !== null)
+      .join(', ')
   lines.push(
-    `baits: ${p.baitsEntered.length === 0 ? 'none enters inside the run ✓' : `entered inside the run: ${p.baitsEntered.join(', ')} ✗`} · ${p.tangential.map((b) => `tangential ${b.id} misses by ≥ ${b.minMissM === null ? '—' : Math.round(b.minMissM)} m on every airborne tick${b.everEntry ? ', on an entering course on some' : ', never on an entering course'}`).join(' · ')} — ≥ ${c.baitMissM} ${check(missOk)}`,
+    `baits: ${p.baitsEntered.length === 0 ? 'none enters inside the run ✓' : `entered inside the run: ${p.baitsEntered.join(', ')} ✗`} · ${p.tangential.map((b) => `tangential ${b.id} ${courseRead(b)}`).join(' · ')} — ≥ ${c.baitMissM} ${check(missOk)}`,
   )
   if (p.orbit)
     lines.push(
@@ -748,8 +800,9 @@ function prioritizationLines(result: StudyResult, begin: number): string[] {
   lines.push(
     `runS ${p.runS.actual} = last entry ${p.lastEntryS ?? '—'} − Begin ${begin} + 30 ${check(p.runS.rule !== null && p.runS.rule === p.runS.actual)}`,
   )
+  // A criterion for the leak test, not a measurement: nothing in the fold reads a volunteer.
   lines.push(
-    `leak tell: threat 1 ${p.threats[0]?.id ?? '—'} opened on raw under ${c.leakOpenS} s by both volunteers`,
+    `leak tell (stated, unmeasured until the leak test runs): threat 1 ${p.threats[0]?.id ?? '—'} opened on raw under ${c.leakOpenS} s by both volunteers`,
   )
   return lines
 }
