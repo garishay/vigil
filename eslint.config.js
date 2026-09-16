@@ -31,7 +31,7 @@ export default tseslint.config(
   {
     // Hand-run capture tooling: it runs on Node, and reporting progress across a twenty-minute
     // capture is the point of the script rather than noise in the app.
-    files: ['scripts/**/*.ts'],
+    files: ['scripts/**/*.ts', 'tools/**/*.ts'],
     languageOptions: { globals: globals.node },
     rules: { 'no-console': 'off' },
   },

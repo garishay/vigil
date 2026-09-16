@@ -17,3 +17,7 @@ src/lib/__fixtures__/*.json
 # The bench baseline, written by scripts/bench.ts — a generated table Prettier would re-align.
 # Never hand-edit; run `npm run bench:baseline`.
 docs/bench/baseline.md
+
+# The study replay tool’s fixtures — the run JSON as Copy run put it on the clipboard, byte for
+# byte (S5a): one event per line. Never hand-edit; captured from a headless run.
+tools/replay/__fixtures__/*.json

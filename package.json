@@ -18,6 +18,7 @@
     "bench": "node scripts/bench.ts",
     "bench:baseline": "node scripts/bench.ts --write",
     "bench:study": "node scripts/study.ts --write",
+    "replay": "node tools/replay.ts",
     "capture:adsb": "node scripts/capture-adsb.ts",
     "fixture:injects": "node scripts/generate-inject-golden.ts",
     "fixture:tone": "node scripts/generate-tone.ts",
