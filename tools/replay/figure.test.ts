@@ -176,7 +176,7 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
     ).toEqual([['S06', timeX(179, 218), y2 - 12]])
     expect(timeX(179, 218)).toBe(774.8)
     expect(svg).toContain('>3:38</text>')
-    const placed = placeTime(all.slice(4), 218, (m) => m.threats[1]?.firstOpenS ?? null)
+    const placed = placeTime(all.slice(4), 218, 1)
     expect(placed.filter((p) => p.hollow).map((p) => `${p.m.subject}@${p.x}`)).toEqual([
       'S06@774.8',
     ])
@@ -206,11 +206,11 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
 
   it('writes the counts per condition under each family, exact', () => {
     expect(textsOf(svg, 'counts-raw')).toEqual([
-      'unaided: 2 runs · misses threat 1 0 · threat 2 1 · false escalations 1 · escalations of later entrants 2 · order correct 0 of 1 with both escalated',
+      'unaided: 2 runs · misses threat 1 0 · threat 2 1 · false escalations 1 · escalations of later entrants 2 · order correct 0 of 1 with every threat escalated',
       'unaided: 2 runs · misses 0 · false escalations 0 · escalations of later entrants 0',
     ])
     expect(textsOf(svg, 'counts-vigil')).toEqual([
-      'Vigil: 2 runs · misses threat 1 0 · threat 2 0 · false escalations 0 · escalations of later entrants 0 · order correct 2 of 2 with both escalated',
+      'Vigil: 2 runs · misses threat 1 0 · threat 2 0 · false escalations 0 · escalations of later entrants 0 · order correct 2 of 2 with every threat escalated',
       'Vigil: 2 runs · misses 0 · false escalations 0 · escalations of later entrants 0',
     ])
   })
@@ -225,5 +225,55 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
     expect(textsOf(none, 'family')).toEqual([])
     // No pixel attribute carries two or more decimals.
     expect(svg).not.toMatch(/\b(x|y|cx|cy|x1|y1|x2|y2|r|width|height)="-?\d+\.\d{2,}"/)
+  })
+})
+
+describe('the study figure — round 1 (#162)', () => {
+  it('reads a scenario’s family from the bench’s roles table and refuses a stranger in words', () => {
+    expect(familyOf('02b')).toBe('corroboration')
+    expect(familyOf('03a')).toBe('prioritization')
+    expect(() => familyOf('02c')).toThrow('02c: not a study scenario the bench knows')
+    expect(() => studySvg([{ ...all[0], scenario: '04a' }])).toThrow(
+      '04a: not a study scenario the bench knows',
+    )
+  })
+
+  it('names a family’s scenarios in their own order whatever subject drew which', () => {
+    // S03 on 02a becomes S09, so 02b's subject sorts first; the heading still reads (02a, 02b).
+    const counterbalanced = all.map((m) => (m.scenario === '02a' ? { ...m, subject: 'S09' } : m))
+    expect(textsOf(studySvg(counterbalanced), 'family')).toEqual([
+      'Prioritization pair (03a, 03b) — attention',
+      'Corroboration pair (02a, 02b) — standoff at decision',
+    ])
+  })
+
+  it('draws no first-open dot for a run whose scenario has no such threat, as the standoff axis already did', () => {
+    // A two-threat run and a one-threat run on threat 2's axis: one dot, the two-threat run's.
+    const placed = placeTime([all[4], all[0]], 218, 1)
+    expect(placed.map((p) => `${p.m.subject}@${p.x}${p.hollow ? ' hollow' : ''}`)).toEqual([
+      'S05@331.7',
+    ])
+    expect(placeStandoff([all[4], all[0]], 1).map((p) => p.m.subject)).toEqual(['S05'])
+  })
+
+  it('draws the corroboration family at its own threat count: a second threat there gets its standoff axis and its counts', () => {
+    const second = {
+      ...all[0].threats[0],
+      id: 'inject-12',
+      firstOpenS: null,
+      timeToEscalateS: null,
+      standoffM: null,
+      miss: true,
+    }
+    const twoThreat = all.slice(0, 4).map((m) => ({ ...m, threats: [m.threats[0], second] }))
+    const svg2 = studySvg(twoThreat)
+    expect(textsOf(svg2, 'axis-title')).toEqual([
+      'standoff at decision · threat 1',
+      'standoff at decision · threat 2',
+    ])
+    expect(tagsOf(svg2, 'standoff-raw-hollow')).toHaveLength(2)
+    expect(textsOf(svg2, 'counts-raw')).toEqual([
+      'unaided: 2 runs · misses threat 1 0 · threat 2 2 · false escalations 0 · escalations of later entrants 0 · order correct 0 of 0 with every threat escalated',
+    ])
   })
 })

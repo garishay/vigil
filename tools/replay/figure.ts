@@ -4,17 +4,21 @@
  * claim (the #131 amendment): the non-threats opened before any threat on a count axis, each
  * threat's first open on the family's longest window, the standoff per threat as the second
  * line, and the counts per condition; then the corroboration pair (02a, 02b) with the
- * dots-on-axis figure as A7 drew it and its counts. On every axis an unaided lane sits above
- * the line and a Vigil lane below, one dot per run with the subject code beside it; a lane's
- * dots within a label's width of each other stack outward from the axis in steps, by subject
- * code, the first nearest the axis, the x exact; a subject with a run in both conditions has its
- * two dots joined by a thin line in the neutral colour, drawn under the dots. A miss sits hollow
- * at the inside end; a never-opened threat sits hollow at its own run's window end. A raw run
+ * dots-on-axis figure as A7 drew it and its counts. A family's threat count is its roles
+ * table's, as the metrics and the pair read it. On every axis an unaided lane sits above the
+ * line and a Vigil lane below, one dot per run with the subject code beside it; a lane's dots
+ * within a label's width of each other stack outward from the axis in steps, by subject code,
+ * the first nearest the axis, the x exact; a subject with a run in both conditions has its two
+ * dots joined by a thin line in the neutral colour, drawn under the dots. A miss sits hollow at
+ * the inside end; a never-opened threat sits hollow at its own run's window end. A raw run
  * reads *unaided* wherever the figure names it. Pure and deterministic.
  */
 
+import { STUDY_CAST, type Family } from '../../scripts/study.ts'
 import { CONDITION_COLOR, mmss, THEME } from './frame.ts'
 import type { RunMetrics } from './metrics.ts'
+
+export type { Family }
 
 const FONT = 'system-ui, sans-serif'
 const WIDTH = 1000
@@ -40,10 +44,12 @@ const text = (x: number, y: number, content: string, attrs: string): string =>
 const round1 = (value: number): number => Math.round(value * 10) / 10
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
-export type Family = 'corroboration' | 'prioritization'
-/** A scenario's family by its name: the 02 pair corroborates, the 03 pair prioritizes. */
-export const familyOf = (scenario: string): Family =>
-  scenario.startsWith('03') ? 'prioritization' : 'corroboration'
+/** A scenario's family: the bench's roles table's own declaration; a stranger throws in words (#162 round 1). */
+export const familyOf = (scenario: string): Family => {
+  const roles = STUDY_CAST[scenario]
+  if (!roles) throw new Error(`${scenario}: not a study scenario the bench knows`)
+  return roles.family
+}
 
 const MODES = ['raw', 'vigil'] as const
 type Mode = (typeof MODES)[number]
@@ -160,7 +166,7 @@ const axisFrame = (
 const sX = (m: number): number =>
   round1(AXIS_X + ((m + BAND_KM * 1000) / (2 * BAND_KM * 1000)) * AXIS_W)
 
-/** The standoff axis's placement: a miss hollow at the inside end; a standoff past the ends at the edge. */
+/** The standoff axis's placement for one threat: a run without it draws nothing; a miss hollow at the inside end; the ends clamped. */
 export function placeStandoff(runs: readonly RunMetrics[], threatIndex: number): Placed[] {
   return runs.flatMap((m): Placed[] => {
     const threat = m.threats[threatIndex]
@@ -184,16 +190,21 @@ export function placeCount(
   return runs.map((m) => ({ m, x: round1(AXIS_X + (value(m) / max) * AXIS_W), hollow: false }))
 }
 
-/** The time axis's placement over the family's longest window; a never-opened threat hollow at its own run's window end (ruled G4). */
+/**
+ * The time axis's placement for one threat over the family's longest window: a run without the
+ * threat draws nothing; one that never opened it sits hollow at its own window end (ruled G4).
+ */
 export function placeTime(
   runs: readonly RunMetrics[],
   runS: number,
-  value: (m: RunMetrics) => number | null,
+  threatIndex: number,
 ): Placed[] {
   const tX = (s: number) => round1(AXIS_X + (s / runS) * AXIS_W)
-  return runs.map((m) => {
-    const v = value(m)
-    return v === null ? { m, x: tX(m.runS), hollow: true } : { m, x: tX(v), hollow: false }
+  return runs.flatMap((m): Placed[] => {
+    const threat = m.threats[threatIndex]
+    if (!threat) return []
+    if (threat.firstOpenS === null) return [{ m, x: tX(m.runS), hollow: true }]
+    return [{ m, x: tX(threat.firstOpenS), hollow: false }]
   })
 }
 
@@ -240,7 +251,7 @@ function axisAt(y: number, pad: number, title: string, kind: AxisKind, placed: P
   return lines
 }
 
-/** The counts under a family's axes, one line per condition. */
+/** The counts under a family's axes, one line per condition; the order over every threat, as the metrics define it. */
 function countsLines(y: number, runs: readonly RunMetrics[], threats: number): string[] {
   return MODES.map((mode, i) => {
     const of = runs.filter((run) => run.mode === mode)
@@ -257,7 +268,7 @@ function countsLines(y: number, runs: readonly RunMetrics[], threats: number): s
       `escalations of later entrants ${of.reduce((sum, m) => sum + m.escalationsOfLaterEntrants, 0)}`,
       ...(threats > 1
         ? [
-            `order correct ${of.filter((m) => m.orderCorrect === true).length} of ${of.filter((m) => m.orderCorrect !== null).length} with both escalated`,
+            `order correct ${of.filter((m) => m.orderCorrect === true).length} of ${of.filter((m) => m.orderCorrect !== null).length} with every threat escalated`,
           ]
         : []),
     ]
@@ -289,63 +300,69 @@ export function studySvg(runs: readonly RunMetrics[]): string {
       `class="title" font-size="20" font-weight="700" fill="${THEME.text}"`,
     ),
   )
-  const family = (name: string) => {
-    body.push(
-      text(
-        PAD,
-        y + 20,
-        name,
-        `class="family" font-size="15" font-weight="600" fill="${THEME.text}"`,
-      ),
-    )
-    y += 70
-  }
+  // A family's scenarios in their own order, whatever subject drew which (#162 round 1).
+  const names = (family: readonly RunMetrics[]) =>
+    [...new Set(family.map((m) => m.scenario))].sort().join(', ')
   // An axis takes the room its deepest stack needs above and below its block.
   const axis = (title: string, kind: AxisKind, placed: Placed[]) => {
     const pad = (depthOf(placed) - 1) * STEP
     body.push(...axisAt(y + pad, pad, title, kind, placed))
     y += AXIS_H + 2 * pad
   }
-  const names = (family: readonly RunMetrics[]) =>
-    [...new Set(family.map((m) => m.scenario))].join(', ')
-  if (prioritization.length > 0) {
-    family(`Prioritization pair (${names(prioritization)}) — attention`)
-    const threats = Math.max(...prioritization.map((m) => m.threats.length))
-    const runS = Math.max(...prioritization.map((m) => m.runS))
-    const opened = (m: RunMetrics) => m.openedBeforeFirstThreat
-    const max = countMax(prioritization, opened)
-    axis(
-      'non-threats opened before the first threat',
-      { kind: 'count', max },
-      placeCount(prioritization, opened, max),
+  /**
+   * One family's panel: the attention axes where the family headlines attention, then the
+   * standoff per threat and the counts — the threat count the family's, as the metrics carry it.
+   */
+  const panel = (family: readonly RunMetrics[], heading: string, attention: boolean) => {
+    body.push(
+      text(
+        PAD,
+        y + 20,
+        heading,
+        `class="family" font-size="15" font-weight="600" fill="${THEME.text}"`,
+      ),
     )
-    for (let t = 0; t < threats; t++) {
+    y += 70
+    const threats = Math.max(...family.map((m) => m.threats.length))
+    if (attention) {
+      const runS = Math.max(...family.map((m) => m.runS))
+      const opened = (m: RunMetrics) => m.openedBeforeFirstThreat
+      const max = countMax(family, opened)
       axis(
-        `first open of threat ${t + 1} on the run’s window`,
-        { kind: 'time', runS },
-        placeTime(prioritization, runS, (m) => m.threats[t]?.firstOpenS ?? null),
+        'non-threats opened before the first threat',
+        { kind: 'count', max },
+        placeCount(family, opened, max),
       )
+      for (let t = 0; t < threats; t++) {
+        axis(
+          `first open of threat ${t + 1} on the run’s window`,
+          { kind: 'time', runS },
+          placeTime(family, runS, t),
+        )
+      }
     }
     for (let t = 0; t < threats; t++) {
       axis(
-        `standoff at decision · threat ${t + 1}`,
+        threats > 1
+          ? `standoff at decision · threat ${t + 1}`
+          : 'standoff at the threat’s escalation',
         { kind: 'standoff' },
-        placeStandoff(prioritization, t),
+        placeStandoff(family, t),
       )
     }
-    body.push(...countsLines(y, prioritization, threats))
+    if (!attention) y -= 24
+    body.push(...countsLines(y, family, threats))
     y += 60
   }
+  if (prioritization.length > 0) {
+    panel(prioritization, `Prioritization pair (${names(prioritization)}) — attention`, true)
+  }
   if (corroboration.length > 0) {
-    family(`Corroboration pair (${names(corroboration)}) — standoff at decision`)
-    axis(
-      'standoff at the threat’s escalation',
-      { kind: 'standoff' },
-      placeStandoff(corroboration, 0),
+    panel(
+      corroboration,
+      `Corroboration pair (${names(corroboration)}) — standoff at decision`,
+      false,
     )
-    y -= 24
-    body.push(...countsLines(y, corroboration, 1))
-    y += 60
   }
   const height = y + 10
   return [
