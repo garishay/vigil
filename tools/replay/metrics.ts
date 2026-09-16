@@ -47,9 +47,12 @@ export function runMetrics(
   threatId: string = THREAT_ID,
 ): RunMetrics {
   const { beginS, runS } = STUDY
-  const escalate = record.events.find(
+  // By position: the events are in t order (the loader's rule), and a look tied with the
+  // Escalate on one second precedes it in the record's order, so it counts (#150 round 1).
+  const escalateIndex = record.events.findIndex(
     (event) => event.type === 'escalate' && event.track === threatId,
   )
+  const escalate = escalateIndex >= 0 ? record.events[escalateIndex] : undefined
   const miss = escalate === undefined
   const freezeT = escalate?.t ?? runS
   const threat = escalate
@@ -60,7 +63,9 @@ export function runMetrics(
       `${record.subject} run ${record.run}: the threat ${threatId} is not in the picture at t ${escalate.t}`,
     )
   }
-  const entry = entrySecond(plan, threatId, beginS, index.durationS)
+  // Over the whole recording, as the bench reads it: negative from Begin when the threat is
+  // inside the ring already (#150 round 1).
+  const entry = entrySecond(plan, threatId, 0, index.durationS)
   return {
     subject: record.subject,
     scenario: record.scenario,
@@ -76,7 +81,7 @@ export function runMetrics(
       (event) => event.type === 'escalate' && event.track !== threatId,
     ).length,
     looksBeforeFirstCorrect: record.events.filter(
-      (event) => event.type === 'select' && (miss || event.t < freezeT),
+      (event, i) => event.type === 'select' && (miss || i < escalateIndex),
     ).length,
     looks: record.events.filter((event) => event.type === 'select').length,
     entryT: entry === null ? null : entry - beginS,

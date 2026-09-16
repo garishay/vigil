@@ -7,8 +7,13 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { STUDY_RECORDING, loadRecording, type Recording } from '../../scripts/study.ts'
-import { SCENARIOS, scenarioNamed } from '../../src/config/scenarios.ts'
+import {
+  STUDY_RECORDING,
+  STUDY_SCENARIOS,
+  loadRecording,
+  type Recording,
+} from '../../scripts/study.ts'
+import { scenarioNamed } from '../../src/config/scenarios.ts'
 import { QUESTIONS, STUDY, WORKLOAD_SCALE } from '../../src/config/study.ts'
 import { planScenario, timelineOf, type InjectPlan, type Timeline } from '../../src/lib/injects.ts'
 import { indexCapture, type ReplayIndex } from '../../src/lib/replay.ts'
@@ -47,6 +52,18 @@ const KEYS = [
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/**
+ * The ISO form S4b writes (`toISOString`): a calendar date and a UTC time. `Date.parse` alone
+ * accepts a bare digit or a locale date and normalises an impossible one, so the shape is
+ * required and the date read back must be the date written (#150 round 1).
+ */
+const ISO_TIME = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,3})?Z$/
+const isIsoTime = (text: string): boolean => {
+  if (!ISO_TIME.test(text)) return false
+  const parsed = new Date(text)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 19) === text.slice(0, 19)
+}
 
 function parseEvent(value: unknown, i: number, path: string): RunEvent {
   if (!isObject(value)) return refuse(path, `events[${i}] is an object {t, type, track}`)
@@ -88,11 +105,12 @@ export function parseRun(text: string, path: string): RunRecord {
   if (typeof subject !== 'string' || !SUBJECT_CODE.test(subject)) {
     return refuse(path, `subject is a subject code, not ${JSON.stringify(subject)}`)
   }
-  const names = SCENARIOS.map((named) => named.name)
-  if (typeof scenario !== 'string' || !names.includes(scenario)) {
+  // A study scenario only: the metrics measure the study cast's threat, which the default deal
+  // never holds — a run on it would read as a fabricated miss (#150 round 1).
+  if (typeof scenario !== 'string' || !(STUDY_SCENARIOS as readonly string[]).includes(scenario)) {
     return refuse(
       path,
-      `scenario ${JSON.stringify(scenario)} — the registry knows ${names.join(', ')}`,
+      `scenario ${JSON.stringify(scenario)} — the replay reads a study scenario: ${STUDY_SCENARIOS.join(', ')}`,
     )
   }
   if (typeof mode !== 'string' || !(MODES as readonly string[]).includes(mode)) {
@@ -104,11 +122,24 @@ export function parseRun(text: string, path: string): RunRecord {
   if (typeof build !== 'string' || build === '') {
     return refuse(path, `build is the build string, not ${JSON.stringify(build)}`)
   }
-  if (typeof beganAt !== 'string' || Number.isNaN(Date.parse(beganAt))) {
-    return refuse(path, `began_at is an ISO time, not ${JSON.stringify(beganAt)}`)
+  if (typeof beganAt !== 'string' || !isIsoTime(beganAt)) {
+    return refuse(
+      path,
+      `began_at is an ISO time like 2026-09-16T00:31:10.057Z, not ${JSON.stringify(beganAt)}`,
+    )
   }
   if (!Array.isArray(events)) return refuse(path, 'events is a list')
   const parsedEvents = events.map((event, i) => parseEvent(event, i, path))
+  // In t order, as the contract writes them: the metrics read the first Escalate by position,
+  // and a look tied with it counts by position too (#150 round 1).
+  for (let i = 1; i < parsedEvents.length; i++) {
+    if (parsedEvents[i].t < parsedEvents[i - 1].t) {
+      return refuse(
+        path,
+        `events[${i}].t is ${parsedEvents[i].t}, before events[${i - 1}].t ${parsedEvents[i - 1].t} — a run's events are in t order`,
+      )
+    }
+  }
   if (!isObject(answers)) return refuse(path, 'answers is an object of the three questions')
   const { min, max } = WORKLOAD_SCALE
   for (const question of QUESTIONS) {

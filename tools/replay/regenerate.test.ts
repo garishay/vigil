@@ -61,6 +61,9 @@ describe('the regeneration (S5a, #138, ruled A3)', () => {
     expect(SITE.radiusM).toBe(5000)
     expect(entrySecond(plan02a, THREAT_ID, STUDY.beginS, study.index.durationS)).toBe(604)
     expect(entrySecond(plan02b, THREAT_ID, STUDY.beginS, study.index.durationS)).toBe(603)
+    // Over the whole recording, as the metrics read it: the same seconds, nothing earlier.
+    expect(entrySecond(plan02a, THREAT_ID, 0, study.index.durationS)).toBe(604)
+    expect(entrySecond(plan02b, THREAT_ID, 0, study.index.durationS)).toBe(603)
     expect(entrySecond(plan02a, REVISIT_ID, 0, study.index.durationS)).toBeNull()
     // The span is inclusive at both ends and empty past it.
     expect(entrySecond(plan02a, THREAT_ID, 604, 604)).toBe(604)

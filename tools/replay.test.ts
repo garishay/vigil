@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -88,7 +88,11 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     const out = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(out)
     const bad = join(out, 'bad.json')
-    expect(() => main(['--study', bad, '--out', join(out, 'never')])).toThrow()
+    writeFileSync(bad, '{"subject":"S09"}')
+    expect(() => main(['--study', bad, '--out', join(out, 'never')])).toThrow(RunRefusal)
+    expect(() => main(['--study', bad, '--out', join(out, 'never')])).toThrow(
+      `${bad}: "scenario" is missing`,
+    )
     expect(existsSync(join(out, 'never'))).toBe(false)
     expect(() => metricsOf([join(FIXTURES, '..', 'load.ts')], study)).toThrow(RunRefusal)
   })

@@ -46,18 +46,44 @@ describe('parseRun (S5a, #138, ruled A2)', () => {
     expect(refusal({ subject: 'Gary Smith' })).toBe(
       'run.json: subject is a subject code, not "Gary Smith"',
     )
+    // A study scenario only: the default deal has no cast, so its run has no threat to measure.
     expect(refusal({ scenario: '02c' })).toBe(
-      'run.json: scenario "02c" — the registry knows default, 02a, 02b',
+      'run.json: scenario "02c" — the replay reads a study scenario: 02a, 02b',
+    )
+    expect(refusal({ scenario: 'default' })).toBe(
+      'run.json: scenario "default" — the replay reads a study scenario: 02a, 02b',
     )
     expect(refusal({ mode: 'fast' })).toBe('run.json: mode reads "fast", not raw or vigil')
     expect(refusal({ run: 0 })).toBe('run.json: run is a run number from 1, not 0')
     expect(refusal({ run: 1.5 })).toBe('run.json: run is a run number from 1, not 1.5')
     expect(refusal({ run: '1' })).toBe('run.json: run is a run number from 1, not "1"')
     expect(refusal({ build: '' })).toBe('run.json: build is the build string, not ""')
-    expect(refusal({ began_at: 'yesterday' })).toBe(
-      'run.json: began_at is an ISO time, not "yesterday"',
-    )
+    // The ISO form S4b writes; a bare digit, a locale date, and a normalised impossible date
+    // all parse under Date.parse and are refused here (#150 round 1).
+    for (const bad of ['yesterday', '1', 'September 16, 2026', '2026-02-30T00:00:00.000Z']) {
+      expect(refusal({ began_at: bad })).toBe(
+        `run.json: began_at is an ISO time like 2026-09-16T00:31:10.057Z, not ${JSON.stringify(bad)}`,
+      )
+    }
+    expect(refusal({ began_at: '2026-09-16T00:31:10Z' })).toBeNull()
     expect(refusal({ events: {} })).toBe('run.json: events is a list')
+    // In t order, as the contract writes them (#150 round 1).
+    expect(
+      refusal({
+        events: [
+          { t: 100, type: 'escalate', track: 'inject-11' },
+          { t: 50, type: 'select', track: 'inject-11' },
+        ],
+      }),
+    ).toBe("run.json: events[1].t is 50, before events[0].t 100 — a run's events are in t order")
+    expect(
+      refusal({
+        events: [
+          { t: 50, type: 'select', track: 'inject-11' },
+          { t: 50, type: 'escalate', track: 'inject-11' },
+        ],
+      }),
+    ).toBeNull()
     expect(refusal(withEvent('select'))).toBe('run.json: events[3] is an object {t, type, track}')
     expect(refusal(withEvent({ t: 361, type: 'select', track: 'inject-11' }))).toBe(
       "run.json: events[3].t is 361 — a run's t runs 0 to 360",

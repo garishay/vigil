@@ -16,7 +16,7 @@
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { csvText } from './replay/csv.ts'
-import { loadStudy, planFor, readRun, RunRefusal, type Study } from './replay/load.ts'
+import { loadStudy, planFor, readRun, type Study } from './replay/load.ts'
 import { runMetrics, type RunMetrics } from './replay/metrics.ts'
 import type { InjectPlan } from '../src/lib/injects.ts'
 
@@ -87,9 +87,7 @@ if (process.argv[1] && basename(process.argv[1]) === 'replay.ts') {
   try {
     process.stdout.write(main(process.argv.slice(2)))
   } catch (error) {
-    process.stderr.write(
-      `${error instanceof RunRefusal ? error.message : (error as Error).message}\n`,
-    )
+    process.stderr.write(`${(error as Error).message}\n`)
     process.exitCode = 1
   }
 }

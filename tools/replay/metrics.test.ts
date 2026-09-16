@@ -133,6 +133,20 @@ describe('runMetrics — the definitions', () => {
     expect(metrics.standoffM).toBeLessThan(1174)
   })
 
+  it('counts a look tied with the Escalate on one second — the record writes the look first (#150 round 1)', () => {
+    const tied = runMetrics(
+      record([
+        { t: 10, type: 'select', track: 'inject-12' },
+        { t: 100, type: 'select', track: THREAT_ID },
+        { t: 100, type: 'escalate', track: THREAT_ID },
+        { t: 100, type: 'select', track: 'inject-13' },
+      ]),
+      study.index,
+      plans['02a'],
+    )
+    expect(tied).toMatchObject({ freezeT: 100, looksBeforeFirstCorrect: 2, looks: 3 })
+  })
+
   it('reads the standoff negative inside the ring, and throws for an Escalate on a tick the threat is not in the picture', () => {
     const inside = runMetrics(
       record([{ t: 200, type: 'escalate', track: THREAT_ID }]),
