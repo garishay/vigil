@@ -271,7 +271,8 @@ caption, so its raw frames change by that alone. Exactly two run files also writ
 its top five rows, and under them the block: the attention counts for both conditions, then one
 row per threat with the run's window as a shared time axis carrying each condition's first open
 and escalation and the threat's ring entry, and the standoff band for that threat with one dot
-per condition; a raw run reads _unaided_ there. The study figure follows in S5d-ii.
+per condition; a raw run reads _unaided_ there. The two runs share a scenario — the rows read
+one cast — whatever their modes or subjects. The study figure follows in S5d-ii.
 
 ## How this repo is built
 

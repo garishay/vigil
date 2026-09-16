@@ -92,10 +92,15 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
     const raw = pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')
     expect(textsOf(raw, 'legend')).toEqual(['unaided', 'Vigil'])
     expect(raw).not.toMatch(/>raw</)
-    expect(orderWords(fixture('S05-03a-vigil-1').metrics)).toBe('✓')
-    expect(orderWords(fixture('S03-02a-raw-1').metrics)).toBe('— (one threat)')
+    const v = fixture('S05-03a-vigil-1')
+    expect(orderWords(v.metrics, v.record)).toBe('✓')
+    const r = fixture('S03-02a-raw-1')
+    expect(orderWords(r.metrics, r.record)).toBe('— (one threat)')
     expect(
-      countsLine(fixture('S03-02a-raw-1').metrics, fixture('S03-02a-vigil-1').metrics, 'a', 'b'),
+      countsLine(r.metrics, fixture('S03-02a-vigil-1').metrics, 'a', 'b', [
+        r.record,
+        fixture('S03-02a-vigil-1').record,
+      ]),
     ).toContain('opened before the first threat a 0 · b 0')
   })
 
@@ -176,16 +181,25 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
     ])
   })
 
-  it('pairs any two runs, labelled by their modes — two unaided runs read two lanes under one word (G5) — and names the file by both when they differ', () => {
+  it('pairs any two runs of one scenario, labelled by their modes — two unaided runs read two lanes under one word (G5) — names the file by both subjects when they differ, and refuses unlike scenarios in words', () => {
     const left = fixture('S03-02a-raw-1')
-    const right = fixture('S04-02b-raw-1')
-    expect(pairName(left.record, right.record)).toBe('pair-S03-02a-S04-02b.svg')
+    const other = fixture('S03-02a-raw-1')
+    const right = { ...other, record: { ...other.record, subject: 'S09' } }
+    expect(pairName(left.record, right.record)).toBe('pair-S03-S09-02a.svg')
     expect(pairName(left.record, fixture('S03-02a-vigil-1').record)).toBe('pair-S03-02a.svg')
     const svg = pairSvg({ left, right }, { queueCap: 5 })
     expect(textsOf(svg, 'legend')).toEqual(['unaided', 'unaided'])
     expect(textsOf(svg, 'counts')[0]).toMatch(
       /^opened before the first threat unaided 0 · unaided 0/,
     )
+    expect(svg).toContain('data-left="S03-02a-raw-1" data-right="S09-02a-raw-1"')
+    // Unlike scenarios: the rows, the window, and the order read one cast, so the pair refuses.
+    expect(() => pairSvg({ left, right: fixture('S05-03a-raw-1') }, { queueCap: 5 })).toThrow(
+      'a pair reads one scenario — S03 02a and S05 03a differ',
+    )
+    expect(() =>
+      pairSvg({ left: fixture('S05-03a-vigil-1'), right: left }, { queueCap: 5 }),
+    ).toThrow('a pair reads one scenario — S05 03a and S03 02a differ')
   })
 
   it('sits a standoff past ±3 km at the band’s edge with its number (G6)', () => {
@@ -200,5 +214,89 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
     const svg = pairSvg({ left: far, right: fixture('S03-02a-vigil-1') }, { queueCap: 5 })
     expect(Number(tagsOf(svg, 'band-left')[0].cx)).toBe(bandX(3000))
     expect(svg).toContain('>+4.5 km · 1:06 before entry</text>')
+  })
+})
+
+describe('the pair — round 1 (#161)', () => {
+  it('names the order’s reason from the escalations’ positions in the record, as the verdict reads them', () => {
+    const base = fixture('S05-03a-raw-1')
+    // Both threats escalated on one second, inject-12 first in the record: the verdict is ✗ and
+    // the reason says why in the record's own order.
+    const record = {
+      ...base.record,
+      events: [
+        { t: 10, type: 'select' as const, track: 'inject-11' },
+        { t: 12, type: 'select' as const, track: 'inject-12' },
+        { t: 20, type: 'escalate' as const, track: 'inject-12' },
+        { t: 20, type: 'escalate' as const, track: 'inject-11' },
+      ],
+    }
+    const metrics = runMetrics(record, study.index, base.plan)
+    expect(metrics.orderCorrect).toBe(false)
+    expect(orderWords(metrics, record)).toBe('✗ (inject-12 before inject-11)')
+  })
+
+  it('draws the entry tick only inside the window: a threat inside the ring before Begin keeps its subtitle and no tick', () => {
+    const base = fixture('S05-03a-raw-1')
+    const early = {
+      ...base,
+      metrics: {
+        ...base.metrics,
+        threats: [{ ...base.metrics.threats[0], entryT: -100 }, base.metrics.threats[1]],
+      },
+    }
+    const right = fixture('S05-03a-vigil-1')
+    const rightEarly = {
+      ...right,
+      metrics: {
+        ...right.metrics,
+        threats: [{ ...right.metrics.threats[0], entryT: -100 }, right.metrics.threats[1]],
+      },
+    }
+    const svg = pairSvg({ left: early, right: rightEarly }, { queueCap: 5 })
+    expect(textsOf(svg, 'row-entry')).toEqual(['ring entry -1:40', 'ring entry 3:08'])
+    expect(tagsOf(svg, 'entry-tick')).toHaveLength(1)
+    expect(Number(tagsOf(svg, 'entry-tick')[0].x1)).toBe(timeX(188, 218))
+  })
+
+  it('draws a window that lands on a minute mark once', () => {
+    const base = fixture('S05-03a-raw-1')
+    const at300 = { ...base, metrics: { ...base.metrics, runS: 300 } }
+    const right = fixture('S05-03a-vigil-1')
+    const svg = pairSvg(
+      { left: at300, right: { ...right, metrics: { ...right.metrics, runS: 300 } } },
+      { queueCap: 5 },
+    )
+    // Two rows, one 5:00 label each.
+    expect((svg.match(/>5:00</g) ?? []).length).toBe(2)
+  })
+
+  it('keeps a band label near the positive edge inside the document: left of its dot, anchored end', () => {
+    const left = fixture('S03-02a-raw-1')
+    const far = {
+      ...left,
+      metrics: { ...left.metrics, threats: [{ ...left.metrics.threats[0], standoffM: 4500 }] },
+    }
+    const svg = pairSvg({ left: far, right: fixture('S03-02a-vigil-1') }, { queueCap: 5 })
+    const label = svg.match(
+      /<text x="([\d.]+)" y="[\d.]+"[^>]*text-anchor="end">\+4\.5 km · 1:06 before entry<\/text>/,
+    )
+    expect(label).not.toBeNull()
+    expect(Number(label![1])).toBe(bandX(3000) - 10)
+    // The fixtures' labels sit right of their dots as before.
+    const a = pairOf('S03-02a-raw-1', 'S03-02a-vigil-1')
+    expect(a).toMatch(/<text x="1607\.4" y="[\d.]+"[^>]*>\+1\.2 km · 1:06 before entry</)
+  })
+
+  it('holds the two runs to one roles table', () => {
+    const left = fixture('S05-03a-raw-1')
+    const right = fixture('S05-03a-vigil-1')
+    const swapped = {
+      ...right,
+      metrics: { ...right.metrics, threats: [right.metrics.threats[1], right.metrics.threats[0]] },
+    }
+    expect(() => pairSvg({ left, right: swapped }, { queueCap: 5 })).toThrow(
+      "a pair reads one roles table — S05's threat 1 is inject-11, S05's inject-12",
+    )
   })
 })

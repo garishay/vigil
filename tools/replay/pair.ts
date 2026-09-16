@@ -6,7 +6,9 @@
  * and escalation and the threat's ring entry, and beside it the standoff band for that threat
  * with one dot per condition. On the corroboration pair that is one row. A raw run reads
  * *unaided* wherever the block names it (ruled G3); its Queue box is capped at its top rows
- * (ruled G2). Pure and deterministic.
+ * (ruled G2). Two runs of one scenario pair, whatever their modes or subjects; runs of unlike
+ * scenarios are refused in words, since the rows, the window, and the order read one cast
+ * (#161 round 1). Pure and deterministic.
  */
 
 import type { RunRecord } from '../../src/lib/run.ts'
@@ -51,13 +53,19 @@ export const conditionWord = (record: RunRecord): string =>
 /** A signed standoff in the block's words: `+0.8 km`, `−0.1 km`. */
 const kmWord = (m: number): string => `${m >= 0 ? '+' : '−'}${(Math.abs(m) / 1000).toFixed(1)} km`
 
-/** The order's words for the counts line: ✓, ✗ with the escalation order, or — with the reason. */
-export function orderWords(m: RunMetrics): string {
+/**
+ * The order's words for the counts line: ✓, ✗ with the escalation order, or — with the reason.
+ * The order is the escalations' positions in the record — the verdict's own reading, so two on
+ * one second keep the order the record writes (#161 round 1).
+ */
+export function orderWords(m: RunMetrics, record: RunRecord): string {
   if (m.orderCorrect === true) return '✓'
   if (m.orderCorrect === false) {
+    const at = (id: string) =>
+      record.events.findIndex((event) => event.type === 'escalate' && event.track === id)
     const order = [...m.threats]
-      .filter((threat) => threat.timeToEscalateS !== null)
-      .sort((a, b) => a.timeToEscalateS! - b.timeToEscalateS!)
+      .filter((threat) => at(threat.id) >= 0)
+      .sort((a, b) => at(a.id) - at(b.id))
       .map((threat) => threat.id)
     return `✗ (${order.join(' before ')})`
   }
@@ -66,7 +74,13 @@ export function orderWords(m: RunMetrics): string {
 }
 
 /** The counts line: each attention number for both conditions, the order last on the pair only. */
-export function countsLine(a: RunMetrics, b: RunMetrics, aWord: string, bWord: string): string {
+export function countsLine(
+  a: RunMetrics,
+  b: RunMetrics,
+  aWord: string,
+  bWord: string,
+  records: [RunRecord, RunRecord],
+): string {
   const item = (label: string, x: string, y: string) => `${label} ${aWord} ${x} · ${bWord} ${y}`
   const items = [
     item(
@@ -80,17 +94,18 @@ export function countsLine(a: RunMetrics, b: RunMetrics, aWord: string, bWord: s
       String(a.escalationsOfLaterEntrants),
       String(b.escalationsOfLaterEntrants),
     ),
-    ...(a.threats.length > 1 ? [item('order', orderWords(a), orderWords(b))] : []),
+    ...(a.threats.length > 1
+      ? [item('order', orderWords(a, records[0]), orderWords(b, records[1]))]
+      : []),
   ]
   return items.join('     |     ')
 }
 
-/** The file a pair is written to: `pair-<subject>-<scenario>.svg`, or both runs' names when they differ. */
+/** The file a pair is written to: `pair-<subject>-<scenario>.svg`, or both subjects' names when they differ. */
 export function pairName(left: RunRecord, right: RunRecord): string {
-  const same = left.subject === right.subject && left.scenario === right.scenario
-  return same
+  return left.subject === right.subject
     ? `pair-${left.subject}-${left.scenario}.svg`
-    : `pair-${left.subject}-${left.scenario}-${right.subject}-${right.scenario}.svg`
+    : `pair-${left.subject}-${right.subject}-${left.scenario}.svg`
 }
 
 /** The paired frame as an SVG document. */
@@ -99,13 +114,18 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
   const r = frameDocument(right, { ...options, clipId: 'panel-right' })
   const a = left.metrics
   const b = right.metrics
+  if (left.record.scenario !== right.record.scenario) {
+    throw new Error(
+      `a pair reads one scenario — ${left.record.subject} ${left.record.scenario} and ${right.record.subject} ${right.record.scenario} differ`,
+    )
+  }
   const aWord = conditionWord(left.record)
   const bWord = conditionWord(right.record)
   const aColor = CONDITION_COLOR[left.record.mode]
   const bColor = CONDITION_COLOR[right.record.mode]
   const width = l.width + GAP + r.width
   const top = Math.max(l.height, r.height)
-  const runS = Math.max(a.runS, b.runS)
+  const runS = a.runS
   const rows = a.threats.length
   const blockH = HEAD_H + rows * ROW_H + FOOT_H
   const height = top + blockH
@@ -138,13 +158,19 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
     text(
       BLOCK_PAD,
       y + 50,
-      countsLine(a, b, aWord, bWord),
+      countsLine(a, b, aWord, bWord, [left.record, right.record]),
       `class="counts" font-size="14" fill="${THEME.text}"`,
     ),
   )
   y += HEAD_H
   a.threats.forEach((threat, i) => {
+    // The same scenario, so the same roles table: the rows pair by threat, held rather than assumed.
     const other: ThreatMetrics | undefined = b.threats[i]
+    if (other === undefined || other.id !== threat.id) {
+      throw new Error(
+        `a pair reads one roles table — ${left.record.subject}'s threat ${i + 1} is ${threat.id}, ${right.record.subject}'s ${other?.id ?? 'absent'}`,
+      )
+    }
     const ry = y
     const ay = ry + 100
     parts.push(
@@ -163,14 +189,16 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
       ),
       `<line class="time-axis" x1="${TIME_X}" y1="${ay}" x2="${TIME_X + TIME_W}" y2="${ay}" stroke="${THEME.faint}"/>`,
     )
-    for (const s of [0, 60, 120, 180, 240, 300, runS]) {
+    for (const s of [...new Set([0, 60, 120, 180, 240, 300, runS])]) {
       if (s > runS || (s !== runS && runS - s < 20)) continue
       parts.push(
         `<line x1="${tX(s)}" y1="${ay - 3}" x2="${tX(s)}" y2="${ay + 3}" stroke="${THEME.faint}"/>`,
         text(tX(s), ay + 18, mmss(s), `font-size="11" fill="${THEME.faint}" text-anchor="middle"`),
       )
     }
-    if (threat.entryT !== null && threat.entryT <= runS) {
+    // The tick only inside the window: a threat inside the ring before Begin has a negative
+    // entry, which the row's subtitle names and the axis cannot hold (#161 round 1).
+    if (threat.entryT !== null && threat.entryT >= 0 && threat.entryT <= runS) {
       parts.push(
         `<line class="entry-tick" x1="${tX(threat.entryT)}" y1="${ry + 56}" x2="${tX(threat.entryT)}" y2="${ay + 4}" stroke="${THEME.muted}" stroke-dasharray="3 3"/>`,
         text(
@@ -275,12 +303,25 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
             : `${mmss(lane.timeToEscalateS - lane.entryT)} after entry`
       parts.push(
         `<circle class="band-${side}" data-id="${esc(threat.id)}" cx="${sX(clamped)}" cy="${by + dy}" r="5" fill="${color}"/>`,
-        text(
-          sX(clamped) + 10,
-          by + dy + 4,
-          `${kmWord(lane.standoffM)} · ${relation}`,
-          `font-size="11" fill="${THEME.text}"`,
-        ),
+        // Past the band's last 160 px the label would leave the document: it sits left of
+        // its dot there, anchored end (#161 round 1).
+        ...(sX(clamped) > BAND_X + BAND_W - 160
+          ? [
+              text(
+                sX(clamped) - 10,
+                by + dy + 4,
+                `${kmWord(lane.standoffM)} · ${relation}`,
+                `font-size="11" fill="${THEME.text}" text-anchor="end"`,
+              ),
+            ]
+          : [
+              text(
+                sX(clamped) + 10,
+                by + dy + 4,
+                `${kmWord(lane.standoffM)} · ${relation}`,
+                `font-size="11" fill="${THEME.text}"`,
+              ),
+            ]),
       )
     }
     y += ROW_H

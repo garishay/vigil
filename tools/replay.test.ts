@@ -143,15 +143,19 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     ])
     const pair = readFileSync(join(two, 'pair-S05-03a.svg'), 'utf8')
     expect(pair).toContain('… 9 more above calm')
-    // Two runs of unlike subject or scenario pair under both names.
+    // Two runs of unlike scenarios are refused in words, and nothing is written (#161 round 1).
     const unlike = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(unlike)
-    const unlikeLog: string[] = []
-    main(
-      [join(FIXTURES, 'S03-02a-raw-1.json'), join(FIXTURES, 'S05-03a-raw-1.json'), '--out', unlike],
-      (line) => unlikeLog.push(line),
-    )
-    expect(unlikeLog.at(-1)).toBe(`${join(unlike, 'pair-S03-02a-S05-03a.svg')}: written\n`)
+    const unlikeOut = join(unlike, 'out')
+    expect(() =>
+      main([
+        join(FIXTURES, 'S03-02a-raw-1.json'),
+        join(FIXTURES, 'S05-03a-raw-1.json'),
+        '--out',
+        unlikeOut,
+      ]),
+    ).toThrow('a pair reads one scenario — S03 02a and S05 03a differ')
+    expect(existsSync(join(unlikeOut, 'S03-02a-raw-1.svg'))).toBe(false)
     const three = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(three)
     const threeLog: string[] = []
