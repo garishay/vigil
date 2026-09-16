@@ -55,6 +55,7 @@ export interface RunMetrics {
   falseEscalations: number
   /** Escalations of tracks that enter the ring after the run — the band rows, the far inbounds — their own line, never folded into either. */
   escalationsOfLaterEntrants: number
+  /** Selections before the first Escalate on any threat; every look when no threat is escalated. */
   looksBeforeFirstCorrect: number
   looks: number
   /** Distinct non-threat tracks selected before any threat is first selected (the #131 amendment). */
@@ -101,8 +102,9 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
     }
   })
   const first = threats[0]
+  // The first correct: the first Escalate on any threat — one threat, and it is that threat's.
   const firstEscalateIndex = record.events.findIndex(
-    (event) => event.type === 'escalate' && event.track === first.id,
+    (event) => event.type === 'escalate' && threatIds.includes(event.track),
   )
   const anyMiss = threats.some((threat) => threat.miss)
   // The freeze: the last threat's first Escalate, or the run's end when any threat is missed —
@@ -151,7 +153,7 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
     falseEscalations: others.filter((event) => (entryOf.get(event.track) ?? null) === null).length,
     escalationsOfLaterEntrants: others.filter((event) => laterEntrant(event.track)).length,
     looksBeforeFirstCorrect: record.events.filter(
-      (event, i) => event.type === 'select' && (first.miss || i < firstEscalateIndex),
+      (event, i) => event.type === 'select' && (firstEscalateIndex < 0 || i < firstEscalateIndex),
     ).length,
     looks: record.events.filter((event) => event.type === 'select').length,
     openedBeforeFirstThreat: openedBefore.size,
