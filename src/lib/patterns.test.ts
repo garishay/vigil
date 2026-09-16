@@ -227,3 +227,52 @@ describe('the golden scenario as the answer key (ruled on #5, note 1)', () => {
     expect(orbit.loiter).toBe(0)
   })
 })
+
+describe('the last-leg floor (#155, R2 on #152)', () => {
+  // A 500 m circle sampled every 15 s at 8 kt: 61.7 m legs, 7.07° a turn, 28 samples — 26 turns,
+  // 183.8° held over 390 s, an orbit by a small margin, the shape of 03a's bait.
+  const circle = arc(at(9000), 500, 7.07, 28)
+  const grid = every15(circle)
+  const tangent = (i: number) => (i * 7.07 + 90) % 360
+  /** The circle plus the current position, `legM` along a course `bentDeg` off the tangent, 2 s after the last grid sample. */
+  const withLastLeg = (legM: number, bentDeg: number): TrackHistory => [
+    ...grid,
+    {
+      tSec: 27 * 15 + 2,
+      position: destinationPoint(circle[27], (tangent(27) + bentDeg + 360) % 360, legM),
+    },
+  ]
+
+  it('drops a last leg shorter than the floor, so a metre of noise on a 10 m leg no longer breaks the run', () => {
+    // Before the floor this read turn 0 and no kind: the 10 m leg's bearing, bent 20° the wrong
+    // way, flipped the sign at the run's start (shown failing on the pre-fix code).
+    const bent = withLastLeg(10, -20)
+    expect(heldTurn(bent, CONFIG.orbit).turnDeg).toBeCloseTo(183.8, 0)
+    expect(heldTurn(bent, CONFIG.orbit).heldS).toBe(390)
+    expect(detectPattern(bent, CONFIG).kind).toBe('orbit')
+    // The circle alone reads the same: the dropped leg was the only difference.
+    expect(heldTurn(grid, CONFIG.orbit).turnDeg).toBeCloseTo(183.8, 0)
+  })
+
+  it('keeps a last leg at or past the floor — a real turn the wrong way on a full leg still ends the run there', () => {
+    // The run now starts at the wrong-way leg and stops at once: one leg's 16.5° over its 2 s,
+    // under `minS`, so the orbit reads 0 and the dwell the arc still holds names loiter instead.
+    const turned = withLastLeg(62, -20)
+    expect(heldTurn(turned, CONFIG.orbit).turnDeg).toBeCloseTo(16.5, 0)
+    expect(heldTurn(turned, CONFIG.orbit).heldS).toBe(2)
+    expect(detectPattern(turned, CONFIG).orbit).toBe(0)
+    expect(detectPattern(turned, CONFIG).kind).not.toBe('orbit')
+    // A full leg that continues the arc extends it by one chord's turn.
+    const continued = withLastLeg(62, 7.07)
+    expect(heldTurn(continued, CONFIG.orbit).turnDeg).toBeCloseTo(194.4, 0)
+    // Just under the floor is dropped; the boundary itself is a metre nobody stands on.
+    expect(heldTurn(withLastLeg(29, -20), CONFIG.orbit).turnDeg).toBeCloseTo(183.8, 0)
+  })
+
+  it('is 30 m, above the 5 m degenerate-leg skip and under a grid leg at the slowest dealt speed', () => {
+    expect(CONFIG.orbit.lastLegM).toBe(30)
+    expect(CONFIG.orbit.lastLegM).toBeGreaterThan(5)
+    // 16 kt, the slowest a dealt orbit flies, covers 123 m in a 15 s grid step.
+    expect(CONFIG.orbit.lastLegM).toBeLessThan(16 * 0.514444 * 15)
+  })
+})

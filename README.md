@@ -86,7 +86,7 @@ flowchart LR
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
     studycfg["config/study.ts<br/>Begin · the run's default length · the brief by run length · raw mode's association distance · the acceptance and audit numbers"]
-    patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
+    patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold · the last leg under the floor dropped from the turn"]
     score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · the friendly launch cap · closing on the projection's time to entry, complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
     life["lib/lifecycle.ts<br/>§7.1 transition table + event log<br/>observed fields only — never the answer key<br/>band crossings, pattern changes, loss and return logged at sim time, statuses carried · re-surface read off the log<br/>the sites in force on every snapshot"]

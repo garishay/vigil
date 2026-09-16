@@ -8,6 +8,8 @@ import {
   STUDY_SCENARIOS,
   THREAT_ID,
   flapsOf,
+  kindChangesOf,
+  kindsOf,
   loadRecording,
   outPath,
   renderStudy,
@@ -156,8 +158,15 @@ describe('the lines the rulings added', () => {
     })
   })
 
-  it('no track flaps inside either window', () => {
+  it('no track flaps inside either window, and only the threat changes its named pattern — once, at its orbit’s onset (#155)', () => {
     for (const r of both) expect(r.flaps).toEqual([])
+    for (const r of both) {
+      expect(r.kindChanges).toEqual([{ id: 'inject-11', count: 1, kinds: 'null → orbit' }])
+    }
+    expect(kindChangesOf(['null', 'null', 'orbit', 'orbit'])).toBe(1)
+    expect(kindChangesOf(['orbit', 'loiter', 'orbit'])).toBe(2)
+    expect(kindChangesOf([])).toBe(0)
+    expect(kindsOf(['null', 'orbit', 'null', 'orbit'])).toBe('null → orbit')
     // The fold itself, the bench's: an upward crossing enters every band between the last one
     // and this one, and each already entered counts one — a calm → warning jump over a caution
     // already seen is a flap, as foldInject counts it (#147 round 2).
@@ -216,6 +225,11 @@ describe('the baselines (A7)', () => {
       'above calm: 3 at Begin · 4 at Begin + 1 (inject-11, inject-12, inject-13, inject-37) · max 5 in the window · 4 at its end',
     )
     expect(text).toContain('flaps per track in the window: none')
+    // The evidence line for the last-leg floor (#155, R2): the threat's real onset after its entry,
+    // and nothing else on either 02 cast, before and after the floor.
+    expect(text).toContain(
+      'pattern-kind changes per track in the window: inject-11 1 (null → orbit)',
+    )
     expect(text).toContain('inject-11 604 s · inject-12 — ·')
     expect(text).toContain('inject-37 935 s (after the run)')
     expect(renderStudy(results['02b'])).toContain(

@@ -94,12 +94,16 @@ export interface ScoringConfig {
    * position held at least `gapS` ago after having been `excursionM` away in between, 100 or 0.
    * Loiter and revisit are named at `onset`. The numbers are set against the default scenario:
    * 450 m holds the golden loiter's wander (309 m × √2) and 150 s excludes a 12 kt straight line
-   * and a grid sweep's U-turn; 400 m clears the lane spacing the scenario draws.
+   * and a grid sweep's U-turn; 400 m clears the lane spacing the scenario draws. The orbit's
+   * last leg — the current position's, a partial grid step — is dropped from the turn when
+   * shorter than `lastLegM` (#155, R2 on #152): positions sit on a metre grid, so a 30 m leg's
+   * bearing reads within ±2°, under the 3° minimum turn, where a 10 m leg reads ±6° and broke
+   * the run for the first seconds of every grid step.
    */
   pattern: {
     windowS: number
     loiter: { radiusM: number; minS: number; fullS: number }
-    orbit: { minTurnDeg: number; minS: number; fullDeg: number; nameDeg: number }
+    orbit: { minTurnDeg: number; minS: number; fullDeg: number; nameDeg: number; lastLegM: number }
     revisit: { radiusM: number; excursionM: number; gapS: number }
     onset: number
   }
@@ -152,7 +156,7 @@ export const SCORING: ScoringConfig = {
   pattern: {
     windowS: 420,
     loiter: { radiusM: 450, minS: 150, fullS: 300 },
-    orbit: { minTurnDeg: 3, minS: 90, fullDeg: 270, nameDeg: 180 },
+    orbit: { minTurnDeg: 3, minS: 90, fullDeg: 270, nameDeg: 180, lastLegM: 30 },
     revisit: { radiusM: 400, excursionM: 600, gapS: 120 },
     onset: 50,
   },

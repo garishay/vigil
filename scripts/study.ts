@@ -12,7 +12,8 @@
  * reaching `heardCalmUnder`. The cue audit through `associate` at raw mode's distance — the leak
  * test's count of what a raw display shows — on airborne ticks only: a landed track counts for
  * nothing (ruled at #145's closure). And the lines the rulings added: the above-calm count at
- * Begin, at Begin + 1, its maximum in the window, and at the end; flaps per track; every track's
+ * Begin, at Begin + 1, its maximum in the window, and at the end; flaps per track; pattern-kind
+ * changes per track (#155, R2 on #152 — the evidence line for the last-leg floor); every track's
  * ring entry; the threat's first frame (02a) or its lie's first tick (02b).
  *
  * The generator's labels never reach this file: the threat is the cast's first row and the
@@ -64,6 +65,8 @@ export interface TrackRun {
   label: string | null
   /** The band on each tick of the window, in order. */
   bands: Band[]
+  /** The named pattern on each tick, `null` as a word, in order. */
+  kinds: string[]
   maxComposite: number
   /** The first tick, anywhere in the recording, at or inside the ring; null when never. */
   enteredS: number | null
@@ -118,6 +121,8 @@ export interface StudyResult {
     atEnd: number
   }
   flaps: { id: string; count: number }[]
+  /** Every inject whose named pattern changed inside the window: how often, and the kinds in order. */
+  kindChanges: { id: string; count: number; kinds: string }[]
   /** Every inject of the cast, in id order, with its ring entry. */
   entries: { id: string; enteredS: number | null }[]
 }
@@ -148,6 +153,16 @@ export function flapsOf(bands: readonly Band[]): number {
   return flaps
 }
 
+/** How often the named pattern changed over one track's ticks — the onset itself is one. */
+export function kindChangesOf(kinds: readonly string[]): number {
+  let changes = 0
+  for (let i = 1; i < kinds.length; i++) if (kinds[i] !== kinds[i - 1]) changes++
+  return changes
+}
+
+/** The kinds a track was named over the window, in order of first appearance — `null → orbit`. */
+export const kindsOf = (kinds: readonly string[]) => [...new Set(kinds)].join(' → ')
+
 export function runStudy(
   scenario: NamedScenario,
   recording: Recording,
@@ -176,6 +191,7 @@ export function runStudy(
         source: track.source,
         label: null,
         bands: [],
+        kinds: [],
         maxComposite: -Infinity,
         enteredS: null,
         closing: false,
@@ -237,6 +253,7 @@ export function runStudy(
       const run = runOf(track)
       const band = bandOf(Math.round(score.composite), scoring.bands)
       run.bands.push(band)
+      run.kinds.push(score.pattern ?? 'null')
       run.maxComposite = Math.max(run.maxComposite, score.composite)
       if (track.source === 'inject' && band !== 'calm') above.push(track.id)
       // The audit, on airborne ticks only.
@@ -348,6 +365,9 @@ export function runStudy(
     flaps: injects
       .map((run) => ({ id: run.id, count: flapsOf(run.bands) }))
       .filter((f) => f.count > 0),
+    kindChanges: injects
+      .map((run) => ({ id: run.id, count: kindChangesOf(run.kinds), kinds: kindsOf(run.kinds) }))
+      .filter((k) => k.count > 0),
     entries: injects.map((run) => ({ id: run.id, enteredS: run.enteredS })),
   }
 }
@@ -408,6 +428,9 @@ export function renderStudy(result: StudyResult): string {
   )
   lines.push(
     `flaps per track in the window: ${result.flaps.length === 0 ? 'none' : result.flaps.map((f) => `${f.id} ${f.count}`).join(' · ')}`,
+  )
+  lines.push(
+    `pattern-kind changes per track in the window: ${result.kindChanges.length === 0 ? 'none' : result.kindChanges.map((k) => `${k.id} ${k.count} (${k.kinds})`).join(' · ')}`,
   )
   lines.push(
     `ring entry, every track: ${result.entries

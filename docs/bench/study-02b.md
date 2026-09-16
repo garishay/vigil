@@ -9,4 +9,5 @@ heard, consistent, not closing: max composite 38 (inject-20 UAS-9E01) — < 40 �
 cue audit through associate at 1500 m, airborne ticks only: closing 5 drones + 20 aircraft · silent 5 · inside 6.5 km 6 · Remote ID hovering 15
 above calm: 4 at Begin · 4 at Begin + 1 (inject-11, inject-12, inject-13, inject-37) · max 5 in the window · 4 at its end
 flaps per track in the window: none
+pattern-kind changes per track in the window: inject-11 1 (null → orbit)
 ring entry, every track: inject-11 603 s · inject-12 — · inject-13 — · inject-14 — · inject-15 — · inject-16 — · inject-17 — · inject-18 — · inject-19 — · inject-20 — · inject-21 — · inject-22 — · inject-23 — · inject-24 — · inject-25 — · inject-26 — · inject-27 — · inject-28 — · inject-29 — · inject-30 — · inject-31 — · inject-32 — · inject-33 — · inject-34 — · inject-35 — · inject-36 — · inject-37 935 s (after the run) · inject-38 — · inject-39 — · inject-40 —
