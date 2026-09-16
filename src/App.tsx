@@ -15,7 +15,7 @@ import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { DEFAULT_RECORDING } from './config/recordings'
 import { REPLAY } from './config/replay'
 import { SCORING } from './config/scoring'
-import { BRIEF, QUESTIONS, STUDY, WORKLOAD_SCALE, type QuestionId } from './config/study'
+import { QUESTIONS, STUDY, WORKLOAD_SCALE, briefFor, type QuestionId } from './config/study'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useSession } from './data/useSession'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
@@ -123,9 +123,6 @@ const SITE_PLAN_KEY = 'vigil.site-plan'
  */
 const BUILD = import.meta.env.VITE_BUILD ?? 'unknown'
 
-/** A study run's window on the recording (S4b, ruled A2, A4): Begin's tick to the run's end. */
-const RUN_WINDOW = { fromS: STUDY.beginS, toS: STUDY.beginS + STUDY.runS }
-
 /** The stored plan, or null when none is held or the browser refuses storage — never a throw. */
 const readStoredPlan = (): string | null => {
   try {
@@ -169,6 +166,11 @@ export default function App({
   // window's end, and closes on the end screen; nothing of it mounts in the demo (ruled A8).
   const study = resolved?.study ?? null
   const inStudy = study !== null
+  // The run's window (S4b, ruled A2, A4): Begin's tick to the run's end — the scenario's own
+  // length when its registry entry carries one (S7, #152, ruled D3), the study's default
+  // otherwise, resolved with the session so the link fixes it.
+  const runS = resolved?.scenario.on ? resolved.scenario.runS : STUDY.runS
+  const runWindow = useMemo(() => ({ fromS: STUDY.beginS, toS: STUDY.beginS + runS }), [runS])
 
   // Selection and filters persist across surface switches — client state only (§7.1 ruling, #3).
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -227,7 +229,7 @@ export default function App({
     index?.durationS ?? null,
     schedule,
     REPLAY.tickMs,
-    inStudy ? RUN_WINDOW : null,
+    inStudy ? runWindow : null,
   )
   const tSec = playback.tSec
   // The run's three states (S4b): the brief up until Begin; running; ended at the window's end
@@ -236,12 +238,12 @@ export default function App({
   // it began: a recording that ends at or before Begin holds the brief with Begin withheld,
   // rather than opening on an end screen no run can fill (#149 round 1).
   const [beganAt, setBeganAt] = useState<string | null>(null)
-  const canBegin = index !== null && index.durationS > RUN_WINDOW.fromS
+  const canBegin = index !== null && index.durationS > runWindow.fromS
   const runEnded =
     inStudy &&
     beganAt !== null &&
     index !== null &&
-    tSec >= Math.min(RUN_WINDOW.toS, index.durationS)
+    tSec >= Math.min(runWindow.toS, index.durationS)
   const runActive = inStudy && beganAt !== null && !runEnded
   // Every selection between Begin and the end, in order — the run JSON's `select` events
   // (ruled A5): which track, at which tick. The record holds the actions; this holds the looks.
@@ -783,13 +785,13 @@ export default function App({
       session: ready.session,
       build: BUILD,
       beganAt,
-      beginS: RUN_WINDOW.fromS,
-      endS: RUN_WINDOW.toS,
+      beginS: runWindow.fromS,
+      endS: runWindow.toS,
       logs: eventLogs,
       selections,
       answers: answers as RunAnswers,
     })
-  }, [study, runEnded, beganAt, ready, answers, eventLogs, selections])
+  }, [study, runEnded, beganAt, ready, answers, eventLogs, selections, runWindow])
   const covered = overlay || runEnded
 
   return (
@@ -822,7 +824,7 @@ export default function App({
             <dd>{field.value}</dd>
           </div>
         ))}
-        <Playback playback={playback} raw={raw} runFromS={inStudy ? RUN_WINDOW.fromS : null} />
+        <Playback playback={playback} raw={raw} runFromS={inStudy ? runWindow.fromS : null} />
         {!raw && (
           <div className="strip__field strip__field--alerts">
             <dt>Alerts</dt>
@@ -1030,7 +1032,7 @@ export default function App({
       {overlay && runName !== null && (
         <RunBrief
           title={`Vigil · study run — ${runName}`}
-          brief={BRIEF}
+          brief={briefFor(runS)}
           ready={canBegin}
           onBegin={() => {
             setBeganAt(now())
@@ -1040,7 +1042,7 @@ export default function App({
       )}
       {inStudy && runEnded && runName !== null && (
         <RunEnd
-          title={`Run complete — ${runName} · +${formatElapsed(tSec - RUN_WINDOW.fromS)}`}
+          title={`Run complete — ${runName} · +${formatElapsed(tSec - runWindow.fromS)}`}
           questions={QUESTIONS}
           scale={WORKLOAD_SCALE}
           answers={answers}

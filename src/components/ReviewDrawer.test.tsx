@@ -10,6 +10,7 @@ import { DISPOSITIONS } from '../config/dispositions'
 import { appendEvent, firstSeen, observedSnapshot, type TrackEvent } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
 import { scoreTrack } from '../lib/scoring'
+import type { Projectable } from '../lib/projection'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const SILENT: InjectTrack = {
@@ -771,5 +772,43 @@ describe('a study run (S4b, #137, ruled A5’s opt-out)', () => {
     // Still Vigil's drawer otherwise: the score is opened, the event log drawn.
     expect(within(drawer).getByLabelText('Score breakdown')).toBeInTheDocument()
     expect(within(drawer).getByLabelText('Event log')).toBeInTheDocument()
+  })
+})
+
+describe('the fairness audit (S7, #152, ruled A10; #131’s fairness test)', () => {
+  const rowsOf = (drawer: HTMLElement) =>
+    [...drawer.querySelectorAll('.drawer__row')].map((row) => [
+      row.querySelector('dt')?.textContent,
+      row.querySelector('dd')?.textContent,
+    ])
+
+  it('raw shows every field the entry projection reads but the age and coast fields, so a raw operator holds every input to the entry order', () => {
+    // Keyed on the projection's own input type: a field added to `Projectable` fails to compile
+    // here until this map says where the raw drawer shows it. The three excluded are the age of
+    // the position and of the message — absent on every inject, so never an input to a threat's
+    // entry — and the coast mark. The site's ring is the map's, drawn in both modes.
+    const shown: Record<
+      Exclude<keyof Projectable, 'positionAgeS' | 'lastSeenSec' | 'coasting'>,
+      string
+    > = {
+      position: 'Position',
+      headingDeg: 'Heading',
+      groundSpeedKt: 'Speed',
+      onGround: 'on ground',
+    }
+    renderDrawer(entry(SILENT, 1, 7200.2), { mode: 'raw' })
+    const drawer = screen.getByRole('complementary', { name: /Track review/ })
+    const labels = rowsOf(drawer).map(([label]) => label)
+    for (const [key, label] of Object.entries(shown)) {
+      // An airborne track wears no ground badge; the badge is checked on a parked one below.
+      if (key === 'onGround') continue
+      expect(labels).toContain(label)
+    }
+    expect(rowsOf(drawer).find(([label]) => label === 'Speed')?.[1]).toBe('19.1 kt')
+    expect(rowsOf(drawer).find(([label]) => label === 'Heading')?.[1]).toBe('346°')
+    expect(within(drawer).queryByText('on ground')).toBeNull()
+    renderDrawer(entry(PARKED, 57, 2122.9), { mode: 'raw' })
+    const parked = screen.getAllByRole('complementary', { name: /Track review/ })[1]
+    expect(within(parked).getByText(shown.onGround)).toBeInTheDocument()
   })
 })

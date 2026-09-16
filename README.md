@@ -14,10 +14,18 @@ The operator study’s scenarios open by name (S3b): **Study-02a-vigil**
 The unaided condition (S4a): **Study-02a-raw**
 [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) ·
 **Study-02b-raw** [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw).
+The prioritization pair (S7): **Study-03a-vigil**
+[`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a) ·
+**Study-03a-raw** [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw) ·
+**Study-03b-vigil** [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b) ·
+**Study-03b-raw** [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) ·
+**Demo-03a-vigil** [`?recording=vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03a) ·
+**Demo-03b-vigil** [`?recording=vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03b);
+a 03 run is as long as its scenario says — 3:38 on 03a, 2:59 on 03b — where a 02 run is six minutes.
 `?scenario=on` is the default deal, `off` none; `?mode=vigil`, the default, is the app as built.
 A **study run** (S4b) adds `&subject=<code>&run=<n>` to a study link, both or neither —
 [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1):
-the brief, Begin, six minutes on the clock, the end screen with Copy run.
+the brief, the scenario's minutes on the clock, the end screen with Copy run.
 
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
@@ -67,7 +75,7 @@ flowchart LR
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
-      scenarios["config/scenarios.ts + scenarios/<br/>the registry: default · 02a · 02b, cast-only files, one row per entry<br/>cast.ts: six builders over the three cast behaviors — threat · shuttle · silentMover · mover · hover · returning"]
+      scenarios["config/scenarios.ts + scenarios/<br/>the registry: default · 02a · 02b · 03a · 03b, cast-only files, one row per entry · a study scenario's own run length<br/>cast.ts: nine builders over the three cast behaviors — threat · shuttle · silentMover · mover · hover · returning · silentHover · silentAt · silentOrbit"]
     cfg --> scenarios
     scenarios --> gen
     cfg["config/scenario.ts<br/>seed · envelope · launch points · the cast"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 dealt behaviors · 3 cast behaviors, scripted · 3 Remote ID states · UA type"]
@@ -77,7 +85,7 @@ flowchart LR
     sites["lib/sites.ts<br/>the session's site set: protected sites and friendly launch areas<br/>add · update · remove · reset, stamped at sim time · the rules a site meets · the last protected site stays<br/>the site plan: JSON out, a pasted plan back in · restored from this browser's storage at load, held while the set differs from config"]
     model["lib/tracks.ts<br/>common Track model<br/>Cooperative / Non-cooperative / Unknown"]
     scorecfg["config/scoring.ts<br/>weights · curves · bands · ADS-B ceiling · operating hours · pattern numbers"]
-    studycfg["config/study.ts<br/>Begin · the run · raw mode's association distance · the acceptance and audit numbers"]
+    studycfg["config/study.ts<br/>Begin · the run's default length · the brief by run length · raw mode's association distance · the acceptance and audit numbers"]
     patterns["lib/patterns.ts<br/>loiter dwell · orbit · area revisit, over the position history<br/>positions only · the strongest is the factor · named past a threshold"]
     score["lib/scoring.ts<br/>six factors · identity memory · ADS-B ceiling · the friendly launch cap · closing on the projection's time to entry, complete inside the ring<br/>the site tier on the per-site value · the set as scored on the score<br/>per-factor breakdown retained · input type strips the answer key"]
     rank["lib/ranking.ts<br/>rank by composite, breakdown on the entry"]
@@ -164,7 +172,7 @@ flowchart LR
   sites -- session set: scorer, map, panel --> app
   cfg -- seed: strip --> app
   recs -- ?recording= selection · the default --> app
-  scenarios -- ?scenario= name · on the first · off none --> app
+  scenarios -- ?scenario= name · on the first · off none · a run's length --> app
   studycfg -- ?mode=raw: the rule at 1 500 m, every derived reading hidden · a run: Begin · the window · the brief · the questions --> app
   run -- the run JSON: the end screen's Copy run --> app
   rank -- ranked + scores: queue chip, drawer, handoff, snapshot, map fill --> app
