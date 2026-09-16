@@ -10,11 +10,14 @@ import {
   captionLines,
   FOOTNOTE,
   FOOTNOTE_LINES,
+  bandFill,
+  entryWords,
   frameName,
   frameSvg,
   headerLine,
   looksOnFrame,
   mmss,
+  neverOpenedWords,
   PANEL,
   project,
 } from './frame.ts'
@@ -251,7 +254,8 @@ describe('the frame — the header and the caption box (ruled B3, B4)', () => {
     expect(captionLines(fixture('S03-02a-vigil-1'))).toEqual([
       'Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.',
       'It read as TRK-11 · sensor.',
-      'Vigil read it rank 1 · warning 71 · Remote ID UAS-8F21 broadcasts 1.1 km from the observed track · closing at 18 m/s · ring entry in 1:49.',
+      'Vigil read it rank 1 · warning 71 · closing at 18 m/s · ring entry in 1:49.',
+      'Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.',
       'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry. 4 candidates never opened.',
     ])
     // 02b: the lie begins at +30, so the look at +14 read the Remote ID in Vigil too.
@@ -673,7 +677,8 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
     expect(vigilCaption(frameSvg(vigilOf('S03-02a-vigil-1')))).toEqual([
       'Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.',
       'It read as TRK-11 · sensor.',
-      'Vigil read it rank 1 · warning 71 · Remote ID UAS-8F21 broadcasts 1.1 km from the observed track · closing at 18 m/s · ring entry in 1:49.',
+      'Vigil read it rank 1 · warning 71 · closing at 18 m/s · ring entry in 1:49.',
+      'Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.',
       'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry. 4 candidates never opened.',
     ])
     // 02b: the look at +14 read the Remote ID and no mismatch — the lie begins at +30.
@@ -730,7 +735,7 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
     const captionsOf = (svg: string) =>
       [...svg.matchAll(/class="caption"[^>]*>([^<]*)</g)]
         .map((match) => match[1])
-        .filter((line) => !line.startsWith('Vigil read it'))
+        .filter((line) => !/^(Vigil read it|Remote ID )/.test(line))
         .map((line) => line.replace(/ \d+ candidates? never opened\.$/, ''))
     for (const name of ['S03-02a-raw-1', 'S05-03a-raw-1']) {
       const raw = fixture(name)
@@ -760,5 +765,98 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
       'TRK-11 · 74 · entry in 0:05',
       'TRK-12 · 73 · entry in 1:30',
     ])
+  })
+})
+
+describe('the frame — round 1 (#160)', () => {
+  const vigilFixtures = ['S03-02a-vigil-1', 'S04-02b-vigil-1', 'S05-03a-vigil-1', 'S06-03b-vigil-1']
+  const captionsOf = (svg: string) =>
+    [...svg.matchAll(/class="caption"[^>]*>([^<]*)</g)].map((match) => match[1])
+
+  it('keeps every caption line inside the box: the mismatch clause is its own line, and no line on the four Vigil fixtures passes 128 characters', () => {
+    // The box is 824 px wide inside its padding at 13 px; the theme's face runs about 6.3 px a
+    // character in this text, so 128 characters is the budget with room — the pre-fix Vigil
+    // line with the mismatch clause ran 138.
+    for (const name of vigilFixtures) {
+      const lines = captionsOf(frameSvg(fixture(name)))
+      for (const line of lines) expect(line.length, `${name}: ${line}`).toBeLessThanOrEqual(128)
+    }
+    const a = captionsOf(frameSvg(fixture('S03-02a-vigil-1')))
+    expect(a[2]).toBe('Vigil read it rank 1 · warning 71 · closing at 18 m/s · ring entry in 1:49.')
+    expect(a[3]).toBe('Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.')
+    expect(a).toHaveLength(5)
+    // 02b's look at +14 read no mismatch, so no such line.
+    expect(captionsOf(frameSvg(fixture('S04-02b-vigil-1')))).toHaveLength(4)
+  })
+
+  it('reads the entry through the Entry row’s own function: the horizon, inside, and the ground guard', () => {
+    const center = AO.protectedSites[0].center
+    const kmPerDegLon = 111.32 * Math.cos((center[1] * Math.PI) / 180)
+    const west = (km: number): [number, number] => [center[0] - km / kmPerDegLon, center[1]]
+    const track = (position: [number, number], groundSpeedKt: number | null, onGround = false) => ({
+      position,
+      headingDeg: 90,
+      groundSpeedKt,
+      onGround,
+      lastSeenSec: 0,
+    })
+    // 12 km out at 4 kt: the ring is 7 km ahead, 57 minutes away — past the row's 20 min horizon.
+    expect(entryWords(track(west(12), 4))).toBe('no ring entry within 20 min')
+    // 12 km out at 40 kt: 5:40 to the ring.
+    expect(entryWords(track(west(12), 40))).toMatch(/^ring entry in 5:[34]\d$/)
+    expect(entryWords(track(center, 40))).toBe('inside the ring')
+    expect(entryWords(track(west(12), 40, true))).toBeNull()
+    // No speed: the row reads none within the horizon, and so does the frame — never "not closing".
+    expect(entryWords(track(west(12), null))).toBe('no ring entry within 20 min')
+    for (const name of vigilFixtures) {
+      expect(frameSvg(fixture(name))).not.toContain('not closing')
+    }
+  })
+
+  it('counts the overlay’s marks in the suffix and names any candidate beyond the panel apart', () => {
+    const record = fixture('S03-02a-raw-1').record
+    const at = (id: string, position: [number, number]) =>
+      ({ track: { id, position } }) as unknown as Parameters<typeof neverOpenedWords>[1][number]
+    const center = AO.protectedSites[0].center
+    const inPanel = at('inject-12', center)
+    const far = at('inject-13', [center[0] + 1, center[1]])
+    expect(neverOpenedWords(record, [inPanel])).toBe('1 candidate never opened.')
+    expect(neverOpenedWords(record, [inPanel, far])).toBe(
+      '1 candidate never opened, 1 beyond the panel.',
+    )
+    expect(neverOpenedWords(record, [at('inject-11', center)])).toBe('0 candidates never opened.')
+    // The fixtures' sets lie inside the panel, so the counts are the marks': 4 and 11.
+    expect(captionsOf(frameSvg(fixture('S03-02a-vigil-1'))).at(-1)).toMatch(
+      / 4 candidates never opened\.$/,
+    )
+    expect(tagsOf(frameSvg(fixture('S03-02a-vigil-1')), 'never-opened')).toHaveLength(4)
+    expect(captionsOf(frameSvg(fixture('S05-03a-vigil-1'))).at(-1)).toMatch(
+      / 11 candidates never opened\.$/,
+    )
+    expect(tagsOf(frameSvg(fixture('S05-03a-vigil-1')), 'never-opened')).toHaveLength(11)
+  })
+
+  it('paints a calm band in the neutral text colour, never a borrowed caution', () => {
+    expect(bandFill('warning')).toBe('#ff6b57')
+    expect(bandFill('caution')).toBe('#f5b942')
+    expect(bandFill('calm')).toBe('#e6edf3')
+  })
+
+  it('prints every pixel to a tenth: no pixel attribute on any of the eight fixture frames carries two or more decimals', () => {
+    // The pixel attributes alone: fill-opacity="0.08" is a two-decimal value by design.
+    for (const name of [
+      'S03-02a-raw-1',
+      'S03-02a-vigil-1',
+      'S04-02b-raw-1',
+      'S04-02b-vigil-1',
+      'S05-03a-raw-1',
+      'S05-03a-vigil-1',
+      'S06-03b-raw-1',
+      'S06-03b-vigil-1',
+    ]) {
+      expect(frameSvg(fixture(name))).not.toMatch(
+        /\b(x|y|cx|cy|x1|y1|x2|y2|r|width|height)="-?\d+\.\d{2,}"/,
+      )
+    }
   })
 })

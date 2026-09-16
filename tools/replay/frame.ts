@@ -13,6 +13,7 @@
  */
 
 import { AO } from '../../src/config/ao.ts'
+import { type Band } from '../../src/config/scoring.ts'
 import { STUDY } from '../../src/config/study.ts'
 import {
   BAND_COLOR,
@@ -23,7 +24,7 @@ import {
 } from '../../src/lib/display.ts'
 import { KT_TO_MS } from '../../src/lib/geo.ts'
 import { injectTracksAt, type InjectPlan } from '../../src/lib/injects.ts'
-import { entryAt } from '../../src/lib/projection.ts'
+import { timeToEntry, type Projectable } from '../../src/lib/projection.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import type { Track } from '../../src/lib/tracks.ts'
 import { candidatesAt, rankedAtSecond, type RankedAt } from './engine.ts'
@@ -109,29 +110,38 @@ export const headerLine = (record: RunRecord, metrics: RunMetrics): string => {
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
-/** The Entry row's reading at a second, in the frame's words: the dead-reckoned estimate `entryAt` gives. */
-const entryWords = (track: Track): string => {
-  const path = entryAt(track, SITE)
-  return path.kind === 'entry'
-    ? `ring entry in ${mmss(Math.round(path.tSec))}`
-    : path.kind === 'inside'
+/**
+ * The Entry row's reading at a second, in the frame's words — `timeToEntry` on the study's ring,
+ * the row's own function with its horizon and its ground guard (#160 round 1): the estimate,
+ * inside, none within the horizon, or null for a track on the ground.
+ */
+export const entryWords = (track: Projectable): string | null => {
+  const estimate = timeToEntry(track, [SITE])
+  if (estimate === null) return null
+  return estimate.kind === 'entry'
+    ? `ring entry in ${mmss(Math.round(estimate.tSec))}`
+    : estimate.kind === 'inside'
       ? 'inside the ring'
-      : 'not closing'
+      : `no ring entry within ${Math.round(estimate.horizonS / 60)} min`
 }
+
+/** A band's colour for a label: the warm bands' own, the neutral text colour for calm (#160 round 1). */
+export const bandFill = (band: Band): string => (band === 'calm' ? COLOR.text : BAND_COLOR[band])
 
 /**
  * What Vigil read on a track at a second — the caption's Vigil line (S5c-ii, C6): the rank, the
- * band and composite the chip printed, the drawer's mismatch line when the score read one, the
- * closing speed, and the Entry row's estimate. The app's own words, through the engine.
+ * band and composite the chip printed, the closing speed, and the Entry row's estimate; the
+ * drawer's mismatch line, when the score read one, is the caption's next line, since the two
+ * together overrun the box (#160 round 1). The app's own words, through the engine.
  */
 const vigilReading = (entry: RankedAt): string => {
-  const { track, score } = entry
+  const { track } = entry
   const speed = track.groundSpeedKt === null ? null : Math.round(track.groundSpeedKt * KT_TO_MS)
+  const entry_ = entryWords(track)
   return [
     `Vigil read it rank ${entry.rank} · ${entry.band} ${entry.composite}`,
-    ...(score.mismatch ? [mismatchLine(score.mismatch)] : []),
     speed === null ? 'speed unobserved' : `closing at ${speed} m/s`,
-    entryWords(track),
+    ...(entry_ === null ? [] : [entry_]),
   ].join(' · ')
 }
 
@@ -141,6 +151,16 @@ const neverOpened = (record: RunRecord, candidates: readonly RankedAt[]): Ranked
     record.events.filter((event) => event.type === 'select').map((event) => event.track),
   )
   return candidates.filter((candidate) => !opened.has(candidate.track.id))
+}
+
+/**
+ * The overlay's count in words for the last decision line: the marks the frame draws, and any
+ * of the set beyond the panel named apart, as the header names hops beyond it (#160 round 1).
+ */
+export const neverOpenedWords = (record: RunRecord, candidates: readonly RankedAt[]): string => {
+  const never = neverOpened(record, candidates)
+  const beyond = never.filter((candidate) => !inPanel(project(candidate.track.position))).length
+  return `${plural(never.length - beyond, 'candidate')} never opened${beyond > 0 ? `, ${beyond} beyond the panel` : ''}.`
 }
 
 /**
@@ -193,7 +213,10 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
       const entry = rankedAtSecond(study, plan, STUDY.beginS + event.t).find(
         (ranked) => ranked.track.id === event.track,
       )
-      if (entry) lines.push(`${vigilReading(entry)}.`)
+      if (entry) {
+        lines.push(`${vigilReading(entry)}.`)
+        if (entry.score.mismatch) lines.push(`${mismatchLine(entry.score.mismatch)}.`)
+      }
     }
   })
   // The decision line, one per threat in the bench's row order: the escalation with its standoff
@@ -225,11 +248,8 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
   }
   // The overlay's count in words, on the last decision line of a Vigil frame (C6).
   if (record.mode === 'vigil') {
-    const never = neverOpened(
-      record,
-      candidatesAt(rankedAtSecond(study, plan, STUDY.beginS + metrics.freezeT)),
-    )
-    lines[lines.length - 1] += ` ${plural(never.length, 'candidate')} never opened.`
+    lines[lines.length - 1] +=
+      ` ${neverOpenedWords(record, candidatesAt(rankedAtSecond(study, plan, STUDY.beginS + metrics.freezeT)))}`
   }
   return lines
 }
@@ -348,7 +368,7 @@ export function frameSvg(input: FrameInput): string {
     if (!many) {
       parts.push(
         text(
-          fx + 8,
+          round1(fx + 8),
           round1(fy + 14),
           `T0 · ${(rangeM(first.track) / 1000).toFixed(1)} km`,
           `font-size="11" fill="${COLOR.faint}"`,
@@ -458,7 +478,7 @@ export function frameSvg(input: FrameInput): string {
           round1(x + 9),
           round1(y - 7),
           `${trackIdent(candidate.track)} · ${candidate.composite}`,
-          `class="vigil-label" data-id="${escAttr(candidate.track.id)}" font-size="11" font-weight="600" fill="${BAND_COLOR[candidate.band === 'calm' ? 'caution' : candidate.band]}"`,
+          `class="vigil-label" data-id="${escAttr(candidate.track.id)}" font-size="11" font-weight="600" fill="${bandFill(candidate.band)}"`,
         ),
       )
     }
@@ -480,13 +500,17 @@ export function frameSvg(input: FrameInput): string {
           ),
         )
       }
-      const path = entryAt(track, SITE)
+      // The Entry row's estimate beside the dot; nothing when the row reads none or the track
+      // is on the ground.
+      const estimate = timeToEntry(track, [SITE])
       const entryText =
-        path.kind === 'entry'
-          ? `entry in ${mmss(Math.round(path.tSec))}`
-          : path.kind === 'inside'
-            ? 'inside the ring'
-            : null
+        estimate === null
+          ? null
+          : estimate.kind === 'entry'
+            ? `entry in ${mmss(Math.round(estimate.tSec))}`
+            : estimate.kind === 'inside'
+              ? 'inside the ring'
+              : null
       // The threat's one map label on the pair (ruled F2): ident, composite, and the entry
       // estimate below-right in the band's colour; on one threat, the S5c gate's two labels.
       const label = many
@@ -499,7 +523,7 @@ export function frameSvg(input: FrameInput): string {
             round1(y + 16),
             label,
             many
-              ? `class="vigil-threat-label" data-id="${escAttr(threat.id)}" font-size="11" font-weight="600" fill="${BAND_COLOR[entry.band === 'calm' ? 'caution' : entry.band]}"`
+              ? `class="vigil-threat-label" data-id="${escAttr(threat.id)}" font-size="11" font-weight="600" fill="${bandFill(entry.band)}"`
               : `class="vigil-entry" data-id="${escAttr(threat.id)}" font-size="11" fill="${COLOR.text}"`,
           ),
         )
@@ -543,7 +567,7 @@ export function frameSvg(input: FrameInput): string {
           ),
           ...candidates.map(
             (candidate, i) =>
-              `<text x="46" y="${queueY + 38 + i * 18}" font-family="${FONT}" class="vigil-queue-line" data-id="${escAttr(candidate.track.id)}" font-size="11" fill="${COLOR.muted}"><tspan font-weight="700" fill="${BAND_COLOR[candidate.band === 'calm' ? 'caution' : candidate.band]}">${candidate.rank}</tspan> ${esc(`${trackIdent(candidate.track)} ${candidate.composite} · ${reasonTag(candidate, AO.protectedSites)}`)}</text>`,
+              `<text x="46" y="${queueY + 38 + i * 18}" font-family="${FONT}" class="vigil-queue-line" data-id="${escAttr(candidate.track.id)}" font-size="11" fill="${COLOR.muted}"><tspan font-weight="700" fill="${bandFill(candidate.band)}">${candidate.rank}</tspan> ${esc(`${trackIdent(candidate.track)} ${candidate.composite} · ${reasonTag(candidate, AO.protectedSites)}`)}</text>`,
           ),
         ]
       : []
