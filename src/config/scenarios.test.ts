@@ -422,7 +422,7 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
     )
   })
 
-  it('writes every mover where it is at Begin: 03a’s threats at 285° / 6.30 km on 111° at 25 kt and 050° / 6.15 km on 225° at 12 kt; 03b’s the closer, slower one first; the load’s inbound rows at 9–12 km and its two misses at 6.6 and 8.1 km', () => {
+  it('writes every mover where it is at Begin: 03a’s threats at 285° / 6.30 km on 111° at 25 kt and 050° / 6.15 km on 225° at 12 kt; 03b’s the closer, slower one first; the load’s two band rows at 6.35–6.5 km at 11 kt, its three inbound rows at 9–12 km, and its two misses at 6.6 and 8.1 km', () => {
     const [t1, t2] = cast(SCENARIO_03A)
     expect(t1).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 25 })
     expect(t2).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 12 })
@@ -442,12 +442,20 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
     expect(back).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 10 })
     expect(atBegin(back).bearingDeg).toBeCloseTo(95, 0)
     expect(atBegin(back).rangeKm).toBeCloseTo(8.0, 2)
-    // The load (ruled R1): rows 41–45 silent, steady inbound, 9–12 km out at Begin; 46–47 silent on courses that miss.
+    // The load (ruled R1; placed at #154 round 2): rows 41–42 silent inbound in the threats' band,
+    // 5.5–6.5 km at Begin at 11 kt on courses off the centre line; 43–45 silent, steady inbound,
+    // 9–12 km; 46–47 silent on courses that miss. To the metre: the round trip through the plane
+    // and back lands within a metre of the row.
     const load = cast(SCENARIO_03A).slice(30)
     expect(load).toHaveLength(7)
     expect(load.every((e) => e.remoteId === 'silent' && e.behavior === 'shuttle')).toBe(true)
-    for (const entry of load.slice(0, 5)) {
-      // To the metre: the round trip through the plane and back lands within a metre of the row.
+    for (const entry of load.slice(0, 2)) {
+      const begin = Math.round(atBegin(entry).rangeKm * 100) / 100
+      expect(begin).toBeGreaterThanOrEqual(5.5)
+      expect(begin).toBeLessThanOrEqual(6.5)
+      expect(entry.speedKt).toBe(11)
+    }
+    for (const entry of load.slice(2, 5)) {
       const begin = Math.round(atBegin(entry).rangeKm * 100) / 100
       expect(begin).toBeGreaterThanOrEqual(9)
       expect(begin).toBeLessThanOrEqual(12)
@@ -509,17 +517,19 @@ describe('the prioritization casts on the 1 Hz grid, through the feed (S7, #152;
       expect(of(tick, 'inject-11')!.band).toBe('warning')
       expect(of(tick, 'inject-12')!.band).toBe('warning')
     }
-    // Nothing but the two threats enters the ring inside the run, and nothing else reads warning.
+    // Nothing but the two threats enters the ring inside the run, and nothing else reads warning
+    // before the first entry — the two band rows cross it after (Begin + 128 and + 157), under
+    // the threats, and S7b's baselines pin those ticks.
     for (const tick of ticks) {
       for (const s of tick.scored) {
         if (s.track.id === 'inject-11' || s.track.id === 'inject-12') continue
         expect(distanceMeters(C, s.track.position)).toBeGreaterThan(SITE.radiusM)
-        expect(s.band).not.toBe('warning')
+        if (tick.tSec <= firstEntryS) expect(s.band).not.toBe('warning')
       }
     }
   }
 
-  it('03a: both threats warning at Begin and ranks 1 and 2 in entry order on every tick to the first entry at 582 s; the second enters at 668 s; no bait, load, or furniture enters inside the run', () => {
+  it('03a: both threats warning at Begin and ranks 1 and 2 in entry order on every tick to the first entry at 582 s; the second enters at 668 s; no bait, load, or furniture enters inside the run, and none reads warning before the first entry', () => {
     const ticks = fold(SCENARIO_03A, T0, T0 + RUN_03A)
     holds(ticks, 582)
     expect(ticks.find((t) => rangeAt(t, 'inject-11') <= SITE.radiusM)!.tSec).toBe(582)
