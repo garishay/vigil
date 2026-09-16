@@ -496,7 +496,7 @@ export function frameSvg(input: FrameInput): string {
           text(
             46,
             queueY + 20,
-            `Queue at ${mmss(metrics.freezeT)} · ${plural(candidates.length, 'candidate')} above calm`,
+            `Queue at ${mmss(metrics.freezeT)} · ${candidates.length} above calm`,
             `class="vigil-queue-title" font-size="12" font-weight="700" fill="${COLOR.text}"`,
           ),
           ...candidates.map(
