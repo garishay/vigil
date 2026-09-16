@@ -8,7 +8,6 @@
  * deterministic: the same record, study, and plan give the same bytes.
  */
 
-import { THREAT_ID } from '../../scripts/study.ts'
 import { AO } from '../../src/config/ao.ts'
 import { STUDY } from '../../src/config/study.ts'
 import { sourceWord, trackIdent } from '../../src/lib/display.ts'
@@ -17,7 +16,7 @@ import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import type { Track } from '../../src/lib/tracks.ts'
 import { candidatesAt, rankedAtSecond } from './engine.ts'
 import type { Study } from './load.ts'
-import type { RunMetrics } from './metrics.ts'
+import { threatsOf, type RunMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 
 /** The map panel: 30 km by 23.3 km at 30 px per km, the ring's centre at its middle. */
@@ -86,12 +85,15 @@ const VERB: Partial<Record<RunEvent['type'], string>> = {
 }
 
 /** The header's first line: the condition, and the moment the frame is frozen at. */
-export const headerLine = (record: RunRecord, metrics: RunMetrics): string =>
-  `${record.mode === 'raw' ? 'UNAIDED' : 'WITH VIGIL'} · ${
-    metrics.miss
-      ? `MISSED — frozen at +${mmss(STUDY.runS)}`
-      : `frozen at the moment of escalation — ${mmss(metrics.freezeT)}`
+export const headerLine = (record: RunRecord, metrics: RunMetrics): string => {
+  const missed = metrics.threats.filter((threat) => threat.miss)
+  const many = metrics.threats.length > 1
+  return `${record.mode === 'raw' ? 'UNAIDED' : 'WITH VIGIL'} · ${
+    missed.length > 0
+      ? `MISSED${many ? ` ${missed.map((threat) => threat.id).join(', ')}` : ''} — frozen at +${mmss(metrics.runS)}`
+      : `frozen at the moment of ${many ? 'the last ' : ''}escalation — ${mmss(metrics.freezeT)}`
   }`
+}
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -106,16 +108,20 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
   const looks = record.events
     .map((event, index) => ({ event, index }))
     .filter(({ event }) => event.type === 'select' && event.t <= metrics.freezeT)
+  const threatIds = metrics.threats.map((threat) => threat.id)
+  const many = threatIds.length > 1
+  const name = (id: string) => (many ? `${id} (threat ${threatIds.indexOf(id) + 1})` : 'the threat')
   const threatLooks = looks
     .map(({ event, index }, i) => ({ event, index, k: i + 1 }))
-    .filter(({ event }) => event.track === THREAT_ID)
+    .filter(({ event }) => threatIds.includes(event.track))
   const lines: string[] = []
   threatLooks.forEach(({ event, index, k }, j) => {
-    const nextIndex = threatLooks[j + 1]?.index ?? Infinity
+    const nextIndex =
+      threatLooks.slice(j + 1).find((look) => look.event.track === event.track)?.index ?? Infinity
     const actions = record.events
       .filter(
         (action, i) =>
-          action.track === THREAT_ID &&
+          action.track === event.track &&
           VERB[action.type] !== undefined &&
           i > index &&
           i < nextIndex &&
@@ -123,30 +129,38 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
       )
       .map((action) => `${VERB[action.type]} at ${mmss(action.t)}`)
     lines.push(
-      `Look #${k} · ${mmss(event.t)} — opened the threat${actions.length > 0 ? `; ${actions.join(', ')}` : ''}.`,
+      `Look #${k} · ${mmss(event.t)} — opened ${name(event.track)}${actions.length > 0 ? `; ${actions.join(', ')}` : ''}.`,
     )
-    const shown = trackAtSecond(study.index, plan, THREAT_ID, STUDY.beginS + event.t, record.mode)
+    const shown = trackAtSecond(study.index, plan, event.track, STUDY.beginS + event.t, record.mode)
     lines.push(
       shown
         ? `It read as ${trackIdent(shown)} · ${sourceWord(shown)}.`
         : 'It was not in the picture.',
     )
   })
-  if (metrics.miss || metrics.standoffM === null) {
-    lines.push(`MISSED — never escalated; ${plural(looks.length, 'look')}.`)
-    return lines
+  // The decision line, one per threat in the bench's row order: the escalation with its standoff
+  // and its distance from the entry, or the miss; on one threat, S5b's line as it was.
+  for (const threat of metrics.threats) {
+    if (threat.miss || threat.standoffM === null || threat.timeToEscalateS === null) {
+      lines.push(
+        `MISSED${many ? ` ${threat.id}` : ''} — never escalated; ${plural(looks.length, 'look')}.`,
+      )
+      continue
+    }
+    const last = [...threatLooks]
+      .reverse()
+      .find((look) => look.event.track === threat.id && look.event.t <= threat.timeToEscalateS!)
+    const who = last ? `Look #${last.k} · ${mmss(threat.timeToEscalateS)} — ` : ''
+    const km = (Math.abs(threat.standoffM) / 1000).toFixed(1)
+    const side = threat.standoffM >= 0 ? 'outside' : 'inside'
+    const entry =
+      threat.entryT === null
+        ? 'no ring entry'
+        : threat.entryT >= threat.timeToEscalateS
+          ? `${mmss(threat.entryT - threat.timeToEscalateS)} before entry`
+          : `${mmss(threat.timeToEscalateS - threat.entryT)} after entry`
+    lines.push(`${who}escalated ${many ? threat.id : 'it'} ${km} km ${side} the ring · ${entry}.`)
   }
-  const last = threatLooks[threatLooks.length - 1]
-  const who = last ? `Look #${last.k} · ${mmss(metrics.freezeT)} — ` : ''
-  const km = (Math.abs(metrics.standoffM) / 1000).toFixed(1)
-  const side = metrics.standoffM >= 0 ? 'outside' : 'inside'
-  const entry =
-    metrics.entryT === null
-      ? 'no ring entry'
-      : metrics.entryT >= metrics.freezeT
-        ? `${mmss(metrics.entryT - metrics.freezeT)} before entry`
-        : `${mmss(metrics.freezeT - metrics.entryT)} after entry`
-  lines.push(`${who}escalated it ${km} km ${side} the ring · ${entry}.`)
   return lines
 }
 
@@ -163,11 +177,11 @@ export const FOOTNOTE = FOOTNOTE_LINES.join(' ')
 const text = (x: number, y: number, content: string, attrs: string): string =>
   `<text x="${x}" y="${y}" font-family="${FONT}" ${attrs}>${esc(content)}</text>`
 
-/** The threat's positions from one second to another, projected, for the trail. */
-function trailPoints(plan: InjectPlan, fromS: number, toS: number): [number, number][] {
+/** A threat's positions from one second to another, projected, for its trail. */
+function trailPoints(plan: InjectPlan, id: string, fromS: number, toS: number): [number, number][] {
   const points: [number, number][] = []
   for (let tSec = fromS; tSec <= toS; tSec++) {
-    const threat = injectTracksAt(plan, tSec).find((track) => track.id === THREAT_ID)
+    const threat = injectTracksAt(plan, tSec).find((track) => track.id === id)
     if (threat) points.push(project(threat.position))
   }
   return points
@@ -215,50 +229,62 @@ export function frameSvg(input: FrameInput): string {
     ),
   )
 
-  // The threat's trail from its first frame in the window to the freeze, its plan-known
-  // continuation to the entry tick fainter, and the two marks.
-  let firstS: number | null = null
-  for (let tSec = beginS; tSec <= freezeS && firstS === null; tSec++) {
-    if (injectTracksAt(plan, tSec).some((track) => track.id === THREAT_ID)) firstS = tSec
-  }
-  if (firstS !== null) {
-    const trail = trailPoints(plan, firstS, freezeS)
+  // Each threat's trail from its first frame in the window to the freeze, its plan-known
+  // continuation to the entry tick fainter, and the two marks — one threat on the corroboration
+  // pair, two on the prioritization pair, each marked by its id where there are two.
+  const threatIds = threatsOf(record.scenario)
+  const many = threatIds.length > 1
+  for (const threat of metrics.threats) {
+    let firstS: number | null = null
+    for (let tSec = beginS; tSec <= freezeS && firstS === null; tSec++) {
+      if (injectTracksAt(plan, tSec).some((track) => track.id === threat.id)) firstS = tSec
+    }
+    if (firstS === null) continue
+    // The id on the prioritization pair's trails, where there are two to tell apart; the
+    // corroboration frame is S5b's byte for byte.
+    const idAttr = many ? ` data-id="${escAttr(threat.id)}"` : ''
+    const trail = trailPoints(plan, threat.id, firstS, freezeS)
     parts.push(
       polyline(
         trail,
-        `class="trail" stroke="${COLOR.muted}" stroke-width="1.5" stroke-dasharray="2 4"`,
+        `class="trail"${idAttr} stroke="${COLOR.muted}" stroke-width="1.5" stroke-dasharray="2 4"`,
       ),
     )
-    const entryS = metrics.entryT === null ? null : beginS + metrics.entryT
+    const entryS = threat.entryT === null ? null : beginS + threat.entryT
     if (entryS !== null && entryS > freezeS) {
       parts.push(
         polyline(
-          trailPoints(plan, freezeS, entryS),
-          `class="trail-ahead" stroke="${COLOR.faint}" stroke-width="1" stroke-dasharray="1 5"`,
+          trailPoints(plan, threat.id, freezeS, entryS),
+          `class="trail-ahead"${idAttr} stroke="${COLOR.faint}" stroke-width="1" stroke-dasharray="1 5"`,
         ),
       )
     }
-    const first = injectTracksAt(plan, firstS).find((track) => track.id === THREAT_ID)!
+    const first = injectTracksAt(plan, firstS).find((track) => track.id === threat.id)!
     const [fx, fy] = project(first.position)
+    const tag = many ? `${threat.id} · ` : ''
+    // Two labels on a short trail collide at x + 8 (the re-gate's mockup); on the pair the T0
+    // label goes below-left, anchored end, the entry label above-right (E6).
+    const t0X = many ? fx - 8 : fx + 8
+    const t0Anchor = many ? ' text-anchor="end"' : ''
     parts.push(
-      `<circle class="trail-first" cx="${fx}" cy="${fy}" r="2.5" fill="${COLOR.muted}"/>`,
+      `<circle class="trail-first"${idAttr} cx="${fx}" cy="${fy}" r="2.5" fill="${COLOR.muted}"/>`,
       text(
-        fx + 8,
+        t0X,
         fy + 14,
-        `T0 · ${(rangeM(first) / 1000).toFixed(1)} km`,
-        `font-size="11" fill="${COLOR.faint}"`,
+        `${tag}T0 · ${(rangeM(first) / 1000).toFixed(1)} km`,
+        `font-size="11" fill="${COLOR.faint}"${t0Anchor}`,
       ),
     )
     if (entryS !== null) {
-      const atEntry = injectTracksAt(plan, entryS).find((track) => track.id === THREAT_ID)
+      const atEntry = injectTracksAt(plan, entryS).find((track) => track.id === threat.id)
       if (atEntry) {
         const [ex, ey] = project(atEntry.position)
         parts.push(
-          `<circle class="entry" cx="${ex}" cy="${ey}" r="3" fill="none" stroke="${COLOR.muted}" stroke-width="1.5"/>`,
+          `<circle class="entry"${idAttr} cx="${ex}" cy="${ey}" r="3" fill="none" stroke="${COLOR.muted}" stroke-width="1.5"/>`,
           text(
             ex + 8,
             ey - 6,
-            `${mmss(metrics.entryT!)} ring entry`,
+            `${tag}${mmss(threat.entryT!)} ring entry`,
             `font-size="11" fill="${COLOR.faint}"`,
           ),
         )
@@ -311,7 +337,7 @@ export function frameSvg(input: FrameInput): string {
     event,
     point: [x, y],
   } of hops) {
-    const fill = event.track === THREAT_ID ? COLOR.warning : COLOR.accent
+    const fill = threatIds.includes(event.track) ? COLOR.warning : COLOR.accent
     parts.push(
       `<circle class="hop" data-k="${k}" data-id="${escAttr(event.track)}" data-t="${event.t}" cx="${x}" cy="${y}" r="9" fill="${fill}"/>`,
       text(
@@ -349,7 +375,7 @@ export function frameSvg(input: FrameInput): string {
         46,
         captionY + 16 + (i + 1) * LINE_H - 6,
         line,
-        `class="caption" font-size="13" ${i === lines.length - 1 || line.startsWith('Look') ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
+        `class="caption" font-size="13" ${line.startsWith('Look') || line.startsWith('MISSED') ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
       ),
     ),
   ]

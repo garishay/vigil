@@ -1,0 +1,18 @@
+{
+  "subject": "S06",
+  "scenario": "03b",
+  "mode": "vigil",
+  "run": 1,
+  "build": "2.60.0+80c9a10",
+  "began_at": "2026-09-16T17:42:33.576Z",
+  "events": [
+    {"t":9,"type":"select","track":"inject-11"},
+    {"t":20,"type":"assess","track":"inject-11"},
+    {"t":30,"type":"escalate","track":"inject-11"},
+    {"t":44,"type":"select","track":"inject-42"},
+    {"t":61,"type":"select","track":"inject-12"},
+    {"t":75,"type":"assess","track":"inject-12"},
+    {"t":88,"type":"escalate","track":"inject-12"}
+  ],
+  "answers": {"demand":5,"pressure":6,"confidence":4}
+}

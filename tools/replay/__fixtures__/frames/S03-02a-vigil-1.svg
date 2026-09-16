@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="922" viewBox="0 0 900 922" data-subject="S03" data-scenario="02a" data-mode="vigil" data-run="1">
+<rect width="900" height="922" fill="#0b0f14"/>
+<text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">WITH VIGIL · frozen at the moment of escalation — 0:58</text>
+<text x="30" y="64" font-family="system-ui, sans-serif" class="subtitle" font-size="13" fill="#8b98a9">The subject's selection sequence from the run JSON, replayed as a path. 1 look.</text>
+<defs><clipPath id="panel"><rect x="0" y="0" width="900" height="700"/></clipPath></defs>
+<g class="map" transform="translate(0 80)" clip-path="url(#panel)">
+<rect width="900" height="700" fill="#121821"/>
+<circle class="track" data-id="adsb-a33716" cx="502.3" cy="338" r="3" fill="#63707f"/>
+<circle class="track" data-id="adsb-a3b796" cx="210.5" cy="440" r="3" fill="#63707f"/>
+<circle class="track" data-id="adsb-a43667" cx="399.4" cy="388.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="adsb-a7c7f2" cx="817.7" cy="364.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="adsb-a8021b" cx="642.1" cy="302.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="adsb-aa08fb" cx="665.9" cy="60.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-11" cx="282" cy="428.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-12" cx="541.1" cy="556.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-13" cx="618.5" cy="329.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-14" cx="3.4" cy="92.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-17" cx="391.4" cy="511.2" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-20" cx="497.1" cy="83.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-21" cx="616" cy="113.3" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-22" cx="706.6" cy="170.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-23" cx="785.8" cy="320.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-24" cx="713" cy="445.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-25" cx="726.3" cy="582.3" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-26" cx="527" cy="637.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-27" cx="393.6" cy="670.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-28" cx="291.3" cy="577" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-29" cx="166.8" cy="548.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-30" cx="159.1" cy="375.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-31" cx="161.3" cy="245.2" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-32" cx="196.5" cy="96.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-33" cx="330.3" cy="93.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-34" cx="394.5" cy="35.8" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-35" cx="284.8" cy="225.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-36" cx="775.8" cy="538.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-37" cx="574.1" cy="196.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-38" cx="599.5" cy="545.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-39" cx="235.6" cy="44.3" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-40" cx="620.2" cy="198" r="3" fill="#63707f"/>
+<circle class="ring" cx="450" cy="350" r="150" fill="#4c9aff" fill-opacity="0.08" stroke="#4c9aff" stroke-width="1.5"/>
+<rect x="446" y="346" width="8" height="8" fill="#4c9aff"/>
+<text x="460" y="372" font-family="system-ui, sans-serif" font-size="13" fill="#8b98a9">PHL Airfield · 5 km ring</text>
+<polyline points="254.1,441.5 254.6,441.2 255.1,441 255.6,440.8 256.1,440.6 256.5,440.3 257,440.1 257.5,439.9 258,439.6 258.5,439.4 259,439.2 259.5,439 260,438.7 260.5,438.5 260.9,438.3 261.4,438 261.9,437.8 262.4,437.6 262.9,437.4 263.4,437.1 263.9,436.9 264.4,436.7 264.9,436.4 265.4,436.2 265.8,436 266.4,435.8 266.8,435.5 267.3,435.3 267.8,435.1 268.3,434.9 268.8,434.6 269.3,434.4 269.8,434.2 270.3,433.9 270.8,433.7 271.3,433.5 271.7,433.3 272.2,433 272.7,432.8 273.2,432.6 273.7,432.3 274.2,432.1 274.7,431.9 275.2,431.7 275.7,431.4 276.1,431.2 276.6,431 277.1,430.7 277.6,430.5 278.1,430.3 278.6,430.1 279.1,429.8 279.6,429.6 280.1,429.3 280.6,429.1 281,428.9 281.5,428.7 282,428.4" fill="none" class="trail" stroke="#8b98a9" stroke-width="1.5" stroke-dasharray="2 4"/>
+<polyline points="282,428.4 282.5,428.2 283,428 283.5,427.7 284,427.5 284.5,427.3 285,427.1 285.5,426.8 285.9,426.6 286.4,426.4 286.9,426.2 287.4,425.9 287.9,425.7 288.4,425.5 288.9,425.2 289.4,425 289.9,424.8 290.3,424.6 290.8,424.3 291.3,424.1 291.8,423.9 292.3,423.6 292.8,423.4 293.3,423.2 293.8,423 294.3,422.7 294.8,422.5 295.2,422.3 295.7,422 296.2,421.8 296.7,421.6 297.2,421.4 297.7,421.1 298.2,420.9 298.7,420.7 299.2,420.5 299.7,420.2 300.2,420 300.7,419.8 301.1,419.5 301.6,419.3 302.1,419.1 302.6,418.9 303.1,418.6 303.6,418.4 304.1,418.2 304.6,417.9 305.1,417.7 305.5,417.5 306,417.3 306.5,417 307,416.8 307.5,416.6 308,416.3 308.5,416.1 309,415.9 309.5,415.7 310,415.4 310.4,415.2 310.9,415 311.4,414.8 311.9,414.5 312.4,414.3 312.9,414.1 313.4,413.8 313.9,413.6 314.4,413.4" fill="none" class="trail-ahead" stroke="#63707f" stroke-width="1" stroke-dasharray="1 5"/>
+<circle class="trail-first" cx="254.1" cy="441.5" r="2.5" fill="#8b98a9"/>
+<text x="262.1" y="455.5" font-family="system-ui, sans-serif" font-size="11" fill="#63707f">T0 · 7.2 km</text>
+<circle class="entry" cx="314.4" cy="413.4" r="3" fill="none" stroke="#8b98a9" stroke-width="1.5"/>
+<text x="322.4" y="407.4" font-family="system-ui, sans-serif" font-size="11" fill="#63707f">2:04 ring entry</text>
+<circle class="never-opened" data-id="inject-12" cx="541.1" cy="556.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="550.1" y="560.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-13" cx="618.5" cy="329.6" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="627.5" y="333.6" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-17" cx="391.4" cy="511.2" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="400.4" y="515.2" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-37" cx="574.1" cy="196.9" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="583.1" y="200.9" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+
+<circle class="hop" data-k="1" data-id="inject-11" data-t="14" cx="260.5" cy="438.5" r="9" fill="#ff6b57"/>
+<text x="260.5" y="442.5" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#0b0f14">1</text>
+</g>
+<text x="30" y="800" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">"never opened" marks the engine's above-calm tracks at the freeze that the run never opened:</text>
+<text x="30" y="814" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the analyst's overlay, drawn on both conditions; raw's screen never showed that set.</text>
+<rect x="30" y="828" width="840" height="94" rx="6" fill="#121821" stroke="#1f2a37"/>
+<text x="46" y="860" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.</text>
+<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-11 · sensor.</text>
+<text x="46" y="904" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry.</text>
+</svg>

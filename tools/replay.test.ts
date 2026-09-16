@@ -44,6 +44,10 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
       'S03-02a-vigil-1.json',
       'S04-02b-raw-1.json',
       'S04-02b-vigil-1.json',
+      'S05-03a-raw-1.json',
+      'S05-03a-vigil-1.json',
+      'S06-03b-raw-1.json',
+      'S06-03b-vigil-1.json',
     ])
     expect(collectRunFiles([join(FIXTURES, 'S03-02a-raw-1.json')])).toEqual([
       join(FIXTURES, 'S03-02a-raw-1.json'),
@@ -78,21 +82,27 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     expect(existsSync(join(frames, 'study.csv'))).toBe(false)
     const out = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(out)
-    expect(main(['--study', FIXTURES, '--out', out])).toBe(`${join(out, 'study.csv')}: 4 runs\n`)
+    expect(main(['--study', FIXTURES, '--out', out])).toBe(`${join(out, 'study.csv')}: 8 runs\n`)
     const written = readFileSync(join(out, 'study.csv'), 'utf8')
-    // The four fixture rows, byte for byte — the hand calculation on the PR (S5a's acceptance).
+    // The eight fixture rows, byte for byte — the hand calculation on the PR (S5a's acceptance;
+    // the 03 rows and the appended columns S5c-i's). The S5a cells of the 02 rows are unchanged.
     expect(written).toBe(
       [
         CSV_COLUMNS.join(','),
-        'S03,02a,raw,1,2.60.0+efac241-dirty,2026-09-15T23:38:09.494Z,58,1174,58,false,0,1,1,124,6,7,5',
-        'S03,02a,vigil,1,2.60.0+efac241-dirty,2026-09-15T23:38:11.935Z,58,1174,58,false,0,1,2,124,6,7,5',
-        'S04,02b,raw,1,2.60.0+c9c80e3,2026-09-16T00:31:10.057Z,58,1153,58,false,0,1,1,123,6,7,5',
-        'S04,02b,vigil,1,2.60.0+c9c80e3,2026-09-16T00:31:12.777Z,58,1153,58,false,0,1,2,123,6,7,5',
+        'S03,02a,raw,1,2.60.0+efac241-dirty,2026-09-15T23:38:09.494Z,58,1174,58,false,0,1,1,124,6,7,5,360,0,0,,14,,,,,',
+        'S03,02a,vigil,1,2.60.0+efac241-dirty,2026-09-15T23:38:11.935Z,58,1174,58,false,0,1,2,124,6,7,5,360,0,0,,14,,,,,',
+        'S04,02b,raw,1,2.60.0+c9c80e3,2026-09-16T00:31:10.057Z,58,1153,58,false,0,1,1,123,6,7,5,360,0,0,,14,,,,,',
+        'S04,02b,vigil,1,2.60.0+c9c80e3,2026-09-16T00:31:12.777Z,58,1153,58,false,0,1,2,123,6,7,5,360,0,0,,14,,,,,',
+        'S05,03a,raw,1,2.60.0+80c9a10,2026-09-16T17:42:37.615Z,97,60,97,false,0,3,6,102,5,6,4,218,2,1,false,84,41,58,793,false,188',
+        'S05,03a,vigil,1,2.60.0+80c9a10,2026-09-16T17:42:35.598Z,71,814,38,false,0,1,3,102,5,6,4,218,0,0,true,11,52,71,714,false,188',
+        'S06,03b,raw,1,2.60.0+80c9a10,2026-09-16T17:42:39.634Z,179,-75,118,false,1,3,4,106,5,6,4,179,2,1,,95,,,,true,149',
+        'S06,03b,vigil,1,2.60.0+80c9a10,2026-09-16T17:42:33.576Z,88,465,30,false,0,1,3,106,5,6,4,179,0,0,true,9,61,88,775,false,149',
         '',
       ].join('\n'),
     )
     expect(written).toBe(main([FIXTURES, '--out', frames]))
     expect(existsSync(join(frames, 'S04-02b-vigil-1.svg'))).toBe(true)
+    expect(existsSync(join(frames, 'S06-03b-raw-1.svg'))).toBe(true)
   })
 
   it('builds one plan per scenario across the runs, and stops on a refused file with nothing written', () => {
@@ -102,6 +112,10 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
       'S03 02a vigil',
       'S04 02b raw',
       'S04 02b vigil',
+      'S05 03a raw',
+      'S05 03a vigil',
+      'S06 03b raw',
+      'S06 03b vigil',
     ])
     const out = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(out)

@@ -25,6 +25,16 @@ export const CSV_COLUMNS = [
   'demand',
   'pressure',
   'confidence',
+  'run_s',
+  'opened_before_first_threat',
+  'escalations_of_later_entrants',
+  'order_correct',
+  'first_open_s_1',
+  'first_open_s_2',
+  'time_to_escalate_s_2',
+  'standoff_m_2',
+  'miss_2',
+  'entry_t_2',
 ] as const
 
 const cell = (value: string | number | boolean | null): string => {
@@ -33,8 +43,15 @@ const cell = (value: string | number | boolean | null): string => {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
-export const csvRow = (m: RunMetrics): string =>
-  [
+export const csvRow = (m: RunMetrics): string => {
+  // The columns carry two threats (ruled E2); a third is a column change at its own gate, and
+  // until then a row that would drop one refuses in words rather than print short (round 1).
+  if (m.threats.length > 2) {
+    throw new Error(
+      `${m.subject} ${m.scenario} run ${m.run}: the CSV carries two threats and this run has ${m.threats.length} — a third threat is a column change at its own gate`,
+    )
+  }
+  return [
     m.subject,
     m.scenario,
     m.mode,
@@ -52,9 +69,20 @@ export const csvRow = (m: RunMetrics): string =>
     m.answers.demand,
     m.answers.pressure,
     m.answers.confidence,
+    m.runS,
+    m.openedBeforeFirstThreat,
+    m.escalationsOfLaterEntrants,
+    m.orderCorrect,
+    m.threats[0]?.firstOpenS ?? null,
+    m.threats[1]?.firstOpenS ?? null,
+    m.threats[1]?.timeToEscalateS ?? null,
+    m.threats[1]?.standoffM ?? null,
+    m.threats[1] === undefined ? null : m.threats[1].miss,
+    m.threats[1]?.entryT ?? null,
   ]
     .map(cell)
     .join(',')
+}
 
 const byRun = (a: RunMetrics, b: RunMetrics): number =>
   a.subject.localeCompare(b.subject) ||
