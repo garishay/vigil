@@ -94,7 +94,15 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     expect(existsSync(join(frames, 'study.csv'))).toBe(false)
     const out = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(out)
-    expect(main(['--study', FIXTURES, '--out', out])).toBe(`${join(out, 'study.csv')}: 8 runs\n`)
+    // --study writes the figure beside the CSV and names it (S5d-ii).
+    const studyLog: string[] = []
+    expect(main(['--study', FIXTURES, '--out', out], (line) => studyLog.push(line))).toBe(
+      `${join(out, 'study.csv')}: 8 runs\n`,
+    )
+    expect(studyLog).toEqual([`${join(out, 'study.svg')}: written\n`])
+    const figure = readFileSync(join(out, 'study.svg'), 'utf8')
+    expect(figure.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1000"')).toBe(true)
+    expect(figure).toContain('Study — 8 runs · 4 subjects')
     const written = readFileSync(join(out, 'study.csv'), 'utf8')
     // The eight fixture rows, byte for byte — the hand calculation on the PR (S5a's acceptance;
     // the 03 rows and the appended columns S5c-i's). The S5a cells of the 02 rows are unchanged.
@@ -115,7 +123,7 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     expect(written).toBe(main([FIXTURES, '--out', frames]))
     expect(existsSync(join(frames, 'S04-02b-vigil-1.svg'))).toBe(true)
     expect(existsSync(join(frames, 'S06-03b-raw-1.svg'))).toBe(true)
-    // Eight runs: no pair, and no study figure yet (S5d-ii).
+    // Eight runs in the bare form: no pair, and the figure is --study's alone.
     expect(existsSync(join(frames, 'study.svg'))).toBe(false)
     expect(readdirSync(frames).filter((name) => name.startsWith('pair-'))).toEqual([
       'pair-S03-02a.svg',

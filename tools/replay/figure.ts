@@ -1,16 +1,16 @@
 /**
- * The study figure (S5d-ii, #138, ruled A7, N9, G4): one SVG over every run of the study, by
- * family. The corroboration pair (02a, 02b) keeps the dots-on-axis figure as A7 drew it — one
- * dot per run per condition on the standoff axis, the subject code beside each, a miss hollow
- * at the inside end, the counts under it. The prioritization pair (03a, 03b) headlines
- * attention (the #131 amendment): the non-threats opened before any threat on a count axis,
- * each threat's first open on the family's longest window, the standoff per threat as the
- * second line, and the counts per condition — misses per threat, false escalations,
- * escalations of later entrants on their own item, the order as a count of the runs with every
- * threat escalated. G4's rules: a raw run reads *unaided*; on a count axis the dots stack at
- * their value, one per run, the subject label beside each; on a continuous axis two dots within
- * a dozen pixels take their labels on alternate sides; a never-opened threat sits hollow at its
- * own run's window end. Pure and deterministic.
+ * The study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4): one SVG over every run of the
+ * study, by family — the prioritization pair (03a, 03b) first, its attention the headline
+ * claim (the #131 amendment): the non-threats opened before any threat on a count axis, each
+ * threat's first open on the family's longest window, the standoff per threat as the second
+ * line, and the counts per condition; then the corroboration pair (02a, 02b) with the
+ * dots-on-axis figure as A7 drew it and its counts. On every axis an unaided lane sits above
+ * the line and a Vigil lane below, one dot per run with the subject code beside it; a lane's
+ * dots within a label's width of each other stack outward from the axis in steps, by subject
+ * code, the first nearest the axis, the x exact; a subject with a run in both conditions has its
+ * two dots joined by a thin line in the neutral colour, drawn under the dots. A miss sits hollow
+ * at the inside end; a never-opened threat sits hollow at its own run's window end. A raw run
+ * reads *unaided* wherever the figure names it. Pure and deterministic.
  */
 
 import { CONDITION_COLOR, mmss, THEME } from './frame.ts'
@@ -25,12 +25,12 @@ const BAND_KM = 3
 /** A lane's first dot sits this far from the axis; a stack steps this much further. */
 const LANE = 12
 const STEP = 14
-/** Two dots on one lane closer than a label's width take their labels on alternate sides. */
+/** Two dots on one lane closer than a label's width stack (ruled H1). */
 const CROWD_PX = 20
 /** The axis title's row above the unaided lane's labels; the tick labels' row below the Vigil lane's. */
 const TITLE_UP = 30
 const TICKS_DOWN = 42
-/** One axis's block, title to tick labels. */
+/** One axis's block, title to tick labels, before the room its stacks need. */
 const AXIS_H = 100
 
 const esc = (text: string): string =>
@@ -49,44 +49,100 @@ const MODES = ['raw', 'vigil'] as const
 type Mode = (typeof MODES)[number]
 /** The condition's word in the rendered text — *unaided* for a raw run (ruled G4). */
 export const modeWord = (mode: Mode): string => (mode === 'raw' ? 'unaided' : 'Vigil')
-/** A lane's side of the axis: unaided above, Vigil below. */
+/** A lane's side of the axis: unaided above, Vigil below (ruled H2). */
 const side = (mode: Mode): 1 | -1 => (mode === 'raw' ? -1 : 1)
 
-/** A dot with its subject label: `above` or `below` on a continuous axis, `beside` on a stack. */
-const dot = (
-  x: number,
-  y: number,
-  color: string,
-  label: string,
-  cls: string,
-  hollow: boolean,
-  labelAt: 'above' | 'below' | 'beside',
-): string =>
-  [
-    `<circle class="${cls}" cx="${x}" cy="${y}" r="5" fill="${hollow ? 'none' : color}" stroke="${color}" stroke-width="2"/>`,
-    labelAt === 'beside'
-      ? text(round1(x + 9), y + 4, label, `class="label" font-size="10" fill="${THEME.muted}"`)
-      : text(
-          x,
-          labelAt === 'above' ? y - 9 : y + 16,
-          label,
-          `class="label" font-size="10" fill="${THEME.muted}" text-anchor="middle"`,
-        ),
-  ].join('\n')
+/** A run's dot on an axis, placed in x; hollow for a miss or a never-opened threat. */
+export interface Placed {
+  m: RunMetrics
+  x: number
+  hollow: boolean
+}
 
-/** An axis's fixed parts: the title, the line, the end labels, the lane words. */
-const axis = (y: number, title: string, left: string, right: string, titleY: number): string[] => [
+/**
+ * A lane's stacks: the dots in x order, each within a label's width of the one before it joining
+ * its stack; within a stack by subject code, the first nearest the axis (ruled H1, H2).
+ */
+export function stacksOf(placed: readonly Placed[]): Placed[][] {
+  const sorted = [...placed].sort((a, b) => a.x - b.x || a.m.subject.localeCompare(b.m.subject))
+  const stacks: Placed[][] = []
+  for (const dot of sorted) {
+    const last = stacks[stacks.length - 1]
+    if (last && dot.x - last[last.length - 1].x < CROWD_PX) last.push(dot)
+    else stacks.push([dot])
+  }
+  return stacks.map((stack) =>
+    [...stack].sort((a, b) => a.m.subject.localeCompare(b.m.subject) || a.m.run - b.m.run),
+  )
+}
+
+/** The room an axis needs above and below: its deepest stack on either lane. */
+const depthOf = (placed: readonly Placed[]): number =>
+  Math.max(
+    1,
+    ...MODES.map((mode) =>
+      Math.max(0, ...stacksOf(placed.filter(({ m }) => m.mode === mode)).map((s) => s.length)),
+    ),
+  )
+
+/**
+ * One axis's dots: each lane's stacks outward from the line, every dot labelled beside it; and
+ * under them the subject connectors — a subject with a run in both conditions, by run index,
+ * has its two dots joined in the neutral colour (ruled H1).
+ */
+function axisDots(y: number, placed: readonly Placed[], cls: string): string[] {
+  const at = new Map<string, [number, number]>()
+  const dots: string[] = []
+  for (const mode of MODES) {
+    for (const stack of stacksOf(placed.filter(({ m }) => m.mode === mode))) {
+      stack.forEach(({ m, x, hollow }, k) => {
+        const cy = y + side(mode) * (LANE + k * STEP)
+        at.set(`${m.subject}|${m.run}|${mode}`, [x, cy])
+        dots.push(
+          `<circle class="${cls}-${mode}${hollow ? '-hollow' : ''}" data-subject="${esc(m.subject)}" cx="${x}" cy="${cy}" r="5" fill="${hollow ? 'none' : CONDITION_COLOR[mode]}" stroke="${CONDITION_COLOR[mode]}" stroke-width="2"/>`,
+          text(
+            round1(x + 9),
+            cy + 4,
+            m.subject,
+            `class="label" font-size="10" fill="${THEME.muted}"`,
+          ),
+        )
+      })
+    }
+  }
+  const connectors: string[] = []
+  const keys = [...new Set(placed.map(({ m }) => `${m.subject}|${m.run}`))].sort()
+  for (const key of keys) {
+    const a = at.get(`${key}|raw`)
+    const b = at.get(`${key}|vigil`)
+    if (a && b) {
+      connectors.push(
+        `<line class="connector" data-subject="${esc(key.split('|')[0])}" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${THEME.faint}" stroke-width="1"/>`,
+      )
+    }
+  }
+  return [...connectors, ...dots]
+}
+
+/** An axis's fixed parts: the title above its stacks, the line, the end labels below them, the lane words. */
+const axisFrame = (
+  y: number,
+  pad: number,
+  title: string,
+  left: string,
+  right: string,
+): string[] => [
   text(
     PAD,
-    titleY,
+    y - TITLE_UP - pad,
     title,
     `class="axis-title" font-size="13" font-weight="600" fill="${THEME.text}"`,
   ),
   `<line class="axis" x1="${AXIS_X}" y1="${y}" x2="${AXIS_X + AXIS_W}" y2="${y}" stroke="${THEME.faint}"/>`,
-  text(AXIS_X, y + TICKS_DOWN, left, `font-size="11" fill="${THEME.faint}"`),
+  text(AXIS_X, y + TICKS_DOWN + pad, left, `font-size="11" fill="${THEME.faint}"`),
   text(
     AXIS_X + AXIS_W,
-    y + TICKS_DOWN,
+    y + TICKS_DOWN + pad,
     right,
     `font-size="11" fill="${THEME.faint}" text-anchor="end"`,
   ),
@@ -100,166 +156,87 @@ const axis = (y: number, title: string, left: string, right: string, titleY: num
   ),
 ]
 
-interface Placed {
-  m: RunMetrics
-  x: number
-  hollow: boolean
-}
+/** The standoff axis's x: −3 … +3 km over the axis. */
+const sX = (m: number): number =>
+  round1(AXIS_X + ((m + BAND_KM * 1000) / (2 * BAND_KM * 1000)) * AXIS_W)
 
-/**
- * A continuous axis's dots, one lane per condition: in x order, and where two on one lane fall
- * within a dozen pixels the later takes its label on the other side (ruled G4, P7).
- */
-function continuousDots(y: number, placed: readonly Placed[], cls: string): string[] {
-  const lines: string[] = []
-  for (const mode of MODES) {
-    const lane = placed
-      .filter(({ m }) => m.mode === mode)
-      .sort((a, b) => a.x - b.x || a.m.subject.localeCompare(b.m.subject))
-    let lastX = -Infinity
-    let flipped = false
-    for (const { m, x, hollow } of lane) {
-      flipped = x - lastX < CROWD_PX ? !flipped : false
-      lastX = x
-      const outward = mode === 'raw' ? 'above' : 'below'
-      const inward = mode === 'raw' ? 'below' : 'above'
-      lines.push(
-        dot(
-          x,
-          y + side(mode) * LANE,
-          CONDITION_COLOR[mode],
-          m.subject,
-          `${cls}-${mode}${hollow ? '-hollow' : ''}`,
-          hollow,
-          flipped ? inward : outward,
-        ),
-      )
-    }
-  }
-  return lines
-}
-
-/** The standoff axis, −3 … +3 km: one dot per run per condition; a miss hollow at the inside end. */
-function standoffAxis(
-  y: number,
-  titleY: number,
-  title: string,
-  runs: readonly RunMetrics[],
-  threatIndex: number,
-): string[] {
-  const sX = (m: number) => round1(AXIS_X + ((m + BAND_KM * 1000) / (2 * BAND_KM * 1000)) * AXIS_W)
-  const lines = axis(y, title, `← inside · −${BAND_KM} km`, `+${BAND_KM} km · outside →`, titleY)
-  lines.push(
-    `<line x1="${sX(0)}" y1="${y - 10}" x2="${sX(0)}" y2="${y + 10}" stroke="${THEME.muted}"/>`,
-    text(
-      sX(0),
-      y + TICKS_DOWN,
-      'ring',
-      `font-size="11" fill="${THEME.muted}" text-anchor="middle"`,
-    ),
-  )
-  const placed: Placed[] = runs.flatMap((m): Placed[] => {
+/** The standoff axis's placement: a miss hollow at the inside end; a standoff past the ends at the edge. */
+export function placeStandoff(runs: readonly RunMetrics[], threatIndex: number): Placed[] {
+  return runs.flatMap((m): Placed[] => {
     const threat = m.threats[threatIndex]
     if (!threat) return []
     if (threat.standoffM === null) return [{ m, x: AXIS_X + 6, hollow: true }]
     const clamped = Math.max(-BAND_KM * 1000, Math.min(BAND_KM * 1000, threat.standoffM))
     return [{ m, x: sX(clamped), hollow: false }]
   })
-  lines.push(...continuousDots(y, placed, 'standoff'))
-  return lines
 }
 
-/**
- * A count axis, 0 to `max`: the dots stack at their value, one per run, the subject beside each
- * (ruled G4).
- */
-function countAxis(
-  y: number,
-  titleY: number,
-  title: string,
+/** The count axis's scale, at least 0 … 2 (ruled H3). */
+export const countMax = (runs: readonly RunMetrics[], value: (m: RunMetrics) => number): number =>
+  Math.max(2, ...runs.map(value))
+
+/** The count axis's placement, one dot per run at its value. */
+export function placeCount(
   runs: readonly RunMetrics[],
   value: (m: RunMetrics) => number,
-): string[] {
-  const max = Math.max(2, ...runs.map(value))
-  const cX = (n: number) => round1(AXIS_X + (n / max) * AXIS_W)
-  const lines = axis(y, title, '0', String(max), titleY)
-  for (let n = 0; n <= max; n++) {
-    lines.push(
-      `<line x1="${cX(n)}" y1="${y - 3}" x2="${cX(n)}" y2="${y + 3}" stroke="${THEME.faint}"/>`,
-    )
-  }
-  for (const mode of MODES) {
-    const stacks = new Map<number, RunMetrics[]>()
-    for (const m of runs.filter((run) => run.mode === mode)) {
-      const n = value(m)
-      stacks.set(n, [...(stacks.get(n) ?? []), m])
-    }
-    for (const [n, stack] of [...stacks.entries()].sort((a, b) => a[0] - b[0])) {
-      stack
-        .sort((a, b) => a.subject.localeCompare(b.subject))
-        .forEach((m, k) => {
-          lines.push(
-            dot(
-              cX(n),
-              y + side(mode) * (LANE + k * STEP),
-              CONDITION_COLOR[mode],
-              m.subject,
-              `count-${mode}`,
-              false,
-              'beside',
-            ),
-          )
-        })
-    }
-  }
-  return lines
+  max: number,
+): Placed[] {
+  return runs.map((m) => ({ m, x: round1(AXIS_X + (value(m) / max) * AXIS_W), hollow: false }))
 }
 
-/** The deepest stack a count axis draws, for the room above and below it. */
-const stackDepth = (runs: readonly RunMetrics[], value: (m: RunMetrics) => number): number =>
-  Math.max(
-    1,
-    ...MODES.map((mode) => {
-      const counts = new Map<number, number>()
-      for (const m of runs.filter((run) => run.mode === mode)) {
-        counts.set(value(m), (counts.get(value(m)) ?? 0) + 1)
-      }
-      return Math.max(0, ...counts.values())
-    }),
-  )
-
-/**
- * A time axis over the family's longest window: one dot per run per condition; a never-opened
- * threat hollow at its own run's window end (ruled G4).
- */
-function timeAxis(
-  y: number,
-  titleY: number,
-  title: string,
+/** The time axis's placement over the family's longest window; a never-opened threat hollow at its own run's window end (ruled G4). */
+export function placeTime(
   runs: readonly RunMetrics[],
   runS: number,
   value: (m: RunMetrics) => number | null,
-): string[] {
+): Placed[] {
   const tX = (s: number) => round1(AXIS_X + (s / runS) * AXIS_W)
-  const lines = axis(y, title, '0:00', mmss(runS), titleY)
-  for (const s of [60, 120, 180, 240, 300]) {
-    if (s < runS) {
+  return runs.map((m) => {
+    const v = value(m)
+    return v === null ? { m, x: tX(m.runS), hollow: true } : { m, x: tX(v), hollow: false }
+  })
+}
+
+type AxisKind =
+  { kind: 'standoff' } | { kind: 'count'; max: number } | { kind: 'time'; runS: number }
+
+/** One axis at `y` with its stacks' room `pad` above and below: its frame, its ticks by kind, its dots and connectors. */
+function axisAt(y: number, pad: number, title: string, kind: AxisKind, placed: Placed[]): string[] {
+  const lines: string[] = []
+  if (kind.kind === 'standoff') {
+    lines.push(
+      ...axisFrame(y, pad, title, `← inside · −${BAND_KM} km`, `+${BAND_KM} km · outside →`),
+      `<line x1="${sX(0)}" y1="${y - 10}" x2="${sX(0)}" y2="${y + 10}" stroke="${THEME.muted}"/>`,
+      text(
+        sX(0),
+        y + TICKS_DOWN + pad,
+        'ring',
+        `font-size="11" fill="${THEME.muted}" text-anchor="middle"`,
+      ),
+    )
+  } else if (kind.kind === 'count') {
+    lines.push(...axisFrame(y, pad, title, '0', String(kind.max)))
+    for (let n = 0; n <= kind.max; n++) {
+      const x = round1(AXIS_X + (n / kind.max) * AXIS_W)
+      lines.push(`<line x1="${x}" y1="${y - 3}" x2="${x}" y2="${y + 3}" stroke="${THEME.faint}"/>`)
+    }
+  } else {
+    lines.push(...axisFrame(y, pad, title, '0:00', mmss(kind.runS)))
+    for (const s of [60, 120, 180, 240, 300]) {
+      if (s >= kind.runS) continue
+      const x = round1(AXIS_X + (s / kind.runS) * AXIS_W)
       lines.push(
-        `<line x1="${tX(s)}" y1="${y - 3}" x2="${tX(s)}" y2="${y + 3}" stroke="${THEME.faint}"/>`,
+        `<line x1="${x}" y1="${y - 3}" x2="${x}" y2="${y + 3}" stroke="${THEME.faint}"/>`,
         text(
-          tX(s),
-          y + TICKS_DOWN,
+          x,
+          y + TICKS_DOWN + pad,
           mmss(s),
           `font-size="11" fill="${THEME.faint}" text-anchor="middle"`,
         ),
       )
     }
   }
-  const placed: Placed[] = runs.map((m) => {
-    const v = value(m)
-    return v === null ? { m, x: tX(m.runS), hollow: true } : { m, x: tX(v), hollow: false }
-  })
-  lines.push(...continuousDots(y, placed, 'time'))
+  lines.push(...axisDots(y, placed, kind.kind))
   return lines
 }
 
@@ -323,62 +300,51 @@ export function studySvg(runs: readonly RunMetrics[]): string {
     )
     y += 70
   }
-  if (corroboration.length > 0) {
-    family(
-      `Corroboration pair (${[...new Set(corroboration.map((m) => m.scenario))].join(', ')}) — standoff at decision`,
-    )
-    body.push(
-      ...standoffAxis(y, y - TITLE_UP, 'standoff at the threat’s escalation', corroboration, 0),
-    )
-    y += AXIS_H - 24
-    body.push(...countsLines(y, corroboration, 1))
-    y += 60
+  // An axis takes the room its deepest stack needs above and below its block.
+  const axis = (title: string, kind: AxisKind, placed: Placed[]) => {
+    const pad = (depthOf(placed) - 1) * STEP
+    body.push(...axisAt(y + pad, pad, title, kind, placed))
+    y += AXIS_H + 2 * pad
   }
+  const names = (family: readonly RunMetrics[]) =>
+    [...new Set(family.map((m) => m.scenario))].join(', ')
   if (prioritization.length > 0) {
-    family(
-      `Prioritization pair (${[...new Set(prioritization.map((m) => m.scenario))].join(', ')}) — attention`,
-    )
+    family(`Prioritization pair (${names(prioritization)}) — attention`)
     const threats = Math.max(...prioritization.map((m) => m.threats.length))
     const runS = Math.max(...prioritization.map((m) => m.runS))
-    // The count axis takes the room its deepest stack needs, above and below.
     const opened = (m: RunMetrics) => m.openedBeforeFirstThreat
-    const extra = (stackDepth(prioritization, opened) - 1) * STEP
-    body.push(
-      ...countAxis(
-        y + extra,
-        y - TITLE_UP,
-        'non-threats opened before the first threat',
-        prioritization,
-        opened,
-      ),
+    const max = countMax(prioritization, opened)
+    axis(
+      'non-threats opened before the first threat',
+      { kind: 'count', max },
+      placeCount(prioritization, opened, max),
     )
-    y += AXIS_H + 2 * extra
     for (let t = 0; t < threats; t++) {
-      body.push(
-        ...timeAxis(
-          y,
-          y - TITLE_UP,
-          `first open of threat ${t + 1} on the run’s window`,
-          prioritization,
-          runS,
-          (m) => m.threats[t]?.firstOpenS ?? null,
-        ),
+      axis(
+        `first open of threat ${t + 1} on the run’s window`,
+        { kind: 'time', runS },
+        placeTime(prioritization, runS, (m) => m.threats[t]?.firstOpenS ?? null),
       )
-      y += AXIS_H
     }
     for (let t = 0; t < threats; t++) {
-      body.push(
-        ...standoffAxis(
-          y,
-          y - TITLE_UP,
-          `standoff at decision · threat ${t + 1}`,
-          prioritization,
-          t,
-        ),
+      axis(
+        `standoff at decision · threat ${t + 1}`,
+        { kind: 'standoff' },
+        placeStandoff(prioritization, t),
       )
-      y += AXIS_H
     }
     body.push(...countsLines(y, prioritization, threats))
+    y += 60
+  }
+  if (corroboration.length > 0) {
+    family(`Corroboration pair (${names(corroboration)}) — standoff at decision`)
+    axis(
+      'standoff at the threat’s escalation',
+      { kind: 'standoff' },
+      placeStandoff(corroboration, 0),
+    )
+    y -= 24
+    body.push(...countsLines(y, corroboration, 1))
     y += 60
   }
   const height = y + 10
