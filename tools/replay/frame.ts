@@ -10,11 +10,19 @@
 
 import { AO } from '../../src/config/ao.ts'
 import { STUDY } from '../../src/config/study.ts'
-import { sourceWord, trackIdent } from '../../src/lib/display.ts'
+import {
+  BAND_COLOR,
+  mismatchLine,
+  reasonTag,
+  sourceWord,
+  trackIdent,
+} from '../../src/lib/display.ts'
+import { KT_TO_MS } from '../../src/lib/geo.ts'
 import { injectTracksAt, type InjectPlan } from '../../src/lib/injects.ts'
+import { entryAt } from '../../src/lib/projection.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import type { Track } from '../../src/lib/tracks.ts'
-import { candidatesAt, rankedAtSecond } from './engine.ts'
+import { candidatesAt, rankedAtSecond, type RankedAt } from './engine.ts'
 import type { Study } from './load.ts'
 import { threatsOf, type RunMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
@@ -97,6 +105,40 @@ export const headerLine = (record: RunRecord, metrics: RunMetrics): string => {
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
+/** The Entry row's reading at a second, in the frame's words: the dead-reckoned estimate `entryAt` gives. */
+const entryWords = (track: Track): string => {
+  const path = entryAt(track, SITE)
+  return path.kind === 'entry'
+    ? `ring entry in ${mmss(Math.round(path.tSec))}`
+    : path.kind === 'inside'
+      ? 'inside the ring'
+      : 'not closing'
+}
+
+/**
+ * What Vigil read on a track at a second — the caption's Vigil line (S5c-ii, C6): the rank, the
+ * band and composite the chip printed, the drawer's mismatch line when the score read one, the
+ * closing speed, and the Entry row's estimate. The app's own words, through the engine.
+ */
+const vigilReading = (entry: RankedAt): string => {
+  const { track, score } = entry
+  const speed = track.groundSpeedKt === null ? null : Math.round(track.groundSpeedKt * KT_TO_MS)
+  return [
+    `Vigil read it rank ${entry.rank} · ${entry.band} ${entry.composite}`,
+    ...(score.mismatch ? [mismatchLine(score.mismatch)] : []),
+    speed === null ? 'speed unobserved' : `closing at ${speed} m/s`,
+    entryWords(track),
+  ].join(' · ')
+}
+
+/** The above-calm injects at the freeze the run never opened — the overlay's set, whole run. */
+const neverOpened = (record: RunRecord, candidates: readonly RankedAt[]): RankedAt[] => {
+  const opened = new Set(
+    record.events.filter((event) => event.type === 'select').map((event) => event.track),
+  )
+  return candidates.filter((candidate) => !opened.has(candidate.track.id))
+}
+
 /**
  * The caption box's lines, the same template in both modes: one pair per look at the threat on
  * the frame — what the subject did on it before their next look at it, and what it read as at
@@ -137,6 +179,13 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
         ? `It read as ${trackIdent(shown)} · ${sourceWord(shown)}.`
         : 'It was not in the picture.',
     )
+    // On a Vigil frame only: what Vigil read at that second, in the app's own words (C6, C7).
+    if (record.mode === 'vigil' && shown) {
+      const entry = rankedAtSecond(study, plan, STUDY.beginS + event.t).find(
+        (ranked) => ranked.track.id === event.track,
+      )
+      if (entry) lines.push(`${vigilReading(entry)}.`)
+    }
   })
   // The decision line, one per threat in the bench's row order: the escalation with its standoff
   // and its distance from the entry, or the miss; on one threat, S5b's line as it was.
@@ -160,6 +209,14 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
           ? `${mmss(threat.entryT - threat.timeToEscalateS)} before entry`
           : `${mmss(threat.timeToEscalateS - threat.entryT)} after entry`
     lines.push(`${who}escalated ${many ? threat.id : 'it'} ${km} km ${side} the ring · ${entry}.`)
+  }
+  // The overlay's count in words, on the last decision line of a Vigil frame (C6).
+  if (record.mode === 'vigil') {
+    const never = neverOpened(
+      record,
+      candidatesAt(rankedAtSecond(study, plan, STUDY.beginS + metrics.freezeT)),
+    )
+    lines[lines.length - 1] += ` ${plural(never.length, 'candidate')} never opened.`
   }
   return lines
 }
@@ -200,7 +257,6 @@ export function frameSvg(input: FrameInput): string {
   const looks = looksOnFrame(record, metrics.freezeT)
   const lines = captionLines(input)
   const captionH = 16 + lines.length * LINE_H + 12
-  const height = HEADER_H + PANEL.height + FOOT_H + captionH
   const parts: string[] = []
 
   // The picture at the freeze: every track inside the panel, a small grey dot, in id order.
@@ -270,7 +326,7 @@ export function frameSvg(input: FrameInput): string {
       `<circle class="trail-first"${idAttr} cx="${fx}" cy="${fy}" r="2.5" fill="${COLOR.muted}"/>`,
       text(
         t0X,
-        fy + 14,
+        round1(fy + 14),
         `${tag}T0 · ${(rangeM(first) / 1000).toFixed(1)} km`,
         `font-size="11" fill="${COLOR.faint}"${t0Anchor}`,
       ),
@@ -282,8 +338,8 @@ export function frameSvg(input: FrameInput): string {
         parts.push(
           `<circle class="entry"${idAttr} cx="${ex}" cy="${ey}" r="3" fill="none" stroke="${COLOR.muted}" stroke-width="1.5"/>`,
           text(
-            ex + 8,
-            ey - 6,
+            round1(ex + 8),
+            round1(ey - 6),
             `${tag}${mmss(threat.entryT!)} ring entry`,
             `font-size="11" fill="${COLOR.faint}"`,
           ),
@@ -295,20 +351,17 @@ export function frameSvg(input: FrameInput): string {
   // The analyst's overlay: the engine's above-calm injects at the freeze the run never opened.
   // "Never opened" is about the whole run, as the footnote says: a track opened after the freeze
   // is not marked (#151 round 1).
-  const opened = new Set(
-    record.events.filter((event) => event.type === 'select').map((event) => event.track),
-  )
-  const candidates = candidatesAt(rankedAtSecond(study, plan, freezeS))
-  for (const candidate of candidates) {
-    if (opened.has(candidate.track.id)) continue
+  const ranked = rankedAtSecond(study, plan, freezeS)
+  const candidates = candidatesAt(ranked)
+  for (const candidate of neverOpened(record, candidates)) {
     const point = project(candidate.track.position)
     if (!inPanel(point)) continue
     const [x, y] = point
     parts.push(
       `<circle class="never-opened" data-id="${escAttr(candidate.track.id)}" cx="${x}" cy="${y}" r="6" fill="none" stroke="${COLOR.faint}" stroke-width="1"/>`,
       text(
-        x + 9,
-        y + 4,
+        round1(x + 9),
+        round1(y + 4),
         'never opened',
         `font-size="11" font-style="italic" fill="${COLOR.faint}"`,
       ),
@@ -349,6 +402,69 @@ export function frameSvg(input: FrameInput): string {
     )
   }
 
+  // The condition's own annotations, on a Vigil frame only (S5c-ii, C2–C5, C7): the warm labels
+  // beside every above-calm inject, the Queue box, each threat's mismatch line when its score
+  // read one, and the Entry row's estimate beside each threat's dot. Raw's screen showed none.
+  if (record.mode === 'vigil') {
+    for (const candidate of candidates) {
+      // On the prioritization pair a threat's label is drawn with its entry estimate, below-right
+      // (the threat block below); the marks crowd within a few pixels at 6 km.
+      if (many && threatIds.includes(candidate.track.id)) continue
+      const point = project(candidate.track.position)
+      if (!inPanel(point)) continue
+      const [x, y] = point
+      parts.push(
+        text(
+          round1(x + 9),
+          round1(y - 7),
+          `${trackIdent(candidate.track)} · ${candidate.composite}`,
+          `class="vigil-label" data-id="${escAttr(candidate.track.id)}" font-size="11" font-weight="600" fill="${BAND_COLOR[candidate.band === 'calm' ? 'caution' : candidate.band]}"`,
+        ),
+      )
+    }
+    for (const threat of metrics.threats) {
+      const entry = ranked.find((candidate) => candidate.track.id === threat.id)
+      if (!entry) continue
+      const [x, y] = project(entry.track.position)
+      const { track, score } = entry
+      if (score.mismatch && track.source === 'inject' && track.broadcast) {
+        const [bx, by] = project(track.broadcast.position)
+        parts.push(
+          `<line class="vigil-mismatch" data-id="${escAttr(threat.id)}" x1="${x}" y1="${y}" x2="${bx}" y2="${by}" stroke="${COLOR.warning}" stroke-width="1" stroke-dasharray="4 3"/>`,
+          `<circle class="vigil-broadcast" data-id="${escAttr(threat.id)}" cx="${bx}" cy="${by}" r="3" fill="none" stroke="${COLOR.warning}" stroke-width="1"/>`,
+          text(
+            round1(bx + 8),
+            round1(by + 4),
+            `Remote ID says here · ${(score.mismatch.distanceM / 1000).toFixed(1)} km`,
+            `class="vigil-mismatch-label" font-size="11" fill="${COLOR.warning}"`,
+          ),
+        )
+      }
+      const path = entryAt(track, SITE)
+      const entryText =
+        path.kind === 'entry'
+          ? `entry in ${mmss(Math.round(path.tSec))}`
+          : path.kind === 'inside'
+            ? 'inside the ring'
+            : null
+      // The threat's own label on the pair: ident, composite, and the entry estimate in one line
+      // below-right, in the band's colour; on one threat, the S5c gate's two labels as mocked.
+      const label = many
+        ? `${trackIdent(track)} · ${entry.composite}${entryText ? ` · ${entryText}` : ''}`
+        : entryText
+      if (label) {
+        parts.push(
+          text(
+            round1(x + 9),
+            round1(y + 16),
+            label,
+            `class="vigil-entry" data-id="${escAttr(threat.id)}" font-size="11"${many ? ' font-weight="600"' : ''} fill="${many ? BAND_COLOR[entry.band === 'calm' ? 'caution' : entry.band] : COLOR.text}"`,
+          ),
+        )
+      }
+    }
+  }
+
   const beyond = hops.filter((hop) => !inPanel(hop.point)).length
   const header = [
     text(
@@ -367,7 +483,30 @@ export function frameSvg(input: FrameInput): string {
     ),
   ]
   const footY = HEADER_H + PANEL.height + 20
-  const captionY = HEADER_H + PANEL.height + FOOT_H
+  // The Queue box on a Vigil frame (C2), under the map between the footnote and the caption:
+  // every above-calm inject at the freeze in rank order, the rank in the band's colour, the
+  // composite, and the Queue's own reason tag. On the map it would cover a threat when the
+  // cast puts fourteen above calm (S5c-ii's gate).
+  const queueY = HEADER_H + PANEL.height + FOOT_H
+  const queueH = record.mode === 'vigil' ? 30 + candidates.length * 18 + 6 : 0
+  const queue =
+    record.mode === 'vigil'
+      ? [
+          `<rect class="vigil-queue" x="30" y="${queueY}" width="${PANEL.width - 60}" height="${queueH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
+          text(
+            46,
+            queueY + 20,
+            `Queue at ${mmss(metrics.freezeT)} · ${plural(candidates.length, 'candidate')} above calm`,
+            `class="vigil-queue-title" font-size="12" font-weight="700" fill="${COLOR.text}"`,
+          ),
+          ...candidates.map(
+            (candidate, i) =>
+              `<text x="46" y="${queueY + 38 + i * 18}" font-family="${FONT}" class="vigil-queue-line" data-id="${escAttr(candidate.track.id)}" font-size="11" fill="${COLOR.muted}"><tspan font-weight="700" fill="${BAND_COLOR[candidate.band === 'calm' ? 'caution' : candidate.band]}">${candidate.rank}</tspan> ${esc(`${trackIdent(candidate.track)} ${candidate.composite} · ${reasonTag(candidate, AO.protectedSites)}`)}</text>`,
+          ),
+        ]
+      : []
+  const captionY = queueY + (record.mode === 'vigil' ? queueH + 12 : 0)
+  const height = captionY + captionH
   const caption = [
     `<rect x="30" y="${captionY}" width="${PANEL.width - 60}" height="${captionH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
     ...lines.map((line, i) =>
@@ -392,6 +531,7 @@ export function frameSvg(input: FrameInput): string {
     ...FOOTNOTE_LINES.map((line, i) =>
       text(30, footY + i * 14, line, `class="footnote" font-size="11" fill="${COLOR.faint}"`),
     ),
+    ...queue,
     ...caption,
     '</svg>',
     '',
