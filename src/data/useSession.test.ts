@@ -58,7 +58,12 @@ describe('useSession (#115)', () => {
     )
     await waitFor(() => expect(result.current.status).toBe('ready'))
     if (result.current.status !== 'ready') throw new Error('not ready')
-    expect(result.current.session.scenario).toEqual({ on: true, name: '02a', seed: 'study-02a' })
+    expect(result.current.session.scenario).toEqual({
+      on: true,
+      name: '02a',
+      seed: 'study-02a',
+      runS: 360,
+    })
     expect(result.current.scenario?.seed).toBe('study-02a')
     expect(result.current.scenario?.plan).toEqual(planScenario(timelineOf(CAPTURE), SCENARIO_02A))
     expect(result.current.scenario?.plan.specs).toHaveLength(30)

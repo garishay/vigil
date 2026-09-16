@@ -4,7 +4,7 @@ import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings'
 import { SCENARIO } from '../config/scenario'
 
 /** `on` is the registry's first — the default deal, named default (S3b, #135; #36 [26] A). */
-const ON = { on: true, name: 'default', seed: SCENARIO.seed }
+const ON = { on: true, name: 'default', seed: SCENARIO.seed, runS: 360 }
 const OFF = { on: false }
 const rec = (id: string) => ({ kind: 'recording', id })
 
@@ -128,24 +128,41 @@ describe('resolveSession (#115, ruling 6)', () => {
       on: true,
       name: '02a',
       seed: 'study-02a',
+      runS: 360,
     })
     expect(resolveSession('?recording=vigil-phl-002&scenario=02b').scenario).toEqual({
       on: true,
       name: '02b',
       seed: 'study-02b',
+      runS: 360,
     })
     expect(resolveSession('?scenario=default').scenario).toEqual(ON)
+    // A study scenario's own run length rides on the state (S7, #152, ruled D3): the registry
+    // entry's when it carries one, the study's 360 otherwise — 02's pins above.
+    expect(resolveSession('?feed=recording:vigil-phl-002&scenario=03a').scenario).toEqual({
+      on: true,
+      name: '03a',
+      seed: 'study-03a',
+      runS: 218,
+    })
+    expect(resolveSession('?scenario=03b&mode=raw').scenario).toEqual({
+      on: true,
+      name: '03b',
+      seed: 'study-03b',
+      runS: 179,
+    })
     // The env reads the same grammar, and the URL still wins over it.
     expect(resolveSession('', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual({
       on: true,
       name: '02b',
       seed: 'study-02b',
+      runS: 360,
     })
     expect(resolveSession('?scenario=on', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual(ON)
     expect(resolveSession('?scenario=off', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual(OFF)
     // Anything else is refused in a sentence that names the registry — so the sentence is the
     // registry's, never a stale list.
-    const names = 'default, 02a, 02b'
+    const names = 'default, 02a, 02b, 03a, 03b'
     expect(refusal('?scenario=maybe')).toBe(
       `?scenario= reads on, off, or a scenario name — ${names} — not "maybe"`,
     )
@@ -227,10 +244,18 @@ describe('resolveSession (#115, ruling 6)', () => {
     )
     // The scenario registry is a parameter too: `on` is whatever it lists first.
     const other = [{ name: 'other', config: { ...SCENARIO, seed: 'other-seed' } }]
+    const timed = [{ name: 'timed', config: { ...SCENARIO, seed: 'timed-seed' }, runS: 200 }]
+    expect(resolveSession('?scenario=timed', {}, RECORDINGS, timed).scenario).toEqual({
+      on: true,
+      name: 'timed',
+      seed: 'timed-seed',
+      runS: 200,
+    })
     expect(resolveSession('', {}, RECORDINGS, other).scenario).toEqual({
       on: true,
       name: 'other',
       seed: 'other-seed',
+      runS: 360,
     })
     expect(() => resolveSession('?scenario=02a', {}, RECORDINGS, other)).toThrow(
       '?scenario= reads on, off, or a scenario name — other — not "02a"',
@@ -242,7 +267,7 @@ describe('?mode= — the study’s condition (S4a, #136, ruled A1)', () => {
   it('reads raw or vigil, vigil when absent, and refuses anything else in the resolver’s words', () => {
     expect(resolveSession('?feed=recording:vigil-phl-002&scenario=02a&mode=raw')).toEqual({
       feeds: [rec('vigil-phl-002')],
-      scenario: { on: true, name: '02a', seed: 'study-02a' },
+      scenario: { on: true, name: '02a', seed: 'study-02a', runS: 360 },
       mode: 'raw',
       study: null,
     })
@@ -262,7 +287,7 @@ describe('?subject= and ?run= — a study run (S4b, #137, ruled A1; #131)', () =
       resolveSession('?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1'),
     ).toEqual({
       feeds: [rec('vigil-phl-002')],
-      scenario: { on: true, name: '02a', seed: 'study-02a' },
+      scenario: { on: true, name: '02a', seed: 'study-02a', runS: 360 },
       mode: 'raw',
       study: { subject: 'S03', run: 1 },
     })

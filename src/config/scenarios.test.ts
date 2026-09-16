@@ -4,11 +4,22 @@ import { SCENARIO, type CastEntry, type Placement, type ScenarioConfig } from '.
 import { SCENARIOS, scenarioNamed } from './scenarios'
 import { SCENARIO_02A } from './scenarios/02a'
 import { ROTATION_02B_DEG, SCENARIO_02B } from './scenarios/02b'
-import { HOVER_LEG_M, LEG_M, along, at, rotated } from './scenarios/cast'
+import { SCENARIO_03A } from './scenarios/03a'
+import { ROTATION_03B_DEG, SCENARIO_03B } from './scenarios/03b'
+import {
+  HOVER_LEG_M,
+  LEG_M,
+  along,
+  at,
+  rotated,
+  silentAt,
+  silentHover,
+  silentOrbit,
+} from './scenarios/cast'
 import { SCORING } from './scoring'
 import type { AdsbCapture } from '../lib/adsb'
 import { scenarioFeed } from '../lib/feeds'
-import { destinationPoint, distanceMeters } from '../lib/geo'
+import { KT_TO_MS, bearingDegrees, destinationPoint, distanceMeters } from '../lib/geo'
 import { gridTimeline, injectTracksAt, planScenario, timelineOf } from '../lib/injects'
 import { entryAt } from '../lib/projection'
 import { historiesAt, indexCapture, memoryAt, originsOf } from '../lib/replay'
@@ -40,11 +51,28 @@ const kind = (entry: CastEntry) =>
 
 describe('the scenario registry (S3b, #135, ruled A5; #36 [26] A)', () => {
   it('lists default — the default deal — first, then the two study files; an unknown name is refused', () => {
-    expect(SCENARIOS.map((scenario) => scenario.name)).toEqual(['default', '02a', '02b'])
+    expect(SCENARIOS.map((scenario) => scenario.name)).toEqual([
+      'default',
+      '02a',
+      '02b',
+      '03a',
+      '03b',
+    ])
     expect(SCENARIOS[0].config).toBe(SCENARIO)
     expect(scenarioNamed('02a').config).toBe(SCENARIO_02A)
     expect(scenarioNamed('02b').config).toBe(SCENARIO_02B)
+    expect(scenarioNamed('03a').config).toBe(SCENARIO_03A)
+    expect(scenarioNamed('03b').config).toBe(SCENARIO_03B)
     expect(() => scenarioNamed('03')).toThrow('No scenario named "03"')
+    // A study scenario's own run length (S7, #152, ruled D3): the prioritization pair's from the
+    // rule — the last threat's entry + 30 s — and none on 02 or the default, the study's 360.
+    expect(scenarioNamed('03a').runS).toBe(218)
+    expect(scenarioNamed('03b').runS).toBe(179)
+    expect(scenarioNamed('02a').runS).toBeUndefined()
+    expect(scenarioNamed('02b').runS).toBeUndefined()
+    expect(scenarioNamed('default').runS).toBeUndefined()
+    expect(SCENARIO_03A.seed).toBe('study-03a')
+    expect(SCENARIO_03B.seed).toBe('study-03b')
     // The seeds are the study's, never a recording id (ruled on #135).
     expect(SCENARIO_02A.seed).toBe('study-02a')
     expect(SCENARIO_02B.seed).toBe('study-02b')
@@ -354,4 +382,146 @@ describe('the rotation turns a broadcast offset with the track (#145 round 2)', 
     expect(rotated(cast(SCENARIO_02A)[1], 225).broadcastOffset).toBeUndefined()
     expect(rotated(cast(SCENARIO_02A)[0], 360)).toEqual(cast(SCENARIO_02A)[0])
   })
+})
+
+describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)', () => {
+  const PAIR = [SCENARIO_03A, SCENARIO_03B]
+  /** A mover's placement at Begin: its origin flown 480 s along its own course (`silentAt`). */
+  const atBegin = (entry: CastEntry) => {
+    if (entry.behavior !== 'shuttle') throw new Error('a mover')
+    const course = bearingDegrees(place(entry.from), place(entry.to))
+    return along(entry.from, course, entry.speedKt * KT_TO_MS * T0)
+  }
+
+  it('are cast-only, thirty-seven rows from inject-11: two silent threats, four silent baits, 02a’s furniture under its own ids, seven silent load rows; nothing broadcasts an offset, and both threats are present from t = 0', () => {
+    for (const config of PAIR) {
+      expect(config.minInjects).toBe(0)
+      expect(config.maxInjects).toBe(0)
+      expect(cast(config)).toHaveLength(37)
+      expect(cast(config).filter((e) => e.remoteId === 'silent')).toHaveLength(13)
+      expect(cast(config).filter((e) => e.remoteId === 'broadcasting')).toHaveLength(24)
+      expect(cast(config).every((e) => e.broadcastOffset === undefined)).toBe(true)
+      expect(cast(config)[0].startS).toBeUndefined()
+      expect(cast(config)[1].startS).toBeUndefined()
+      const plan = scenarioFeed(timelineOf(CAPTURE), config).plan
+      expect(plan.specs.map((spec) => spec.id)).toEqual(
+        Array.from({ length: 37 }, (_, i) => `inject-${11 + i}`),
+      )
+    }
+    // Rows 17–40 are 02a's furniture — the same rows under the same ids.
+    expect(cast(SCENARIO_03A).slice(6, 30)).toEqual(cast(SCENARIO_02A).slice(6))
+    // 03b is 03a turned 135° about the centre, the two threats aside.
+    expect(ROTATION_03B_DEG).toBe(135)
+    expect(cast(SCENARIO_03B).slice(2)).toEqual(
+      cast(SCENARIO_03A)
+        .slice(2)
+        .map((entry) => rotated(entry, 135)),
+    )
+  })
+
+  it('writes every mover where it is at Begin: 03a’s threats at 285° / 6.30 km on 111° at 25 kt and 050° / 6.15 km on 225° at 12 kt; 03b’s the closer, slower one first; the load’s inbound rows at 9–12 km and its two misses at 6.6 and 8.1 km', () => {
+    const [t1, t2] = cast(SCENARIO_03A)
+    expect(t1).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 25 })
+    expect(t2).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 12 })
+    expect(atBegin(t1).bearingDeg).toBeCloseTo(285, 0)
+    expect(atBegin(t1).rangeKm).toBeCloseTo(6.3, 2)
+    expect(atBegin(t2).bearingDeg).toBeCloseTo(50, 0)
+    expect(atBegin(t2).rangeKm).toBeCloseTo(6.15, 2)
+    const [u1, u2] = cast(SCENARIO_03B)
+    expect(u1.speedKt).toBe(12)
+    expect(u2.speedKt).toBe(25)
+    expect(atBegin(u1).bearingDeg).toBeCloseTo(185, 0)
+    expect(atBegin(u1).rangeKm).toBeCloseTo(5.65, 2)
+    expect(atBegin(u2).bearingDeg).toBeCloseTo(60, 0)
+    expect(atBegin(u2).rangeKm).toBeCloseTo(6.9, 2)
+    // The builder itself: the origin is the Begin placement flown back, so flying it forward lands there.
+    const back = silentAt(at(95, 8.0), 279, 10, T0)
+    expect(back).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 10 })
+    expect(atBegin(back).bearingDeg).toBeCloseTo(95, 0)
+    expect(atBegin(back).rangeKm).toBeCloseTo(8.0, 2)
+    // The load (ruled R1): rows 41–45 silent, steady inbound, 9–12 km out at Begin; 46–47 silent on courses that miss.
+    const load = cast(SCENARIO_03A).slice(30)
+    expect(load).toHaveLength(7)
+    expect(load.every((e) => e.remoteId === 'silent' && e.behavior === 'shuttle')).toBe(true)
+    for (const entry of load.slice(0, 5)) {
+      // To the metre: the round trip through the plane and back lands within a metre of the row.
+      const begin = Math.round(atBegin(entry).rangeKm * 100) / 100
+      expect(begin).toBeGreaterThanOrEqual(9)
+      expect(begin).toBeLessThanOrEqual(12)
+    }
+    expect(atBegin(load[5]).rangeKm).toBeCloseTo(6.557, 2)
+    expect(atBegin(load[6]).rangeKm).toBeCloseTo(8.12, 2)
+  })
+
+  it('the silent hover’s leg lies across its bearing, and the silent orbit joins its circle on the side its offset says — the same side once turned 135°', () => {
+    const hover = silentHover(at(160, 5.4))
+    expect(hover).toMatchObject({
+      behavior: 'shuttle',
+      remoteId: 'silent',
+      speedKt: 1,
+      from: at(160, 5.4),
+    })
+    if (hover.behavior !== 'shuttle') throw new Error('a shuttle')
+    expect(distanceMeters(place(hover.from), place(hover.to))).toBeCloseTo(HOVER_LEG_M, -1)
+    // Across, not outward: the far end's range is the placement's within a metre.
+    expect(Math.abs(rangeOf(hover.to) - rangeOf(hover.from))).toBeLessThan(1)
+    expect(cast(SCENARIO_03A)[2]).toEqual(hover)
+    const orbit = silentOrbit(at(340, 9.0), 500, 8, { joinDeg: 125, joinM: 800, offsetDeg: 8 })
+    expect(orbit).toMatchObject({
+      behavior: 'transit-orbit',
+      remoteId: 'silent',
+      speedKt: 8,
+      courseDeg: 313,
+      orbit: { center: at(340, 9.0), radiusM: 500 },
+    })
+    expect(orbit.from).toEqual(along(at(340, 9.0), 125, 800))
+    expect(cast(SCENARIO_03A)[4]).toEqual(orbit)
+    const turnOf = (config: ScenarioConfig) => {
+      const script = planScenario(gridTimeline(80, 15000), config).specs[4].script
+      if (script?.kind !== 'transit-orbit') throw new Error('an orbit')
+      return script.turn
+    }
+    expect(Math.abs(turnOf(SCENARIO_03A))).toBe(1)
+    expect(turnOf(SCENARIO_03B)).toBe(turnOf(SCENARIO_03A))
+  })
+})
+
+describe('the prioritization casts on the 1 Hz grid, through the feed (S7, #152; the gate’s numbers, pinned in full by S7b)', () => {
+  const RUN_03A = 218
+  const RUN_03B = 179
+  const holds = (ticks: Tick[], firstEntryS: number) => {
+    for (const tick of ticks) {
+      if (tick.tSec > firstEntryS) break
+      expect(tick.scored[0].track.id).toBe('inject-11')
+      expect(tick.scored[1].track.id).toBe('inject-12')
+      expect(of(tick, 'inject-11')!.band).toBe('warning')
+      expect(of(tick, 'inject-12')!.band).toBe('warning')
+    }
+    // Nothing but the two threats enters the ring inside the run, and nothing else reads warning.
+    for (const tick of ticks) {
+      for (const s of tick.scored) {
+        if (s.track.id === 'inject-11' || s.track.id === 'inject-12') continue
+        expect(distanceMeters(C, s.track.position)).toBeGreaterThan(SITE.radiusM)
+        expect(s.band).not.toBe('warning')
+      }
+    }
+  }
+
+  it('03a: both threats warning at Begin and ranks 1 and 2 in entry order on every tick to the first entry at 582 s; the second enters at 668 s; no bait, load, or furniture enters inside the run', () => {
+    const ticks = fold(SCENARIO_03A, T0, T0 + RUN_03A)
+    holds(ticks, 582)
+    expect(ticks.find((t) => rangeAt(t, 'inject-11') <= SITE.radiusM)!.tSec).toBe(582)
+    expect(ticks.find((t) => rangeAt(t, 'inject-12') <= SITE.radiusM)!.tSec).toBe(668)
+    expect(rangeAt(ticks[0], 'inject-11')).toBeCloseTo(6300, -2)
+    expect(rangeAt(ticks[0], 'inject-12')).toBeCloseTo(6150, -2)
+  }, 180_000)
+
+  it('03b: the closer, slower threat first — inject-11 at 586 s, inject-12 at 629 s — ranks 1 and 2 in that order from Begin', () => {
+    const ticks = fold(SCENARIO_03B, T0, T0 + RUN_03B)
+    holds(ticks, 586)
+    expect(ticks.find((t) => rangeAt(t, 'inject-11') <= SITE.radiusM)!.tSec).toBe(586)
+    expect(ticks.find((t) => rangeAt(t, 'inject-12') <= SITE.radiusM)!.tSec).toBe(629)
+    expect(rangeAt(ticks[0], 'inject-11')).toBeCloseTo(5650, -2)
+    expect(rangeAt(ticks[0], 'inject-12')).toBeCloseTo(6900, -2)
+  }, 180_000)
 })

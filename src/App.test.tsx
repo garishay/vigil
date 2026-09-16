@@ -4,7 +4,7 @@ import App from './App'
 import { AO } from './config/ao'
 import { DEFAULT_RECORDING, recordingNamed, type RecordingEntry } from './config/recordings'
 import { SCENARIO } from './config/scenario'
-import { BRIEF } from './config/study'
+import { BRIEF, briefFor } from './config/study'
 import { SCENARIO_02A } from './config/scenarios/02a'
 import type { SessionState } from './data/useSession'
 import type { StudyRun } from './lib/session'
@@ -134,7 +134,9 @@ const ready = (
   status: 'ready',
   session: {
     feeds: [{ kind: 'recording', id: entry.id }],
-    scenario: scenarioOn ? { on: true, name: 'default', seed: SCENARIO.seed } : { on: false },
+    scenario: scenarioOn
+      ? { on: true, name: 'default', seed: SCENARIO.seed, runS: 360 }
+      : { on: false },
     mode,
     study,
   },
@@ -229,7 +231,7 @@ describe('App shell', () => {
       ...ready(CAPTURE),
       session: {
         feeds: [{ kind: 'recording', id: DEFAULT_RECORDING.id }],
-        scenario: { on: true, name: '02a', seed: 'study-02a' },
+        scenario: { on: true, name: '02a', seed: 'study-02a', runS: 360 },
       },
       scenario: scenarioFeed(timelineOf(CAPTURE), SCENARIO_02A),
     })
@@ -2170,7 +2172,7 @@ describe('raw mode while the recording loads (#148 round 1)', () => {
       status: 'loading',
       session: {
         feeds: [{ kind: 'recording', id: 'vigil-phl-002' }],
-        scenario: { on: true, name: '02a', seed: 'study-02a' },
+        scenario: { on: true, name: '02a', seed: 'study-02a', runS: 360 },
         mode: 'raw',
         study: null,
       },
@@ -2271,6 +2273,34 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '')
   })
 
+  it('runs as long as its scenario says (S7, #152, ruled D3, D4): on 03a the brief says about three and a half minutes and the end screen opens at +03:38', () => {
+    const base = run('raw')
+    useSession.mockReturnValue({
+      ...base,
+      session: {
+        ...base.session,
+        scenario: { on: true, name: '03a', seed: 'study-03a', runS: 218 },
+      },
+    })
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => NOW} />)
+    expect(within(dialog()).getByText(briefFor(218))).toBeInTheDocument()
+    expect(
+      within(dialog()).getByText(
+        /You can open any track. The run lasts about three and a half minutes.$/,
+      ),
+    ).toBeInTheDocument()
+    begin()
+    replay.tick(217)
+    expect(field('Playback')).toHaveTextContent('+03:37')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    replay.tick()
+    expect(field('Playback')).toHaveTextContent('+03:38')
+    expect(dialog()).toHaveAccessibleName('Run complete — subject S03 · run 1 · +03:38')
+    replay.tick(5)
+    expect(field('Playback')).toHaveTextContent('+03:38')
+  })
+
   it('holds the brief with Begin withheld on a recording that ends at or before Begin — never an end screen no run can fill (#149 round 1)', () => {
     // Thirty-three frames at 15 s: the recording ends at 480 s, Begin's own tick.
     const short = ready({
@@ -2298,7 +2328,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       status: 'loading',
       session: {
         feeds: [{ kind: 'recording', id: 'vigil-phl-002' }],
-        scenario: { on: true, name: '02a', seed: 'study-02a' },
+        scenario: { on: true, name: '02a', seed: 'study-02a', runS: 360 },
         mode: 'vigil',
         study: { subject: 'S03', run: 2 },
       },

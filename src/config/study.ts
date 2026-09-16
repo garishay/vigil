@@ -44,10 +44,49 @@ export const STUDY: StudyConfig = {
 
 /**
  * The on-screen brief a study run opens on (S4b, #137, ruled A2, A9; #131), identical in both
- * conditions — the parent's text word for word.
+ * conditions — the parent's text word for word, its last sentence reading the run's own length
+ * (S7, #152, ruled D4): a run is as long as its scenario says (`runS` on the registry entry),
+ * rounded to the half minute in words, so 02's sentence is the parent's byte for byte and 03's
+ * says *about three and a half minutes*.
  */
-export const BRIEF =
-  'You are the airspace security operator for PHL. The ring is the protected boundary. Escalate any track you believe needs a response before it reaches the ring. Escalating dispatches a response team - do not escalate tracks you do not believe are a threat. You can open any track. The run lasts six minutes.'
+const BRIEF_LEAD =
+  'You are the airspace security operator for PHL. The ring is the protected boundary. Escalate any track you believe needs a response before it reaches the ring. Escalating dispatches a response team - do not escalate tracks you do not believe are a threat. You can open any track.'
+
+const MINUTE_WORDS = [
+  '',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+]
+
+/**
+ * A run's length in words, to the nearest half minute: `six minutes` for 360 s, `about three
+ * and a half minutes` for 218 s, `about three minutes` for 179 s — *about* whenever the
+ * rounding moved it. Whole minutes past ten print as a number.
+ */
+export function runLengthWords(runS: number): string {
+  const halves = Math.round(runS / 30)
+  const minutes = Math.floor(halves / 2)
+  const half = halves % 2 === 1
+  const about = halves * 30 === runS ? '' : 'about '
+  const word = minutes <= 10 ? MINUTE_WORDS[minutes] : String(minutes)
+  if (minutes === 0) return `${about}half a minute`
+  if (half) return `${about}${word} and a half minutes`
+  return `${about}${word} minute${minutes === 1 ? '' : 's'}`
+}
+
+/** The brief for a run of `runS` seconds — the lead word for word, the last sentence its length. */
+export const briefFor = (runS: number) => `${BRIEF_LEAD} The run lasts ${runLengthWords(runS)}.`
+
+/** The brief at the default length — 02's, the parent's text word for word. */
+export const BRIEF = briefFor(STUDY.runS)
 
 export type QuestionId = 'demand' | 'pressure' | 'confidence'
 

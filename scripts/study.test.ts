@@ -15,7 +15,7 @@ import {
   type StudyResult,
 } from './study.ts'
 import { SCENARIOS, scenarioNamed } from '../src/config/scenarios.ts'
-import { STUDY } from '../src/config/study.ts'
+import { BRIEF, STUDY, briefFor, runLengthWords } from '../src/config/study.ts'
 import { indexCapture } from '../src/lib/replay.ts'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -50,6 +50,28 @@ describe('the study config (A8)', () => {
     expect(() => runStudy(scenarioNamed('02a', SCENARIOS), short)).toThrow(
       "02a: the window ends at 840 s, past vigil-phl-002's 285 s",
     )
+  })
+
+  it('writes the brief’s last sentence from the run’s length, to the half minute in words — 02’s byte for byte (S7, #152, ruled D4)', () => {
+    expect(BRIEF).toBe(briefFor(STUDY.runS))
+    expect(BRIEF).toBe(
+      'You are the airspace security operator for PHL. The ring is the protected boundary. Escalate any track you believe needs a response before it reaches the ring. Escalating dispatches a response team - do not escalate tracks you do not believe are a threat. You can open any track. The run lasts six minutes.',
+    )
+    expect(briefFor(218)).toMatch(/ The run lasts about three and a half minutes\.$/)
+    expect(briefFor(179)).toMatch(/ The run lasts about three minutes\.$/)
+    // The lead is the parent's text whatever the length; only the last sentence moves.
+    const lead = BRIEF.replace(/ The run lasts six minutes\.$/, '')
+    expect(lead.endsWith('You can open any track.')).toBe(true)
+    expect(briefFor(218).startsWith(lead)).toBe(true)
+    expect(briefFor(179).startsWith(lead)).toBe(true)
+    expect(runLengthWords(360)).toBe('six minutes')
+    expect(runLengthWords(180)).toBe('three minutes')
+    expect(runLengthWords(179)).toBe('about three minutes')
+    expect(runLengthWords(218)).toBe('about three and a half minutes')
+    expect(runLengthWords(90)).toBe('one and a half minutes')
+    expect(runLengthWords(60)).toBe('one minute')
+    expect(runLengthWords(20)).toBe('about half a minute')
+    expect(runLengthWords(720)).toBe('12 minutes')
   })
 })
 

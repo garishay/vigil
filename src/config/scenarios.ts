@@ -2,16 +2,27 @@
  * The scenarios a session can name (S3b, #135, ruled A5; #36 [26] A): `?scenario=<name>` opens
  * one, `on` the first — the default deal the demo and the golden run on — and `off` none. A
  * name is a scenario file, so the operator study's links say which cast they open; a named
- * combination (Study-02a-vigil) is a README row, never a value here (#115 ruling 1).
+ * combination (Study-02a-vigil) is a README row, never a value here (#115 ruling 1). A study
+ * scenario may carry its run's length (S7, #152); one that does not runs the study's default.
  */
 
 import { SCENARIO, type ScenarioConfig } from './scenario.ts'
 import { SCENARIO_02A } from './scenarios/02a.ts'
 import { SCENARIO_02B } from './scenarios/02b.ts'
+import { SCENARIO_03A } from './scenarios/03a.ts'
+import { SCENARIO_03B } from './scenarios/03b.ts'
 
 export interface NamedScenario {
   name: string
   config: ScenarioConfig
+  /**
+   * The study run's length from Begin, seconds, when the scenario sets its own (S7, #152, ruled
+   * D3): the prioritization pair ends 30 s after its last threat's ring entry, the run-length
+   * rule of #131's amendment, so each carries a number the bench pins against that rule. Absent,
+   * a run is `STUDY.runS` — 02a and 02b keep their 360. The registry, not the scenario file: the
+   * file is the generator's doctrine, the run length is the study's.
+   */
+  runS?: number
 }
 
 /** The registry, the default first. */
@@ -19,6 +30,8 @@ export const SCENARIOS: readonly NamedScenario[] = [
   { name: 'default', config: SCENARIO },
   { name: '02a', config: SCENARIO_02A },
   { name: '02b', config: SCENARIO_02B },
+  { name: '03a', config: SCENARIO_03A, runS: 218 }, // the last threat enters at 668 s: 668 − 480 + 30
+  { name: '03b', config: SCENARIO_03B, runS: 179 }, // 629 − 480 + 30
 ]
 
 /** The scenario a resolved session names — the resolver already refused any name not here. */

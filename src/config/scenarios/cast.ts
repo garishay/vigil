@@ -1,17 +1,20 @@
 /**
- * The study's cast vocabulary (S3b, #135, ruled A3): six kinds of entry, one builder each, so a
- * scenario file reads as its cast table — one row per entry, every number a bearing° and a range
+ * The study's cast vocabulary (S3b, #135, ruled A3; S7, #152): nine kinds of entry, one builder
+ * each, so a scenario file reads as its cast table — one row per entry, every number a bearing° and a range
  * in km from the AO centre, never a coordinate (§5.2). The generator has three cast behaviors
  * (S2a, #133); the six kinds compose them rather than adding a fourth: a hover is a shuttle over
  * 30 m at 1 kt with its leg laid radially outward, so the range never dips under the placement's
  * — heard and under 2 kt, the study audit's word for hovering; a mover is a shuttle on a 13 km
- * leg, longer than a recording flies at 20 kt, so it never turns.
+ * leg, longer than a recording flies at 20 kt, so it never turns. The prioritization pair (S7)
+ * adds three silent kinds: a hover whose leg lies across its bearing, a mover written where it
+ * is at Begin, and an orbit joined from a bearing off its centre.
  *
  * A leg's far end is computed on the local plane from the placement's own polar numbers: at the
  * study's ranges the plane and the sphere differ by metres, and the generator lays the leg on
  * the sphere from the two placements the file holds, so the file stays the truth.
  */
 
+import { KT_TO_MS } from '../../lib/geo.ts'
 import type { CastEntry, Placement } from '../scenario.ts'
 
 const rad = (deg: number) => (deg * Math.PI) / 180
@@ -143,3 +146,46 @@ export function rotated(entry: CastEntry, deg: number): CastEntry {
       return { ...turned, from: turn(turned.from, deg), pad: turn(turned.pad, deg) }
   }
 }
+
+/**
+ * A silent drone holding position (S7, #152): the hover's 30 m shuttle at 1 kt, the leg laid
+ * across the bearing rather than along it — neither half of the leg points at the ring, so the
+ * closing read is a miss on every tick instead of a thirteen-minute entry on the inbound half.
+ */
+export const silentHover = (place: Placement): CastEntry =>
+  shuttle(place, (place.bearingDeg + 90) % 360, HOVER_LEG_M, 1)
+
+/**
+ * A silent mover written where it is at `atS` (S7): the table reads the picture at Begin, and
+ * the origin is `atS` seconds back along the course — the generator flies it forward from 0.
+ */
+export const silentAt = (
+  place: Placement,
+  courseDeg: number,
+  speedKt: number,
+  atS: number,
+): CastEntry =>
+  silentMover(along(place, (courseDeg + 180) % 360, speedKt * KT_TO_MS * atS), courseDeg, speedKt)
+
+/**
+ * A silent orbit (S7): a transit onto a circle of `radiusM` about `center`, then around it at
+ * `speedKt`. It is joined from `joinM` off the centre on bearing `joinDeg` (from the centre), on
+ * a course aimed `offsetDeg` to one side of the centre: the join bearing sets where on the circle
+ * it arrives, and so the phase of every lap — which stretch of the run its heading points inbound
+ * on — and the offset puts the centre unambiguously on one side of the course, which is the side
+ * the generator turns toward (positive: the centre to the right).
+ */
+export const silentOrbit = (
+  center: Placement,
+  radiusM: number,
+  speedKt: number,
+  join: { joinDeg: number; joinM: number; offsetDeg: number },
+): CastEntry => ({
+  behavior: 'transit-orbit',
+  remoteId: 'silent',
+  speedKt,
+  altitudeFt: 200,
+  from: along(center, join.joinDeg, join.joinM),
+  courseDeg: (join.joinDeg + 180 + join.offsetDeg + 360) % 360,
+  orbit: { center, radiusM },
+})

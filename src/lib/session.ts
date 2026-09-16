@@ -13,11 +13,17 @@
 import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings.ts'
 import type { RecordingEntry } from '../config/recordings.ts'
 import { SCENARIOS, type NamedScenario } from '../config/scenarios.ts'
+import { STUDY } from '../config/study.ts'
 import { CLOCK_OF_KIND, FEED_KINDS, feedRefText } from './feeds.ts'
 import type { FeedKind, FeedRef } from './feeds.ts'
 
-/** The scenario switch as a name (S3b, #135, ruled A5; #36 [26] A): `on` is the registry's first, `off` none. */
-export type ScenarioState = { on: true; name: string; seed: string } | { on: false }
+/**
+ * The scenario switch as a name (S3b, #135, ruled A5; #36 [26] A): `on` is the registry's first,
+ * `off` none. `runS` is a study run's length on this scenario (S7, #152, ruled D3): the registry
+ * entry's own when it carries one, the study's default otherwise — so a run link fixes its
+ * length with its scenario, and App's window never reads the registry itself.
+ */
+export type ScenarioState = { on: true; name: string; seed: string; runS: number } | { on: false }
 
 /**
  * The study's two conditions (S4a, #136, ruled A1; #131): `vigil` is the app as built, `raw` the
@@ -237,7 +243,9 @@ export function resolveSession(
 
   return {
     feeds,
-    scenario: named ? { on: true, name: named.name, seed: named.config.seed } : { on: false },
+    scenario: named
+      ? { on: true, name: named.name, seed: named.config.seed, runS: named.runS ?? STUDY.runS }
+      : { on: false },
     mode,
     study,
   }
