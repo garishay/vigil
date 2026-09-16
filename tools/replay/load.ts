@@ -8,8 +8,8 @@
 
 import { readFileSync } from 'node:fs'
 import {
+  BENCH_SCENARIOS,
   STUDY_RECORDING,
-  STUDY_SCENARIOS,
   loadRecording,
   type Recording,
 } from '../../scripts/study.ts'
@@ -65,14 +65,14 @@ const isIsoTime = (text: string): boolean => {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 19) === text.slice(0, 19)
 }
 
-function parseEvent(value: unknown, i: number, path: string): RunEvent {
+/** A study run's length on a scenario: the registry entry's own, or the study's default (S7, ruled D3). */
+export const runSOf = (scenario: string): number => scenarioNamed(scenario).runS ?? STUDY.runS
+
+function parseEvent(value: unknown, i: number, path: string, runS: number): RunEvent {
   if (!isObject(value)) return refuse(path, `events[${i}] is an object {t, type, track}`)
   const { t, type, track } = value
-  if (typeof t !== 'number' || !Number.isInteger(t) || t < 0 || t > STUDY.runS) {
-    return refuse(
-      path,
-      `events[${i}].t is ${JSON.stringify(t)} — a run's t runs 0 to ${STUDY.runS}`,
-    )
+  if (typeof t !== 'number' || !Number.isInteger(t) || t < 0 || t > runS) {
+    return refuse(path, `events[${i}].t is ${JSON.stringify(t)} — a run's t runs 0 to ${runS}`)
   }
   if (typeof type !== 'string' || !(EVENT_TYPES as readonly string[]).includes(type)) {
     return refuse(
@@ -105,14 +105,16 @@ export function parseRun(text: string, path: string): RunRecord {
   if (typeof subject !== 'string' || !SUBJECT_CODE.test(subject)) {
     return refuse(path, `subject is a subject code, not ${JSON.stringify(subject)}`)
   }
-  // A study scenario only: the metrics measure the study cast's threat, which the default deal
-  // never holds — a run on it would read as a fabricated miss (#150 round 1).
-  if (typeof scenario !== 'string' || !(STUDY_SCENARIOS as readonly string[]).includes(scenario)) {
+  // A study scenario only: the metrics measure the study cast's threats, which the default deal
+  // never holds — a run on it would read as a fabricated miss (#150 round 1). Every scenario the
+  // bench baselines, the corroboration pair and the prioritization pair (#138 re-gate).
+  if (typeof scenario !== 'string' || !(BENCH_SCENARIOS as readonly string[]).includes(scenario)) {
     return refuse(
       path,
-      `scenario ${JSON.stringify(scenario)} — the replay reads a study scenario: ${STUDY_SCENARIOS.join(', ')}`,
+      `scenario ${JSON.stringify(scenario)} — the replay reads a study scenario: ${BENCH_SCENARIOS.join(', ')}`,
     )
   }
+  const runS = runSOf(scenario)
   if (typeof mode !== 'string' || !(MODES as readonly string[]).includes(mode)) {
     return refuse(path, `mode reads ${JSON.stringify(mode)}, not raw or vigil`)
   }
@@ -129,7 +131,7 @@ export function parseRun(text: string, path: string): RunRecord {
     )
   }
   if (!Array.isArray(events)) return refuse(path, 'events is a list')
-  const parsedEvents = events.map((event, i) => parseEvent(event, i, path))
+  const parsedEvents = events.map((event, i) => parseEvent(event, i, path, runS))
   // In t order, as the contract writes them: the metrics read the first Escalate by position,
   // and a look tied with it counts by position too (#150 round 1).
   for (let i = 1; i < parsedEvents.length; i++) {

@@ -25,6 +25,16 @@ export const CSV_COLUMNS = [
   'demand',
   'pressure',
   'confidence',
+  'run_s',
+  'opened_before_first_threat',
+  'escalations_of_later_entrants',
+  'order_correct',
+  'first_open_s_1',
+  'first_open_s_2',
+  'time_to_escalate_s_2',
+  'standoff_m_2',
+  'miss_2',
+  'entry_t_2',
 ] as const
 
 const cell = (value: string | number | boolean | null): string => {
@@ -52,6 +62,16 @@ export const csvRow = (m: RunMetrics): string =>
     m.answers.demand,
     m.answers.pressure,
     m.answers.confidence,
+    m.runS,
+    m.openedBeforeFirstThreat,
+    m.escalationsOfLaterEntrants,
+    m.orderCorrect,
+    m.threats[0]?.firstOpenS ?? null,
+    m.threats[1]?.firstOpenS ?? null,
+    m.threats[1]?.timeToEscalateS ?? null,
+    m.threats[1]?.standoffM ?? null,
+    m.threats[1] === undefined ? null : m.threats[1].miss,
+    m.threats[1]?.entryT ?? null,
   ]
     .map(cell)
     .join(',')
