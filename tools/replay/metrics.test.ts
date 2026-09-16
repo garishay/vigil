@@ -509,9 +509,7 @@ describe('the attention numbers — round 1 (#159)', () => {
       'S09 run 1: adsb-a43667 is not a threat but is inside the ring within the run (entry 47 s from Begin) — neither a never-entrant nor a later entrant',
     )
     // Real tracks in the picture at Begin + 10, classed by the recording's own positions.
-    const real = pictureAt(study.index, STUDY.beginS + 10).filter(
-      (track) => track.source !== 'inject',
-    )
+    const real = pictureAt(study.index, STUDY.beginS + 10)
     const entries = real.map(
       (track) => [track.id, entrySecondOf(study.index, plan, track.id, 0, durationS)] as const,
     )
