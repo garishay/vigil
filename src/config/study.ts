@@ -41,3 +41,28 @@ export const STUDY: StudyConfig = {
   acceptance: { entryLeadS: 60, marginAtLeast: 5, heardCalmUnder: 40 },
   audit: { closingAtLeast: 50, insideM: 6500, hoveringUnderKt: 2 },
 }
+
+/**
+ * The on-screen brief a study run opens on (S4b, #137, ruled A2, A9; #131), identical in both
+ * conditions — the parent's text word for word.
+ */
+export const BRIEF =
+  'You are the airspace security operator for PHL. The ring is the protected boundary. Escalate any track you believe needs a response before it reaches the ring. Escalating dispatches a response team - do not escalate tracks you do not believe are a threat. You can open any track. The run lasts six minutes.'
+
+export type QuestionId = 'demand' | 'pressure' | 'confidence'
+
+export interface WorkloadQuestion {
+  /** The key the run JSON's `answers` carries, and the replay reads (S5). */
+  id: QuestionId
+  label: string
+}
+
+/** The three workload questions after every run (ruled A7; #131), each answered on the scale. */
+export const QUESTIONS: readonly WorkloadQuestion[] = [
+  { id: 'demand', label: 'Mental demand' },
+  { id: 'pressure', label: 'Time pressure' },
+  { id: 'confidence', label: 'Confidence in your decisions' },
+]
+
+/** The answers' scale, whole numbers inclusive (#131: 1–10 each). */
+export const WORKLOAD_SCALE = { min: 1, max: 10 } as const

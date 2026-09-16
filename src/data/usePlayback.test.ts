@@ -122,3 +122,54 @@ describe('how the clock last moved (#101, 101a)', () => {
     expect(result.current.lastMove).toBe('seek')
   })
 })
+
+describe('a study run’s window (S4b, #137, ruled A2–A4)', () => {
+  const WINDOW = { fromS: 480, toS: 840 }
+
+  it('opens held at the window’s start — nothing scheduled, not playing — and plays from Begin', () => {
+    const clock = manual()
+    const { result, rerender } = renderHook(
+      ({ d }) => usePlayback(d, clock.schedule, 1000, WINDOW),
+      { initialProps: { d: null as number | null } },
+    )
+    expect(result.current).toMatchObject({ tSec: 480, playing: false, lastMove: 'seek' })
+    rerender({ d: 1185 })
+    // The recording is in; the clock still waits for Begin.
+    expect(result.current.playing).toBe(false)
+    expect(clock.scheduled()).toBe(false)
+    act(() => result.current.play())
+    expect(result.current.playing).toBe(true)
+    clock.tick()
+    expect(result.current).toMatchObject({ tSec: 481, lastMove: 'tick' })
+  })
+
+  it('ends at the window’s end for good: no tick past it, and Play restarts nothing', () => {
+    const clock = manual()
+    const { result } = renderHook(() =>
+      usePlayback(1185, clock.schedule, 1000, { fromS: 480, toS: 483 }),
+    )
+    act(() => result.current.play())
+    clock.tick()
+    clock.tick()
+    clock.tick()
+    expect(result.current).toMatchObject({ tSec: 483, playing: false })
+    expect(clock.scheduled()).toBe(false)
+    act(() => result.current.play())
+    expect(result.current).toMatchObject({ tSec: 483, playing: false })
+    expect(clock.scheduled()).toBe(false)
+  })
+
+  it('ends at the recording’s end when that comes first, and keeps a seek inside the window', () => {
+    const clock = manual()
+    const { result } = renderHook(() => usePlayback(482, clock.schedule, 1000, WINDOW))
+    act(() => result.current.play())
+    clock.tick()
+    clock.tick()
+    clock.tick()
+    expect(result.current).toMatchObject({ tSec: 482, playing: false })
+    act(() => result.current.seek(0))
+    expect(result.current.tSec).toBe(480)
+    act(() => result.current.seek(9999))
+    expect(result.current.tSec).toBe(482)
+  })
+})

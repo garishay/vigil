@@ -7,6 +7,7 @@ import {
   formatScore,
   reasonTag,
   scoreSummary,
+  sourceWord,
   trackIdent,
 } from '../lib/display'
 import { IDENTITY_LABEL } from '../lib/identity'
@@ -38,6 +39,7 @@ export function Queue({
   ranked,
   selectedId = null,
   restoreFocus = true,
+  run = false,
   statusFor = () => 'new',
   resurfacedFor = () => false,
   sites = [],
@@ -58,6 +60,12 @@ export function Queue({
    * to the list instead, which has no activation to misfire and keeps the operator's place.
    */
   restoreFocus?: boolean
+  /**
+   * A study run (S4b, #36 [38], ruled A): the row's badge reads the source word raw's drawer
+   * prints — *ADS-B*, *Remote ID*, *sensor* — in place of the layer, and wears no layer fill,
+   * since a row that says INJECT is a cue no real display has. The demo keeps the layer badge.
+   */
+  run?: boolean
   onSelect?: (id: string) => void
 }) {
   const listRef = useRef<HTMLOListElement>(null)
@@ -140,9 +148,13 @@ export function Queue({
                 {formatScore(score)}
               </span>
               <span className="queue__detail">
-                <span className="queue__badge" data-layer={track.source}>
-                  {LAYER_BADGE[track.source]}
-                </span>
+                {run ? (
+                  <span className="queue__badge queue__badge--source">{sourceWord(track)}</span>
+                ) : (
+                  <span className="queue__badge" data-layer={track.source}>
+                    {LAYER_BADGE[track.source]}
+                  </span>
+                )}
                 {status !== 'new' && (
                   <span className="queue__badge queue__badge--state">
                     {surfaced ? 'Re-surfaced' : STATUS_LABEL[status]}
