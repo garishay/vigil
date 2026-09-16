@@ -354,12 +354,15 @@ describe('the movers never turn inside the recording (#145 round 1)', () => {
     // by design; a hover's leg is 30 m).
     const lastS = 79 * 15
     expect(LEG_M).toBeGreaterThan(20 * 0.514444 * lastS)
-    for (const config of STUDY) {
+    // The prioritization casts too (S7, #154 round 1): a mover written at Begin flies its whole
+    // leg from t = 0 at up to 35 kt, so its leg is sized from its own speed — 25 kt over 1 185 s
+    // is 15.2 km, 35 kt is 21.3 km, both past the 13 km a 20 kt leg needs.
+    for (const config of [...STUDY, SCENARIO_03A, SCENARIO_03B]) {
       const plan = planScenario(gridTimeline(80, 15000), config)
       const movers = cast(config)
         .map((entry, i) => ({ entry, id: `inject-${11 + i}` }))
         .filter(({ entry }) => kind(entry) === 'mover' || kind(entry) === 'silent mover')
-      expect(movers).toHaveLength(10)
+      expect(movers).toHaveLength(config === SCENARIO_03A || config === SCENARIO_03B ? 17 : 10)
       for (const { id } of movers) {
         const first = injectTracksAt(plan, 0).find((track) => track.id === id)!
         const last = injectTracksAt(plan, lastS).find((track) => track.id === id)!
@@ -481,8 +484,17 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
       if (script?.kind !== 'transit-orbit') throw new Error('an orbit')
       return script.turn
     }
-    expect(Math.abs(turnOf(SCENARIO_03A))).toBe(1)
-    expect(turnOf(SCENARIO_03B)).toBe(turnOf(SCENARIO_03A))
+    // A positive offset aims the course to the right of the centre, so the centre lies to the
+    // left and the track turns left onto its circle — `turn` −1, counter-clockwise (#154 round 1).
+    expect(turnOf(SCENARIO_03A)).toBe(-1)
+    expect(turnOf(SCENARIO_03B)).toBe(-1)
+    const mirrored = { ...SCENARIO_03A, cast: [...cast(SCENARIO_03A)] }
+    mirrored.cast[4] = silentOrbit(at(340, 9.0), 500, 8, {
+      joinDeg: 125,
+      joinM: 800,
+      offsetDeg: -8,
+    })
+    expect(turnOf(mirrored)).toBe(1)
   })
 })
 

@@ -155,17 +155,25 @@ export function rotated(entry: CastEntry, deg: number): CastEntry {
 export const silentHover = (place: Placement): CastEntry =>
   shuttle(place, (place.bearingDeg + 90) % 360, HOVER_LEG_M, 1)
 
+/** The longest recording a leg must outlast, seconds — 002's 1 185 s, rounded up. */
+export const LEG_S = 1200
+
 /**
  * A silent mover written where it is at `atS` (S7): the table reads the picture at Begin, and
- * the origin is `atS` seconds back along the course — the generator flies it forward from 0.
+ * the origin is `atS` seconds back along the course — the generator flies it forward from 0. Its
+ * leg is sized from its own speed, never shorter than a mover's: 35 kt flies 21.3 km in the
+ * recording, past the 13 km a 20 kt leg needs, and a leg it reaches turns it around (#154 round 1).
  */
 export const silentAt = (
   place: Placement,
   courseDeg: number,
   speedKt: number,
   atS: number,
-): CastEntry =>
-  silentMover(along(place, (courseDeg + 180) % 360, speedKt * KT_TO_MS * atS), courseDeg, speedKt)
+): CastEntry => {
+  const origin = along(place, (courseDeg + 180) % 360, speedKt * KT_TO_MS * atS)
+  const legM = Math.max(LEG_M, Math.ceil(speedKt * KT_TO_MS * LEG_S))
+  return shuttle(origin, courseDeg, legM, speedKt)
+}
 
 /**
  * A silent orbit (S7): a transit onto a circle of `radiusM` about `center`, then around it at
@@ -173,7 +181,8 @@ export const silentAt = (
  * a course aimed `offsetDeg` to one side of the centre: the join bearing sets where on the circle
  * it arrives, and so the phase of every lap — which stretch of the run its heading points inbound
  * on — and the offset puts the centre unambiguously on one side of the course, which is the side
- * the generator turns toward (positive: the centre to the right).
+ * the generator turns toward (positive aims the course right of the centre, so the centre lies
+ * to the left and the lap runs counter-clockwise).
  */
 export const silentOrbit = (
   center: Placement,
