@@ -1,13 +1,21 @@
 /**
- * The study's metrics per run (S5a, #138, ruled A4; #131): the threat is the cast's first row by
- * the study files' numbering — an id, never the generator's label. The freeze is the threat's
- * first Escalate, or the run's end with a miss. Standoff at decision is the threat's range to
- * the ring's centre at the freeze less the ring's radius, signed, metres exact; the figure
- * rounds it. Time to escalate is the freeze's t. A miss is no Escalate on the threat in the
- * window. A false escalation is an Escalate on any other track. Looks before first correct are
- * the selections logged before the threat's Escalate, the threat's own looks included — every
- * look, on a miss. The entry is the first scenario second the threat's regenerated position
- * lies within the ring, over the whole recording, counted from Begin.
+ * The study's metrics per run (S5a, #138, ruled A4; #131; S5c-i, the re-gate after S7 with the
+ * owner note and its addendum): the threats are the bench's roles table for the scenario, by
+ * the study files' numbering, in its row order — entry order, asserted here — ids, never the
+ * generator's labels; one on the corroboration pair, two on the prioritization pair. Per
+ * threat: its first open, its first Escalate, the standoff then — its range to the ring's
+ * centre less the ring's radius, signed, metres exact; the figure rounds it — whether it was
+ * missed, and its ring entry over the whole recording, from Begin. The freeze is the last
+ * threat's first Escalate, or the scenario's own window when any threat is missed; S5a's fields
+ * read threat 1's. Every escalation of a non-threat is classed by that track's ring entry over
+ * the recording, an inject's from the plan and a real track's from the recording: never
+ * entering is a false escalation; entering after the run is a later entrant, its own count,
+ * folded into neither; anything else — inside the ring within the run, or an inject whose plan
+ * enters past the recording's end — cannot be read and throws in words. Looks before first
+ * correct are the selections before the first Escalate on any threat — every look when none is.
+ * Opened before the first threat is the distinct non-threats selected before any threat is,
+ * ties by record position. The order is true or false once every threat is escalated, by the
+ * escalations' positions in the record, and null before.
  */
 
 import { STUDY_CAST } from '../../scripts/study.ts'
@@ -17,7 +25,7 @@ import type { InjectPlan } from '../../src/lib/injects.ts'
 import type { ReplayIndex } from '../../src/lib/replay.ts'
 import type { RunAnswers, RunRecord } from '../../src/lib/run.ts'
 import type { Mode } from '../../src/lib/session.ts'
-import { entrySecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
+import { entrySecond, entrySecondOf, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 
 /** One threat's numbers (#138 re-gate; the #131 amendment): its first open, its first Escalate, the standoff then, its entry. */
 export interface ThreatMetrics {
@@ -108,6 +116,17 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
       entryT: entry === null ? null : entry - beginS,
     }
   })
+  // Row order is entry order — the bench's line 3 on the prioritization pair, held here too, so
+  // "threat 1" and the order column mean what they say whatever a table edit does (round 1).
+  for (let i = 1; i < threats.length; i++) {
+    const earlier = threats[i - 1]
+    const later = threats[i]
+    if (earlier.entryT === null || later.entryT === null || earlier.entryT >= later.entryT) {
+      throw new Error(
+        `${record.scenario}: the roles table's row order is not entry order — ${earlier.id} enters ${earlier.entryT ?? 'never'}, ${later.id} enters ${later.entryT ?? 'never'} (seconds from Begin)`,
+      )
+    }
+  }
   const first = threats[0]
   // The first correct: the first Escalate on any threat — one threat, and it is that threat's.
   const firstEscalateIndex = record.events.findIndex(
@@ -118,14 +137,15 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
   // one threat, and it is that threat's Escalate or the miss, as S5a wrote it.
   const freezeT = anyMiss ? runS : Math.max(...threats.map((threat) => threat.timeToEscalateS!))
   // Every escalation of a non-threat, classed by the track's ring entry over the recording (the
-  // addendum on #138): never entering is false; entering after the run is a later entrant.
+  // addendum on #138) — an inject's from the plan, a real track's from the recording (round 1):
+  // never entering is false; entering after the run is a later entrant.
   const others = record.events.filter(
     (event) => event.type === 'escalate' && !threatIds.includes(event.track),
   )
   const entryOf = new Map<string, number | null>()
   for (const event of others) {
     if (entryOf.has(event.track)) continue
-    const entry = entrySecond(plan, event.track, 0, index.durationS)
+    const entry = entrySecondOf(index, plan, event.track, 0, index.durationS)
     entryOf.set(event.track, entry)
     // The addendum's two classes are the four casts' only ones (the bench's line 2, its entry
     // list); a run that escalates anything else cannot be read and says so (E5, extended).
@@ -134,8 +154,10 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
         `${record.subject} run ${record.run}: ${event.track} is not a threat but is inside the ring within the run (entry ${entry - beginS} s from Begin) — neither a never-entrant nor a later entrant`,
       )
     }
+    // The plan runs on past the recording; the recording does not, so a real track that never
+    // enters inside it is a never-entrant as far as the run can know.
     const beyond =
-      entry === null
+      entry === null && plan.specs.some((spec) => spec.id === event.track)
         ? entrySecond(plan, event.track, index.durationS + 1, index.durationS + BEYOND_S)
         : null
     if (beyond !== null) {
@@ -148,19 +170,23 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
     const entry = entryOf.get(id) ?? null
     return entry !== null && entry - beginS > runS
   }
-  const firstThreatOpen = record.events.find(
+  // By position, as every tie in the record is settled (#150 round 1): two looks on one second
+  // are two looks, in the order the record writes them (round 1).
+  const firstThreatOpenIndex = record.events.findIndex(
     (event) => event.type === 'select' && threatIds.includes(event.track),
   )
   const openedBefore = new Set(
     record.events
       .filter(
-        (event) =>
+        (event, i) =>
           event.type === 'select' &&
           !threatIds.includes(event.track) &&
-          (firstThreatOpen === undefined || event.t < firstThreatOpen.t),
+          (firstThreatOpenIndex < 0 || i < firstThreatOpenIndex),
       )
       .map((event) => event.track),
   )
+  const escalateIndexOf = (id: string) =>
+    record.events.findIndex((event) => event.type === 'escalate' && event.track === id)
   return {
     subject: record.subject,
     scenario: record.scenario,
@@ -181,11 +207,13 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
     ).length,
     looks: record.events.filter((event) => event.type === 'select').length,
     openedBeforeFirstThreat: openedBefore.size,
+    // By the escalations' positions in the record, so two on one second keep their order.
     orderCorrect:
       threats.length < 2 || anyMiss
         ? null
         : threats.every(
-            (threat, i) => i === 0 || threat.timeToEscalateS! > threats[i - 1].timeToEscalateS!,
+            (threat, i) =>
+              i === 0 || escalateIndexOf(threat.id) > escalateIndexOf(threats[i - 1].id),
           ),
     entryT: first.entryT,
     answers: record.answers,

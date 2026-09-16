@@ -68,3 +68,24 @@ export function entrySecond(
   }
   return null
 }
+
+/**
+ * A track's ring entry whatever its source: an inject read from the plan, a real track from the
+ * recording's own picture — a run can escalate either, and the classes must read both (#159
+ * round 1). Null when the position never lies within the ring in the span.
+ */
+export function entrySecondOf(
+  index: ReplayIndex,
+  plan: InjectPlan,
+  id: string,
+  fromS: number,
+  untilS: number,
+  site: ProtectedSite = SITE,
+): number | null {
+  if (plan.specs.some((spec) => spec.id === id)) return entrySecond(plan, id, fromS, untilS, site)
+  for (let tSec = fromS; tSec <= untilS; tSec++) {
+    const track = pictureAt(index, tSec).find((candidate) => candidate.id === id)
+    if (track && rangeM(track, site) <= site.radiusM) return tSec
+  }
+  return null
+}

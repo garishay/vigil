@@ -375,7 +375,7 @@ export function frameSvg(input: FrameInput): string {
         46,
         captionY + 16 + (i + 1) * LINE_H - 6,
         line,
-        `class="caption" font-size="13" ${i === lines.length - 1 || line.startsWith('Look') ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
+        `class="caption" font-size="13" ${line.startsWith('Look') || line.startsWith('MISSED') ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
       ),
     ),
   ]

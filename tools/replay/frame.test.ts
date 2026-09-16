@@ -527,3 +527,33 @@ describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
     expect(frameSvg(raw)).toBe(frameSvg(raw))
   })
 })
+
+describe('the frame — round 1 (#159)', () => {
+  it('emphasises a MISSED decision line wherever it sits: threat 1 missed and threat 2 escalated reads both lines bold', () => {
+    const svg = frameSvg(
+      synthetic(
+        [
+          { t: 41, type: 'select', track: 'inject-12' },
+          { t: 58, type: 'escalate', track: 'inject-12' },
+        ],
+        { scenario: '03a', subject: 'S05' },
+      ),
+    )
+    const captions = [...svg.matchAll(/<text[^>]*class="caption"[^>]*>([^<]*)<\/text>/g)].map(
+      (match) => ({ attrs: attrs(match[0]), text: match[1] }),
+    )
+    expect(captions.map((line) => line.text)).toEqual([
+      'Look #1 · 0:41 — opened inject-12 (threat 2); escalated at 0:58.',
+      'It read as TRK-12 · sensor.',
+      'MISSED inject-11 — never escalated; 1 look.',
+      'Look #1 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry.',
+    ])
+    expect(captions.map((line) => line.attrs['font-weight'])).toEqual([
+      '600',
+      undefined,
+      '600',
+      '600',
+    ])
+    expect(captions[1].attrs.fill).toBe('#8b98a9')
+  })
+})

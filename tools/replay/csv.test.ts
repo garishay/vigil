@@ -150,3 +150,44 @@ describe('the study CSV on two threats (S5c-i, #138 re-gate, ruled E2)', () => {
     expect(csvRow(two({ orderCorrect: true }))).toContain(',218,2,1,true,84,')
   })
 })
+
+describe('the study CSV — round 1 (#159)', () => {
+  it('refuses a run with a third threat in words rather than printing its row short', () => {
+    const three = row({
+      subject: 'S05',
+      scenario: '03a',
+      threats: [
+        {
+          id: 'inject-11',
+          firstOpenS: 84,
+          timeToEscalateS: 97,
+          standoffM: 60,
+          miss: false,
+          entryT: 102,
+        },
+        {
+          id: 'inject-12',
+          firstOpenS: 41,
+          timeToEscalateS: 58,
+          standoffM: 793,
+          miss: false,
+          entryT: 188,
+        },
+        {
+          id: 'inject-13',
+          firstOpenS: 12,
+          timeToEscalateS: null,
+          standoffM: null,
+          miss: true,
+          entryT: 300,
+        },
+      ],
+    })
+    expect(() => csvRow(three)).toThrow(
+      'S05 03a run 1: the CSV carries two threats and this run has 3 — a third threat is a column change at its own gate',
+    )
+    expect(() => csvText([row(), three])).toThrow(
+      'a third threat is a column change at its own gate',
+    )
+  })
+})

@@ -43,8 +43,15 @@ const cell = (value: string | number | boolean | null): string => {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
-export const csvRow = (m: RunMetrics): string =>
-  [
+export const csvRow = (m: RunMetrics): string => {
+  // The columns carry two threats (ruled E2); a third is a column change at its own gate, and
+  // until then a row that would drop one refuses in words rather than print short (round 1).
+  if (m.threats.length > 2) {
+    throw new Error(
+      `${m.subject} ${m.scenario} run ${m.run}: the CSV carries two threats and this run has ${m.threats.length} — a third threat is a column change at its own gate`,
+    )
+  }
+  return [
     m.subject,
     m.scenario,
     m.mode,
@@ -75,6 +82,7 @@ export const csvRow = (m: RunMetrics): string =>
   ]
     .map(cell)
     .join(',')
+}
 
 const byRun = (a: RunMetrics, b: RunMetrics): number =>
   a.subject.localeCompare(b.subject) ||

@@ -4,9 +4,11 @@ import { SCENARIO_03A } from '../../src/config/scenarios/03a.ts'
 import { at, silentAt } from '../../src/config/scenarios/cast.ts'
 import { STUDY } from '../../src/config/study.ts'
 import { planScenario } from '../../src/lib/injects.ts'
+import { pictureAt } from '../../src/lib/replay.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
 import { BEYOND_S, runMetrics, threatsOf } from './metrics.ts'
+import { entrySecondOf } from './regenerate.ts'
 
 // Vitest runs from the repo root, as the tool does; the fixtures are named from there.
 const fixturePath = (name: string) => `tools/replay/__fixtures__/${name}`
@@ -486,5 +488,97 @@ describe('runMetrics — the hand calculation on the 03 fixtures (S5c-i, #138 re
       orderCorrect: true,
       entryT: 106,
     })
+  })
+})
+
+describe('the attention numbers — round 1 (#159)', () => {
+  const on03a = (events: RunEvent[]) =>
+    runMetrics(record(events, { scenario: '03a', mode: 'raw' }), study.index, plans['03a'])
+  const plan = plans['03a']
+  const durationS = study.index.durationS
+
+  it('classes an escalated real aircraft from the recording: inside the run throws, never entering is false, entering after the run is a later entrant', () => {
+    // A PHL arrival crossing the ring inside the run: the third class, refused in words.
+    expect(entrySecondOf(study.index, plan, 'adsb-a43667', 0, durationS)).toBe(527)
+    expect(() =>
+      on03a([
+        { t: 10, type: 'select', track: 'adsb-a43667' },
+        { t: 20, type: 'escalate', track: 'adsb-a43667' },
+      ]),
+    ).toThrow(
+      'S09 run 1: adsb-a43667 is not a threat but is inside the ring within the run (entry 47 s from Begin) — neither a never-entrant nor a later entrant',
+    )
+    // Real tracks in the picture at Begin + 10, classed by the recording's own positions.
+    const real = pictureAt(study.index, STUDY.beginS + 10).filter(
+      (track) => track.source !== 'inject',
+    )
+    const entries = real.map(
+      (track) => [track.id, entrySecondOf(study.index, plan, track.id, 0, durationS)] as const,
+    )
+    const never = entries.find(([, entry]) => entry === null)!
+    const later = entries.find(([, entry]) => entry !== null && entry - STUDY.beginS > 218)!
+    expect(never).toBeDefined()
+    expect(later).toBeDefined()
+    expect(
+      on03a([
+        { t: 10, type: 'select', track: never[0] },
+        { t: 12, type: 'escalate', track: never[0] },
+      ]),
+    ).toMatchObject({ falseEscalations: 1, escalationsOfLaterEntrants: 0 })
+    expect(
+      on03a([
+        { t: 10, type: 'select', track: later[0] },
+        { t: 12, type: 'escalate', track: later[0] },
+      ]),
+    ).toMatchObject({ falseEscalations: 0, escalationsOfLaterEntrants: 1 })
+  })
+
+  it('settles a tie between a bait’s open and the first threat’s open by record position, as every tie is', () => {
+    expect(
+      on03a([
+        { t: 41, type: 'select', track: 'inject-13' },
+        { t: 41, type: 'select', track: 'inject-12' },
+      ]).openedBeforeFirstThreat,
+    ).toBe(1)
+    expect(
+      on03a([
+        { t: 41, type: 'select', track: 'inject-12' },
+        { t: 41, type: 'select', track: 'inject-13' },
+      ]).openedBeforeFirstThreat,
+    ).toBe(0)
+  })
+
+  it('reads the order of two escalations on one second from their positions in the record', () => {
+    const inOrder = on03a([
+      { t: 10, type: 'select', track: 'inject-11' },
+      { t: 12, type: 'select', track: 'inject-12' },
+      { t: 20, type: 'escalate', track: 'inject-11' },
+      { t: 20, type: 'escalate', track: 'inject-12' },
+    ])
+    expect(inOrder.orderCorrect).toBe(true)
+    const reversed = on03a([
+      { t: 10, type: 'select', track: 'inject-11' },
+      { t: 12, type: 'select', track: 'inject-12' },
+      { t: 20, type: 'escalate', track: 'inject-12' },
+      { t: 20, type: 'escalate', track: 'inject-11' },
+    ])
+    expect(reversed.orderCorrect).toBe(false)
+  })
+
+  it('holds the roles table’s row order to entry order: a table whose rows enter out of order throws in words', () => {
+    const rows = SCENARIO_03A.cast!
+    const swapped = planScenario(study.timeline, {
+      ...SCENARIO_03A,
+      cast: [rows[1], rows[0], ...rows.slice(2)],
+    })
+    expect(() =>
+      runMetrics(
+        record([{ t: 5, type: 'select', track: 'inject-11' }], { scenario: '03a', mode: 'raw' }),
+        study.index,
+        swapped,
+      ),
+    ).toThrow(
+      "03a: the roles table's row order is not entry order — inject-11 enters 188, inject-12 enters 102 (seconds from Begin)",
+    )
   })
 })
