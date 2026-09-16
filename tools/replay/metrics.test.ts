@@ -499,13 +499,17 @@ describe('the attention numbers — round 1 (#159)', () => {
   it('counts an escalated real aircraft false whatever its path — inside the run, after it, or never — and never throws for one (#36 [40] B)', () => {
     // A real track's ring entry from the recording's own picture, for the pin's facts alone: the
     // tool reads no real track's path any more.
-    const realEntry = (id: string) => {
-      for (let tSec = 0; tSec <= durationS; tSec++) {
-        const track = pictureAt(study.index, tSec).find((candidate) => candidate.id === id)
-        if (track && rangeM(track, SITE) <= SITE.radiusM) return tSec
+    // One pass over the recording for every real track's first second inside the ring — the
+    // runner is slower than this machine, and a pass per track timed out there (round 2).
+    const realEntries = new Map<string, number>()
+    for (let tSec = 0; tSec <= durationS; tSec++) {
+      for (const track of pictureAt(study.index, tSec)) {
+        if (!realEntries.has(track.id) && rangeM(track, SITE) <= SITE.radiusM) {
+          realEntries.set(track.id, tSec)
+        }
       }
-      return null
     }
+    const realEntry = (id: string) => realEntries.get(id) ?? null
     // A PHL arrival crossing the ring inside the run: at scenario second 527, 03a's Begin + 47.
     expect(realEntry('adsb-a43667')).toBe(527)
     expect(
@@ -541,7 +545,7 @@ describe('the attention numbers — round 1 (#159)', () => {
         { t: 60, type: 'escalate', track: 'adsb-a43667' },
       ]),
     ).toMatchObject({ falseEscalations: 2, escalationsOfLaterEntrants: 1 })
-  })
+  }, 30_000)
 
   it('settles a tie between a bait’s open and the first threat’s open by record position, as every tie is', () => {
     expect(
