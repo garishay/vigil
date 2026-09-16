@@ -3,18 +3,31 @@
  * per run — the picture at the freeze, the ring, the threat's trail with its marks, every look
  * up to the freeze as a numbered hop on the path, the analyst's overlay, the header, and the
  * caption box — drawn identically in both modes. The only words that differ between a raw
- * frame and a Vigil frame of the same run are the header's condition and the ident a look read,
- * since that is what the run's screen showed; the Vigil-only readings are S5c's. Pure and
- * deterministic: the same record, study, and plan give the same bytes.
+ * frame and a Vigil frame of the same run are the header's condition, the ident a look read,
+ * and on the prioritization pair each threat's one map label (S5c-ii, ruled F2), since that is
+ * what the run's screen showed. The Vigil annotations (S5c-ii, C1–C7) draw on a Vigil frame
+ * only, every element under a `vigil-` class: the warm labels, the Queue box under the map, a
+ * threat's mismatch line and entry estimate, the caption's Vigil line after each threat look
+ * and the overlay's count on the last decision line — the app's own readings through the
+ * engine. Pure and deterministic: the same record, study, and plan give the same bytes.
  */
 
 import { AO } from '../../src/config/ao.ts'
+import { type Band } from '../../src/config/scoring.ts'
 import { STUDY } from '../../src/config/study.ts'
-import { sourceWord, trackIdent } from '../../src/lib/display.ts'
+import {
+  BAND_COLOR,
+  mismatchLine,
+  reasonTag,
+  sourceWord,
+  trackIdent,
+} from '../../src/lib/display.ts'
+import { KT_TO_MS } from '../../src/lib/geo.ts'
 import { injectTracksAt, type InjectPlan } from '../../src/lib/injects.ts'
+import { timeToEntry, type Projectable } from '../../src/lib/projection.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import type { Track } from '../../src/lib/tracks.ts'
-import { candidatesAt, rankedAtSecond } from './engine.ts'
+import { candidatesAt, rankedAtSecond, type RankedAt } from './engine.ts'
 import type { Study } from './load.ts'
 import { threatsOf, type RunMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
@@ -98,6 +111,59 @@ export const headerLine = (record: RunRecord, metrics: RunMetrics): string => {
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
 /**
+ * The Entry row's reading at a second, in the frame's words — `timeToEntry` on the study's ring,
+ * the row's own function with its horizon and its ground guard (#160 round 1): the estimate,
+ * inside, none within the horizon, or null for a track on the ground.
+ */
+export const entryWords = (track: Projectable): string | null => {
+  const estimate = timeToEntry(track, [SITE])
+  if (estimate === null) return null
+  return estimate.kind === 'entry'
+    ? `ring entry in ${mmss(Math.round(estimate.tSec))}`
+    : estimate.kind === 'inside'
+      ? 'inside the ring'
+      : `no ring entry within ${Math.round(estimate.horizonS / 60)} min`
+}
+
+/** A band's colour for a label: the warm bands' own, the neutral text colour for calm (#160 round 1). */
+export const bandFill = (band: Band): string => (band === 'calm' ? COLOR.text : BAND_COLOR[band])
+
+/**
+ * What Vigil read on a track at a second — the caption's Vigil line (S5c-ii, C6): the rank, the
+ * band and composite the chip printed, the closing speed, and the Entry row's estimate; the
+ * drawer's mismatch line, when the score read one, is the caption's next line, since the two
+ * together overrun the box (#160 round 1). The app's own words, through the engine.
+ */
+const vigilReading = (entry: RankedAt): string => {
+  const { track } = entry
+  const speed = track.groundSpeedKt === null ? null : Math.round(track.groundSpeedKt * KT_TO_MS)
+  const entry_ = entryWords(track)
+  return [
+    `Vigil read it rank ${entry.rank} · ${entry.band} ${entry.composite}`,
+    speed === null ? 'speed unobserved' : `closing at ${speed} m/s`,
+    ...(entry_ === null ? [] : [entry_]),
+  ].join(' · ')
+}
+
+/** The above-calm injects at the freeze the run never opened — the overlay's set, whole run. */
+const neverOpened = (record: RunRecord, candidates: readonly RankedAt[]): RankedAt[] => {
+  const opened = new Set(
+    record.events.filter((event) => event.type === 'select').map((event) => event.track),
+  )
+  return candidates.filter((candidate) => !opened.has(candidate.track.id))
+}
+
+/**
+ * The overlay's count in words for the last decision line: the marks the frame draws, and any
+ * of the set beyond the panel named apart, as the header names hops beyond it (#160 round 1).
+ */
+export const neverOpenedWords = (record: RunRecord, candidates: readonly RankedAt[]): string => {
+  const never = neverOpened(record, candidates)
+  const beyond = never.filter((candidate) => !inPanel(project(candidate.track.position))).length
+  return `${plural(never.length - beyond, 'candidate')} never opened${beyond > 0 ? `, ${beyond} beyond the panel` : ''}.`
+}
+
+/**
  * The caption box's lines, the same template in both modes: one pair per look at the threat on
  * the frame — what the subject did on it before their next look at it, and what it read as at
  * that second in the run's mode — then the decision line.
@@ -128,8 +194,13 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
           action.t <= metrics.freezeT,
       )
       .map((action) => `${VERB[action.type]} at ${mmss(action.t)}`)
+    // On the pair the T0 range comes here from the map (ruled F2): the marks carry no labels.
+    const first = many
+      ? firstInWindow(plan, event.track, STUDY.beginS, STUDY.beginS + metrics.freezeT)
+      : null
+    const atT0 = first ? `, ${(rangeM(first.track) / 1000).toFixed(1)} km at T0` : ''
     lines.push(
-      `Look #${k} · ${mmss(event.t)} — opened ${name(event.track)}${actions.length > 0 ? `; ${actions.join(', ')}` : ''}.`,
+      `Look #${k} · ${mmss(event.t)} — opened ${name(event.track)}${atT0}${actions.length > 0 ? `; ${actions.join(', ')}` : ''}.`,
     )
     const shown = trackAtSecond(study.index, plan, event.track, STUDY.beginS + event.t, record.mode)
     lines.push(
@@ -137,13 +208,24 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
         ? `It read as ${trackIdent(shown)} · ${sourceWord(shown)}.`
         : 'It was not in the picture.',
     )
+    // On a Vigil frame only: what Vigil read at that second, in the app's own words (C6, C7).
+    if (record.mode === 'vigil' && shown) {
+      const entry = rankedAtSecond(study, plan, STUDY.beginS + event.t).find(
+        (ranked) => ranked.track.id === event.track,
+      )
+      if (entry) {
+        lines.push(`${vigilReading(entry)}.`)
+        if (entry.score.mismatch) lines.push(`${mismatchLine(entry.score.mismatch)}.`)
+      }
+    }
   })
   // The decision line, one per threat in the bench's row order: the escalation with its standoff
   // and its distance from the entry, or the miss; on one threat, S5b's line as it was.
   for (const threat of metrics.threats) {
     if (threat.miss || threat.standoffM === null || threat.timeToEscalateS === null) {
+      const clock = many && threat.entryT !== null ? `; ring entry ${mmss(threat.entryT)}` : ''
       lines.push(
-        `MISSED${many ? ` ${threat.id}` : ''} — never escalated; ${plural(looks.length, 'look')}.`,
+        `MISSED${many ? ` ${threat.id}` : ''} — never escalated; ${plural(looks.length, 'look')}${clock}.`,
       )
       continue
     }
@@ -159,7 +241,15 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
         : threat.entryT >= threat.timeToEscalateS
           ? `${mmss(threat.entryT - threat.timeToEscalateS)} before entry`
           : `${mmss(threat.timeToEscalateS - threat.entryT)} after entry`
-    lines.push(`${who}escalated ${many ? threat.id : 'it'} ${km} km ${side} the ring · ${entry}.`)
+    const clock = many && threat.entryT !== null ? `, ring entry ${mmss(threat.entryT)}` : ''
+    lines.push(
+      `${who}escalated ${many ? threat.id : 'it'} ${km} km ${side} the ring · ${entry}${clock}.`,
+    )
+  }
+  // The overlay's count in words, on the last decision line of a Vigil frame (C6).
+  if (record.mode === 'vigil') {
+    lines[lines.length - 1] +=
+      ` ${neverOpenedWords(record, candidatesAt(rankedAtSecond(study, plan, STUDY.beginS + metrics.freezeT)))}`
   }
   return lines
 }
@@ -176,6 +266,20 @@ export const FOOTNOTE = FOOTNOTE_LINES.join(' ')
 
 const text = (x: number, y: number, content: string, attrs: string): string =>
   `<text x="${x}" y="${y}" font-family="${FONT}" ${attrs}>${esc(content)}</text>`
+
+/** A threat's first frame in the window up to a second — the second and the track — or null when it never appears. */
+function firstInWindow(
+  plan: InjectPlan,
+  id: string,
+  fromS: number,
+  toS: number,
+): { tSec: number; track: Track } | null {
+  for (let tSec = fromS; tSec <= toS; tSec++) {
+    const track = injectTracksAt(plan, tSec).find((candidate) => candidate.id === id)
+    if (track) return { tSec, track }
+  }
+  return null
+}
 
 /** A threat's positions from one second to another, projected, for its trail. */
 function trailPoints(plan: InjectPlan, id: string, fromS: number, toS: number): [number, number][] {
@@ -200,7 +304,6 @@ export function frameSvg(input: FrameInput): string {
   const looks = looksOnFrame(record, metrics.freezeT)
   const lines = captionLines(input)
   const captionH = 16 + lines.length * LINE_H + 12
-  const height = HEADER_H + PANEL.height + FOOT_H + captionH
   const parts: string[] = []
 
   // The picture at the freeze: every track inside the panel, a small grey dot, in id order.
@@ -231,17 +334,16 @@ export function frameSvg(input: FrameInput): string {
 
   // Each threat's trail from its first frame in the window to the freeze, its plan-known
   // continuation to the entry tick fainter, and the two marks — one threat on the corroboration
-  // pair, two on the prioritization pair, each marked by its id where there are two.
+  // pair with the marks' two labels as S5b drew them; two on the prioritization pair, each trail
+  // tagged by its id, the marks unlabelled and the threat carrying one map label below-right of
+  // its dot at the freeze — on raw its id and the ring-entry clock, on Vigil the annotation's
+  // (ruled F2); the T0 range and the entry clock are the caption's there.
   const threatIds = threatsOf(record.scenario)
   const many = threatIds.length > 1
   for (const threat of metrics.threats) {
-    let firstS: number | null = null
-    for (let tSec = beginS; tSec <= freezeS && firstS === null; tSec++) {
-      if (injectTracksAt(plan, tSec).some((track) => track.id === threat.id)) firstS = tSec
-    }
-    if (firstS === null) continue
-    // The id on the prioritization pair's trails, where there are two to tell apart; the
-    // corroboration frame is S5b's byte for byte.
+    const first = firstInWindow(plan, threat.id, beginS, freezeS)
+    if (first === null) continue
+    const firstS = first.tSec
     const idAttr = many ? ` data-id="${escAttr(threat.id)}"` : ''
     const trail = trailPoints(plan, threat.id, firstS, freezeS)
     parts.push(
@@ -259,56 +361,67 @@ export function frameSvg(input: FrameInput): string {
         ),
       )
     }
-    const first = injectTracksAt(plan, firstS).find((track) => track.id === threat.id)!
-    const [fx, fy] = project(first.position)
-    const tag = many ? `${threat.id} · ` : ''
-    // Two labels on a short trail collide at x + 8 (the re-gate's mockup); on the pair the T0
-    // label goes below-left, anchored end, the entry label above-right (E6).
-    const t0X = many ? fx - 8 : fx + 8
-    const t0Anchor = many ? ' text-anchor="end"' : ''
+    const [fx, fy] = project(first.track.position)
     parts.push(
       `<circle class="trail-first"${idAttr} cx="${fx}" cy="${fy}" r="2.5" fill="${COLOR.muted}"/>`,
-      text(
-        t0X,
-        fy + 14,
-        `${tag}T0 · ${(rangeM(first) / 1000).toFixed(1)} km`,
-        `font-size="11" fill="${COLOR.faint}"${t0Anchor}`,
-      ),
     )
+    if (!many) {
+      parts.push(
+        text(
+          round1(fx + 8),
+          round1(fy + 14),
+          `T0 · ${(rangeM(first.track) / 1000).toFixed(1)} km`,
+          `font-size="11" fill="${COLOR.faint}"`,
+        ),
+      )
+    }
     if (entryS !== null) {
       const atEntry = injectTracksAt(plan, entryS).find((track) => track.id === threat.id)
       if (atEntry) {
         const [ex, ey] = project(atEntry.position)
         parts.push(
           `<circle class="entry"${idAttr} cx="${ex}" cy="${ey}" r="3" fill="none" stroke="${COLOR.muted}" stroke-width="1.5"/>`,
-          text(
-            ex + 8,
-            ey - 6,
-            `${tag}${mmss(threat.entryT!)} ring entry`,
-            `font-size="11" fill="${COLOR.faint}"`,
-          ),
         )
+        if (!many) {
+          parts.push(
+            text(
+              round1(ex + 8),
+              round1(ey - 6),
+              `${mmss(threat.entryT!)} ring entry`,
+              `font-size="11" fill="${COLOR.faint}"`,
+            ),
+          )
+        }
       }
+    }
+    // The pair's one map label per threat on a raw frame; a Vigil frame's is the annotation's.
+    if (many && record.mode === 'raw' && trail.length > 0) {
+      const [x, y] = trail[trail.length - 1]
+      parts.push(
+        text(
+          round1(x + 9),
+          round1(y + 16),
+          `${threat.id}${threat.entryT === null ? '' : ` · ring entry ${mmss(threat.entryT)}`}`,
+          `class="threat-label" data-id="${escAttr(threat.id)}" font-size="11" fill="${COLOR.faint}"`,
+        ),
+      )
     }
   }
 
   // The analyst's overlay: the engine's above-calm injects at the freeze the run never opened.
   // "Never opened" is about the whole run, as the footnote says: a track opened after the freeze
   // is not marked (#151 round 1).
-  const opened = new Set(
-    record.events.filter((event) => event.type === 'select').map((event) => event.track),
-  )
-  const candidates = candidatesAt(rankedAtSecond(study, plan, freezeS))
-  for (const candidate of candidates) {
-    if (opened.has(candidate.track.id)) continue
+  const ranked = rankedAtSecond(study, plan, freezeS)
+  const candidates = candidatesAt(ranked)
+  for (const candidate of neverOpened(record, candidates)) {
     const point = project(candidate.track.position)
     if (!inPanel(point)) continue
     const [x, y] = point
     parts.push(
       `<circle class="never-opened" data-id="${escAttr(candidate.track.id)}" cx="${x}" cy="${y}" r="6" fill="none" stroke="${COLOR.faint}" stroke-width="1"/>`,
       text(
-        x + 9,
-        y + 4,
+        round1(x + 9),
+        round1(y + 4),
         'never opened',
         `font-size="11" font-style="italic" fill="${COLOR.faint}"`,
       ),
@@ -349,6 +462,75 @@ export function frameSvg(input: FrameInput): string {
     )
   }
 
+  // The condition's own annotations, on a Vigil frame only (S5c-ii, C2–C5, C7): the warm labels
+  // beside every above-calm inject, the Queue box, each threat's mismatch line when its score
+  // read one, and the Entry row's estimate beside each threat's dot. Raw's screen showed none.
+  if (record.mode === 'vigil') {
+    for (const candidate of candidates) {
+      // On the prioritization pair a threat's label is drawn with its entry estimate, below-right
+      // (the threat block below); the marks crowd within a few pixels at 6 km.
+      if (many && threatIds.includes(candidate.track.id)) continue
+      const point = project(candidate.track.position)
+      if (!inPanel(point)) continue
+      const [x, y] = point
+      parts.push(
+        text(
+          round1(x + 9),
+          round1(y - 7),
+          `${trackIdent(candidate.track)} · ${candidate.composite}`,
+          `class="vigil-label" data-id="${escAttr(candidate.track.id)}" font-size="11" font-weight="600" fill="${bandFill(candidate.band)}"`,
+        ),
+      )
+    }
+    for (const threat of metrics.threats) {
+      const entry = ranked.find((candidate) => candidate.track.id === threat.id)
+      if (!entry) continue
+      const [x, y] = project(entry.track.position)
+      const { track, score } = entry
+      if (score.mismatch && track.source === 'inject' && track.broadcast) {
+        const [bx, by] = project(track.broadcast.position)
+        parts.push(
+          `<line class="vigil-mismatch" data-id="${escAttr(threat.id)}" x1="${x}" y1="${y}" x2="${bx}" y2="${by}" stroke="${COLOR.warning}" stroke-width="1" stroke-dasharray="4 3"/>`,
+          `<circle class="vigil-broadcast" data-id="${escAttr(threat.id)}" cx="${bx}" cy="${by}" r="3" fill="none" stroke="${COLOR.warning}" stroke-width="1"/>`,
+          text(
+            round1(bx + 8),
+            round1(by + 4),
+            `Remote ID says here · ${(score.mismatch.distanceM / 1000).toFixed(1)} km`,
+            `class="vigil-mismatch-label" font-size="11" fill="${COLOR.warning}"`,
+          ),
+        )
+      }
+      // The Entry row's estimate beside the dot; nothing when the row reads none or the track
+      // is on the ground.
+      const estimate = timeToEntry(track, [SITE])
+      const entryText =
+        estimate === null
+          ? null
+          : estimate.kind === 'entry'
+            ? `entry in ${mmss(Math.round(estimate.tSec))}`
+            : estimate.kind === 'inside'
+              ? 'inside the ring'
+              : null
+      // The threat's one map label on the pair (ruled F2): ident, composite, and the entry
+      // estimate below-right in the band's colour; on one threat, the S5c gate's two labels.
+      const label = many
+        ? `${trackIdent(track)} · ${entry.composite}${entryText ? ` · ${entryText}` : ''}`
+        : entryText
+      if (label) {
+        parts.push(
+          text(
+            round1(x + 9),
+            round1(y + 16),
+            label,
+            many
+              ? `class="vigil-threat-label" data-id="${escAttr(threat.id)}" font-size="11" font-weight="600" fill="${bandFill(entry.band)}"`
+              : `class="vigil-entry" data-id="${escAttr(threat.id)}" font-size="11" fill="${COLOR.text}"`,
+          ),
+        )
+      }
+    }
+  }
+
   const beyond = hops.filter((hop) => !inPanel(hop.point)).length
   const header = [
     text(
@@ -367,7 +549,30 @@ export function frameSvg(input: FrameInput): string {
     ),
   ]
   const footY = HEADER_H + PANEL.height + 20
-  const captionY = HEADER_H + PANEL.height + FOOT_H
+  // The Queue box on a Vigil frame (C2), under the map between the footnote and the caption:
+  // every above-calm inject at the freeze in rank order, the rank in the band's colour, the
+  // composite, and the Queue's own reason tag. On the map it would cover a threat when the
+  // cast puts fourteen above calm (S5c-ii's gate).
+  const queueY = HEADER_H + PANEL.height + FOOT_H
+  const queueH = record.mode === 'vigil' ? 30 + candidates.length * 18 + 6 : 0
+  const queue =
+    record.mode === 'vigil'
+      ? [
+          `<rect class="vigil-queue" x="30" y="${queueY}" width="${PANEL.width - 60}" height="${queueH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
+          text(
+            46,
+            queueY + 20,
+            `Queue at ${mmss(metrics.freezeT)} · ${candidates.length} above calm`,
+            `class="vigil-queue-title" font-size="12" font-weight="700" fill="${COLOR.text}"`,
+          ),
+          ...candidates.map(
+            (candidate, i) =>
+              `<text x="46" y="${queueY + 38 + i * 18}" font-family="${FONT}" class="vigil-queue-line" data-id="${escAttr(candidate.track.id)}" font-size="11" fill="${COLOR.muted}"><tspan font-weight="700" fill="${bandFill(candidate.band)}">${candidate.rank}</tspan> ${esc(`${trackIdent(candidate.track)} ${candidate.composite} · ${reasonTag(candidate, AO.protectedSites)}`)}</text>`,
+          ),
+        ]
+      : []
+  const captionY = queueY + (record.mode === 'vigil' ? queueH + 12 : 0)
+  const height = captionY + captionH
   const caption = [
     `<rect x="30" y="${captionY}" width="${PANEL.width - 60}" height="${captionH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
     ...lines.map((line, i) =>
@@ -392,6 +597,7 @@ export function frameSvg(input: FrameInput): string {
     ...FOOTNOTE_LINES.map((line, i) =>
       text(30, footY + i * 14, line, `class="footnote" font-size="11" fill="${COLOR.faint}"`),
     ),
+    ...queue,
     ...caption,
     '</svg>',
     '',

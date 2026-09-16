@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="922" viewBox="0 0 900 922" data-subject="S03" data-scenario="02a" data-mode="vigil" data-run="1">
-<rect width="900" height="922" fill="#0b0f14"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1104" viewBox="0 0 900 1104" data-subject="S03" data-scenario="02a" data-mode="vigil" data-run="1">
+<rect width="900" height="1104" fill="#0b0f14"/>
 <text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">WITH VIGIL · frozen at the moment of escalation — 0:58</text>
 <text x="30" y="64" font-family="system-ui, sans-serif" class="subtitle" font-size="13" fill="#8b98a9">The subject's selection sequence from the run JSON, replayed as a path. 1 look.</text>
 <defs><clipPath id="panel"><rect x="0" y="0" width="900" height="700"/></clipPath></defs>
@@ -57,11 +57,29 @@
 
 <circle class="hop" data-k="1" data-id="inject-11" data-t="14" cx="260.5" cy="438.5" r="9" fill="#ff6b57"/>
 <text x="260.5" y="442.5" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#0b0f14">1</text>
+<text x="291" y="421.4" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-11" font-size="11" font-weight="600" fill="#ff6b57">TRK-11 · 72</text>
+<text x="550.1" y="549.1" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-12" font-size="11" font-weight="600" fill="#f5b942">TRK-12 · 64</text>
+<text x="627.5" y="322.6" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-13" font-size="11" font-weight="600" fill="#f5b942">TRK-13 · 58</text>
+<text x="400.4" y="504.2" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-17" font-size="11" font-weight="600" fill="#f5b942">UAS-0088 · 49</text>
+<text x="583.1" y="189.9" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-37" font-size="11" font-weight="600" fill="#f5b942">UAS-8E97 · 45</text>
+<line class="vigil-mismatch" data-id="inject-11" x1="282" y1="428.4" x2="315.1" y2="428.4" stroke="#ff6b57" stroke-width="1" stroke-dasharray="4 3"/>
+<circle class="vigil-broadcast" data-id="inject-11" cx="315.1" cy="428.4" r="3" fill="none" stroke="#ff6b57" stroke-width="1"/>
+<text x="323.1" y="432.4" font-family="system-ui, sans-serif" class="vigil-mismatch-label" font-size="11" fill="#ff6b57">Remote ID says here · 1.1 km</text>
+<text x="291" y="444.4" font-family="system-ui, sans-serif" class="vigil-entry" data-id="inject-11" font-size="11" fill="#e6edf3">entry in 1:05</text>
 </g>
 <text x="30" y="800" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">"never opened" marks the engine's above-calm tracks at the freeze that the run never opened:</text>
 <text x="30" y="814" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the analyst's overlay, drawn on both conditions; raw's screen never showed that set.</text>
-<rect x="30" y="828" width="840" height="94" rx="6" fill="#121821" stroke="#1f2a37"/>
-<text x="46" y="860" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.</text>
-<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-11 · sensor.</text>
-<text x="46" y="904" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry.</text>
+<rect class="vigil-queue" x="30" y="828" width="840" height="126" rx="6" fill="#121821" stroke="#1f2a37"/>
+<text x="46" y="848" font-family="system-ui, sans-serif" class="vigil-queue-title" font-size="12" font-weight="700" fill="#e6edf3">Queue at 0:58 · 5 above calm</text>
+<text x="46" y="866" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-11" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#ff6b57">1</tspan> TRK-11 72 · Remote ID mismatch, closing, near PHL Airfield</text>
+<text x="46" y="884" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-12" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">2</tspan> TRK-12 64 · Revisiting, non-cooperative, near PHL Airfield</text>
+<text x="46" y="902" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-13" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">3</tspan> TRK-13 58 · Non-cooperative, near PHL Airfield, low and slow</text>
+<text x="46" y="920" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-17" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">4</tspan> UAS-0088 49 · Closing, near PHL Airfield, low and slow</text>
+<text x="46" y="938" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-37" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">5</tspan> UAS-8E97 45 · Closing, near PHL Airfield, low and slow</text>
+<rect x="30" y="966" width="840" height="138" rx="6" fill="#121821" stroke="#1f2a37"/>
+<text x="46" y="998" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.</text>
+<text x="46" y="1020" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-11 · sensor.</text>
+<text x="46" y="1042" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 1 · warning 71 · closing at 18 m/s · ring entry in 1:49.</text>
+<text x="46" y="1064" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.</text>
+<text x="46" y="1086" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry. 4 candidates never opened.</text>
 </svg>

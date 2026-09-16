@@ -61,7 +61,7 @@ flowchart LR
     study["scripts/study.ts<br/>npm run bench:study<br/>the operator study's acceptance: each study scenario through the feed beside 002 over its own window<br/>02's four lines · 03's prioritization lines — the lock, the margins, the baits, the band rows, the rule · the cue audit on airborne ticks · above calm · flaps · pattern-kind changes · every ring entry — held byte for byte by test"] --> sb[("docs/bench/study-02a.md · study-02b.md · study-03a.md · study-03b.md")]
     fx --> study
     fx --> bench
-    replaytool["tools/replay.ts + tools/replay/<br/>npm run replay · --study <dir> --out <dir><br/>the study's replay (S5): run JSON in, validated in so many words · the scenario regenerated from its seed at t + beginS through associate at the run's mode<br/>standoff at decision · time to escalate · miss · false escalations · looks · the study CSV (S5a)<br/>the frame per run (S5b): the picture at the freeze, the ring, the threat's trail, every look as a hop on the path, the analyst's never-opened overlay, the caption — identical in both modes; engine.ts scores a second as the bench does<br/>N threats from the bench's roles table (S5c-i): the window per scenario, the metrics per threat, the attention numbers — opened before the first threat, first open and standoff per threat, false escalations against later entrants, order — the frame per threat · the Vigil annotations (S5c-ii) and the pair with one row per threat and the study figure (S5d) follow"] --> studyout[("study/ — gitignored<br/>study.csv · one SVG per run · the fixtures under tools/replay/__fixtures__ are the only runs the repo holds")]
+    replaytool["tools/replay.ts + tools/replay/<br/>npm run replay · --study <dir> --out <dir><br/>the study's replay (S5): run JSON in, validated in so many words · the scenario regenerated from its seed at t + beginS through associate at the run's mode<br/>standoff at decision · time to escalate · miss · false escalations · looks · the study CSV (S5a)<br/>the frame per run (S5b): the picture at the freeze, the ring, the threat's trail, every look as a hop on the path, the analyst's never-opened overlay, the caption — identical in both modes; engine.ts scores a second as the bench does<br/>N threats from the bench's roles table (S5c-i): the window per scenario, the metrics per threat, the attention numbers — opened before the first threat, first open and standoff per threat, false escalations against later entrants, order — the frame per threat<br/>the Vigil annotations on a Vigil frame only (S5c-ii): the warm labels, the Queue box under the map, a threat's mismatch line and entry estimate, the caption's Vigil line per threat look — the app's readings through engine.ts · the pair with one row per threat and the study figure (S5d) follow"] --> studyout[("study/ — gitignored<br/>study.csv · one SVG per run · the fixtures under tools/replay/__fixtures__ are the only runs the repo holds")]
     fx --> replaytool
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
@@ -258,8 +258,16 @@ roles table (`scripts/study.ts`), one on 02a and 02b, two on 03a and 03b; a 03 r
 carries the attention numbers beside the standoff — the non-threats opened before any threat, each
 threat's first open and standoff, the false escalations (tracks that never enter the ring, and any real aircraft) and the
 escalations of later entrants on their own column, the order — and its frame freezes at the last
-threat's escalation with one decision line per threat (S5c-i). The Vigil annotations, the paired
-frame with one row per threat, and the study figure follow in S5c-ii and S5d.
+threat's escalation with one decision line per threat (S5c-i). A Vigil run's frame carries what
+Vigil's screen showed and raw's did not (S5c-ii): the warm labels beside every above-calm
+inject, the Queue box under the map with every candidate's rank, composite, and reason tag, a
+threat's Remote ID mismatch line where its score read one, the Entry row's estimate beside each
+threat's dot, and after each threat look the caption's line of what Vigil read then — the app's
+own readings through the engine, every element gated on the mode so no annotation reaches a raw
+frame: the corroboration pair's raw frames are byte for byte as before. On the prioritization
+pair each threat carries one map label per mode and the T0 range and entry clock move into the
+caption, so its raw frames change by that alone. The paired frame with one row per threat and the
+study figure follow in S5d.
 
 ## How this repo is built
 

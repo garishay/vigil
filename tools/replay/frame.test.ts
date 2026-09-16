@@ -10,14 +10,18 @@ import {
   captionLines,
   FOOTNOTE,
   FOOTNOTE_LINES,
+  bandFill,
+  entryWords,
   frameName,
   frameSvg,
   headerLine,
   looksOnFrame,
   mmss,
+  neverOpenedWords,
   PANEL,
   project,
 } from './frame.ts'
+import { candidatesAt, rankedAtSecond } from './engine.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
 import { runMetrics } from './metrics.ts'
 import { pictureAtSecond } from './regenerate.ts'
@@ -245,15 +249,19 @@ describe('the frame — the header and the caption box (ruled B3, B4)', () => {
       'It read as UAS-8F21 · Remote ID.',
       'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry.',
     ])
+    // The same template on a Vigil run, with what Vigil read after the ident line and the
+    // overlay's count on the decision line (S5c-ii).
     expect(captionLines(fixture('S03-02a-vigil-1'))).toEqual([
       'Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.',
       'It read as TRK-11 · sensor.',
-      'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry.',
+      'Vigil read it rank 1 · warning 71 · closing at 18 m/s · ring entry in 1:49.',
+      'Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.',
+      'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry. 4 candidates never opened.',
     ])
     // 02b: the lie begins at +30, so the look at +14 read the Remote ID in Vigil too.
     expect(captionLines(fixture('S04-02b-vigil-1'))[1]).toBe('It read as UAS-8F21 · Remote ID.')
-    expect(captionLines(fixture('S04-02b-vigil-1'))[2]).toBe(
-      'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:05 before entry.',
+    expect(captionLines(fixture('S04-02b-vigil-1'))[3]).toBe(
+      'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:05 before entry. 4 candidates never opened.',
     )
     const svg = frameSvg(fixture('S03-02a-raw-1'))
     expect(textsOf(svg, 'caption')).toHaveLength(3)
@@ -322,26 +330,6 @@ describe('the frame — the header and the caption box (ruled B3, B4)', () => {
 })
 
 describe('the frame — identical in both modes, deterministic (ruled B3, B7)', () => {
-  it('renders one record as raw and as Vigil with only the header word and the ident words differing', () => {
-    const raw = fixture('S03-02a-raw-1')
-    const asVigil = { ...raw, record: { ...raw.record, mode: 'vigil' as const } }
-    const a = frameSvg(raw).split('\n')
-    const b = frameSvg(asVigil).split('\n')
-    expect(a).toHaveLength(b.length)
-    const differing = a.map((line, i) => [line, b[i]]).filter(([x, y]) => x !== y)
-    // 80 header + 700 panel + 48 footnote (two lines) + 94 caption (three lines) = 922.
-    expect(differing.map(([x]) => x)).toEqual([
-      '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="922" viewBox="0 0 900 922" data-subject="S03" data-scenario="02a" data-mode="raw" data-run="1">',
-      '<text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">UNAIDED · frozen at the moment of escalation — 0:58</text>',
-      '<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as UAS-8F21 · Remote ID.</text>',
-    ])
-    expect(differing.map(([, y]) => y)).toEqual([
-      '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="922" viewBox="0 0 900 922" data-subject="S03" data-scenario="02a" data-mode="vigil" data-run="1">',
-      '<text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">WITH VIGIL · frozen at the moment of escalation — 0:58</text>',
-      '<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-11 · sensor.</text>',
-    ])
-  })
-
   it('gives the same bytes twice, and names the file by subject, scenario, mode, and run', () => {
     const input = fixture('S04-02b-raw-1')
     expect(frameSvg(input)).toBe(frameSvg(input))
@@ -377,7 +365,7 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
     return match ? attrs(match[0]) : null
   }
 
-  it('draws each threat’s trail with its marks, the id on the pair’s labels, the T0 label below-left anchored end (E6)', () => {
+  it('draws each threat’s trail with its marks unlabelled and one map label per threat below-right of its dot at the freeze (ruled F2)', () => {
     const input = on03('03a', shape)
     const svg = frameSvg(input)
     const trails = tagsOf(svg, 'trail')
@@ -393,14 +381,22 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
         (candidate) => candidate.id === id,
       )!
       expect([Number(first.cx), Number(first.cy)]).toEqual(expectedPx(track.position))
-      const km = (distanceMeters(AO.protectedSites[0].center, track.position) / 1000).toFixed(1)
-      const t0 = labelTag(svg, `${id} · T0 · ${km} km`)!
-      expect(t0).toMatchObject({ 'text-anchor': 'end' })
-      expect(Number(t0.x)).toBe(Math.round((Number(first.cx) - 8) * 10) / 10)
-      expect(Number(t0.y)).toBe(Math.round((Number(first.cy) + 14) * 10) / 10)
     }
-    expect(labelTag(svg, 'inject-11 · 1:42 ring entry')).not.toBeNull()
-    expect(labelTag(svg, 'inject-12 · 3:08 ring entry')).not.toBeNull()
+    // No T0 or ring-entry label on the pair's marks: those words are the caption's.
+    expect(svg).not.toContain('T0 · ')
+    expect(svg).not.toContain(' ring entry</text>')
+    // The raw label per threat, below-right of the trail's last point — the dot at the freeze.
+    const labels = tagsOf(svg, 'threat-label')
+    expect(labels.map((label) => label['data-id'])).toEqual(['inject-11', 'inject-12'])
+    expect(textsOf(svg, 'threat-label')).toEqual([
+      'inject-11 · ring entry 1:42',
+      'inject-12 · ring entry 3:08',
+    ])
+    trails.forEach((trail, i) => {
+      const [x, y] = trail.points.split(' ').at(-1)!.split(',').map(Number)
+      expect(Number(labels[i].x)).toBe(Math.round((x + 9) * 10) / 10)
+      expect(Number(labels[i].y)).toBe(Math.round((y + 16) * 10) / 10)
+    })
     // The trails run from Begin to the freeze at +97 — 98 points each.
     expect(trails[0].points.split(' ')).toHaveLength(98)
     expect(trails[1].points.split(' ')).toHaveLength(98)
@@ -448,13 +444,14 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
   })
 
   it('names each threat in the caption and writes one decision line per threat in row order (E7)', () => {
+    // The T0 range on the look line and the entry clock on the decision line (ruled F2).
     expect(captionLines(on03('03a', shape))).toEqual([
-      'Look #3 · 0:41 — opened inject-12 (threat 2); escalated at 0:58.',
+      'Look #3 · 0:41 — opened inject-12 (threat 2), 6.2 km at T0; escalated at 0:58.',
       'It read as TRK-12 · sensor.',
-      'Look #5 · 1:24 — opened inject-11 (threat 1); escalated at 1:37.',
+      'Look #5 · 1:24 — opened inject-11 (threat 1), 6.3 km at T0; escalated at 1:37.',
       'It read as TRK-11 · sensor.',
-      'Look #5 · 1:37 — escalated inject-11 0.1 km outside the ring · 0:05 before entry.',
-      'Look #3 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry.',
+      'Look #5 · 1:37 — escalated inject-11 0.1 km outside the ring · 0:05 before entry, ring entry 1:42.',
+      'Look #3 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry, ring entry 3:08.',
     ])
     expect(
       captionLines(
@@ -467,10 +464,10 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
         ]),
       ),
     ).toEqual([
-      'Look #2 · 1:35 — opened inject-11 (threat 1); assessed at 1:48, escalated at 1:58.',
+      'Look #2 · 1:35 — opened inject-11 (threat 1), 5.7 km at T0; assessed at 1:48, escalated at 1:58.',
       'It read as TRK-11 · sensor.',
-      'Look #2 · 1:58 — escalated inject-11 0.1 km inside the ring · 0:12 after entry.',
-      'MISSED inject-12 — never escalated; 3 looks.',
+      'Look #2 · 1:58 — escalated inject-11 0.1 km inside the ring · 0:12 after entry, ring entry 1:46.',
+      'MISSED inject-12 — never escalated; 3 looks; ring entry 2:29.',
     ])
   })
 
@@ -495,22 +492,22 @@ describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
       'UNAIDED · frozen at the moment of the last escalation — 1:37',
     )
     expect(captionLines(raw)).toEqual([
-      'Look #3 · 0:41 — opened inject-12 (threat 2); assessed at 0:50, escalated at 0:58.',
+      'Look #3 · 0:41 — opened inject-12 (threat 2), 6.2 km at T0; assessed at 0:50, escalated at 0:58.',
       'It read as TRK-12 · sensor.',
-      'Look #5 · 1:24 — opened inject-11 (threat 1); assessed at 1:30, escalated at 1:37.',
+      'Look #5 · 1:24 — opened inject-11 (threat 1), 6.3 km at T0; assessed at 1:30, escalated at 1:37.',
       'It read as TRK-11 · sensor.',
-      'Look #5 · 1:37 — escalated inject-11 0.1 km outside the ring · 0:05 before entry.',
-      'Look #3 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry.',
+      'Look #5 · 1:37 — escalated inject-11 0.1 km outside the ring · 0:05 before entry, ring entry 1:42.',
+      'Look #3 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry, ring entry 3:08.',
     ])
     const missed = fixture('S06-03b-raw-1')
     expect(headerLine(missed.record, missed.metrics)).toBe(
       'UNAIDED · MISSED inject-12 — frozen at +2:59',
     )
     expect(captionLines(missed)).toEqual([
-      'Look #3 · 1:35 — opened inject-11 (threat 1); assessed at 1:48, escalated at 1:58.',
+      'Look #3 · 1:35 — opened inject-11 (threat 1), 5.7 km at T0; assessed at 1:48, escalated at 1:58.',
       'It read as TRK-11 · sensor.',
-      'Look #3 · 1:58 — escalated inject-11 0.1 km inside the ring · 0:12 after entry.',
-      'MISSED inject-12 — never escalated; 4 looks.',
+      'Look #3 · 1:58 — escalated inject-11 0.1 km inside the ring · 0:12 after entry, ring entry 1:46.',
+      'MISSED inject-12 — never escalated; 4 looks; ring entry 2:29.',
     ])
     // The Vigil frames read the same idents: the 03 threats are silent, so no mode changes them.
     const vigil = fixture('S06-03b-vigil-1')
@@ -543,10 +540,10 @@ describe('the frame — round 1 (#159)', () => {
       (match) => ({ attrs: attrs(match[0]), text: match[1] }),
     )
     expect(captions.map((line) => line.text)).toEqual([
-      'Look #1 · 0:41 — opened inject-12 (threat 2); escalated at 0:58.',
+      'Look #1 · 0:41 — opened inject-12 (threat 2), 6.2 km at T0; escalated at 0:58.',
       'It read as TRK-12 · sensor.',
-      'MISSED inject-11 — never escalated; 1 look.',
-      'Look #1 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry.',
+      'MISSED inject-11 — never escalated; 1 look; ring entry 1:42.',
+      'Look #1 · 0:58 — escalated inject-12 0.8 km outside the ring · 2:10 before entry, ring entry 3:08.',
     ])
     expect(captions.map((line) => line.attrs['font-weight'])).toEqual([
       '600',
@@ -555,5 +552,311 @@ describe('the frame — round 1 (#159)', () => {
       '600',
     ])
     expect(captions[1].attrs.fill).toBe('#8b98a9')
+  })
+})
+
+describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1–C10, F1–F5)', () => {
+  const vigilOf = (name: string) => fixture(name)
+  const queueLines = (svg: string) =>
+    [...svg.matchAll(/<text[^>]*class="vigil-queue-line"[^>]*>(.*?)<\/text>/g)].map((match) =>
+      match[1].replace(/<[^>]+>/g, ''),
+    )
+  const vigilCaption = (svg: string) =>
+    [...svg.matchAll(/class="caption"[^>]*>([^<]*)</g)].map((match) => match[1])
+
+  it('draws the Queue box under the map on 02a and 02b — the S5c gate’s five lines exactly — and the fourteen on 03a', () => {
+    const a = frameSvg(vigilOf('S03-02a-vigil-1'))
+    expect(textsOf(a, 'vigil-queue-title')).toEqual(['Queue at 0:58 · 5 above calm'])
+    expect(queueLines(a)).toEqual([
+      '1 TRK-11 72 · Remote ID mismatch, closing, near PHL Airfield',
+      '2 TRK-12 64 · Revisiting, non-cooperative, near PHL Airfield',
+      '3 TRK-13 58 · Non-cooperative, near PHL Airfield, low and slow',
+      '4 UAS-0088 49 · Closing, near PHL Airfield, low and slow',
+      '5 UAS-8E97 45 · Closing, near PHL Airfield, low and slow',
+    ])
+    const b = frameSvg(vigilOf('S04-02b-vigil-1'))
+    expect(queueLines(b).slice(3)).toEqual([
+      '4 UAS-BEEC 49 · Closing, near PHL Airfield, low and slow',
+      '5 UAS-CF19 45 · Closing, near PHL Airfield, low and slow',
+    ])
+    // Under the map: the box's rect sits below the panel and above the caption, full width.
+    const [box] = tagsOf(a, 'vigil-queue')
+    expect(Number(box.y)).toBe(80 + 700 + 48)
+    expect(box.width).toBe('840')
+    expect(Number(box.height)).toBe(30 + 5 * 18 + 6)
+    const c = frameSvg(vigilOf('S05-03a-vigil-1'))
+    expect(textsOf(c, 'vigil-queue-title')).toEqual(['Queue at 1:11 · 14 above calm'])
+    expect(queueLines(c)).toHaveLength(14)
+    expect(queueLines(c)[0]).toBe('1 TRK-11 73 · Non-cooperative, closing, near PHL Airfield')
+    expect(queueLines(c)[6]).toBe('7 TRK-15 61 · Orbiting, non-cooperative, low and slow')
+    expect(queueLines(c)[13]).toBe('14 UAS-9254 45 · Closing, near PHL Airfield, low and slow')
+    // The rank in the band's colour: warning for rank 1, caution for rank 4 on 02a.
+    const spans = [
+      ...a.matchAll(/class="vigil-queue-line"[^>]*><tspan[^>]*fill="([^"]+)">(\d+)<\/tspan>/g),
+    ].map((match) => [match[2], match[1]])
+    expect(spans).toEqual([
+      ['1', '#ff6b57'],
+      ['2', '#f5b942'],
+      ['3', '#f5b942'],
+      ['4', '#f5b942'],
+      ['5', '#f5b942'],
+    ])
+  })
+
+  it('labels every above-calm inject beside its dot in the band’s colour, above-right; on the pair a threat’s label is its combined one', () => {
+    const input = vigilOf('S03-02a-vigil-1')
+    const svg = frameSvg(input)
+    const labels = tagsOf(svg, 'vigil-label')
+    const candidates = candidatesAt(rankedAtSecond(study, input.plan, STUDY.beginS + 58))
+    expect(labels.map((label) => label['data-id'])).toEqual(
+      candidates.map((entry) => entry.track.id),
+    )
+    expect(textsOf(svg, 'vigil-label')).toEqual([
+      'TRK-11 · 72',
+      'TRK-12 · 64',
+      'TRK-13 · 58',
+      'UAS-0088 · 49',
+      'UAS-8E97 · 45',
+    ])
+    candidates.forEach((entry, i) => {
+      const [x, y] = expectedPx(entry.track.position)
+      expect(Number(labels[i].x)).toBe(Math.round((x + 9) * 10) / 10)
+      expect(Number(labels[i].y)).toBe(Math.round((y - 7) * 10) / 10)
+      expect(labels[i].fill).toBe(entry.band === 'warning' ? '#ff6b57' : '#f5b942')
+    })
+    expect(labels[0]).toMatchObject({ x: '291', y: '421.4' })
+    // 02: the two labels as the S5c gate mocked them — the warm label and the entry below-right.
+    expect(tagsOf(svg, 'vigil-entry')[0]).toMatchObject({
+      x: '291',
+      y: '444.4',
+      'data-id': 'inject-11',
+    })
+    expect(textsOf(svg, 'vigil-entry')).toEqual(['entry in 1:05'])
+    expect(textsOf(frameSvg(vigilOf('S04-02b-vigil-1')), 'vigil-entry')).toEqual(['entry in 1:04'])
+    expect(tagsOf(svg, 'vigil-threat-label')).toHaveLength(0)
+    // The pair: twelve warm labels and one combined label per threat, in the band's colour.
+    const c = frameSvg(vigilOf('S05-03a-vigil-1'))
+    expect(tagsOf(c, 'vigil-label')).toHaveLength(12)
+    expect(tagsOf(c, 'vigil-entry')).toHaveLength(0)
+    expect(textsOf(c, 'vigil-threat-label')).toEqual([
+      'TRK-11 · 73 · entry in 0:31',
+      'TRK-12 · 73 · entry in 1:56',
+    ])
+    expect(tagsOf(c, 'vigil-threat-label')[0]).toMatchObject({
+      x: '301.9',
+      y: '326.7',
+      fill: '#ff6b57',
+      'font-weight': '600',
+    })
+    expect(tagsOf(c, 'threat-label')).toHaveLength(0)
+    expect(textsOf(frameSvg(vigilOf('S06-03b-vigil-1')), 'vigil-threat-label')).toEqual([
+      'TRK-11 · 73 · entry in 0:18',
+      'TRK-12 · 72 · entry in 1:01',
+    ])
+  })
+
+  it('draws the mismatch line from the observed dot to the broadcast’s position on 02, and none on the silent 03 threats', () => {
+    const a = frameSvg(vigilOf('S03-02a-vigil-1'))
+    expect(a).toContain(
+      '<line class="vigil-mismatch" data-id="inject-11" x1="282" y1="428.4" x2="315.1" y2="428.4"',
+    )
+    expect(tagsOf(a, 'vigil-broadcast')[0]).toMatchObject({ cx: '315.1', cy: '428.4' })
+    expect(textsOf(a, 'vigil-mismatch-label')).toEqual(['Remote ID says here · 1.1 km'])
+    const b = frameSvg(vigilOf('S04-02b-vigil-1'))
+    expect(b).toContain(
+      '<line class="vigil-mismatch" data-id="inject-11" x1="623.4" y1="413.8" x2="656.5" y2="413.8"',
+    )
+    for (const name of ['S05-03a-vigil-1', 'S06-03b-vigil-1']) {
+      const svg = frameSvg(vigilOf(name))
+      expect(tagsOf(svg, 'vigil-mismatch')).toHaveLength(0)
+      expect(svg).not.toContain('Remote ID says here')
+    }
+  })
+
+  it('writes the caption’s Vigil line after each threat look and the overlay’s count on the last decision line', () => {
+    expect(vigilCaption(frameSvg(vigilOf('S03-02a-vigil-1')))).toEqual([
+      'Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.',
+      'It read as TRK-11 · sensor.',
+      'Vigil read it rank 1 · warning 71 · closing at 18 m/s · ring entry in 1:49.',
+      'Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.',
+      'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry. 4 candidates never opened.',
+    ])
+    // 02b: the look at +14 read the Remote ID and no mismatch — the lie begins at +30.
+    expect(vigilCaption(frameSvg(vigilOf('S04-02b-vigil-1')))).toEqual([
+      'Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.',
+      'It read as UAS-8F21 · Remote ID.',
+      'Vigil read it rank 3 · caution 47 · closing at 18 m/s · ring entry in 1:48.',
+      'Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:05 before entry. 4 candidates never opened.',
+    ])
+    expect(vigilCaption(frameSvg(vigilOf('S05-03a-vigil-1')))).toEqual([
+      'Look #1 · 0:11 — opened inject-11 (threat 1), 6.3 km at T0; assessed at 0:24, escalated at 0:38.',
+      'It read as TRK-11 · sensor.',
+      'Vigil read it rank 1 · warning 72 · closing at 13 m/s · ring entry in 1:31.',
+      'Look #2 · 0:52 — opened inject-12 (threat 2), 6.2 km at T0; assessed at 1:02, escalated at 1:11.',
+      'It read as TRK-12 · sensor.',
+      'Vigil read it rank 2 · warning 72 · closing at 6 m/s · ring entry in 2:15.',
+      'Look #1 · 0:38 — escalated inject-11 0.8 km outside the ring · 1:04 before entry, ring entry 1:42.',
+      'Look #2 · 1:11 — escalated inject-12 0.7 km outside the ring · 1:57 before entry, ring entry 3:08. 11 candidates never opened.',
+    ])
+    expect(vigilCaption(frameSvg(vigilOf('S06-03b-vigil-1'))).slice(2, 3)).toEqual([
+      'Vigil read it rank 1 · warning 73 · closing at 6 m/s · ring entry in 1:37.',
+    ])
+    expect(vigilCaption(frameSvg(vigilOf('S06-03b-vigil-1'))).at(-1)).toBe(
+      'Look #3 · 1:28 — escalated inject-12 0.8 km outside the ring · 1:01 before entry, ring entry 2:29. 11 candidates never opened.',
+    )
+    // The Vigil line is muted like the ident line; the emphasis rule is untouched.
+    const a = frameSvg(vigilOf('S03-02a-vigil-1'))
+    const vigilLine = a.match(/<text[^>]*class="caption"[^>]*>Vigil read it/)![0]
+    expect(vigilLine).toContain('fill="#8b98a9"')
+  })
+
+  it('draws no annotation on a raw frame — the four raw fixture frames carry no vigil- class — and holds the 02 Vigil frames byte for byte (F4)', () => {
+    for (const name of ['S03-02a-raw-1', 'S04-02b-raw-1', 'S05-03a-raw-1', 'S06-03b-raw-1']) {
+      const svg = frameSvg(fixture(name))
+      expect(svg).not.toMatch(/class="vigil-/)
+      expect(svg).not.toContain('Vigil read it')
+      expect(svg).not.toContain('never opened.')
+    }
+    for (const name of ['S03-02a-vigil-1', 'S04-02b-vigil-1']) {
+      expect(frameSvg(fixture(name))).toBe(
+        readFileSync(`tools/replay/__fixtures__/frames/${name}.svg`, 'utf8'),
+      )
+    }
+  })
+
+  it('renders one record as raw and as Vigil with the map group equal once the vigil- elements are stripped, and the caption equal minus the Vigil lines (F3)', () => {
+    const mapGroup = (svg: string) => {
+      const start = svg.indexOf('<g class="map"')
+      return svg
+        .slice(start, svg.indexOf('</g>', start))
+        .split('\n')
+        .filter((line) => !/class="(vigil-|threat-label)/.test(line))
+    }
+    const captionsOf = (svg: string) =>
+      [...svg.matchAll(/class="caption"[^>]*>([^<]*)</g)]
+        .map((match) => match[1])
+        .filter((line) => !/^(Vigil read it|Remote ID )/.test(line))
+        .map((line) => line.replace(/ \d+ candidates? never opened\.$/, ''))
+    for (const name of ['S03-02a-raw-1', 'S05-03a-raw-1']) {
+      const raw = fixture(name)
+      const asVigil = { ...raw, record: { ...raw.record, mode: 'vigil' as const } }
+      const r = frameSvg(raw)
+      const v = frameSvg(asVigil)
+      expect(mapGroup(v)).toEqual(mapGroup(r))
+      const rc = captionsOf(r)
+      const vc = captionsOf(v)
+      expect(vc).toHaveLength(rc.length)
+      const differing = rc.filter((line, i) => line !== vc[i])
+      // 02a: the ident line; 03a: none — the threats are silent, so both modes read TRK-nn.
+      expect(differing).toEqual(
+        name === 'S03-02a-raw-1' ? ['It read as UAS-8F21 · Remote ID.'] : [],
+      )
+      expect(v).toContain('WITH VIGIL')
+    }
+    // On the pair each mode has its one label per threat, F2's words each side.
+    const raw = fixture('S05-03a-raw-1')
+    const v = frameSvg({ ...raw, record: { ...raw.record, mode: 'vigil' as const } })
+    expect(textsOf(frameSvg(raw), 'threat-label')).toEqual([
+      'inject-11 · ring entry 1:42',
+      'inject-12 · ring entry 3:08',
+    ])
+    expect(textsOf(v, 'threat-label')).toHaveLength(0)
+    expect(textsOf(v, 'vigil-threat-label')).toEqual([
+      'TRK-11 · 74 · entry in 0:05',
+      'TRK-12 · 73 · entry in 1:30',
+    ])
+  })
+})
+
+describe('the frame — round 1 (#160)', () => {
+  const vigilFixtures = ['S03-02a-vigil-1', 'S04-02b-vigil-1', 'S05-03a-vigil-1', 'S06-03b-vigil-1']
+  const captionsOf = (svg: string) =>
+    [...svg.matchAll(/class="caption"[^>]*>([^<]*)</g)].map((match) => match[1])
+
+  it('keeps every caption line inside the box: the mismatch clause is its own line, and no line on the four Vigil fixtures passes 128 characters', () => {
+    // The box is 824 px wide inside its padding at 13 px; the theme's face runs about 6.3 px a
+    // character in this text, so 128 characters is the budget with room — the pre-fix Vigil
+    // line with the mismatch clause ran 138.
+    for (const name of vigilFixtures) {
+      const lines = captionsOf(frameSvg(fixture(name)))
+      for (const line of lines) expect(line.length, `${name}: ${line}`).toBeLessThanOrEqual(128)
+    }
+    const a = captionsOf(frameSvg(fixture('S03-02a-vigil-1')))
+    expect(a[2]).toBe('Vigil read it rank 1 · warning 71 · closing at 18 m/s · ring entry in 1:49.')
+    expect(a[3]).toBe('Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.')
+    expect(a).toHaveLength(5)
+    // 02b's look at +14 read no mismatch, so no such line.
+    expect(captionsOf(frameSvg(fixture('S04-02b-vigil-1')))).toHaveLength(4)
+  })
+
+  it('reads the entry through the Entry row’s own function: the horizon, inside, and the ground guard', () => {
+    const center = AO.protectedSites[0].center
+    const kmPerDegLon = 111.32 * Math.cos((center[1] * Math.PI) / 180)
+    const west = (km: number): [number, number] => [center[0] - km / kmPerDegLon, center[1]]
+    const track = (position: [number, number], groundSpeedKt: number | null, onGround = false) => ({
+      position,
+      headingDeg: 90,
+      groundSpeedKt,
+      onGround,
+      lastSeenSec: 0,
+    })
+    // 12 km out at 4 kt: the ring is 7 km ahead, 57 minutes away — past the row's 20 min horizon.
+    expect(entryWords(track(west(12), 4))).toBe('no ring entry within 20 min')
+    // 12 km out at 40 kt: 5:40 to the ring.
+    expect(entryWords(track(west(12), 40))).toMatch(/^ring entry in 5:[34]\d$/)
+    expect(entryWords(track(center, 40))).toBe('inside the ring')
+    expect(entryWords(track(west(12), 40, true))).toBeNull()
+    // No speed: the row reads none within the horizon, and so does the frame — never "not closing".
+    expect(entryWords(track(west(12), null))).toBe('no ring entry within 20 min')
+    for (const name of vigilFixtures) {
+      expect(frameSvg(fixture(name))).not.toContain('not closing')
+    }
+  })
+
+  it('counts the overlay’s marks in the suffix and names any candidate beyond the panel apart', () => {
+    const record = fixture('S03-02a-raw-1').record
+    const at = (id: string, position: [number, number]) =>
+      ({ track: { id, position } }) as unknown as Parameters<typeof neverOpenedWords>[1][number]
+    const center = AO.protectedSites[0].center
+    const inPanel = at('inject-12', center)
+    const far = at('inject-13', [center[0] + 1, center[1]])
+    expect(neverOpenedWords(record, [inPanel])).toBe('1 candidate never opened.')
+    expect(neverOpenedWords(record, [inPanel, far])).toBe(
+      '1 candidate never opened, 1 beyond the panel.',
+    )
+    expect(neverOpenedWords(record, [at('inject-11', center)])).toBe('0 candidates never opened.')
+    // The fixtures' sets lie inside the panel, so the counts are the marks': 4 and 11.
+    expect(captionsOf(frameSvg(fixture('S03-02a-vigil-1'))).at(-1)).toMatch(
+      / 4 candidates never opened\.$/,
+    )
+    expect(tagsOf(frameSvg(fixture('S03-02a-vigil-1')), 'never-opened')).toHaveLength(4)
+    expect(captionsOf(frameSvg(fixture('S05-03a-vigil-1'))).at(-1)).toMatch(
+      / 11 candidates never opened\.$/,
+    )
+    expect(tagsOf(frameSvg(fixture('S05-03a-vigil-1')), 'never-opened')).toHaveLength(11)
+  })
+
+  it('paints a calm band in the neutral text colour, never a borrowed caution', () => {
+    expect(bandFill('warning')).toBe('#ff6b57')
+    expect(bandFill('caution')).toBe('#f5b942')
+    expect(bandFill('calm')).toBe('#e6edf3')
+  })
+
+  it('prints every pixel to a tenth: no pixel attribute on any of the eight fixture frames carries two or more decimals', () => {
+    // The pixel attributes alone: fill-opacity="0.08" is a two-decimal value by design.
+    for (const name of [
+      'S03-02a-raw-1',
+      'S03-02a-vigil-1',
+      'S04-02b-raw-1',
+      'S04-02b-vigil-1',
+      'S05-03a-raw-1',
+      'S05-03a-vigil-1',
+      'S06-03b-raw-1',
+      'S06-03b-vigil-1',
+    ]) {
+      expect(frameSvg(fixture(name))).not.toMatch(
+        /\b(x|y|cx|cy|x1|y1|x2|y2|r|width|height)="-?\d+\.\d{2,}"/,
+      )
+    }
   })
 })

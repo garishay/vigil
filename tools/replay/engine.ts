@@ -14,7 +14,7 @@ import { associate } from '../../src/lib/feeds.ts'
 import { injectTracksAt, type InjectPlan } from '../../src/lib/injects.ts'
 import { queueOrder } from '../../src/lib/ranking.ts'
 import { historiesAt, memoryAt, originsOf, pictureAt } from '../../src/lib/replay.ts'
-import { clockStartOf, minuteOfDay, scoreTrack } from '../../src/lib/scoring.ts'
+import { clockStartOf, minuteOfDay, scoreTrack, type Score } from '../../src/lib/scoring.ts'
 import type { Track } from '../../src/lib/tracks.ts'
 import type { Study } from './load.ts'
 
@@ -26,6 +26,10 @@ export interface RankedAt {
   composite: number
   band: Band
   rangeM: number
+  /** The site the range is measured to — the score's own. */
+  siteId: string
+  /** The app's score, with its mismatch evidence: what `reasonTag` and `mismatchLine` read (S5c-ii, C1). */
+  score: Score
 }
 
 /**
@@ -61,6 +65,8 @@ export function rankedAtSecond(study: Study, plan: InjectPlan, tSec: number): Ra
       composite: Math.round(score.composite),
       band: score.band,
       rangeM,
+      siteId: score.siteId,
+      score,
     }))
 }
 
