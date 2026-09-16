@@ -1,8 +1,15 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { collectRunFiles, DEFAULT_OUT, main, metricsOf, parseArgs } from './replay.ts'
+import {
+  collectRunFiles,
+  DEFAULT_OUT,
+  main,
+  metricsOf,
+  PAIR_QUEUE_CAP,
+  parseArgs,
+} from './replay.ts'
 import { CSV_COLUMNS } from './replay/csv.ts'
 import { loadStudy, RunRefusal } from './replay/load.ts'
 
@@ -71,11 +78,16 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     expect(lines[0]).toBe(CSV_COLUMNS.join(','))
     expect(lines[1]).toMatch(/^S03,02a,raw,1,/)
     expect(lines[2]).toMatch(/^S03,02a,vigil,1,/)
-    // Each run's frame, named by subject, scenario, mode, and run, and the line that names it (S5b).
+    // Each run's frame, named by subject, scenario, mode, and run, and the line that names it
+    // (S5b); exactly two runs write the pair too (S5d-i).
     expect(logged).toEqual([
       `${join(frames, 'S03-02a-vigil-1.svg')}: written\n`,
       `${join(frames, 'S03-02a-raw-1.svg')}: written\n`,
+      `${join(frames, 'pair-S03-02a.svg')}: written\n`,
     ])
+    expect(readFileSync(join(frames, 'pair-S03-02a.svg'), 'utf8')).toContain(
+      'data-left="S03-02a-vigil-1" data-right="S03-02a-raw-1"',
+    )
     const svg = readFileSync(join(frames, 'S03-02a-raw-1.svg'), 'utf8')
     expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true)
     expect(svg).toContain('UNAIDED · frozen at the moment of escalation — 0:58')
@@ -103,6 +115,59 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     expect(written).toBe(main([FIXTURES, '--out', frames]))
     expect(existsSync(join(frames, 'S04-02b-vigil-1.svg'))).toBe(true)
     expect(existsSync(join(frames, 'S06-03b-raw-1.svg'))).toBe(true)
+    // Eight runs: no pair, and no study figure yet (S5d-ii).
+    expect(existsSync(join(frames, 'study.svg'))).toBe(false)
+    expect(readdirSync(frames).filter((name) => name.startsWith('pair-'))).toEqual([
+      'pair-S03-02a.svg',
+    ])
+  })
+
+  it('writes the pair for exactly two run files and for no other count (S5d-i, ruled A8, G5)', () => {
+    expect(PAIR_QUEUE_CAP).toBe(5)
+    const one = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(one)
+    const oneLog: string[] = []
+    main([join(FIXTURES, 'S05-03a-raw-1.json'), '--out', one], (line) => oneLog.push(line))
+    expect(oneLog).toEqual([`${join(one, 'S05-03a-raw-1.svg')}: written\n`])
+    const two = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(two)
+    const twoLog: string[] = []
+    main(
+      [join(FIXTURES, 'S05-03a-raw-1.json'), join(FIXTURES, 'S05-03a-vigil-1.json'), '--out', two],
+      (line) => twoLog.push(line),
+    )
+    expect(twoLog).toEqual([
+      `${join(two, 'S05-03a-raw-1.svg')}: written\n`,
+      `${join(two, 'S05-03a-vigil-1.svg')}: written\n`,
+      `${join(two, 'pair-S05-03a.svg')}: written\n`,
+    ])
+    const pair = readFileSync(join(two, 'pair-S05-03a.svg'), 'utf8')
+    expect(pair).toContain('… 9 more above calm')
+    // Two runs of unlike subject or scenario pair under both names.
+    const unlike = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(unlike)
+    const unlikeLog: string[] = []
+    main(
+      [join(FIXTURES, 'S03-02a-raw-1.json'), join(FIXTURES, 'S05-03a-raw-1.json'), '--out', unlike],
+      (line) => unlikeLog.push(line),
+    )
+    expect(unlikeLog.at(-1)).toBe(`${join(unlike, 'pair-S03-02a-S05-03a.svg')}: written\n`)
+    const three = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(three)
+    const threeLog: string[] = []
+    main(
+      [
+        join(FIXTURES, 'S05-03a-raw-1.json'),
+        join(FIXTURES, 'S05-03a-vigil-1.json'),
+        join(FIXTURES, 'S06-03b-raw-1.json'),
+        '--out',
+        three,
+      ],
+      (line) => threeLog.push(line),
+    )
+    expect(threeLog).toHaveLength(3)
+    expect(threeLog.some((line) => line.includes('pair-'))).toBe(false)
+    expect(readdirSync(three).filter((name) => name.startsWith('pair-'))).toEqual([])
   })
 
   it('builds one plan per scenario across the runs, and stops on a refused file with nothing written', () => {

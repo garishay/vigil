@@ -4,7 +4,9 @@
  * under them the block: the attention counts per condition, then one row per threat of the
  * roles table with the run's window as a shared time axis carrying each condition's first open
  * and escalation and the threat's ring entry, and beside it the standoff band for that threat
- * with one dot per condition. On the corroboration pair that is one row. Pure and deterministic.
+ * with one dot per condition. On the corroboration pair that is one row. A raw run reads
+ * *unaided* wherever the block names it (ruled G3); its Queue box is capped at its top rows
+ * (ruled G2). Pure and deterministic.
  */
 
 import type { RunRecord } from '../../src/lib/run.ts'
@@ -42,8 +44,9 @@ export interface PairInput {
   right: FrameInput
 }
 
-/** The condition word a run is labelled by on the block. */
-const conditionWord = (record: RunRecord): string => (record.mode === 'raw' ? 'raw' : 'Vigil')
+/** The condition word a run is labelled by on the block — *unaided* for a raw run (ruled G3). */
+export const conditionWord = (record: RunRecord): string =>
+  record.mode === 'raw' ? 'unaided' : 'Vigil'
 
 /** A signed standoff in the block's words: `+0.8 km`, `−0.1 km`. */
 const kmWord = (m: number): string => `${m >= 0 ? '+' : '−'}${(Math.abs(m) / 1000).toFixed(1)} km`
