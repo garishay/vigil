@@ -1,0 +1,15 @@
+{
+  "subject": "S04",
+  "scenario": "02b",
+  "mode": "vigil",
+  "run": 1,
+  "build": "2.60.0+c9c80e3",
+  "began_at": "2026-09-16T00:31:12.777Z",
+  "events": [
+    {"t":14,"type":"select","track":"inject-11"},
+    {"t":49,"type":"assess","track":"inject-11"},
+    {"t":58,"type":"escalate","track":"inject-11"},
+    {"t":80,"type":"select","track":"inject-11"}
+  ],
+  "answers": {"demand":6,"pressure":7,"confidence":5}
+}

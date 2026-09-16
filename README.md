@@ -53,6 +53,8 @@ flowchart LR
     study["scripts/study.ts<br/>npm run bench:study<br/>the operator study's acceptance: each study scenario through the feed beside 002 over the window<br/>the four lines · the cue audit on airborne ticks · above calm · flaps · every ring entry — held byte for byte by test"] --> sb[("docs/bench/study-02a.md · study-02b.md")]
     fx --> study
     fx --> bench
+    replaytool["tools/replay.ts + tools/replay/<br/>npm run replay · --study <dir> --out <dir><br/>the study's replay (S5): run JSON in, validated in so many words · the scenario regenerated from its seed at t + beginS through associate at the run's mode<br/>standoff at decision · time to escalate · miss · false escalations · looks · the study CSV (S5a); the frames follow (S5b–S5d)"] --> studyout[("study/ — gitignored<br/>study.csv · the fixtures under tools/replay/__fixtures__ are the only runs the repo holds")]
+    fx --> replaytool
   end
   subgraph pure["Pure modules — no React, no DOM, no I/O in the scoring path; unit-tested directly"]
     direction LR
@@ -126,6 +128,10 @@ flowchart LR
   scenarios -- 02a · 02b through the feed --> study
   gen -- injectTracksAt, the feed over it --> study
   replay -- picture · memory · histories · origins at t --> study
+  scenarios -- the run's scenario, planned on the recording's grid --> replaytool
+  gen -- injectTracksAt, through associate at the run's mode --> replaytool
+  replay -- pictureAt --> replaytool
+  studycfg -- Begin · the run · raw's distance --> replaytool
   score -- scoreTrack · bandOf --> study
   rank -- queueOrder --> study
   proj -- entryAt --> study
@@ -223,7 +229,19 @@ npm run build     # production build
 npm run lint      # ESLint
 npm run typecheck # tsc --noEmit
 npm run test      # Vitest
+npm run replay -- --study <dir>   # the study's metrics CSV from run JSON files (S5a); study/ by default
 ```
+
+### The study's replay (S5)
+
+A run JSON — what **Copy run** hands back at the end of a study run — goes in; the study's
+numbers come out, offline, the scenario regenerated from its seed on the study recording's own
+frame grid through the app's pure modules. `npm run replay -- <run.json> …` prints the CSV for
+those runs; `npm run replay -- --study <dir> [--out <dir>]` writes `study.csv` for every `.json`
+file in the directory under `study/` at the repo root, which is gitignored: the four fixtures
+under `tools/replay/__fixtures__/` are the only runs the repo holds. A file that is not a run is
+refused with its path and the field. The frames — the per-run map, the paired frame with the
+standoff band, the dots-on-axis figure — follow in S5b–S5d.
 
 ## How this repo is built
 

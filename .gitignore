@@ -35,3 +35,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# The study replay tool’s output (S5, #138, ruled A8) — a pilot run never enters the repo unless copied in deliberately
+study/

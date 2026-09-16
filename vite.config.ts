@@ -33,7 +33,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: false,
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.ts', 'tools/**/*.test.ts'],
     // Stylesheets resolve empty under test by default; the theme is let through so a test can
     // hold a MapLibre literal to its CSS token (#96).
     css: { include: [/\/src\/index\.css(\?|$)/] },

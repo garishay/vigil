@@ -1,0 +1,14 @@
+{
+  "subject": "S03",
+  "scenario": "02a",
+  "mode": "raw",
+  "run": 1,
+  "build": "2.60.0+efac241-dirty",
+  "began_at": "2026-09-15T23:38:09.494Z",
+  "events": [
+    {"t":14,"type":"select","track":"inject-11"},
+    {"t":49,"type":"assess","track":"inject-11"},
+    {"t":58,"type":"escalate","track":"inject-11"}
+  ],
+  "answers": {"demand":6,"pressure":7,"confidence":5}
+}
