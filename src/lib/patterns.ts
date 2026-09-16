@@ -83,20 +83,33 @@ export function loiterDwell(history: TrackHistory, config: PatternConfig['loiter
  * run is the trailing sequence of turns of one sign, each at least `minTurnDeg`. Returns the
  * cumulative turn held and how long the turning legs lasted — a U-turn is 180° in 45 s and an
  * orbit is a steady rate held for minutes, and `minS` is what tells them apart.
+ *
+ * The last leg is the current position's — a partial grid step, metres long for the first
+ * seconds after each grid instant — and a leg shorter than `lastLegM` is dropped from the run
+ * (#155, R2 on #152): positions sit on a metre grid, so a short leg's bearing is noise, and the
+ * run broke at it and re-formed every grid step, naming and un-naming an orbit fourteen times in
+ * one run. The run then ends on the last full leg, at most one grid step behind the clock. A
+ * kept partial leg is still tested against `minTurnDeg` on its turn from the full leg before it
+ * — about half a step's turn plus — and the floor is set where the bench reads no residual
+ * change, not where the arithmetic has margin (#157).
  */
 export function heldTurn(
   history: TrackHistory,
   config: PatternConfig['orbit'],
 ): { turnDeg: number; heldS: number } {
-  const legs: { bearing: number; durationS: number }[] = []
+  const legs: { bearing: number; durationS: number; lengthM: number }[] = []
   for (let i = 1; i < history.length; i++) {
     const [from, to] = [history[i - 1], history[i]]
-    if (distanceMeters(from.position, to.position) < 5) continue
+    const lengthM = distanceMeters(from.position, to.position)
+    if (lengthM < 5) continue
     legs.push({
       bearing: bearingDegrees(from.position, to.position),
       durationS: to.tSec - from.tSec,
+      lengthM,
     })
   }
+  const last = legs[legs.length - 1]
+  if (last && last.lengthM < config.lastLegM) legs.pop()
   let turnDeg = 0
   let heldS = 0
   let sign = 0

@@ -206,3 +206,25 @@ describe('the baseline (A10, R4)', () => {
     expect(renderBench(runBench(recordings))).toBe(committed)
   }, 120_000)
 })
+
+describe('the named pattern folded per inject (#155, R2 on #152)', () => {
+  const inject = { behavior: 'orbit', remoteId: 'silent' } as const
+  it('counts a kind change whether or not the band moved, the onset itself as one, and none on an unchanged kind', () => {
+    let run = foldInject(undefined, inject, 'caution', 0, 3, null)
+    expect(run).toMatchObject({ kind: null, kindChanges: 0 })
+    run = foldInject(run, inject, 'caution', 15, 3, 'orbit')
+    expect(run).toMatchObject({ kind: 'orbit', kindChanges: 1, flaps: 0, last: 'caution' })
+    run = foldInject(run, inject, 'caution', 30, 3, 'orbit')
+    expect(run.kindChanges).toBe(1)
+    // Un-named and named again — the flicker the floor removes — is two more.
+    run = foldInject(run, inject, 'warning', 45, 1, null)
+    run = foldInject(run, inject, 'warning', 60, 1, 'orbit')
+    expect(run).toMatchObject({ kindChanges: 3, kind: 'orbit' })
+    expect(run.warning).toEqual({ afterS: 45, rank: 1 })
+    // A caller that says nothing about the kind folds as before.
+    expect(foldInject(undefined, inject, 'calm', 0, 9)).toMatchObject({
+      kind: null,
+      kindChanges: 0,
+    })
+  })
+})
