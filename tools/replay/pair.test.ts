@@ -81,13 +81,13 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
     expect(conditionWord(fixture('S03-02a-raw-1').record)).toBe('unaided')
     expect(conditionWord(fixture('S03-02a-vigil-1').record)).toBe('Vigil')
     expect(textsOf(pairOf('S03-02a-raw-1', 'S03-02a-vigil-1'), 'counts')).toEqual([
-      'opened before the first threat unaided 0 · Vigil 0     |     false escalations unaided 0 · Vigil 0     |     escalations of later entrants unaided 0 · Vigil 0',
+      'opened before the first threat unaided 0 · Vigil 0     |     false alarms unaided 0 · Vigil 0     |     early escalations unaided 0 · Vigil 0',
     ])
     expect(textsOf(pairOf('S05-03a-raw-1', 'S05-03a-vigil-1'), 'counts')).toEqual([
-      'opened before the first threat unaided 2 · Vigil 0     |     false escalations unaided 0 · Vigil 0     |     escalations of later entrants unaided 1 · Vigil 0     |     order unaided ✗ (inject-57 before inject-31) · Vigil ✓',
+      'opened before the first threat unaided 2 · Vigil 0     |     false alarms unaided 0 · Vigil 0     |     early escalations unaided 1 · Vigil 0     |     order unaided ✗ (inject-57 before inject-31) · Vigil ✓',
     ])
     expect(textsOf(pairOf('S06-03b-raw-1', 'S06-03b-vigil-1'), 'counts')).toEqual([
-      'opened before the first threat unaided 2 · Vigil 0     |     false escalations unaided 1 · Vigil 0     |     escalations of later entrants unaided 1 · Vigil 0     |     order unaided — (inject-23 missed) · Vigil ✓',
+      'opened before the first threat unaided 2 · Vigil 0     |     false alarms unaided 1 · Vigil 0     |     early escalations unaided 1 · Vigil 0     |     order unaided — (inject-23 missed) · Vigil ✓',
     ])
     const raw = pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')
     expect(textsOf(raw, 'legend')).toEqual(['unaided', 'Vigil'])

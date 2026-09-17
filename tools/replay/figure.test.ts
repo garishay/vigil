@@ -203,14 +203,24 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
     ).toEqual(['raw@206 hollow', 'vigil@621.1'])
   })
 
+  it('carries the counts’ vocabulary at the foot, on two lines the 1 000 px figure holds (K8, #171 round 1)', () => {
+    // The pair says the same sentence on one line because its canvas is 1 820 px; here the
+    // sentence runs past the figure's own width, so it is split where the pair is not.
+    expect(textsOf(svg, 'counts-note')).toEqual([
+      'A false alarm is a track that never enters the ring, and every real aircraft;',
+      'an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.',
+    ])
+    for (const line of textsOf(svg, 'counts-note')) expect(line.length).toBeLessThan(140)
+  })
+
   it('writes the counts per condition under each family, exact', () => {
     expect(textsOf(svg, 'counts-raw')).toEqual([
-      'unaided: 2 runs · misses threat 1 0 · threat 2 1 · false escalations 1 · escalations of later entrants 2 · order correct 0 of 1 with every threat escalated',
-      'unaided: 2 runs · misses 0 · false escalations 0 · escalations of later entrants 0',
+      'unaided: 2 runs · misses threat 1 0 · threat 2 1 · false alarms 1 · early escalations 2 · order correct 0 of 1 with every threat escalated',
+      'unaided: 2 runs · misses 0 · false alarms 0 · early escalations 0',
     ])
     expect(textsOf(svg, 'counts-vigil')).toEqual([
-      'Vigil: 2 runs · misses threat 1 0 · threat 2 0 · false escalations 0 · escalations of later entrants 0 · order correct 2 of 2 with every threat escalated',
-      'Vigil: 2 runs · misses 0 · false escalations 0 · escalations of later entrants 0',
+      'Vigil: 2 runs · misses threat 1 0 · threat 2 0 · false alarms 0 · early escalations 0 · order correct 2 of 2 with every threat escalated',
+      'Vigil: 2 runs · misses 0 · false alarms 0 · early escalations 0',
     ])
   })
 
@@ -222,6 +232,9 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
     const none = studySvg([])
     expect(textsOf(none, 'title')).toEqual(['Study — 0 runs · 0 subjects'])
     expect(textsOf(none, 'family')).toEqual([])
+    // With no family there are no counts, so no note either — it would otherwise draw over the
+    // title, which is the only other thing on the document (#171 round 1).
+    expect(textsOf(none, 'counts-note')).toEqual([])
     // No pixel attribute carries two or more decimals.
     expect(svg).not.toMatch(/\b(x|y|cx|cy|x1|y1|x2|y2|r|width|height)="-?\d+\.\d{2,}"/)
   })
@@ -272,7 +285,7 @@ describe('the study figure — round 1 (#162)', () => {
     ])
     expect(tagsOf(svg2, 'standoff-raw-hollow')).toHaveLength(2)
     expect(textsOf(svg2, 'counts-raw')).toEqual([
-      'unaided: 2 runs · misses threat 1 0 · threat 2 2 · false escalations 0 · escalations of later entrants 0 · order correct 0 of 0 with every threat escalated',
+      'unaided: 2 runs · misses threat 1 0 · threat 2 2 · false alarms 0 · early escalations 0 · order correct 0 of 0 with every threat escalated',
     ])
   })
 })

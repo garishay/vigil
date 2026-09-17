@@ -9,7 +9,10 @@
  *                                                          each run's frame written under
  *                                                          --out as <subject>-<scenario>-<mode>-<run>.svg;
  *                                                          exactly two runs also write the pair,
- *                                                          pair-<subject>-<scenario>.svg
+ *                                                          pair-<subject>-<scenario>.svg — or,
+ *                                                          for two scenarios of one family, the
+ *                                                          subject sheet,
+ *                                                          sheet-<subject>-<scenarioA>-<scenarioB>.svg
  *   node tools/replay.ts --study <dir | run.json ...> [--out <dir>]
  *                                                          study.csv and study.svg written under --out
  *
@@ -24,6 +27,7 @@ import { csvText } from './replay/csv.ts'
 import { studySvg } from './replay/figure.ts'
 import { frameName, frameSvg } from './replay/frame.ts'
 import { pairName, pairSvg } from './replay/pair.ts'
+import { sheetName, sheetSvg } from './replay/sheet.ts'
 import { loadStudy, planFor, readRun, type Study } from './replay/load.ts'
 import { runMetrics, type RunMetrics } from './replay/metrics.ts'
 import type { InjectPlan } from '../src/lib/injects.ts'
@@ -95,6 +99,27 @@ export const metricsOf = (files: readonly string[], study: Study = loadStudy()):
   runsOf(files, study).map((run) => run.metrics)
 
 /**
+ * Two runs composed into one document: one scenario is the pair (S5d-i), two scenarios of one
+ * family the subject sheet (S5e) — the unaided run left, the Vigil run right, whichever order
+ * they were named in. Two of unlike families are refused in words by the sheet itself.
+ */
+function composite(runs: readonly Run[], study: Study, out: string): { out: string; svg: string } {
+  const [first, second] = runs.map((run) => ({ ...run, study }))
+  if (first.record.scenario === second.record.scenario) {
+    return {
+      out: join(out, pairName(first.record, second.record)),
+      svg: pairSvg({ left: first, right: second }, { queueCap: PAIR_QUEUE_CAP }),
+    }
+  }
+  const unaided = first.record.mode === 'raw' ? first : second
+  const vigil = unaided === first ? second : first
+  return {
+    out: join(out, sheetName(unaided.record, vigil.record)),
+    svg: sheetSvg({ unaided, vigil }, { queueCap: PAIR_QUEUE_CAP }),
+  }
+}
+
+/**
  * The tool: the CSV on stdout for the runs named; without `--study`, each run's frame written
  * under `--out` too (S5b, ruled B5), the written files named through `log`; with `--study`,
  * `study.csv` written under `--out` instead.
@@ -131,18 +156,10 @@ export function main(argv: readonly string[], log: (line: string) => void = () =
     named.set(name, run.file)
     return { out: join(args.out, name), svg: frameSvg({ ...run, study }) }
   })
-  // Exactly two runs: the pair too, drawn before anything is written like the frames.
-  const pair =
-    runs.length === 2
-      ? {
-          out: join(args.out, pairName(runs[0].record, runs[1].record)),
-          svg: pairSvg(
-            { left: { ...runs[0], study }, right: { ...runs[1], study } },
-            { queueCap: PAIR_QUEUE_CAP },
-          ),
-        }
-      : null
-  for (const { out, svg } of [...frames, ...(pair ? [pair] : [])]) {
+  // Exactly two runs: the pair too, or the subject sheet when the two are unlike scenarios of
+  // one family (S5e) — drawn before anything is written, like the frames.
+  const composed = runs.length === 2 ? composite(runs, study, args.out) : null
+  for (const { out, svg } of [...frames, ...(composed ? [composed] : [])]) {
     writeFileSync(out, svg)
     log(`${out}: written\n`)
   }

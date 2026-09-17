@@ -151,7 +151,26 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     ])
     const pair = readFileSync(join(two, 'pair-S05-03a.svg'), 'utf8')
     expect(pair).toContain('… 21 more above calm')
-    // Two runs of unlike scenarios are refused in words, and nothing is written (#161 round 1).
+    // Two runs of unlike scenarios of one family are the subject sheet's (S5e, #164); two of
+    // unlike families are refused in words, and nothing is written (#161 round 1).
+    const sheetOut = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(sheetOut)
+    const sheetLog: string[] = []
+    main(
+      [
+        join(FIXTURES, 'S06-03b-vigil-1.json'),
+        join(FIXTURES, 'S05-03a-raw-1.json'),
+        '--out',
+        sheetOut,
+      ],
+      (line) => sheetLog.push(line),
+    )
+    // The unaided run names the file whichever order the two were given in.
+    expect(sheetLog.at(-1)).toBe(`${join(sheetOut, 'sheet-S05-S06-03a-03b.svg')}: written
+`)
+    expect(readFileSync(join(sheetOut, 'sheet-S05-S06-03a-03b.svg'), 'utf8')).toContain(
+      'SUBJECT SHEET · S05 · S06 · 03a unaided, 03b with Vigil',
+    )
     const unlike = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(unlike)
     const unlikeOut = join(unlike, 'out')
@@ -162,7 +181,9 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
         '--out',
         unlikeOut,
       ]),
-    ).toThrow('a pair reads one scenario — S03 02a and S05 03a differ')
+    ).toThrow(
+      "a sheet reads one family — S03's 02a is corroboration and S05's 03a is prioritization",
+    )
     expect(existsSync(join(unlikeOut, 'S03-02a-raw-1.svg'))).toBe(false)
     const three = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(three)

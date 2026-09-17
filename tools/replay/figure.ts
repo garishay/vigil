@@ -251,9 +251,13 @@ function axisAt(y: number, pad: number, title: string, kind: AxisKind, placed: P
   return lines
 }
 
-/** The counts under a family's axes, one line per condition; the order over every threat, as the metrics define it. */
+/**
+ * The counts under a family's axes, one line per condition, and the sentence that gives the
+ * early escalations their direction — the sheet's prose, so the three artifacts read alike
+ * (#164). The order is over every threat, as the metrics define it.
+ */
 function countsLines(y: number, runs: readonly RunMetrics[], threats: number): string[] {
-  return MODES.map((mode, i) => {
+  const lines = MODES.map((mode, i) => {
     const of = runs.filter((run) => run.mode === mode)
     const misses = Array.from(
       { length: threats },
@@ -264,8 +268,8 @@ function countsLines(y: number, runs: readonly RunMetrics[], threats: number): s
       threats > 1
         ? `misses ${misses.map((n, t) => `threat ${t + 1} ${n}`).join(' · ')}`
         : `misses ${misses[0] ?? 0}`,
-      `false escalations ${of.reduce((sum, m) => sum + m.falseEscalations, 0)}`,
-      `escalations of later entrants ${of.reduce((sum, m) => sum + m.escalationsOfLaterEntrants, 0)}`,
+      `false alarms ${of.reduce((sum, m) => sum + m.falseEscalations, 0)}`,
+      `early escalations ${of.reduce((sum, m) => sum + m.escalationsOfLaterEntrants, 0)}`,
       ...(threats > 1
         ? [
             `order correct ${of.filter((m) => m.orderCorrect === true).length} of ${of.filter((m) => m.orderCorrect !== null).length} with every threat escalated`,
@@ -279,7 +283,17 @@ function countsLines(y: number, runs: readonly RunMetrics[], threats: number): s
       `class="counts-${mode}" font-size="12" fill="${CONDITION_COLOR[mode]}"`,
     )
   })
+  return lines
 }
+
+/**
+ * The sentence that gives the counts their direction, once at the foot — the sheet's prose, so
+ * the three artifacts read alike (#164).
+ */
+const COUNTS_NOTE = [
+  'A false alarm is a track that never enters the ring, and every real aircraft;',
+  'an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.',
+] as const
 
 /** The study figure over every run, by family, as an SVG document. */
 export function studySvg(runs: readonly RunMetrics[]): string {
@@ -362,6 +376,20 @@ export function studySvg(runs: readonly RunMetrics[]): string {
       corroboration,
       `Corroboration pair (${names(corroboration)}) — standoff at decision`,
       false,
+    )
+  }
+  // Two lines: the sentence runs past this figure's 1 000 px, where the pair's 1 820 px holds
+  // it whole (#171 round 1). With no family at all there are no counts, so no note either.
+  if (prioritization.length > 0 || corroboration.length > 0) {
+    body.push(
+      ...COUNTS_NOTE.map((line, i) =>
+        text(
+          PAD,
+          y - 30 + i * 14,
+          line,
+          `class="counts-note" font-size="11" fill="${THEME.faint}"`,
+        ),
+      ),
     )
   }
   const height = y + 10
