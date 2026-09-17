@@ -362,7 +362,7 @@ describe('the movers never turn inside the recording (#145 round 1)', () => {
       const movers = cast(config)
         .map((entry, i) => ({ entry, id: `inject-${11 + i}` }))
         .filter(({ entry }) => kind(entry) === 'mover' || kind(entry) === 'silent mover')
-      expect(movers).toHaveLength(config === SCENARIO_03A || config === SCENARIO_03B ? 17 : 10)
+      expect(movers).toHaveLength(config === SCENARIO_03A || config === SCENARIO_03B ? 25 : 10)
       for (const { id } of movers) {
         const first = injectTracksAt(plan, 0).find((track) => track.id === id)!
         const last = injectTracksAt(plan, lastS).find((track) => track.id === id)!
@@ -396,19 +396,19 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
     return along(entry.from, course, entry.speedKt * KT_TO_MS * T0)
   }
 
-  it('are cast-only, thirty-seven rows from inject-11: two silent threats, four silent baits, 02a’s furniture under its own ids, seven silent load rows; nothing broadcasts an offset, and both threats are present from t = 0', () => {
+  it('are cast-only, forty-nine rows from inject-11: two silent threats, four silent baits, 02a’s furniture under its own ids, nineteen silent load rows; nothing broadcasts an offset, and both threats are present from t = 0', () => {
     for (const config of PAIR) {
       expect(config.minInjects).toBe(0)
       expect(config.maxInjects).toBe(0)
-      expect(cast(config)).toHaveLength(37)
-      expect(cast(config).filter((e) => e.remoteId === 'silent')).toHaveLength(13)
+      expect(cast(config)).toHaveLength(49)
+      expect(cast(config).filter((e) => e.remoteId === 'silent')).toHaveLength(25)
       expect(cast(config).filter((e) => e.remoteId === 'broadcasting')).toHaveLength(24)
       expect(cast(config).every((e) => e.broadcastOffset === undefined)).toBe(true)
       expect(cast(config)[0].startS).toBeUndefined()
       expect(cast(config)[1].startS).toBeUndefined()
       const plan = scenarioFeed(timelineOf(CAPTURE), config).plan
       expect(plan.specs.map((spec) => spec.id)).toEqual(
-        Array.from({ length: 37 }, (_, i) => `inject-${11 + i}`),
+        Array.from({ length: 49 }, (_, i) => `inject-${11 + i}`),
       )
     }
     // Rows 17–40 are 02a's furniture — the same rows under the same ids.
@@ -422,7 +422,7 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
     )
   })
 
-  it('writes every mover where it is at Begin: 03a’s threats at 285° / 6.30 km on 111° at 25 kt and 050° / 6.15 km on 225° at 12 kt; 03b’s the closer, slower one first; the load’s two band rows at 6.35–6.5 km at 11 kt, its three inbound rows at 9–12 km, and its two misses at 6.6 and 8.1 km', () => {
+  it('writes every mover where it is at Begin: 03a’s threats at 285° / 6.30 km on 111° at 25 kt and 050° / 6.15 km on 225° at 12 kt; 03b’s the closer, slower one first; the load’s four band rows at 6.3–6.5 km at 11–12 kt, its three inbound rows at 9–12 km and two far, fast ones at 10–11.5 km, its four hovers at 6.6–9.6 km, and its six misses', () => {
     const [t1, t2] = cast(SCENARIO_03A)
     expect(t1).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 25 })
     expect(t2).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 12 })
@@ -445,23 +445,43 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
     // The load (ruled R1; placed at #154 round 2): rows 41–42 silent inbound in the threats' band,
     // 5.5–6.5 km at Begin at 11 kt on courses off the centre line; 43–45 silent, steady inbound,
     // 9–12 km; 46–47 silent on courses that miss. To the metre: the round trip through the plane
-    // and back lands within a metre of the row.
+    // and back lands within a metre of the row. S7c (#163) adds 48–49 in the band at 11–12 kt,
+    // 50–51 far and fast at 10–11.5 km and 24–30 kt, 52–55 silent hovers at 6.6–9.6 km, and
+    // 56–59 on courses that miss at 6.2–9.9 km — the silent set twenty-five, nothing under 8 kt
+    // but the hovers.
     const load = cast(SCENARIO_03A).slice(30)
-    expect(load).toHaveLength(7)
+    expect(load).toHaveLength(19)
     expect(load.every((e) => e.remoteId === 'silent' && e.behavior === 'shuttle')).toBe(true)
+    const rangeAtBegin = (entry: CastEntry) => Math.round(atBegin(entry).rangeKm * 100) / 100
     for (const entry of load.slice(0, 2)) {
-      const begin = Math.round(atBegin(entry).rangeKm * 100) / 100
-      expect(begin).toBeGreaterThanOrEqual(5.5)
-      expect(begin).toBeLessThanOrEqual(6.5)
+      expect(rangeAtBegin(entry)).toBeGreaterThanOrEqual(5.5)
+      expect(rangeAtBegin(entry)).toBeLessThanOrEqual(6.5)
       expect(entry.speedKt).toBe(11)
     }
     for (const entry of load.slice(2, 5)) {
-      const begin = Math.round(atBegin(entry).rangeKm * 100) / 100
-      expect(begin).toBeGreaterThanOrEqual(9)
-      expect(begin).toBeLessThanOrEqual(12)
+      expect(rangeAtBegin(entry)).toBeGreaterThanOrEqual(9)
+      expect(rangeAtBegin(entry)).toBeLessThanOrEqual(12)
     }
     expect(atBegin(load[5]).rangeKm).toBeCloseTo(6.557, 2)
     expect(atBegin(load[6]).rangeKm).toBeCloseTo(8.12, 2)
+    for (const entry of load.slice(7, 9)) {
+      expect(rangeAtBegin(entry)).toBeGreaterThanOrEqual(5.5)
+      expect(rangeAtBegin(entry)).toBeLessThanOrEqual(6.5)
+    }
+    expect(load.slice(7, 9).map((e) => e.speedKt)).toEqual([11, 12])
+    expect(load.slice(9, 11).map((e) => [rangeAtBegin(e), e.speedKt])).toEqual([
+      [11.5, 30],
+      [10, 24],
+    ])
+    expect(load.slice(11, 15).map(kind)).toEqual(['hover', 'hover', 'hover', 'hover'])
+    expect(load.slice(11, 15).map((e) => e.from.rangeKm)).toEqual([6.6, 7.4, 8.6, 9.6])
+    expect(load.slice(15).map((e) => [rangeAtBegin(e), e.speedKt])).toEqual([
+      [6.25, 16],
+      [7.17, 20],
+      [8.83, 12],
+      [9.87, 25],
+    ])
+    expect(load.filter((e) => kind(e) !== 'hover').every((e) => e.speedKt >= 8)).toBe(true)
   })
 
   it('the silent hover’s leg lies across its bearing, and the silent orbit joins its circle on the side its offset says — the same side once turned 135°', () => {

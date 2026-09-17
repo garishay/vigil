@@ -55,7 +55,7 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
     expect(svg).toContain('<clipPath id="panel-left">')
     expect(svg).toContain('<clipPath id="panel-right">')
     expect(svg).not.toContain('<clipPath id="panel">')
-    // The block: 70 + 2 rows × 150 + 60 under the taller frame's 1 188 (the box capped: nine
+    // The block: 70 + 2 rows × 150 + 60 under the taller frame's 1 188 (the box capped: twenty-one
     // rows out, the count line in).
     expect(tagsOf(svg, 'block')[0]).toMatchObject({ y: '1188', height: '430', width: '1820' })
     expect(pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')).toBe(svg)
@@ -64,12 +64,12 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
   it('caps each frame’s Queue box at five rows with the count line, while the run’s own frame keeps every row (G2)', () => {
     const svg = pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')
     expect(tagsOf(svg, 'vigil-queue-line')).toHaveLength(5)
-    expect(textsOf(svg, 'vigil-queue-title')).toEqual(['Queue at 1:11 · 14 above calm'])
+    expect(textsOf(svg, 'vigil-queue-title')).toEqual(['Queue at 1:11 · 26 above calm'])
     expect(textsOf(svg, 'vigil-queue-more')).toEqual([
-      "… 9 more above calm, on the run's own frame",
+      "… 21 more above calm, on the run's own frame",
     ])
     const own = frameSvg(fixture('S05-03a-vigil-1'))
-    expect(tagsOf(own, 'vigil-queue-line')).toHaveLength(14)
+    expect(tagsOf(own, 'vigil-queue-line')).toHaveLength(26)
     expect(tagsOf(own, 'vigil-queue-more')).toHaveLength(0)
     // On the corroboration pair the five rows are the whole box: no count line.
     const a = pairOf('S03-02a-raw-1', 'S03-02a-vigil-1')

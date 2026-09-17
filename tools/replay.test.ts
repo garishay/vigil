@@ -150,7 +150,7 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
       `${join(two, 'pair-S05-03a.svg')}: written\n`,
     ])
     const pair = readFileSync(join(two, 'pair-S05-03a.svg'), 'utf8')
-    expect(pair).toContain('… 9 more above calm')
+    expect(pair).toContain('… 21 more above calm')
     // Two runs of unlike scenarios are refused in words, and nothing is written (#161 round 1).
     const unlike = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
     temps.push(unlike)

@@ -22,6 +22,6 @@ export const SCENARIO_03B: ScenarioConfig = {
   cast: [
     silentAt(at(185, 5.65), 0, 12, T0), // 11 · threat 1: the closer, slower one — 5.65 km, 12 kt, enters at 586 s
     silentAt(at(60, 6.9), 246, 25, T0), // 12 · threat 2: the farther, faster one — 6.9 km, 25 kt, enters at 629 s
-    ...(SCENARIO_03A.cast ?? []).slice(2).map((entry) => rotated(entry, ROTATION_03B_DEG)), // 13–47 · 03a's baits, furniture, and load, turned 135°
+    ...(SCENARIO_03A.cast ?? []).slice(2).map((entry) => rotated(entry, ROTATION_03B_DEG)), // 13–59 · 03a's baits, furniture, and load, turned 135°
   ],
 }

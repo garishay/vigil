@@ -66,7 +66,7 @@ describe('the study config (A8)', () => {
       threats: ['inject-11', 'inject-12'],
       tangential: ['inject-14'],
       orbit: 'inject-15',
-      band: ['inject-41', 'inject-42'],
+      band: ['inject-41', 'inject-42', 'inject-48', 'inject-49'],
       lockS: STUDY.beginS,
     })
     expect(STUDY_CAST['03b']).toEqual(STUDY_CAST['03a'])
@@ -394,56 +394,85 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     }
   })
 
-  it('the orbit bait’s closing read sweeps 0 to 23 and it holds ranks 7 to 10, with no pattern-kind change on either cast under the floor (#155, R2)', () => {
+  it('the orbit bait’s closing read sweeps 0 to 23 and it holds ranks 13 to 18, with no pattern-kind change on either cast under the floor (#155, R2)', () => {
     for (const name of pair) {
       expect(p(name).orbit).toEqual({
         id: 'inject-15',
         closingMin: 0,
         closingMax: expect.closeTo(23, 0),
-        rankMin: 7,
-        rankMax: 10,
+        rankMin: 13,
+        rankMax: 18,
       })
       expect(results[name].kindChanges).toEqual([])
       expect(results[name].flaps).toEqual([])
     }
   })
 
-  it('the band rows cross into warning after the first entry and never outrank the threats: Begin + 157 and + 128 on 03a, + 157 and + 129 on 03b', () => {
+  it('the band rows cross into warning after the first entry and never outrank the threats: Begin + 157, + 128, + 189, and + 130 on 03a; + 157, + 129, never, and + 129 on 03b', () => {
     expect(p('03a').band).toEqual([
       {
         id: 'inject-41',
         firstWarningS: 637,
-        rankMin: 4,
-        rankMax: 5,
+        rankMin: 5,
+        rankMax: 7,
         maxComposite: expect.closeTo(71.1, 0),
       },
       {
         id: 'inject-42',
         firstWarningS: 608,
         rankMin: 3,
-        rankMax: 4,
+        rankMax: 5,
         maxComposite: expect.closeTo(71.8, 0),
+      },
+      {
+        id: 'inject-48',
+        firstWarningS: 669,
+        rankMin: 6,
+        rankMax: 8,
+        maxComposite: expect.closeTo(70.2, 0),
+      },
+      {
+        id: 'inject-49',
+        firstWarningS: 610,
+        rankMin: 3,
+        rankMax: 5,
+        maxComposite: expect.closeTo(71.7, 0),
       },
     ])
     expect(p('03b').band).toEqual([
       {
         id: 'inject-41',
         firstWarningS: 637,
-        rankMin: 4,
-        rankMax: 5,
+        rankMin: 5,
+        rankMax: 7,
         maxComposite: expect.closeTo(70.1, 0),
       },
       {
         id: 'inject-42',
         firstWarningS: 609,
         rankMin: 3,
-        rankMax: 4,
+        rankMax: 5,
         maxComposite: expect.closeTo(70.8, 0),
+      },
+      {
+        id: 'inject-48',
+        firstWarningS: null,
+        rankMin: 6,
+        rankMax: 8,
+        maxComposite: expect.closeTo(69.2, 0),
+      },
+      {
+        id: 'inject-49',
+        firstWarningS: 609,
+        rankMin: 3,
+        rankMax: 5,
+        maxComposite: expect.closeTo(70.7, 0),
       },
     ])
     for (const name of pair) {
       for (const row of p(name).band)
-        expect(row.firstWarningS!).toBeGreaterThan(p(name).firstEntryS!)
+        if (row.firstWarningS !== null)
+          expect(row.firstWarningS).toBeGreaterThan(p(name).firstEntryS!)
     }
   })
 
@@ -454,8 +483,9 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     expect(scenarioNamed('03b', SCENARIOS).runS).toBe(179)
   })
 
-  it('the restated lines: above calm 14 / 14 / 15 / 14 and 14 / 14 / 15 / 15 with the fourteen ids; the audit; the entries', () => {
-    const fourteen = [
+  it('the restated lines: above calm 26 / 26 / 27 / 26 and 26 / 26 / 27 / 27 with the twenty-six ids; the audit; the entries — every load inbound after both windows and inside the recording', () => {
+    // The twenty-five silent rows and the closing drone (S7c, #163).
+    const twentySix = [
       'inject-11',
       'inject-12',
       'inject-13',
@@ -463,53 +493,75 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
       'inject-15',
       'inject-16',
       'inject-37',
-      'inject-41',
-      'inject-42',
-      'inject-43',
-      'inject-44',
-      'inject-45',
-      'inject-46',
-      'inject-47',
+      ...Array.from({ length: 19 }, (_, i) => `inject-${41 + i}`),
     ]
     expect(results['03a'].aboveCalm).toEqual({
-      atBegin: 14,
-      atBeginPlus1: 14,
-      idsAtBeginPlus1: fourteen,
-      max: 15,
-      atEnd: 14,
+      atBegin: 26,
+      atBeginPlus1: 26,
+      idsAtBeginPlus1: twentySix,
+      max: 27,
+      atEnd: 26,
     })
     expect(results['03b'].aboveCalm).toEqual({
-      atBegin: 14,
-      atBeginPlus1: 14,
-      idsAtBeginPlus1: fourteen,
-      max: 15,
-      atEnd: 15,
+      atBegin: 26,
+      atBeginPlus1: 26,
+      idsAtBeginPlus1: twentySix,
+      max: 27,
+      atEnd: 27,
     })
     expect(results['03a'].audit).toEqual({
-      closingDrones: 11,
+      closingDrones: 15,
       closingAircraft: 14,
-      silent: 13,
-      inside: 9,
+      silent: 25,
+      inside: 12,
       hovering: 15,
     })
     expect(results['03b'].audit).toEqual({
-      closingDrones: 11,
+      closingDrones: 15,
       closingAircraft: 12,
-      silent: 13,
-      inside: 9,
+      silent: 25,
+      inside: 12,
       hovering: 15,
     })
     for (const name of pair) {
       expect(Math.round(results[name].heardNotClosing!.maxComposite)).toBe(38)
       expect(results[name].heardNotClosing!.id).toBe('inject-20')
       const entered = new Map(results[name].entries.map((e) => [e.id, e.enteredS]))
-      expect(results[name].entries).toHaveLength(37)
+      expect(results[name].entries).toHaveLength(49)
       expect(entered.get('inject-37')).toBe(935)
       expect(entered.get('inject-16')).toBe(1066)
       expect(entered.get('inject-41')).toBe(899)
       expect(entered.get('inject-42')).toBe(872)
+      expect(entered.get('inject-48')).toBe(942)
+      expect(entered.get('inject-49')).toBe(name === '03a' ? 879 : 878)
+      expect(entered.get('inject-50')).toBe(925)
+      expect(entered.get('inject-51')).toBe(912)
       for (const id of ['inject-13', 'inject-14', 'inject-15', 'inject-46', 'inject-47'])
         expect(entered.get(id)).toBeNull()
+      for (let i = 52; i <= 59; i++) expect(entered.get(`inject-${i}`)).toBeNull()
+      // Ten non-threat inbounds: every entry after both windows and inside the recording, so the
+      // replay reads each as a later entrant, never the class that throws (#138, E5).
+      const end = STUDY.beginS + results[name].runS
+      const later = results[name].entries.filter(
+        (e) => e.enteredS !== null && !['inject-11', 'inject-12'].includes(e.id),
+      )
+      expect(later.map((e) => e.id)).toEqual([
+        'inject-16',
+        'inject-37',
+        'inject-41',
+        'inject-42',
+        'inject-43',
+        'inject-44',
+        'inject-45',
+        'inject-48',
+        'inject-49',
+        'inject-50',
+        'inject-51',
+      ])
+      for (const e of later) {
+        expect(e.enteredS!).toBeGreaterThan(end)
+        expect(e.enteredS!).toBeLessThanOrEqual(indexCapture(recording.capture).durationS)
+      }
     }
   })
 
@@ -527,9 +579,9 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     expect(text).toContain(
       'baits: none enters inside the run ✓ · tangential inject-14 misses by ≥ 1052 m on 60 airborne ticks, opening on 159, never inside or entering — ≥ 1000 ✓',
     )
-    expect(text).toContain('orbit inject-15: closing 0–23 · rank 7–10')
+    expect(text).toContain('orbit inject-15: closing 0–23 · rank 13–18')
     expect(text).toContain(
-      'band rows: inject-41 first warning 637 s (Begin + 157) · rank 4–5 · max 71 · inject-42 first warning 608 s (Begin + 128) · rank 3–4 · max 72 — none before the first entry ✓',
+      'band rows: inject-41 first warning 637 s (Begin + 157) · rank 5–7 · max 71 · inject-42 first warning 608 s (Begin + 128) · rank 3–5 · max 72 · inject-48 first warning 669 s (Begin + 189) · rank 6–8 · max 70 · inject-49 first warning 610 s (Begin + 130) · rank 3–5 · max 72 — none before the first entry ✓',
     )
     expect(text).toContain('runS 218 = last entry 668 − Begin 480 + 30 ✓')
     expect(text).toContain(
@@ -537,6 +589,12 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     )
     expect(text).toContain('pattern-kind changes per track in the window: none')
     expect(text).toContain('inject-41 899 s (after the run) · inject-42 872 s (after the run)')
+    expect(text).toContain(
+      'inject-48 942 s (after the run) · inject-49 879 s (after the run) · inject-50 925 s (after the run) · inject-51 912 s (after the run) · inject-52 —',
+    )
+    expect(renderStudy(results['03b'])).toContain(
+      'inject-48 first warning never · rank 6–8 · max 69 · inject-49 first warning 609 s (Begin + 129) · rank 3–5 · max 71 — none before the first entry ✓',
+    )
     expect(renderStudy(results['03b'])).toContain('runS 179 = last entry 629 − Begin 480 + 30 ✓')
     expect(renderStudy(results['03b'])).toContain(
       'threat 1 over threat 2 min 0.84 at 585 s · rank 2 over rank 3 min 2.32 at 480 s (inject-13)',
