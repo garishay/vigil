@@ -1,8 +1,8 @@
 /**
  * The frame (S5b, #138, ruled B2–B4; the S5 gate's A5a and A5b under the ruling on A5): one SVG
- * per run — the picture at the freeze, the ring, the threat's trail with its marks, every look
- * up to the freeze as a numbered hop on the path, the analyst's overlay, the header, and the
- * caption box — drawn identically in both modes. The only words that differ between a raw
+ * per run — the picture at the freeze, the ring, the threat's trail with its marks, one numbered
+ * marker per distinct track looked at up to the freeze, the path through every look, the
+ * analyst's overlay, the header, and the caption box — drawn identically in both modes. The only words that differ between a raw
  * frame and a Vigil frame of the same run are the header's condition, the ident a look read,
  * and on the prioritization pair each threat's one map label (S5c-ii, ruled F2), since that is
  * what the run's screen showed. The Vigil annotations (S5c-ii, C1–C7) draw on a Vigil frame
@@ -478,20 +478,39 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
       `class="path" stroke="${COLOR.accent}" stroke-opacity="0.5" stroke-width="1.5"`,
     ),
   )
+  // One marker per distinct track visited (S5e, #164): at that track's first look, labelled with
+  // its number and a `×N` badge when the run came back to it. The path still runs through every
+  // visit, so a revisit reads as a bend; a marker per visit stacks them where the track barely moved.
+  const visits = new Map<string, number>()
+  for (const hop of hops) visits.set(hop.event.track, (visits.get(hop.event.track) ?? 0) + 1)
+  const marked = hops.filter(
+    (hop, i) => hops.findIndex((first) => first.event.track === hop.event.track) === i,
+  )
   for (const {
     k,
     event,
     point: [x, y],
-  } of hops) {
+  } of marked) {
     const fill = threatIds.includes(event.track) ? COLOR.warning : COLOR.accent
+    const n = visits.get(event.track)!
     parts.push(
-      `<circle class="hop" data-k="${k}" data-id="${escAttr(event.track)}" data-t="${event.t}" cx="${x}" cy="${y}" r="9" fill="${fill}"/>`,
+      `<circle class="hop" data-k="${k}"${n > 1 ? ` data-visits="${n}"` : ''} data-id="${escAttr(event.track)}" data-t="${event.t}" cx="${x}" cy="${y}" r="9" fill="${fill}"/>`,
       text(
         x,
         y + 4,
         String(k),
         `font-size="11" font-weight="700" text-anchor="middle" fill="${COLOR.bg}"`,
       ),
+      ...(n > 1
+        ? [
+            text(
+              round1(x + 11),
+              round1(y - 5),
+              `×${n}`,
+              `class="hop-visits" data-id="${escAttr(event.track)}" font-size="10" font-weight="700" fill="${fill}"`,
+            ),
+          ]
+        : []),
     )
   }
 
