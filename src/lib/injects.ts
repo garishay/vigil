@@ -594,8 +594,23 @@ export function planScenario(
   // the study's run JSON needs. Nothing here reads the shared stream: the deal above is identical
   // with a cast beside it or none, and every draw a cast inject still makes comes from a stream
   // keyed by its id, so it is as much a function of seed and config as a dealt one.
-  if (cast.length > 89) {
+  // The id each row takes: the scenario's own list when it sets one (S7d, #167), so two
+  // scenarios can hold disjoint ids and no role reads from the number; otherwise the row's
+  // position, as it has always been. The list is checked here rather than trusted: a wrong
+  // length or a repeat would put two tracks on one id, which vanishes from the picture silently.
+  const castIds = config.castIds
+  if (castIds === undefined && cast.length > 89) {
     throw new Error(`a cast of ${cast.length}; ids run inject-11 to inject-99, so at most 89`)
+  }
+  if (castIds !== undefined) {
+    if (castIds.length !== cast.length) {
+      throw new Error(`castIds names ${castIds.length} ids for a cast of ${cast.length}`)
+    }
+    const bad = castIds.find((id) => !Number.isInteger(id) || id < 11)
+    if (bad !== undefined) throw new Error(`castIds holds ${bad}; a cast id is an integer from 11`)
+    if (new Set(castIds).size !== castIds.length) {
+      throw new Error(`castIds repeats an id; two rows on one id leave one out of the picture`)
+    }
   }
   // The other end of the range: a deal that could reach inject-11 would collide with the cast,
   // and a duplicate id vanishes from the picture silently (#142 round 1).
@@ -607,7 +622,7 @@ export function planScenario(
   const place = (at: Placement): [number, number] =>
     destinationPoint(ao.center, at.bearingDeg, at.rangeKm * 1000)
   cast.forEach((entry, index) => {
-    const id = `inject-${11 + index}`
+    const id = `inject-${castIds?.[index] ?? 11 + index}`
     const origin = place(entry.from)
     const speedMs = entry.speedKt * KT_TO_MS
     const { courseDeg, script } = scriptOf(entry, id, origin, speedMs, place)

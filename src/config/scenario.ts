@@ -100,6 +100,15 @@ export interface ScenarioConfig {
   maxInjects: number
   /** The scripted injects (S2a); none by default, so the deal is the whole default scenario. */
   cast?: readonly CastEntry[]
+  /**
+   * The id number each cast row takes, in row order (S7d, #167): `inject-<n>`, and so `TRK-<n>`
+   * for a silent row, which is the only thing about a cast entry a subject ever reads. Absent,
+   * a row's id is `11 + index` as it has always been, so every scenario that does not set this
+   * is byte-identical. The prioritization pair sets it because the two scenarios must take
+   * **disjoint** ids and no role may read from the number — a subject who runs 03a first must
+   * not carry its answer into 03b by name.
+   */
+  castIds?: readonly number[]
   /** At least `maxInjects` of them, so every inject gets a distinct launch point. */
   launchPoints: LaunchPoint[]
   envelope: InjectEnvelope
