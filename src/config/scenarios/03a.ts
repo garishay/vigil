@@ -13,11 +13,12 @@
  * three more silent steady inbounds at 9–12 km entering 650 s or more after Begin, and two
  * silent movers on courses that miss, so *silent and pointing at the ring* is a question only the
  * entry time settles. Raised by S7c (#163, the #131 amendment of 2026-09-16 evening): two more
- * silent inbounds in the band, two far and fast ones — 11.5 km at 30 kt and 10 km at 24 kt, which
- * enter before the band rows do — four silent hovers and four more silent misses at 6–10 km, so
- * the silent set is twenty-five and twelve of them point at the ring, ten entering after both
- * windows in an order that is not their range order. A mover is written where it is at Begin;
- * its origin is flown back along its course (`silentAt`).
+ * silent inbounds in the band, two far and fast ones — 11.5 km at 30 kt and 10 km at 24 kt,
+ * entering at 925 and 912 s, after three of the band rows and before the 6.45 km one — four
+ * silent hovers and four more silent misses at 6–10 km, so the silent set is twenty-five and
+ * twelve of them point at the ring, ten entering after both windows in an order that is not their
+ * range order. A mover is written where it is at Begin; its origin is flown back along its course
+ * (`silentAt`).
  */
 
 import { SCENARIO, type ScenarioConfig } from '../scenario.ts'
@@ -49,8 +50,8 @@ export const SCENARIO_03A: ScenarioConfig = {
     silentAt(at(345.2, 8.12), 85, 18, T0), // 47 · load: silent, a course that misses — its closest approach 355° / 8.0 km at Begin + 150
     silentAt(at(250, 6.45), 116, 11, T0), // 48 · load in the threats' band (S7c): silent, 6.45 km, inbound 46° off the centre line at 11 kt — enters at 942 s, after the run
     silentAt(at(75, 6.3), 207, 12, T0), // 49 · load in the threats' band (S7c): silent, 6.3 km — threat 1's range at half its speed — inbound 48° off at 12 kt, enters at 879 s
-    silentAt(at(180, 11.5), 12, 30, T0), // 50 · load (S7c): silent, far and fast — 11.5 km at 30 kt, inbound 12° off, enters at 925 s, before the 6.45 km row
-    silentAt(at(322, 10.0), 128, 24, T0), // 51 · load (S7c): silent, far and fast — 10.0 km at 24 kt, inbound 14° off, enters at 912 s, before the 6.5 km row
+    silentAt(at(180, 11.5), 12, 30, T0), // 50 · load (S7c): silent, far and fast — 11.5 km at 30 kt, inbound 12° off, enters at 925 s — after the band rows 42, 49, and 41, before 48 at 6.45 km
+    silentAt(at(322, 10.0), 128, 24, T0), // 51 · load (S7c): silent, far and fast — 10.0 km at 24 kt, inbound 14° off, enters at 912 s — after the band rows 42, 49, and 41, before 48 at 6.45 km
     silentHover(at(100, 6.6)), // 52 · load (S7c): a silent hover at 6.6 km
     silentHover(at(225, 7.4)), // 53 · load (S7c): a silent hover at 7.4 km
     silentHover(at(355, 8.6)), // 54 · load (S7c): a silent hover at 8.6 km

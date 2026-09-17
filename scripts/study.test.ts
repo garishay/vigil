@@ -539,8 +539,9 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
       for (const id of ['inject-13', 'inject-14', 'inject-15', 'inject-46', 'inject-47'])
         expect(entered.get(id)).toBeNull()
       for (let i = 52; i <= 59; i++) expect(entered.get(`inject-${i}`)).toBeNull()
-      // Ten non-threat inbounds: every entry after both windows and inside the recording, so the
-      // replay reads each as a later entrant, never the class that throws (#138, E5).
+      // Eleven non-threat entries — the ten silent inbounds and 02a's heard closing drone: every
+      // one after both windows and inside the recording, so the replay reads each as a later
+      // entrant, never the class that throws (#138, E5).
       const end = STUDY.beginS + results[name].runS
       const later = results[name].entries.filter(
         (e) => e.enteredS !== null && !['inject-11', 'inject-12'].includes(e.id),

@@ -887,8 +887,8 @@ describe('the frame’s document for the pair (S5d-i, ruled G2)', () => {
     expect(textsOf(body, 'vigil-queue-more')).toEqual([
       "… 21 more above calm, on the run's own frame",
     ])
-    // Nine rows fewer, one count line more: eight lines of 18 px.
-    expect(capped.height).toBe(1332 - 8 * 18)
+    // Twenty-one rows fewer, one count line more: twenty lines of 18 px.
+    expect(capped.height).toBe(whole.height - 20 * 18)
     // A cap the box fits under changes nothing.
     expect(frameDocument(fixture('S03-02a-vigil-1'), { queueCap: 5 }).lines).toEqual(
       frameDocument(fixture('S03-02a-vigil-1')).lines,
