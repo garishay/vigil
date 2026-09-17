@@ -149,7 +149,7 @@ describe('resolveSession (#115, ruling 6)', () => {
       on: true,
       name: '03b',
       seed: 'study-03b',
-      runS: 179,
+      runS: 218,
     })
     // The env reads the same grammar, and the URL still wins over it.
     expect(resolveSession('', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual({

@@ -166,30 +166,29 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
     expect(dotOf(on(1), 'time-vigil', 'S05')).toEqual([timeX(11, 218), y1 + 12])
     expect(dotOf(on(1), 'time-vigil', 'S06')).toEqual([timeX(9, 218), y1 + 26])
     expect(timeX(9, 218)).toBe(228.9)
-    // Threat 2: S06's unaided run never opened it — hollow at 2:59 on the 3:38 axis.
+    // Threat 2: S06's unaided run never opened it — hollow at 3:38, its own run's window end.
     expect(
       tagsOf(svg, 'time-raw-hollow').map((dot) => [
         dot['data-subject'],
         Number(dot.cx),
         Number(dot.cy),
       ]),
-    ).toEqual([['S06', timeX(179, 218), y2 - 12]])
-    expect(timeX(179, 218)).toBe(774.8)
+    ).toEqual([['S06', timeX(218, 218), y2 - 12]])
+    expect(timeX(218, 218)).toBe(900)
     expect(svg).toContain('>3:38</text>')
     const placed = placeTime(all.slice(4), 218, 1)
-    expect(placed.filter((p) => p.hollow).map((p) => `${p.m.subject}@${p.x}`)).toEqual([
-      'S06@774.8',
-    ])
+    expect(placed.filter((p) => p.hollow).map((p) => `${p.m.subject}@${p.x}`)).toEqual(['S06@900'])
   })
 
   it('draws the standoff per threat with a miss hollow at the inside end, the crowded pairs stacked', () => {
     const [t1, t2] = axisYs(svg).slice(3, 5)
-    // Threat 1: S06 at −75 m and S05 at +60 m are 15.7 px apart — one stack, S05 nearest.
+    // Threat 1: S06 at −207 m and S05 at +60 m are 31 px apart — no stack.
     expect(dotOf(on(3), 'standoff-raw', 'S05')).toEqual([standoffX(60), t1 - 12])
-    expect(dotOf(on(3), 'standoff-raw', 'S06')).toEqual([standoffX(-75), t1 - 26])
-    expect(dotOf(on(3), 'standoff-vigil', 'S06')).toEqual([standoffX(465), t1 + 12])
+    expect(dotOf(on(3), 'standoff-raw', 'S06')).toEqual([standoffX(-207), t1 - 12])
+    // Vigil's two are 11.9 px apart and stack, S05 nearest the axis by its code.
     expect(dotOf(on(3), 'standoff-vigil', 'S05')).toEqual([standoffX(814), t1 + 12])
-    // Threat 2: S06's unaided miss hollow at the inside end; Vigil's two 7.1 px apart stack.
+    expect(dotOf(on(3), 'standoff-vigil', 'S06')).toEqual([standoffX(916), t1 + 26])
+    // Threat 2: S06's unaided miss hollow at the inside end; Vigil's two 12.3 px apart stack.
     expect(
       tagsOf(svg, 'standoff-raw-hollow').map((dot) => [
         dot['data-subject'],
@@ -198,10 +197,10 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
       ]),
     ).toEqual([['S06', 206, t2 - 12]])
     expect(dotOf(on(4), 'standoff-vigil', 'S05')).toEqual([standoffX(714), t2 + 12])
-    expect(dotOf(on(4), 'standoff-vigil', 'S06')).toEqual([standoffX(775), t2 + 26])
+    expect(dotOf(on(4), 'standoff-vigil', 'S06')).toEqual([standoffX(609), t2 + 26])
     expect(
       placeStandoff(all.slice(6), 1).map((p) => `${p.m.mode}@${p.x}${p.hollow ? ' hollow' : ''}`),
-    ).toEqual(['raw@206 hollow', 'vigil@640.4'])
+    ).toEqual(['raw@206 hollow', 'vigil@621.1'])
   })
 
   it('writes the counts per condition under each family, exact', () => {
@@ -259,7 +258,7 @@ describe('the study figure — round 1 (#162)', () => {
   it('draws the corroboration family at its own threat count: a second threat there gets its standoff axis and its counts', () => {
     const second = {
       ...all[0].threats[0],
-      id: 'inject-12',
+      id: 'inject-57',
       firstOpenS: null,
       timeToEscalateS: null,
       standoffM: null,

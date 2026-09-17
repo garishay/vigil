@@ -31,7 +31,7 @@ export const SCENARIOS: readonly NamedScenario[] = [
   { name: '02a', config: SCENARIO_02A },
   { name: '02b', config: SCENARIO_02B },
   { name: '03a', config: SCENARIO_03A, runS: 218 }, // the last threat enters at 668 s: 668 − 480 + 30
-  { name: '03b', config: SCENARIO_03B, runS: 179 }, // 629 − 480 + 30
+  { name: '03b', config: SCENARIO_03B, runS: 218 }, // 03a rotated, so 03a's last entry: 668 − 480 + 30 (S7d)
 ]
 
 /** The scenario a resolved session names — the resolver already refused any name not here. */

@@ -3,19 +3,19 @@
   "scenario": "03b",
   "mode": "raw",
   "run": 1,
-  "build": "2.60.0+80c9a10",
-  "began_at": "2026-09-16T17:42:39.634Z",
+  "build": "2.60.0+a2b58ca",
+  "began_at": "2026-09-17T15:19:40.703Z",
   "events": [
-    {"t":15,"type":"select","track":"inject-42"},
-    {"t":24,"type":"assess","track":"inject-42"},
-    {"t":33,"type":"escalate","track":"inject-42"},
-    {"t":48,"type":"select","track":"inject-13"},
-    {"t":60,"type":"assess","track":"inject-13"},
-    {"t":70,"type":"escalate","track":"inject-13"},
-    {"t":95,"type":"select","track":"inject-11"},
-    {"t":108,"type":"assess","track":"inject-11"},
-    {"t":118,"type":"escalate","track":"inject-11"},
-    {"t":140,"type":"select","track":"inject-41"}
+    {"t":15,"type":"select","track":"inject-33"},
+    {"t":24,"type":"assess","track":"inject-33"},
+    {"t":33,"type":"escalate","track":"inject-33"},
+    {"t":48,"type":"select","track":"inject-21"},
+    {"t":60,"type":"assess","track":"inject-21"},
+    {"t":70,"type":"escalate","track":"inject-21"},
+    {"t":95,"type":"select","track":"inject-29"},
+    {"t":108,"type":"assess","track":"inject-29"},
+    {"t":118,"type":"escalate","track":"inject-29"},
+    {"t":140,"type":"select","track":"inject-80"}
   ],
   "answers": {"demand":5,"pressure":6,"confidence":4}
 }

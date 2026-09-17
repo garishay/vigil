@@ -128,15 +128,15 @@ describe('the loader on the prioritization pair (S5c-i, #138 re-gate, ruled N2)'
   const on = (scenario: string, t: number) =>
     refusal({ scenario, events: [{ t, type: 'select', track: 'inject-11' }] })
 
-  it('reads a 03 record with the registry’s window as its bound — 218 on 03a, 179 on 03b, 360 on 02', () => {
+  it('reads a 03 record with the registry’s window as its bound — 218 on both since S7d, 360 on 02', () => {
     expect(runSOf('02a')).toBe(360)
     expect(runSOf('02b')).toBe(360)
     expect(runSOf('03a')).toBe(218)
-    expect(runSOf('03b')).toBe(179)
+    expect(runSOf('03b')).toBe(218)
     expect(on('03a', 218)).toBeNull()
     expect(on('03a', 219)).toBe("run.json: events[0].t is 219 — a run's t runs 0 to 218")
-    expect(on('03b', 179)).toBeNull()
-    expect(on('03b', 180)).toBe("run.json: events[0].t is 180 — a run's t runs 0 to 179")
+    expect(on('03b', 218)).toBeNull()
+    expect(on('03b', 219)).toBe("run.json: events[0].t is 219 — a run's t runs 0 to 218")
     expect(on('02b', 360)).toBeNull()
     expect(on('02b', 361)).toBe("run.json: events[0].t is 361 — a run's t runs 0 to 360")
     expect(planFor('03a', loadStudy().timeline).seed).toBe('study-03a')

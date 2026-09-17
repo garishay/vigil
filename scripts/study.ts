@@ -80,20 +80,23 @@ export interface CastRoles {
 export const STUDY_CAST: Record<string, CastRoles> = {
   '02a': { family: 'corroboration', threats: [THREAT_ID], revisit: REVISIT_ID },
   '02b': { family: 'corroboration', threats: [THREAT_ID], revisit: REVISIT_ID },
+  // The prioritization pair's ids are its own, disjoint between the two scenarios and in no role
+  // order (S7d, #167; `src/config/scenarios/ids.ts`), so this table is the only place a role and
+  // an id meet — which is what it has always been for.
   '03a': {
     family: 'prioritization',
-    threats: ['inject-11', 'inject-12'],
-    tangential: ['inject-14'],
-    orbit: 'inject-15',
-    band: ['inject-41', 'inject-42', 'inject-48', 'inject-49'],
+    threats: ['inject-31', 'inject-57'],
+    tangential: ['inject-36'],
+    orbit: 'inject-25',
+    band: ['inject-65', 'inject-74', 'inject-94', 'inject-15'],
     lockS: STUDY.beginS,
   },
   '03b': {
     family: 'prioritization',
-    threats: ['inject-11', 'inject-12'],
-    tangential: ['inject-14'],
-    orbit: 'inject-15',
-    band: ['inject-41', 'inject-42', 'inject-48', 'inject-49'],
+    threats: ['inject-29', 'inject-23'],
+    tangential: ['inject-79'],
+    orbit: 'inject-19',
+    band: ['inject-80', 'inject-33', 'inject-13', 'inject-95'],
     lockS: STUDY.beginS,
   },
 }
@@ -289,6 +292,9 @@ export function runStudy(
   scoring: ScoringConfig = SCORING,
   roles: CastRoles = STUDY_CAST[scenario.name] ?? CORROBORATION,
 ): StudyResult {
+  // This cast's first threat, by the roles table — the corroboration pair's `inject-11` and the
+  // prioritization pair's own id since S7d (#167) gave the two scenarios disjoint ids.
+  const threatId = roles.threats[0]
   const site = AO.protectedSites[0]
   const index = indexCapture(recording.capture)
   const startLocal = clockStartOf(recording.entry, recording.capture, AO)
@@ -424,7 +430,7 @@ export function runStudy(
           }
         }
       }
-      if (track.id !== THREAT_ID) return
+      if (track.id !== threatId) return
       if (threat.crossingS === null && band === 'warning') {
         threat.crossingS = tSec
         threat.crossingRangeM = distanceMeters(site.center, track.position)
@@ -448,9 +454,11 @@ export function runStudy(
     })
     aboveCalm.push({ tSec, ids: above })
   }
-  const spec = plan.specs.find((s) => s.id === THREAT_ID)
+  const spec = plan.specs.find((s) => s.id === threatId)
   if (!spec)
-    throw new Error(`${scenario.name}: no ${THREAT_ID} — the cast's first row is the threat`)
+    throw new Error(
+      `${scenario.name}: no ${threatId} — the roles table names it this cast's first threat`,
+    )
   const injects = plan.specs.map((s) => runOf({ id: s.id, source: 'inject' } as Track))
   const revisit = roles.revisit === undefined ? null : (runs.get(roles.revisit) ?? null)
   if (roles.revisit !== undefined && !revisit)
@@ -509,7 +517,11 @@ export function runStudy(
     aboveCalm: {
       atBegin: aboveCalm[0].ids.length,
       atBeginPlus1: aboveCalm[1].ids.length,
-      idsAtBeginPlus1: [...aboveCalm[1].ids].sort(),
+      // By the number, not the string: S7d's ids run past 99, and `inject-144` sorts between
+      // `inject-13` and `inject-19` as text. 02's two-digit ids read the same either way.
+      idsAtBeginPlus1: [...aboveCalm[1].ids].sort(
+        (a, b) => Number(a.slice(a.lastIndexOf('-') + 1)) - Number(b.slice(b.lastIndexOf('-') + 1)),
+      ),
       max: Math.max(...aboveCalm.map((tick) => tick.ids.length)),
       atEnd: aboveCalm[aboveCalm.length - 1].ids.length,
     },
