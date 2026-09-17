@@ -508,7 +508,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       text(
         PAD,
         ry + 46,
-        'every escalation the run made that is not a row above, and what the track turned out to be',
+        'every escalation the run made besides the threats above, and what each track turned out to be',
         `class="row-subtitle" font-size="12" fill="${THEME.muted}"`,
       ),
       `<line class="time-axis" x1="${TIME_X}" y1="${ay}" x2="${TIME_X + TIME_W}" y2="${ay}" stroke="${THEME.faint}"/>`,
