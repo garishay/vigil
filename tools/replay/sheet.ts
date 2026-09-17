@@ -37,7 +37,7 @@ const PAD = 30
 /** The headline block above the frames: the title's row and two rows of prose per condition. */
 const HEAD_H = 150
 const ROW_H = 320
-const FOOT_H = 60
+const FOOT_H = 80
 /** The time axis: the longer of the two windows over 900 px, as the pair scales its own. */
 const TIME_X = 220
 const TIME_W = 900
@@ -72,9 +72,11 @@ const roleWord = (i: number, of: number): string => (of > 1 ? `threat ${i + 1}` 
 
 /**
  * The headline's first sentence: the condition and the scenario, what the subject opened first,
- * what they escalated with how much room, and the looks it took. Every threat outside the ring
- * contracts to one clause, as the Issue writes it; a mix keeps a clause each, the repeated verb
- * elided; a miss reads as a miss.
+ * what they escalated with how much room, and the looks it took. **Every threat is named** (ruled
+ * R1): a margin belongs to a threat by name, and a contraction would leave a reader to guess
+ * which is which — the order clause of the second sentence makes the wrong guess the likelier
+ * one. The repeated verb is elided and *to spare* is said once, on the first clause that states a
+ * margin; a miss reads as a miss.
  */
 export function openingSentence(m: RunMetrics): string {
   const condition = m.mode === 'raw' ? 'Unaided' : 'With Vigil'
@@ -85,24 +87,22 @@ export function openingSentence(m: RunMetrics): string {
         ? 'opened a threat first'
         : `opened ${inWords(m.openedBeforeFirstThreat)} ${plural(m.openedBeforeFirstThreat, 'non-threat')} first`
   const all = m.threats.length
-  const outside = m.threats.every((threat) => threat.standoffM !== null && threat.standoffM >= 0)
-  const decisions = outside
-    ? `escalated ${all > 1 ? (all === 2 ? 'both' : `all ${all}`) : 'the threat'} with ${m.threats
-        .map((threat) => `${(threat.standoffM! / 1000).toFixed(1)} km`)
-        .join(' and ')} to spare`
-    : joinClauses(
-        m.threats.map((threat, i) => {
-          const role = roleWord(i, all)
-          if (threat.standoffM === null || threat.timeToEscalateS === null)
-            return ['missed', role] as const
-          return [
-            'escalated',
-            threat.standoffM >= 0
-              ? `${role} with ${(threat.standoffM / 1000).toFixed(1)} km to spare`
-              : `${role} inside the ring`,
-          ] as const
-        }),
-      )
+  let spare = false
+  const decisions = joinClauses(
+    m.threats.map((threat, i) => {
+      const role = roleWord(i, all)
+      if (threat.standoffM === null || threat.timeToEscalateS === null)
+        return ['missed', role] as const
+      if (threat.standoffM < 0) return ['escalated', `${role} inside the ring`] as const
+      // *to spare* on the first margin only; the reader carries it to the rest (R1).
+      const tail = spare ? '' : ' to spare'
+      spare = true
+      return [
+        'escalated',
+        `${role} with ${(threat.standoffM / 1000).toFixed(1)} km${tail}`,
+      ] as const
+    }),
+  )
   // The whole run's looks, which is the CSV's column — the frame's own subtitle counts the
   // looks up to its freeze, so the sentence names the span it means.
   return `${condition} on ${m.scenario}, ${m.subject} ${opened}, ${decisions}, in ${m.looks} ${plural(m.looks, 'look')} over the whole run.`
@@ -442,19 +442,26 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
     y += ROW_H
   })
 
+  // The footnotes, a line each: SVG text does not wrap, and the role rule with R4's sentence
+  // behind it runs 1 839 px on an 1 820 px sheet (#164 R4).
+  const footnotes = [
+    `The two runs are different scenarios of one family, so a threat is named by its role: threat 1 is each scenario's first entrant. The time axis runs the longer window (${mmss(runS)}); each lane carries its own entry and its own end.`,
+    ...(familyOf(a.scenario) === 'prioritization'
+      ? [
+          '03a and 03b are one cast turned around the site under different labels, so a row’s two tracks match in range, speed and entry time; only their bearing and label differ.',
+        ]
+      : []),
+    `The ring panel is north up, the site at its centre, the 5 km ring on an ${RING_KM} km panel: each condition's mark is where that threat stood when it was escalated — hollow inside the ring — and the thick tick is where that scenario's threat crossed. Standoff is the range less 5 km, signed.`,
+  ]
   parts.push(
     `<line x1="${PAD}" y1="${y}" x2="${width - PAD}" y2="${y}" stroke="${THEME.line}"/>`,
-    text(
-      PAD,
-      y + 22,
-      `The two runs are different scenarios of one family, so a threat is named by its role: threat 1 is each scenario's first entrant. The time axis runs the longer window (${mmss(runS)}); each lane carries its own entry and its own end.`,
-      `class="sheet-footnote" font-size="11" fill="${THEME.faint}"`,
-    ),
-    text(
-      PAD,
-      y + 40,
-      `The ring panel is north up, the site at its centre, the 5 km ring on an ${RING_KM} km panel: each condition's mark is where that threat stood when it was escalated — hollow inside the ring — and the thick tick is where that scenario's threat crossed. Standoff is the range less 5 km, signed.`,
-      `class="sheet-footnote" font-size="11" fill="${THEME.faint}"`,
+    ...footnotes.map((line, i) =>
+      text(
+        PAD,
+        y + 22 + i * 18,
+        line,
+        `class="sheet-footnote" font-size="11" fill="${THEME.faint}"`,
+      ),
     ),
     '</svg>',
     '',

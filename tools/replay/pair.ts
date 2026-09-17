@@ -5,10 +5,11 @@
  * roles table with the run's window as a shared time axis carrying each condition's first open
  * and escalation and the threat's ring entry, and beside it the standoff band for that threat
  * with one dot per condition. On the corroboration pair that is one row. A raw run reads
- * *unaided* wherever the block names it (ruled G3); its Queue box is capped at its top rows
- * (ruled G2). Two runs of one scenario pair, whatever their modes or subjects; runs of unlike
- * scenarios are refused in words, since the rows, the window, and the order read one cast
- * (#161 round 1). Pure and deterministic.
+ * *unaided* wherever the block names it (ruled G3), and the counts read *false alarms* and *early
+ * escalations* as the sheet and the figure do, over the same footnote (ruled K8 on #164); its
+ * Queue box is capped at its top rows (ruled G2). Two runs of one scenario pair, whatever their
+ * modes or subjects; runs of unlike scenarios are refused in words, since the rows, the window,
+ * and the order read one cast (#161 round 1). Pure and deterministic.
  */
 
 import type { RunRecord } from '../../src/lib/run.ts'
@@ -88,9 +89,9 @@ export function countsLine(
       String(a.openedBeforeFirstThreat),
       String(b.openedBeforeFirstThreat),
     ),
-    item('false escalations', String(a.falseEscalations), String(b.falseEscalations)),
+    item('false alarms', String(a.falseEscalations), String(b.falseEscalations)),
     item(
-      'escalations of later entrants',
+      'early escalations',
       String(a.escalationsOfLaterEntrants),
       String(b.escalationsOfLaterEntrants),
     ),
@@ -337,7 +338,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
     text(
       BLOCK_PAD,
       y + 40,
-      'false escalations count tracks that never enter the ring inside the recording, and every real aircraft; escalations of later entrants — tracks entering after the run — stand on their own line, folded into neither.',
+      'A false alarm is a track that never enters the ring, and every real aircraft; an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.',
       `class="block-footnote" font-size="11" fill="${THEME.faint}"`,
     ),
     '</svg>',

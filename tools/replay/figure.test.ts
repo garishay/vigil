@@ -205,12 +205,12 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
 
   it('writes the counts per condition under each family, exact', () => {
     expect(textsOf(svg, 'counts-raw')).toEqual([
-      'unaided: 2 runs · misses threat 1 0 · threat 2 1 · false escalations 1 · escalations of later entrants 2 · order correct 0 of 1 with every threat escalated',
-      'unaided: 2 runs · misses 0 · false escalations 0 · escalations of later entrants 0',
+      'unaided: 2 runs · misses threat 1 0 · threat 2 1 · false alarms 1 · early escalations 2 · order correct 0 of 1 with every threat escalated',
+      'unaided: 2 runs · misses 0 · false alarms 0 · early escalations 0',
     ])
     expect(textsOf(svg, 'counts-vigil')).toEqual([
-      'Vigil: 2 runs · misses threat 1 0 · threat 2 0 · false escalations 0 · escalations of later entrants 0 · order correct 2 of 2 with every threat escalated',
-      'Vigil: 2 runs · misses 0 · false escalations 0 · escalations of later entrants 0',
+      'Vigil: 2 runs · misses threat 1 0 · threat 2 0 · false alarms 0 · early escalations 0 · order correct 2 of 2 with every threat escalated',
+      'Vigil: 2 runs · misses 0 · false alarms 0 · early escalations 0',
     ])
   })
 
@@ -272,7 +272,7 @@ describe('the study figure — round 1 (#162)', () => {
     ])
     expect(tagsOf(svg2, 'standoff-raw-hollow')).toHaveLength(2)
     expect(textsOf(svg2, 'counts-raw')).toEqual([
-      'unaided: 2 runs · misses threat 1 0 · threat 2 2 · false escalations 0 · escalations of later entrants 0 · order correct 0 of 0 with every threat escalated',
+      'unaided: 2 runs · misses threat 1 0 · threat 2 2 · false alarms 0 · early escalations 0 · order correct 0 of 0 with every threat escalated',
     ])
   })
 })

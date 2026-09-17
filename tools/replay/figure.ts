@@ -291,7 +291,7 @@ function countsLines(y: number, runs: readonly RunMetrics[], threats: number): s
  * the three artifacts read alike (#164).
  */
 const COUNTS_NOTE =
-  'A false alarm is a track that never enters the ring; an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.'
+  'A false alarm is a track that never enters the ring, and every real aircraft; an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.'
 
 /** The study figure over every run, by family, as an SVG document. */
 export function studySvg(runs: readonly RunMetrics[]): string {
