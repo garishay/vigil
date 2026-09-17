@@ -17,8 +17,10 @@ import {
   silentOrbit,
 } from './scenarios/cast'
 import { SCORING } from './scoring'
+import { STUDY as STUDY_CONFIG } from './study'
 import type { AdsbCapture } from '../lib/adsb'
-import { scenarioFeed } from '../lib/feeds'
+import { trackIdent } from '../lib/display'
+import { associate, scenarioFeed } from '../lib/feeds'
 import { KT_TO_MS, bearingDegrees, destinationPoint, distanceMeters } from '../lib/geo'
 import { gridTimeline, injectTracksAt, planScenario, timelineOf } from '../lib/injects'
 import { entryAt } from '../lib/projection'
@@ -66,8 +68,9 @@ describe('the scenario registry (S3b, #135, ruled A5; #36 [26] A)', () => {
     expect(() => scenarioNamed('03')).toThrow('No scenario named "03"')
     // A study scenario's own run length (S7, #152, ruled D3): the prioritization pair's from the
     // rule — the last threat's entry + 30 s — and none on 02 or the default, the study's 360.
+    // 03b is 03a rotated since S7d (#167), so the pair runs the same length.
     expect(scenarioNamed('03a').runS).toBe(218)
-    expect(scenarioNamed('03b').runS).toBe(179)
+    expect(scenarioNamed('03b').runS).toBe(218)
     expect(scenarioNamed('02a').runS).toBeUndefined()
     expect(scenarioNamed('02b').runS).toBeUndefined()
     expect(scenarioNamed('default').runS).toBeUndefined()
@@ -359,8 +362,10 @@ describe('the movers never turn inside the recording (#145 round 1)', () => {
     // is 15.2 km, 35 kt is 21.3 km, both past the 13 km a 20 kt leg needs.
     for (const config of [...STUDY, SCENARIO_03A, SCENARIO_03B]) {
       const plan = planScenario(gridTimeline(80, 15000), config)
+      // The id a row takes is the plan's, not its position: the prioritization pair names its
+      // own (S7d, #167).
       const movers = cast(config)
-        .map((entry, i) => ({ entry, id: `inject-${11 + i}` }))
+        .map((entry, i) => ({ entry, id: plan.specs[i].id }))
         .filter(({ entry }) => kind(entry) === 'mover' || kind(entry) === 'silent mover')
       expect(movers).toHaveLength(config === SCENARIO_03A || config === SCENARIO_03B ? 25 : 10)
       for (const { id } of movers) {
@@ -396,7 +401,7 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
     return along(entry.from, course, entry.speedKt * KT_TO_MS * T0)
   }
 
-  it('are cast-only, forty-nine rows from inject-11: two silent threats, four silent baits, 02a’s furniture under its own ids, nineteen silent load rows; nothing broadcasts an offset, and both threats are present from t = 0', () => {
+  it('are cast-only, forty-nine rows under each scenario’s own ids: two silent threats, four silent baits, 02a’s furniture rows, nineteen silent load rows; nothing broadcasts an offset, and both threats are present from t = 0', () => {
     for (const config of PAIR) {
       expect(config.minInjects).toBe(0)
       expect(config.maxInjects).toBe(0)
@@ -406,23 +411,22 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
       expect(cast(config).every((e) => e.broadcastOffset === undefined)).toBe(true)
       expect(cast(config)[0].startS).toBeUndefined()
       expect(cast(config)[1].startS).toBeUndefined()
+      // The ids are the scenario's own list, in row order (S7d, #167): its length, its order
+      // and its disjointness from the other cast's are the id test's; here, that the plan takes
+      // them and takes nothing positional.
       const plan = scenarioFeed(timelineOf(CAPTURE), config).plan
       expect(plan.specs.map((spec) => spec.id)).toEqual(
-        Array.from({ length: 49 }, (_, i) => `inject-${11 + i}`),
+        (config.castIds ?? []).map((n) => `inject-${n}`),
       )
     }
-    // Rows 17–40 are 02a's furniture — the same rows under the same ids.
+    // Rows 7–30 are 02a's furniture — the same rows, under 03's own ids.
     expect(cast(SCENARIO_03A).slice(6, 30)).toEqual(cast(SCENARIO_02A).slice(6))
-    // 03b is 03a turned 135° about the centre, the two threats aside.
+    // 03b is the whole of 03a turned 135° about the centre, threats included (S7d, #167).
     expect(ROTATION_03B_DEG).toBe(135)
-    expect(cast(SCENARIO_03B).slice(2)).toEqual(
-      cast(SCENARIO_03A)
-        .slice(2)
-        .map((entry) => rotated(entry, 135)),
-    )
+    expect(cast(SCENARIO_03B)).toEqual(cast(SCENARIO_03A).map((entry) => rotated(entry, 135)))
   })
 
-  it('writes every mover where it is at Begin: 03a’s threats at 285° / 6.30 km on 111° at 25 kt and 050° / 6.15 km on 225° at 12 kt; 03b’s the closer, slower one first; the load’s four band rows at 6.3–6.5 km at 11–12 kt, its three inbound rows at 9–12 km and two far, fast ones at 10–11.5 km, its four hovers at 6.6–9.6 km, and its six misses', () => {
+  it('writes every mover where it is at Begin: 03a’s threats at 285° / 6.30 km on 111° at 25 kt and 050° / 6.15 km on 225° at 12 kt, 03b’s the same two turned 135°; the load’s four band rows at 6.3–6.5 km at 11–12 kt, its three inbound rows at 9–12 km and two far, fast ones at 10–11.5 km, its four hovers at 6.6–9.6 km, and its six misses', () => {
     const [t1, t2] = cast(SCENARIO_03A)
     expect(t1).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 25 })
     expect(t2).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 12 })
@@ -430,13 +434,15 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
     expect(atBegin(t1).rangeKm).toBeCloseTo(6.3, 2)
     expect(atBegin(t2).bearingDeg).toBeCloseTo(50, 0)
     expect(atBegin(t2).rangeKm).toBeCloseTo(6.15, 2)
+    // 03b's threats are 03a's turned, so a row's two tracks match in range, speed and entry
+    // time and differ only in bearing and label (S7d, #167): 285° + 135° = 60°, 50° + 135° = 185°.
     const [u1, u2] = cast(SCENARIO_03B)
-    expect(u1.speedKt).toBe(12)
-    expect(u2.speedKt).toBe(25)
-    expect(atBegin(u1).bearingDeg).toBeCloseTo(185, 0)
-    expect(atBegin(u1).rangeKm).toBeCloseTo(5.65, 2)
-    expect(atBegin(u2).bearingDeg).toBeCloseTo(60, 0)
-    expect(atBegin(u2).rangeKm).toBeCloseTo(6.9, 2)
+    expect(u1.speedKt).toBe(25)
+    expect(u2.speedKt).toBe(12)
+    expect(atBegin(u1).bearingDeg).toBeCloseTo(60, 0)
+    expect(atBegin(u1).rangeKm).toBeCloseTo(6.3, 2)
+    expect(atBegin(u2).bearingDeg).toBeCloseTo(185, 0)
+    expect(atBegin(u2).rangeKm).toBeCloseTo(6.15, 2)
     // The builder itself: the origin is the Begin placement flown back, so flying it forward lands there.
     const back = silentAt(at(95, 8.0), 279, 10, T0)
     expect(back).toMatchObject({ behavior: 'shuttle', remoteId: 'silent', speedKt: 10 })
@@ -527,22 +533,23 @@ describe('the prioritization casts 03a and 03b (S7, #152, ruled; the load of R1)
 })
 
 describe('the prioritization casts on the 1 Hz grid, through the feed (S7, #152; the gate’s numbers, pinned in full by S7b)', () => {
+  // 03b is 03a rotated since S7d (#167), so the pair runs the same window.
   const RUN_03A = 218
-  const RUN_03B = 179
-  const holds = (ticks: Tick[], firstEntryS: number) => {
+  const RUN_03B = 218
+  const holds = (ticks: Tick[], firstEntryS: number, threats: [string, string]) => {
     for (const tick of ticks) {
       if (tick.tSec > firstEntryS) break
-      expect(tick.scored[0].track.id).toBe('inject-11')
-      expect(tick.scored[1].track.id).toBe('inject-12')
-      expect(of(tick, 'inject-11')!.band).toBe('warning')
-      expect(of(tick, 'inject-12')!.band).toBe('warning')
+      expect(tick.scored[0].track.id).toBe(threats[0])
+      expect(tick.scored[1].track.id).toBe(threats[1])
+      expect(of(tick, threats[0])!.band).toBe('warning')
+      expect(of(tick, threats[1])!.band).toBe('warning')
     }
     // Nothing but the two threats enters the ring inside the run, and nothing else reads warning
     // before the first entry — the two band rows cross it after (Begin + 128 and + 157), under
     // the threats, and S7b's baselines pin those ticks.
     for (const tick of ticks) {
       for (const s of tick.scored) {
-        if (s.track.id === 'inject-11' || s.track.id === 'inject-12') continue
+        if (s.track.id === threats[0] || s.track.id === threats[1]) continue
         expect(distanceMeters(C, s.track.position)).toBeGreaterThan(SITE.radiusM)
         if (tick.tSec <= firstEntryS) expect(s.band).not.toBe('warning')
       }
@@ -551,19 +558,109 @@ describe('the prioritization casts on the 1 Hz grid, through the feed (S7, #152;
 
   it('03a: both threats warning at Begin and ranks 1 and 2 in entry order on every tick to the first entry at 582 s; the second enters at 668 s; no bait, load, or furniture enters inside the run, and none reads warning before the first entry', () => {
     const ticks = fold(SCENARIO_03A, T0, T0 + RUN_03A)
-    holds(ticks, 582)
-    expect(ticks.find((t) => rangeAt(t, 'inject-11') <= SITE.radiusM)!.tSec).toBe(582)
-    expect(ticks.find((t) => rangeAt(t, 'inject-12') <= SITE.radiusM)!.tSec).toBe(668)
-    expect(rangeAt(ticks[0], 'inject-11')).toBeCloseTo(6300, -2)
-    expect(rangeAt(ticks[0], 'inject-12')).toBeCloseTo(6150, -2)
+    holds(ticks, 582, ['inject-31', 'inject-57'])
+    expect(ticks.find((t) => rangeAt(t, 'inject-31') <= SITE.radiusM)!.tSec).toBe(582)
+    expect(ticks.find((t) => rangeAt(t, 'inject-57') <= SITE.radiusM)!.tSec).toBe(668)
+    expect(rangeAt(ticks[0], 'inject-31')).toBeCloseTo(6300, -2)
+    expect(rangeAt(ticks[0], 'inject-57')).toBeCloseTo(6150, -2)
   }, 180_000)
 
-  it('03b: the closer, slower threat first — inject-11 at 586 s, inject-12 at 629 s — ranks 1 and 2 in that order from Begin', () => {
+  it('03b: 03a’s two threats turned — inject-29 at 582 s and inject-23 at 668 s, the same ranges and the same entries (S7d, #167)', () => {
     const ticks = fold(SCENARIO_03B, T0, T0 + RUN_03B)
-    holds(ticks, 586)
-    expect(ticks.find((t) => rangeAt(t, 'inject-11') <= SITE.radiusM)!.tSec).toBe(586)
-    expect(ticks.find((t) => rangeAt(t, 'inject-12') <= SITE.radiusM)!.tSec).toBe(629)
-    expect(rangeAt(ticks[0], 'inject-11')).toBeCloseTo(5650, -2)
-    expect(rangeAt(ticks[0], 'inject-12')).toBeCloseTo(6900, -2)
+    holds(ticks, 582, ['inject-29', 'inject-23'])
+    expect(ticks.find((t) => rangeAt(t, 'inject-29') <= SITE.radiusM)!.tSec).toBe(582)
+    expect(ticks.find((t) => rangeAt(t, 'inject-23') <= SITE.radiusM)!.tSec).toBe(668)
+    expect(rangeAt(ticks[0], 'inject-29')).toBeCloseTo(6300, -2)
+    expect(rangeAt(ticks[0], 'inject-23')).toBeCloseTo(6150, -2)
   }, 180_000)
+})
+
+describe('the prioritization pair’s ids and idents (S7d, #167, ruled M1, M2; R1, R2)', () => {
+  /**
+   * The two scenarios as the app plans them — the ids `planScenario` assigns and the idents
+   * drawn from them, never the two lists in `ids.ts` (ruled R1): a test on the lists passes
+   * while 03b inherits 03a’s `castIds` through the spread, which is the hazard.
+   */
+  function plannedIdents(name: string) {
+    const entry = scenarioNamed(name)
+    const plan = planScenario(timelineOf(CAPTURE), entry.config)
+    const runS = entry.runS ?? STUDY_CONFIG.runS
+    const silent = new Set(
+      plan.specs.filter((spec) => spec.remoteId === 'silent').map((spec) => spec.id),
+    )
+    // Every tick of the scenario’s own window, in both conditions: raw associates at the study’s
+    // own distance and Vigil at the scorer’s, and an ident is what that screen showed (R2).
+    const byIdent = new Map<string, Set<string>>()
+    const drawn = new Set<string>()
+    for (const associationM of [STUDY_CONFIG.rawAssociationM, SCORING.cooperativity.mismatchM]) {
+      for (let tSec = T0; tSec <= T0 + runS; tSec++) {
+        for (const track of injectTracksAt(plan, tSec)) {
+          const ident = trackIdent(associate(track, associationM))
+          drawn.add(track.id)
+          if (!byIdent.has(ident)) byIdent.set(ident, new Set())
+          byIdent.get(ident)!.add(track.id)
+        }
+      }
+    }
+    return { ids: plan.specs.map((spec) => spec.id), silent, byIdent, drawn, runS }
+  }
+
+  it('assigns the two casts disjoint ids, and disjoint idents over every tick of both windows in both modes (R1, R2)', () => {
+    const a = plannedIdents('03a')
+    const b = plannedIdents('03b')
+    expect(a.ids).toHaveLength(49)
+    expect(b.ids).toHaveLength(49)
+    expect(a.ids.filter((id) => b.ids.includes(id))).toEqual([])
+    const identsA = [...a.byIdent.keys()]
+    const identsB = [...b.byIdent.keys()]
+    expect(identsA.filter((ident) => identsB.includes(ident))).toEqual([])
+    // One ident per row, so an ident names a track and not two.
+    for (const [ident, ids] of [...a.byIdent, ...b.byIdent])
+      expect([ident, ids.size]).toEqual([ident, 1])
+  })
+
+  it('draws every cast ident as TRK-nn with two digits or UAS-XXXX, and never a three-digit number (R2)', () => {
+    for (const name of ['03a', '03b']) {
+      const { byIdent, silent, drawn, ids } = plannedIdents(name)
+      expect(
+        [...byIdent.keys()].every((ident) => /^(TRK-\d{2}|UAS-[0-9A-F]{4})$/.test(ident)),
+      ).toBe(true)
+      // A TRK number is a silent row’s; a heard row that ever drew one has gone silent in the
+      // window, which no study cast does. The furniture’s three-digit ids never reach a screen.
+      for (const [ident, forIds] of byIdent) {
+        const id = [...forIds][0]
+        if (ident.startsWith('TRK-')) {
+          expect([ident, silent.has(id)]).toEqual([ident, true])
+          expect(ident).toBe(`TRK-${id.slice(id.lastIndexOf('-') + 1)}`)
+        }
+      }
+      expect([...byIdent.keys()].filter((ident) => ident.startsWith('TRK-'))).toHaveLength(25)
+      // One furniture row is never in the window: 02a’s third return starts at 750 s, past the
+      // window’s end at 698 s. Every other row draws.
+      expect(ids.filter((id) => !drawn.has(id))).toHaveLength(1)
+    }
+  })
+
+  it('numbers a cast from 11 when the scenario names no castIds, and refuses a list that does not fit the cast', () => {
+    const base = { ...SCENARIO_03A, castIds: undefined, cast: cast(SCENARIO_03A).slice(0, 3) }
+    expect(planScenario(gridTimeline(80, 15000), base).specs.map((s) => s.id)).toEqual([
+      'inject-11',
+      'inject-12',
+      'inject-13',
+    ])
+    expect(
+      planScenario(gridTimeline(80, 15000), { ...base, castIds: [40, 12, 77] }).specs.map(
+        (s) => s.id,
+      ),
+    ).toEqual(['inject-40', 'inject-12', 'inject-77'])
+    expect(() => planScenario(gridTimeline(80, 15000), { ...base, castIds: [40, 12] })).toThrow(
+      'castIds names 2 ids for a cast of 3',
+    )
+    expect(() => planScenario(gridTimeline(80, 15000), { ...base, castIds: [40, 12, 40] })).toThrow(
+      'castIds repeats an id',
+    )
+    expect(() => planScenario(gridTimeline(80, 15000), { ...base, castIds: [40, 10, 77] })).toThrow(
+      'castIds holds 10; a cast id is an integer from 11',
+    )
+  })
 })

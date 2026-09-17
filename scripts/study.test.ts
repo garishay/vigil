@@ -61,15 +61,24 @@ describe('the study config (A8)', () => {
       threats: ['inject-11'],
       revisit: 'inject-12',
     })
+    // The prioritization pair's ids are its own and disjoint (S7d, #167, ruled M1, M2), so the
+    // two tables share a shape and no id.
     expect(STUDY_CAST['03a']).toEqual({
       family: 'prioritization',
-      threats: ['inject-11', 'inject-12'],
-      tangential: ['inject-14'],
-      orbit: 'inject-15',
-      band: ['inject-41', 'inject-42', 'inject-48', 'inject-49'],
+      threats: ['inject-31', 'inject-57'],
+      tangential: ['inject-36'],
+      orbit: 'inject-25',
+      band: ['inject-65', 'inject-74', 'inject-94', 'inject-15'],
       lockS: STUDY.beginS,
     })
-    expect(STUDY_CAST['03b']).toEqual(STUDY_CAST['03a'])
+    expect(STUDY_CAST['03b']).toEqual({
+      family: 'prioritization',
+      threats: ['inject-29', 'inject-23'],
+      tangential: ['inject-79'],
+      orbit: 'inject-19',
+      band: ['inject-80', 'inject-33', 'inject-13', 'inject-95'],
+      lockS: STUDY.beginS,
+    })
     // The window sits inside the recording it runs on — read off the loaded capture, not a
     // number typed here (#147 round 2); runStudy refuses a window past the recording's end.
     expect(STUDY.beginS + STUDY.runS).toBeLessThanOrEqual(indexCapture(recording.capture).durationS)
@@ -320,10 +329,20 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     return block
   }
   const c = STUDY.prioritization
+  /**
+   * A cast row's id, by its row in the scenario file (S7d, #167, ruled M1): the pair's ids are
+   * each scenario's own and carry no role, so a pin here names the row it means and reads the id
+   * from the list the app plans with. The ids themselves are pinned where they are read — the
+   * roles table below, and the rendered sentences at the foot of this block.
+   */
+  const rowId = (name: '03a' | '03b', row: number) =>
+    `inject-${scenarioNamed(name, SCENARIOS).config.castIds![row - 1]}`
+  /** The roles table's own names, for the rows it names. */
+  const roles = (name: '03a' | '03b') => STUDY_CAST[name]
 
-  it('is the prioritization family, run to the registry’s length — 218 s on 03a, 179 s on 03b — with no revisit row', () => {
+  it('is the prioritization family, run to the registry’s length — 218 s on both since S7d — with no revisit row', () => {
     expect(results['03a']).toMatchObject({ family: 'prioritization', runS: 218, revisit: null })
-    expect(results['03b']).toMatchObject({ family: 'prioritization', runS: 179, revisit: null })
+    expect(results['03b']).toMatchObject({ family: 'prioritization', runS: 218, revisit: null })
     expect(results['02a']).toMatchObject({
       family: 'corroboration',
       runS: 360,
@@ -336,15 +355,13 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     })
   })
 
-  it('line 3 — both threats enter inside the run in row order, warning on every tick from Begin to entry: 582 / 668 on 03a, 586 / 629 on 03b', () => {
-    expect(p('03a').threats).toEqual([
-      { id: 'inject-11', enteredS: 582, firstWarningS: 480, warningToEntry: true },
-      { id: 'inject-12', enteredS: 668, firstWarningS: 480, warningToEntry: true },
-    ])
-    expect(p('03b').threats).toEqual([
-      { id: 'inject-11', enteredS: 586, firstWarningS: 480, warningToEntry: true },
-      { id: 'inject-12', enteredS: 629, firstWarningS: 480, warningToEntry: true },
-    ])
+  it('line 3 — both threats enter inside the run in row order, warning on every tick from Begin to entry: 582 and 668 on both, since 03b is 03a rotated (S7d)', () => {
+    for (const name of pair) {
+      expect(p(name).threats).toEqual([
+        { id: roles(name).threats[0], enteredS: 582, firstWarningS: 480, warningToEntry: true },
+        { id: roles(name).threats[1], enteredS: 668, firstWarningS: 480, warningToEntry: true },
+      ])
+    }
     for (const name of pair) {
       expect(p(name).rowOrderIsEntryOrder).toBe(true)
       expect(p(name).firstEntryS).toBe(p(name).threats[0].enteredS)
@@ -363,20 +380,16 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
       expect(block.entryBeforeBegin).toBeNull()
       expect(block.threatMargin!.min).toBeGreaterThan(0)
       expect(block.rank3Margin!.min).toBeGreaterThanOrEqual(2)
-      expect(block.rank3Margin!.over).toBe('inject-13')
+      // Row 3 is the hover bait, the closest silent track on either cast.
+      expect(block.rank3Margin!.over).toBe(rowId(name, 3))
+      // 03b is 03a rotated (S7d, #167), so the lock and both margins are 03a's to the hundredth.
+      expect(block.threatMargin).toEqual({ min: expect.closeTo(0.42, 2), atS: 546 })
+      expect(block.rank3Margin).toEqual({
+        min: expect.closeTo(2.74, 2),
+        atS: 480,
+        over: rowId(name, 3),
+      })
     }
-    expect(p('03a').threatMargin).toEqual({ min: expect.closeTo(0.42, 2), atS: 546 })
-    expect(p('03a').rank3Margin).toEqual({
-      min: expect.closeTo(2.74, 2),
-      atS: 480,
-      over: 'inject-13',
-    })
-    expect(p('03b').threatMargin).toEqual({ min: expect.closeTo(0.84, 2), atS: 585 })
-    expect(p('03b').rank3Margin).toEqual({
-      min: expect.closeTo(2.32, 2),
-      atS: 480,
-      over: 'inject-13',
-    })
   })
 
   it('line 2 — no bait enters inside the run, and the tangential bait’s course misses the ring by at least 1 000 m on every airborne tick, never reading an entry', () => {
@@ -384,7 +397,7 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
       expect(p(name).baitsEntered).toEqual([])
       expect(p(name).tangential).toHaveLength(1)
       const [tangential] = p(name).tangential
-      expect(tangential.id).toBe('inject-14')
+      expect(tangential.id).toBe(roles(name).tangential![0])
       expect(tangential.ticks.entry).toBe(0)
       expect(tangential.ticks.inside).toBe(0)
       expect(tangential.ticks.other).toBe(0)
@@ -397,7 +410,7 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
   it('the orbit bait’s closing read sweeps 0 to 23 and it holds ranks 13 to 18, with no pattern-kind change on either cast under the floor (#155, R2)', () => {
     for (const name of pair) {
       expect(p(name).orbit).toEqual({
-        id: 'inject-15',
+        id: roles(name).orbit,
         closingMin: 0,
         closingMax: expect.closeTo(23, 0),
         rankMin: 13,
@@ -408,157 +421,83 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     }
   })
 
-  it('the band rows cross into warning after the first entry and never outrank the threats: Begin + 157, + 128, + 189, and + 130 on 03a; + 157, + 129, never, and + 129 on 03b', () => {
-    expect(p('03a').band).toEqual([
-      {
-        id: 'inject-41',
-        firstWarningS: 637,
-        rankMin: 5,
-        rankMax: 7,
-        maxComposite: expect.closeTo(71.1, 0),
-      },
-      {
-        id: 'inject-42',
-        firstWarningS: 608,
-        rankMin: 3,
-        rankMax: 5,
-        maxComposite: expect.closeTo(71.8, 0),
-      },
-      {
-        id: 'inject-48',
-        firstWarningS: 669,
-        rankMin: 6,
-        rankMax: 8,
-        maxComposite: expect.closeTo(70.2, 0),
-      },
-      {
-        id: 'inject-49',
-        firstWarningS: 610,
-        rankMin: 3,
-        rankMax: 5,
-        maxComposite: expect.closeTo(71.7, 0),
-      },
-    ])
-    expect(p('03b').band).toEqual([
-      {
-        id: 'inject-41',
-        firstWarningS: 637,
-        rankMin: 5,
-        rankMax: 7,
-        maxComposite: expect.closeTo(70.1, 0),
-      },
-      {
-        id: 'inject-42',
-        firstWarningS: 609,
-        rankMin: 3,
-        rankMax: 5,
-        maxComposite: expect.closeTo(70.8, 0),
-      },
-      {
-        id: 'inject-48',
-        firstWarningS: null,
-        rankMin: 6,
-        rankMax: 8,
-        maxComposite: expect.closeTo(69.2, 0),
-      },
-      {
-        id: 'inject-49',
-        firstWarningS: 609,
-        rankMin: 3,
-        rankMax: 5,
-        maxComposite: expect.closeTo(70.7, 0),
-      },
-    ])
+  it('the band rows cross into warning after the first entry and never outrank the threats: Begin + 157, + 128, + 189, and + 130 on 03a, and within a tick of those on 03b', () => {
+    // A tick apart where they differ: 03b is 03a turned, and the real layer it is scored beside
+    // is not (S7d, #167). The ranks and the maxima are the same numbers.
+    const firstWarnings = { '03a': [637, 608, 669, 610], '03b': [637, 609, 670, 609] } as const
     for (const name of pair) {
+      expect(p(name).band).toEqual(
+        roles(name).band!.map((id, i) => ({
+          id,
+          firstWarningS: firstWarnings[name][i],
+          rankMin: [5, 3, 6, 3][i],
+          rankMax: [7, 5, 8, 5][i],
+          maxComposite: expect.closeTo([71.1, 71.8, 70.2, 71.7][i], 0),
+        })),
+      )
       for (const row of p(name).band)
         if (row.firstWarningS !== null)
           expect(row.firstWarningS).toBeGreaterThan(p(name).firstEntryS!)
     }
   })
 
-  it('runS is the rule — the last threat entry + 30 s from Begin: 218 = 668 − 480 + 30, 179 = 629 − 480 + 30', () => {
-    expect(p('03a').runS).toEqual({ actual: 218, rule: 218 })
-    expect(p('03b').runS).toEqual({ actual: 179, rule: 179 })
-    expect(scenarioNamed('03a', SCENARIOS).runS).toBe(218)
-    expect(scenarioNamed('03b', SCENARIOS).runS).toBe(179)
+  it('runS is the rule — the last threat entry + 30 s from Begin: 218 = 668 − 480 + 30 on both, since S7d makes 03b 03a turned', () => {
+    for (const name of pair) {
+      expect(p(name).runS).toEqual({ actual: 218, rule: 218 })
+      expect(scenarioNamed(name, SCENARIOS).runS).toBe(218)
+    }
   })
 
   it('the restated lines: above calm 26 / 26 / 27 / 26 and 26 / 26 / 27 / 27 with the twenty-six ids; the audit; the entries — every load inbound after both windows and inside the recording', () => {
-    // The twenty-five silent rows and the closing drone (S7c, #163).
-    const twentySix = [
-      'inject-11',
-      'inject-12',
-      'inject-13',
-      'inject-14',
-      'inject-15',
-      'inject-16',
-      'inject-37',
-      ...Array.from({ length: 19 }, (_, i) => `inject-${41 + i}`),
-    ]
-    expect(results['03a'].aboveCalm).toEqual({
-      atBegin: 26,
-      atBeginPlus1: 26,
-      idsAtBeginPlus1: twentySix,
-      max: 27,
-      atEnd: 26,
-    })
-    expect(results['03b'].aboveCalm).toEqual({
-      atBegin: 26,
-      atBeginPlus1: 26,
-      idsAtBeginPlus1: twentySix,
-      max: 27,
-      atEnd: 27,
-    })
-    expect(results['03a'].audit).toEqual({
-      closingDrones: 15,
-      closingAircraft: 14,
-      silent: 25,
-      inside: 12,
-      hovering: 15,
-    })
-    expect(results['03b'].audit).toEqual({
-      closingDrones: 15,
-      closingAircraft: 12,
-      silent: 25,
-      inside: 12,
-      hovering: 15,
-    })
+    // The twenty-five silent rows — the threats, the four baits, the nineteen load rows — and
+    // 02a's closing drone at row 27; by row, since the ids carry no role (S7d, #167).
+    const silentRows = [1, 2, 3, 4, 5, 6, ...Array.from({ length: 19 }, (_, i) => 31 + i)]
+    const twentySix = (name: '03a' | '03b') =>
+      [...silentRows, 27]
+        .map((row) => rowId(name, row))
+        .sort((a, b) => Number(a.slice(7)) - Number(b.slice(7)))
+    for (const name of pair) {
+      expect(results[name].aboveCalm).toEqual({
+        atBegin: 26,
+        atBeginPlus1: 26,
+        idsAtBeginPlus1: twentySix(name),
+        max: 27,
+        atEnd: 26,
+      })
+      expect(results[name].audit).toEqual({
+        closingDrones: 15,
+        closingAircraft: 14,
+        silent: 25,
+        inside: 12,
+        hovering: 15,
+      })
+    }
     for (const name of pair) {
       expect(Math.round(results[name].heardNotClosing!.maxComposite)).toBe(38)
-      expect(results[name].heardNotClosing!.id).toBe('inject-20')
+      expect(results[name].heardNotClosing!.id).toBe(rowId(name, 10))
       const entered = new Map(results[name].entries.map((e) => [e.id, e.enteredS]))
       expect(results[name].entries).toHaveLength(49)
-      expect(entered.get('inject-37')).toBe(935)
-      expect(entered.get('inject-16')).toBe(1066)
-      expect(entered.get('inject-41')).toBe(899)
-      expect(entered.get('inject-42')).toBe(872)
-      expect(entered.get('inject-48')).toBe(942)
-      expect(entered.get('inject-49')).toBe(name === '03a' ? 879 : 878)
-      expect(entered.get('inject-50')).toBe(925)
-      expect(entered.get('inject-51')).toBe(912)
-      for (const id of ['inject-13', 'inject-14', 'inject-15', 'inject-46', 'inject-47'])
-        expect(entered.get(id)).toBeNull()
-      for (let i = 52; i <= 59; i++) expect(entered.get(`inject-${i}`)).toBeNull()
+      expect(entered.get(rowId(name, 27))).toBe(935)
+      expect(entered.get(rowId(name, 6))).toBe(1066)
+      expect(entered.get(rowId(name, 31))).toBe(899)
+      expect(entered.get(rowId(name, 32))).toBe(872)
+      expect(entered.get(rowId(name, 38))).toBe(942)
+      // A metre of rotation moves this one by a tick.
+      expect(entered.get(rowId(name, 39))).toBe(name === '03a' ? 879 : 878)
+      expect(entered.get(rowId(name, 40))).toBe(925)
+      expect(entered.get(rowId(name, 41))).toBe(912)
+      for (const row of [3, 4, 5, 36, 37]) expect(entered.get(rowId(name, row))).toBeNull()
+      for (let row = 42; row <= 49; row++) expect(entered.get(rowId(name, row))).toBeNull()
       // Eleven non-threat entries — the ten silent inbounds and 02a's heard closing drone: every
       // one after both windows and inside the recording, so the replay reads each as a later
       // entrant, never the class that throws (#138, E5).
       const end = STUDY.beginS + results[name].runS
       const later = results[name].entries.filter(
-        (e) => e.enteredS !== null && !['inject-11', 'inject-12'].includes(e.id),
+        (e) => e.enteredS !== null && !roles(name).threats.includes(e.id),
       )
-      expect(later.map((e) => e.id)).toEqual([
-        'inject-16',
-        'inject-37',
-        'inject-41',
-        'inject-42',
-        'inject-43',
-        'inject-44',
-        'inject-45',
-        'inject-48',
-        'inject-49',
-        'inject-50',
-        'inject-51',
-      ])
+      expect(later.map((e) => e.id)).toEqual(
+        [6, 27, 31, 32, 33, 34, 35, 38, 39, 40, 41].map((row) => rowId(name, row)),
+      )
       for (const e of later) {
         expect(e.enteredS!).toBeGreaterThan(end)
         expect(e.enteredS!).toBeLessThanOrEqual(indexCapture(recording.capture).durationS)
@@ -572,33 +511,38 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
       '# Study baseline — 03a on vigil-phl-002 · Begin 480 s · run 218 s · 1 Hz through the feed',
     )
     expect(text).toContain(
-      'threats in row order: inject-11 enters 582 s (Begin + 102) · inject-12 enters 668 s (Begin + 188) — row order is entry order ✓ · both inside the run ✓ · warning on every tick from Begin to entry ✓',
+      'threats in row order: inject-31 enters 582 s (Begin + 102) · inject-57 enters 668 s (Begin + 188) — row order is entry order ✓ · both inside the run ✓ · warning on every tick from Begin to entry ✓',
     )
     expect(text).toContain(
-      'lock — ranks 1 and 2 the threats in entry order through the first entry: from 480 s (Begin + 0), 0 inverted ticks before it — T_lock 480 s (Begin + 0), tolerance 3 ticks ✓ · threat 1 over threat 2 min 0.42 at 546 s · rank 2 over rank 3 min 2.74 at 480 s (inject-13)',
+      'lock — ranks 1 and 2 the threats in entry order through the first entry: from 480 s (Begin + 0), 0 inverted ticks before it — T_lock 480 s (Begin + 0), tolerance 3 ticks ✓ · threat 1 over threat 2 min 0.42 at 546 s · rank 2 over rank 3 min 2.74 at 480 s (inject-35)',
     )
     expect(text).toContain(
-      'baits: none enters inside the run ✓ · tangential inject-14 misses by ≥ 1052 m on 60 airborne ticks, opening on 159, never inside or entering — ≥ 1000 ✓',
+      'baits: none enters inside the run ✓ · tangential inject-36 misses by ≥ 1052 m on 60 airborne ticks, opening on 159, never inside or entering — ≥ 1000 ✓',
     )
-    expect(text).toContain('orbit inject-15: closing 0–23 · rank 13–18')
+    expect(text).toContain('orbit inject-25: closing 0–23 · rank 13–18')
     expect(text).toContain(
-      'band rows: inject-41 first warning 637 s (Begin + 157) · rank 5–7 · max 71 · inject-42 first warning 608 s (Begin + 128) · rank 3–5 · max 72 · inject-48 first warning 669 s (Begin + 189) · rank 6–8 · max 70 · inject-49 first warning 610 s (Begin + 130) · rank 3–5 · max 72 — none before the first entry ✓',
+      'band rows: inject-65 first warning 637 s (Begin + 157) · rank 5–7 · max 71 · inject-74 first warning 608 s (Begin + 128) · rank 3–5 · max 72 · inject-94 first warning 669 s (Begin + 189) · rank 6–8 · max 70 · inject-15 first warning 610 s (Begin + 130) · rank 3–5 · max 72 — none before the first entry ✓',
     )
     expect(text).toContain('runS 218 = last entry 668 − Begin 480 + 30 ✓')
     expect(text).toContain(
-      'leak tell (stated, unmeasured until the leak test runs): threat 1 inject-11 opened on raw under 30 s by both volunteers',
+      'leak tell (stated, unmeasured until the leak test runs): threat 1 inject-31 opened on raw under 30 s by both volunteers',
     )
     expect(text).toContain('pattern-kind changes per track in the window: none')
-    expect(text).toContain('inject-41 899 s (after the run) · inject-42 872 s (after the run)')
+    expect(text).toContain('inject-65 899 s (after the run) · inject-74 872 s (after the run)')
     expect(text).toContain(
-      'inject-48 942 s (after the run) · inject-49 879 s (after the run) · inject-50 925 s (after the run) · inject-51 912 s (after the run) · inject-52 —',
+      'inject-94 942 s (after the run) · inject-15 879 s (after the run) · inject-20 925 s (after the run) · inject-45 912 s (after the run) · inject-62 —',
     )
-    expect(renderStudy(results['03b'])).toContain(
-      'inject-48 first warning never · rank 6–8 · max 69 · inject-49 first warning 609 s (Begin + 129) · rank 3–5 · max 71 — none before the first entry ✓',
+    // 03b says the same lines under its own ids, the two band ticks a second apart (S7d, #167).
+    const text03b = renderStudy(results['03b'])
+    expect(text03b).toContain(
+      'threats in row order: inject-29 enters 582 s (Begin + 102) · inject-23 enters 668 s (Begin + 188) — row order is entry order ✓ · both inside the run ✓ · warning on every tick from Begin to entry ✓',
     )
-    expect(renderStudy(results['03b'])).toContain('runS 179 = last entry 629 − Begin 480 + 30 ✓')
-    expect(renderStudy(results['03b'])).toContain(
-      'threat 1 over threat 2 min 0.84 at 585 s · rank 2 over rank 3 min 2.32 at 480 s (inject-13)',
+    expect(text03b).toContain(
+      'band rows: inject-80 first warning 637 s (Begin + 157) · rank 5–7 · max 71 · inject-33 first warning 609 s (Begin + 129) · rank 3–5 · max 72 · inject-13 first warning 670 s (Begin + 190) · rank 6–8 · max 70 · inject-95 first warning 609 s (Begin + 129) · rank 3–5 · max 72 — none before the first entry ✓',
+    )
+    expect(text03b).toContain('runS 218 = last entry 668 − Begin 480 + 30 ✓')
+    expect(text03b).toContain(
+      'threat 1 over threat 2 min 0.42 at 546 s · rank 2 over rank 3 min 2.74 at 480 s (inject-21)',
     )
   })
 })
@@ -623,8 +567,8 @@ describe('the prioritization lines fail on what they guard (S7b) — two synthet
     const result = runStudy(swapped, empty, STUDY, SCORING, STUDY_CAST['03a'])
     const block = result.prioritization!
     expect(block.threats.map((t) => [t.id, t.enteredS])).toEqual([
-      ['inject-11', 668],
-      ['inject-12', 582],
+      ['inject-31', 668],
+      ['inject-57', 582],
     ])
     expect(block.rowOrderIsEntryOrder).toBe(false)
     expect(renderStudy(result)).toContain('row order is entry order ✗')
@@ -643,10 +587,10 @@ describe('the prioritization lines fail on what they guard (S7b) — two synthet
     }
     const result = runStudy(broken, empty, STUDY, SCORING, STUDY_CAST['03a'])
     const block = result.prioritization!
-    expect(block.baitsEntered).toEqual(['inject-13', 'inject-14'])
+    expect(block.baitsEntered).toEqual(['inject-35', 'inject-36'])
     expect(block.tangential[0].ticks.entry).toBeGreaterThan(0)
     const text = renderStudy(result)
-    expect(text).toContain('entered inside the run: inject-13, inject-14 ✗')
+    expect(text).toContain('entered inside the run: inject-35, inject-36 ✗')
     expect(text).toMatch(/on an entering course on \d+ — ≥ 1000 ✗/)
   }, 120_000)
 })
@@ -710,7 +654,7 @@ describe('the prioritization lines say what they measure (#158 round 1)', () => 
   it('a role the table names that never reaches the window’s picture is a loud error, not a line of Infinity', () => {
     const orbit = { ...rows[4], startS: 9000 }
     expect(() => withCast('03a-no-orbit', [...rows.slice(0, 4), orbit, ...rows.slice(5)])).toThrow(
-      "inject-15 is named by the cast table but never in the window's picture",
+      "inject-25 is named by the cast table but never in the window's picture",
     )
   }, 120_000)
 
@@ -738,22 +682,22 @@ describe('the prioritization lines say what they measure (#158 round 1)', () => 
     expect(block.tangential[0].ticks.inside).toBeGreaterThan(0)
     const text = renderStudy(result)
     expect(text).toMatch(
-      /tangential inject-14 misses by ≥ — m on 0 airborne ticks, opening on \d+, inside the ring on \d+ — ≥ 1000 ✗/,
+      /tangential inject-36 misses by ≥ — m on 0 airborne ticks, opening on \d+, inside the ring on \d+ — ≥ 1000 ✗/,
     )
-    expect(text).toContain('entered inside the run: inject-14 ✗')
+    expect(text).toContain('entered inside the run: inject-36 ✗')
   }, 120_000)
 
   it('a threat inside the ring before Begin makes the lock unmeasurable, and the line says so instead of reading a clean zero', () => {
     const early = silentAt(at(285, 4.5), 111, 25, T0)
     const result = withCast('03a-early-threat', [early, ...rows.slice(1)])
     const block = result.prioritization!
-    expect(block.entryBeforeBegin!.id).toBe('inject-11')
+    expect(block.entryBeforeBegin!.id).toBe('inject-31')
     expect(block.entryBeforeBegin!.enteredS).toBeLessThan(T0)
     expect(block.lockS).toBeNull()
     expect(block.threatMargin).toBeNull()
     const text = renderStudy(result)
     expect(text).toMatch(
-      /not measured — inject-11 entered the ring at \d+ s, before Begin — T_lock 480 s \(Begin \+ 0\), tolerance 3 ticks ✗/,
+      /not measured — inject-31 entered the ring at \d+ s, before Begin — T_lock 480 s \(Begin \+ 0\), tolerance 3 ticks ✗/,
     )
     expect(text).toContain('both inside the run ✗')
   }, 120_000)
