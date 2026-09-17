@@ -3,16 +3,16 @@
   "scenario": "03a",
   "mode": "vigil",
   "run": 1,
-  "build": "2.60.0+80c9a10",
-  "began_at": "2026-09-16T17:42:35.598Z",
+  "build": "2.60.0+a2b58ca",
+  "began_at": "2026-09-17T15:15:54.753Z",
   "events": [
-    {"t":11,"type":"select","track":"inject-11"},
-    {"t":24,"type":"assess","track":"inject-11"},
-    {"t":38,"type":"escalate","track":"inject-11"},
-    {"t":52,"type":"select","track":"inject-12"},
-    {"t":62,"type":"assess","track":"inject-12"},
-    {"t":71,"type":"escalate","track":"inject-12"},
-    {"t":120,"type":"select","track":"inject-13"}
+    {"t":11,"type":"select","track":"inject-31"},
+    {"t":24,"type":"assess","track":"inject-31"},
+    {"t":38,"type":"escalate","track":"inject-31"},
+    {"t":52,"type":"select","track":"inject-57"},
+    {"t":62,"type":"assess","track":"inject-57"},
+    {"t":71,"type":"escalate","track":"inject-57"},
+    {"t":120,"type":"select","track":"inject-35"}
   ],
   "answers": {"demand":5,"pressure":6,"confidence":4}
 }

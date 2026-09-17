@@ -1,27 +1,31 @@
 /**
- * Study scenario 03b (S7, #152): 03a's baits, furniture, and load turned 135° about the centre,
- * with the threats varied under one constraint — the farther, faster threat enters second. A subject who
- * learned 03a's answer as a rule (farther and faster first) gets 03b wrong, and each single-cue
- * scan still opens a bait first. Row 1 is the first entrant, as in 03a: the closer, slower one at
- * 5.65 km and 12 kt enters at 586 s (Begin + 106); the farther, faster one at 6.9 km and 25 kt
- * enters at 629 s (Begin + 149). Both are present from t = 0 and warning at Begin.
+ * Study scenario 03b (S7, #152; re-cut by S7d, #167, under #131's owner amendment of
+ * 2026-09-17): 03a's whole cast — threats included — turned 135° about the centre, under its
+ * own ids. The pair is read threat by threat, so a row's two tracks must match in range, speed
+ * and entry time; what differs is their bearing and the identity a screen reads — the label,
+ * and on a heard furniture row the UA type, both drawn from the scenario's own seed as they were
+ * before this cut. Row 1 is therefore 03a's row 1
+ * rotated — 6.3 km at 25 kt, entering at 582 s (Begin + 102) — and row 2 is 03a's row 2
+ * rotated — 6.15 km at 12 kt, entering at 668 s (Begin + 188) — so `runS` is 218 on both and
+ * the brief reads the same length on both. Both are present from t = 0 and warning at Begin.
+ *
+ * What stops a first run from answering the second is the labels, not the geometry: the two
+ * scenarios take disjoint ids, so a subject who learned *TRK-11 was the first entrant* carries
+ * nothing. The skill transfers — a subject who learned to read range, speed and heading reads
+ * them again — which the amendment accepts and the writeup shows by order.
  */
 
 import type { ScenarioConfig } from '../scenario.ts'
-import { STUDY } from '../study.ts'
 import { SCENARIO_03A } from './03a.ts'
-import { at, rotated, silentAt } from './cast.ts'
+import { rotated } from './cast.ts'
+import { CAST_IDS_03B } from './ids.ts'
 
-/** The turn that carries 03a's baits and furniture onto other bearings. */
+/** The turn that carries 03a's cast onto other bearings. */
 export const ROTATION_03B_DEG = 135
-const T0 = STUDY.beginS
 
 export const SCENARIO_03B: ScenarioConfig = {
   ...SCENARIO_03A,
   seed: 'study-03b',
-  cast: [
-    silentAt(at(185, 5.65), 0, 12, T0), // 11 · threat 1: the closer, slower one — 5.65 km, 12 kt, enters at 586 s
-    silentAt(at(60, 6.9), 246, 25, T0), // 12 · threat 2: the farther, faster one — 6.9 km, 25 kt, enters at 629 s
-    ...(SCENARIO_03A.cast ?? []).slice(2).map((entry) => rotated(entry, ROTATION_03B_DEG)), // 13–59 · 03a's baits, furniture, and load, turned 135°
-  ],
+  castIds: CAST_IDS_03B,
+  cast: (SCENARIO_03A.cast ?? []).map((entry) => rotated(entry, ROTATION_03B_DEG)),
 }
