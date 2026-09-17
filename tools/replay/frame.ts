@@ -311,6 +311,144 @@ function trailPoints(plan: InjectPlan, id: string, fromS: number, toS: number): 
   return points
 }
 
+/** A box on the map panel — what the one placement the frame computes reads (#170). */
+interface Box {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+/**
+ * A label's box from its baseline. An SVG carries no font engine and this module is pure, so the
+ * width is estimated rather than measured: every label the frame draws measures between 0.408
+ * and 0.507 of the font size per character in a browser, so 0.53 never under-reads one and over-
+ * reads the longest by under a third. The ascent and the height are the measured 1.10 and 1.364
+ * of the size, rounded up. Over-reading costs a label a spot it could have had; under-reading
+ * would let one draw over another, which is the thing being fixed.
+ */
+const LABEL_PER_CHAR = 0.53
+export function textBox(
+  x: number,
+  baseline: number,
+  size: number,
+  content: string,
+  end = false,
+): Box {
+  const w = LABEL_PER_CHAR * size * content.length
+  return {
+    x: (end ? x - w : x) - 0.1 * size,
+    y: baseline - 1.15 * size,
+    w: w + 0.2 * size,
+    h: 1.45 * size,
+  }
+}
+const markBox = (cx: number, cy: number, r: number): Box => ({
+  x: cx - r,
+  y: cy - r,
+  w: 2 * r,
+  h: 2 * r,
+})
+const hits = (a: Box, b: Box): boolean =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+const boxInPanel = (b: Box): boolean =>
+  b.x >= 0 && b.y >= 0 && b.x + b.w <= PANEL.width && b.y + b.h <= PANEL.height
+
+/**
+ * Where a threat's label may sit around its dot (#170): its own place first — below-right, where
+ * F2 put it — then the other three corners, then a ring further out. The first spot whose box
+ * clears everything already drawn wins.
+ */
+const LABEL_SPOTS: readonly (readonly [number, number, boolean])[] = [
+  [9, 16, false],
+  [9, -10, false],
+  [-9, 16, true],
+  [-9, -10, true],
+  [9, 31, false],
+  [-9, 31, true],
+  [9, -25, false],
+  [-9, -25, true],
+]
+
+/** A drawn line a label would sit across: a segment of the look path (#170, ruled R1). */
+export type Segment = readonly [readonly [number, number], readonly [number, number]]
+
+/** Whether a segment enters a box — the four edges, and the case of a segment wholly inside. */
+export function crossesBox(box: Box, [[x1, y1], [x2, y2]]: Segment): boolean {
+  const inside = (x: number, y: number) =>
+    x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h
+  if (inside(x1, y1) || inside(x2, y2)) return true
+  const side = (px: number, py: number) => (x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)
+  const corners: [number, number][] = [
+    [box.x, box.y],
+    [box.x + box.w, box.y],
+    [box.x + box.w, box.y + box.h],
+    [box.x, box.y + box.h],
+  ]
+  // The segment's line must separate the corners, and the box's span must reach the segment's.
+  const signs = corners.map((c) => Math.sign(side(c[0], c[1])))
+  if (signs.every((v) => v > 0) || signs.every((v) => v < 0)) return false
+  return (
+    Math.max(x1, x2) >= box.x &&
+    Math.min(x1, x2) <= box.x + box.w &&
+    Math.max(y1, y2) >= box.y &&
+    Math.min(y1, y2) <= box.y + box.h
+  )
+}
+
+/**
+ * Whether a circle's own outline enters a box (#170, ruled R1) — the 5 km ring, which is a line
+ * on the map and not a disc: the box straddles it when its nearest point is inside the radius
+ * and its farthest corner is outside.
+ */
+export function crossesRing(box: Box, cx: number, cy: number, r: number): boolean {
+  const nx = Math.max(box.x, Math.min(cx, box.x + box.w))
+  const ny = Math.max(box.y, Math.min(cy, box.y + box.h))
+  const near = Math.hypot(cx - nx, cy - ny)
+  const far = Math.max(
+    Math.hypot(cx - box.x, cy - box.y),
+    Math.hypot(cx - (box.x + box.w), cy - box.y),
+    Math.hypot(cx - (box.x + box.w), cy - (box.y + box.h)),
+    Math.hypot(cx - box.x, cy - (box.y + box.h)),
+  )
+  return near <= r && far >= r
+}
+
+/**
+ * The spot a threat's label takes (#170, ruled R1 and R2): the spots are searched twice — first
+ * for one that clears every mark and label **and** is crossed by no line, the ring or a segment
+ * of the look path; then, if none, for one that clears the marks and labels alone. Only then the
+ * fallback, its own place, which the label draws last from, so it is on top of what crowds it
+ * rather than under. A spot must lie wholly inside the panel in either pass (R2), so no label is
+ * cut by the panel's edge.
+ *
+ * The path and the threat's label are what a debrief reads, so a label across the path costs the
+ * reader something even though nothing is hidden — hence the second pass rather than one.
+ */
+export function placeLabel(
+  x: number,
+  y: number,
+  size: number,
+  content: string,
+  occupied: readonly Box[],
+  lines: readonly Segment[] = [],
+  ring: { cx: number; cy: number; r: number } | null = null,
+): { x: number; y: number; end: boolean; pass: 0 | 1 | 2 } {
+  const clears = (box: Box) => boxInPanel(box) && !occupied.some((other) => hits(box, other))
+  const noLine = (box: Box) =>
+    !lines.some((line) => crossesBox(box, line)) &&
+    !(ring !== null && crossesRing(box, ring.cx, ring.cy, ring.r))
+  for (const pass of [1, 2] as const) {
+    for (const [dx, dy, end] of LABEL_SPOTS) {
+      const box = textBox(x + dx, y + dy, size, content, end)
+      if (!clears(box)) continue
+      if (pass === 1 && !noLine(box)) continue
+      return { x: round1(x + dx), y: round1(y + dy), end, pass }
+    }
+  }
+  const [dx, dy, end] = LABEL_SPOTS[0]
+  return { x: round1(x + dx), y: round1(y + dy), end, pass: 0 }
+}
+
 const polyline = (points: readonly (readonly [number, number])[], attrs: string): string =>
   points.length < 2
     ? ''
@@ -338,6 +476,10 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const lines = captionLines(input)
   const captionH = 16 + lines.length * LINE_H + 12
   const parts: string[] = []
+  // What the map has already drawn, for the one label whose place is computed (#170): a threat's
+  // own label is held back to the end and put where it clears these.
+  const occupied: Box[] = []
+  const pending: { x: number; y: number; content: string; attrs: (end: boolean) => string }[] = []
 
   // The picture at the freeze: every track inside the panel, a small grey dot, in id order.
   const picture = pictureAtSecond(study.index, plan, freezeS, record.mode)
@@ -349,6 +491,8 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
     parts.push(
       `<circle class="track" data-id="${escAttr(track.id)}" cx="${x}" cy="${y}" r="3" fill="${COLOR.faint}"/>`,
     )
+    // A track's own dot is a mark like any other: a label over one hides a track (#172 round 1).
+    occupied.push(markBox(x, y, 3))
   }
 
   // The ring, its centre, and its label — the site's own name.
@@ -364,13 +508,15 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
       `font-size="13" fill="${COLOR.muted}"`,
     ),
   )
+  occupied.push(textBox(cx + 10, cy + 22, 13, `${SITE.name} · ${SITE.radiusM / 1000} km ring`))
 
   // Each threat's trail from its first frame in the window to the freeze, its plan-known
   // continuation to the entry tick fainter, and the two marks — one threat on the corroboration
   // pair with the marks' two labels as S5b drew them; two on the prioritization pair, each trail
-  // tagged by its id, the marks unlabelled and the threat carrying one map label below-right of
+  // tagged by its id, the marks unlabelled and the threat carrying one map label at a spot around
   // its dot at the freeze — on raw its id and the ring-entry clock, on Vigil the annotation's
-  // (ruled F2); the T0 range and the entry clock are the caption's there.
+  // (ruled F2), placed where the map is clear (#170); the T0 range and the entry clock are the
+  // caption's there.
   const threatIds = threatsOf(record.scenario)
   const many = threatIds.length > 1
   for (const threat of metrics.threats) {
@@ -398,15 +544,11 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
     parts.push(
       `<circle class="trail-first"${idAttr} cx="${fx}" cy="${fy}" r="2.5" fill="${COLOR.muted}"/>`,
     )
+    occupied.push(markBox(fx, fy, 2.5))
     if (!many) {
-      parts.push(
-        text(
-          round1(fx + 8),
-          round1(fy + 14),
-          `T0 · ${(rangeM(first.track) / 1000).toFixed(1)} km`,
-          `font-size="11" fill="${COLOR.faint}"`,
-        ),
-      )
+      const t0 = `T0 · ${(rangeM(first.track) / 1000).toFixed(1)} km`
+      parts.push(text(round1(fx + 8), round1(fy + 14), t0, `font-size="11" fill="${COLOR.faint}"`))
+      occupied.push(textBox(round1(fx + 8), round1(fy + 14), 11, t0))
     }
     if (entryS !== null) {
       const atEntry = injectTracksAt(plan, entryS).find((track) => track.id === threat.id)
@@ -415,29 +557,32 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
         parts.push(
           `<circle class="entry"${idAttr} cx="${ex}" cy="${ey}" r="3" fill="none" stroke="${COLOR.muted}" stroke-width="1.5"/>`,
         )
+        occupied.push(markBox(ex, ey, 3))
         if (!many) {
+          const entryLabel = `${mmss(threat.entryT!)} ring entry`
           parts.push(
             text(
               round1(ex + 8),
               round1(ey - 6),
-              `${mmss(threat.entryT!)} ring entry`,
+              entryLabel,
               `font-size="11" fill="${COLOR.faint}"`,
             ),
           )
+          occupied.push(textBox(round1(ex + 8), round1(ey - 6), 11, entryLabel))
         }
       }
     }
     // The pair's one map label per threat on a raw frame; a Vigil frame's is the annotation's.
+    // Held back to the end and placed where the map is clear (#170).
     if (many && record.mode === 'raw' && trail.length > 0) {
       const [x, y] = trail[trail.length - 1]
-      parts.push(
-        text(
-          round1(x + 9),
-          round1(y + 16),
-          `${threat.id}${threat.entryT === null ? '' : ` · ring entry ${mmss(threat.entryT)}`}`,
-          `class="threat-label" data-id="${escAttr(threat.id)}" font-size="11" fill="${COLOR.faint}"`,
-        ),
-      )
+      pending.push({
+        x,
+        y,
+        content: `${threat.id}${threat.entryT === null ? '' : ` · ring entry ${mmss(threat.entryT)}`}`,
+        attrs: (end) =>
+          `class="threat-label" data-id="${escAttr(threat.id)}" font-size="11"${end ? ' text-anchor="end"' : ''} fill="${COLOR.faint}"`,
+      })
     }
   }
 
@@ -459,6 +604,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
         `font-size="11" font-style="italic" fill="${COLOR.faint}"`,
       ),
     )
+    occupied.push(markBox(x, y, 6), textBox(round1(x + 9), round1(y + 4), 11, 'never opened'))
   }
 
   // The looks as numbered hops at the selected track's regenerated position, the path through
@@ -516,6 +662,9 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
           ]
         : []),
     )
+    // The marker's own disc covers its numeral; the badge sits beside it.
+    occupied.push(markBox(x, y, 9))
+    if (n > 1) occupied.push(textBox(round1(x + 11), round1(y - 5), 10, `×${n}`))
   }
 
   // The condition's own annotations, on a Vigil frame only (S5c-ii, C2–C5, C7): the warm labels
@@ -523,20 +672,22 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // read one, and the Entry row's estimate beside each threat's dot. Raw's screen showed none.
   if (record.mode === 'vigil') {
     for (const candidate of candidates) {
-      // On the prioritization pair a threat's label is drawn with its entry estimate, below-right
+      // On the prioritization pair a threat's label is drawn with its entry estimate in one label
       // (the threat block below); the marks crowd within a few pixels at 6 km.
       if (many && threatIds.includes(candidate.track.id)) continue
       const point = project(candidate.track.position)
       if (!inPanel(point)) continue
       const [x, y] = point
+      const warm = `${trackIdent(candidate.track)} · ${candidate.composite}`
       parts.push(
         text(
           round1(x + 9),
           round1(y - 7),
-          `${trackIdent(candidate.track)} · ${candidate.composite}`,
+          warm,
           `class="vigil-label" data-id="${escAttr(candidate.track.id)}" font-size="11" font-weight="600" fill="${bandFill(candidate.band)}"`,
         ),
       )
+      occupied.push(textBox(round1(x + 9), round1(y - 7), 11, warm))
     }
     for (const threat of metrics.threats) {
       const entry = ranked.find((candidate) => candidate.track.id === threat.id)
@@ -545,16 +696,18 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
       const { track, score } = entry
       if (score.mismatch && track.source === 'inject' && track.broadcast) {
         const [bx, by] = project(track.broadcast.position)
+        const says = `Remote ID says here · ${(score.mismatch.distanceM / 1000).toFixed(1)} km`
         parts.push(
           `<line class="vigil-mismatch" data-id="${escAttr(threat.id)}" x1="${x}" y1="${y}" x2="${bx}" y2="${by}" stroke="${COLOR.warning}" stroke-width="1" stroke-dasharray="4 3"/>`,
           `<circle class="vigil-broadcast" data-id="${escAttr(threat.id)}" cx="${bx}" cy="${by}" r="3" fill="none" stroke="${COLOR.warning}" stroke-width="1"/>`,
           text(
             round1(bx + 8),
             round1(by + 4),
-            `Remote ID says here · ${(score.mismatch.distanceM / 1000).toFixed(1)} km`,
+            says,
             `class="vigil-mismatch-label" font-size="11" fill="${COLOR.warning}"`,
           ),
         )
+        occupied.push(markBox(bx, by, 3), textBox(round1(bx + 8), round1(by + 4), 11, says))
       }
       // The Entry row's estimate beside the dot; nothing when the row reads none or the track
       // is on the ground.
@@ -568,23 +721,35 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
               ? 'inside the ring'
               : null
       // The threat's one map label on the pair (ruled F2): ident, composite, and the entry
-      // estimate below-right in the band's colour; on one threat, the S5c gate's two labels.
+      // estimate in the band's colour, at a spot the placement gives it (#170); on one threat,
+      // the S5c gate's two labels.
       const label = many
         ? `${trackIdent(track)} · ${entry.composite}${entryText ? ` · ${entryText}` : ''}`
         : entryText
       if (label) {
-        parts.push(
-          text(
-            round1(x + 9),
-            round1(y + 16),
-            label,
+        pending.push({
+          x,
+          y,
+          content: label,
+          attrs: (end) =>
             many
-              ? `class="vigil-threat-label" data-id="${escAttr(threat.id)}" font-size="11" font-weight="600" fill="${bandFill(entry.band)}"`
-              : `class="vigil-entry" data-id="${escAttr(threat.id)}" font-size="11" fill="${COLOR.text}"`,
-          ),
-        )
+              ? `class="vigil-threat-label" data-id="${escAttr(threat.id)}" font-size="11" font-weight="600"${end ? ' text-anchor="end"' : ''} fill="${bandFill(entry.band)}"`
+              : `class="vigil-entry" data-id="${escAttr(threat.id)}" font-size="11"${end ? ' text-anchor="end"' : ''} fill="${COLOR.text}"`,
+        })
       }
     }
+  }
+
+  // The threats' own labels, last on the map and each at the first spot around its dot that
+  // clears what is already there (#170). A label placed takes its own place among the obstacles,
+  // so two threats' labels do not land on one another.
+  // The look path's own segments and the ring are the lines the first pass avoids (R1).
+  const pathLines: Segment[] = hops.slice(1).map((hop, i): Segment => [hops[i].point, hop.point])
+  const ringLine = { cx, cy, r }
+  for (const label of pending) {
+    const spot = placeLabel(label.x, label.y, 11, label.content, occupied, pathLines, ringLine)
+    parts.push(text(spot.x, spot.y, label.content, label.attrs(spot.end)))
+    occupied.push(textBox(spot.x, spot.y, 11, label.content, spot.end))
   }
 
   const beyond = hops.filter((hop) => !inPanel(hop.point)).length
