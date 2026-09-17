@@ -369,6 +369,32 @@ interface Box {
  * would let one draw over another, which is the thing being fixed.
  */
 const LABEL_PER_CHAR = 0.53
+/** That estimate on its own, for any text an SVG must fit into a fixed width. */
+export const estimateWidth = (content: string, size: number): number =>
+  LABEL_PER_CHAR * size * content.length
+
+/**
+ * A sentence broken onto lines that fit a width (#174 round 1): SVG text does not wrap, and a
+ * sentence that names every escalation a run made runs past a fixed edge once the run made
+ * enough of them — five, measured at 1 839 px on an 1 820 px sheet. Words are kept whole, and
+ * the width is the estimate above, which never under-reads: it wraps a line early rather than
+ * letting one run long, which is the thing being fixed.
+ */
+export function wrapText(content: string, size: number, width: number): string[] {
+  const lines: string[] = []
+  let line = ''
+  for (const word of content.split(' ')) {
+    const next = line === '' ? word : `${line} ${word}`
+    if (line !== '' && estimateWidth(next, size) > width) {
+      lines.push(line)
+      line = word
+    } else {
+      line = next
+    }
+  }
+  return [...lines, line]
+}
+
 export function textBox(
   x: number,
   baseline: number,
@@ -376,7 +402,7 @@ export function textBox(
   content: string,
   end = false,
 ): Box {
-  const w = LABEL_PER_CHAR * size * content.length
+  const w = estimateWidth(content, size)
   return {
     x: (end ? x - w : x) - 0.1 * size,
     y: baseline - 1.15 * size,

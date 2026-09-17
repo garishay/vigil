@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { bearingDegrees } from '../../src/lib/geo.ts'
 import { STUDY } from '../../src/config/study.ts'
+import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
-import type { FrameInput } from './frame.ts'
+import { estimateWidth, type FrameInput } from './frame.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
 import { runMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
@@ -583,5 +584,60 @@ describe('the sheet’s other escalations (S5f, #173)', () => {
       Number(m[1]),
     )
     expect(rules).toEqual([150 + 1216, 150 + 1216 + 320, 150 + 1216 + 640, 150 + 1216 + 640 + 256])
+  })
+})
+
+describe('the headline’s width — round 1 (#174)', () => {
+  /** A run that escalated five tracks besides its threats: two baits, three rows due later. */
+  const busyRun = (): FrameInput => {
+    const base = fixture('S05-03a-raw-1')
+    const events: RunEvent[] = [
+      { t: 10, type: 'select', track: 'inject-35' },
+      { t: 20, type: 'escalate', track: 'inject-35' },
+      { t: 30, type: 'select', track: 'inject-36' },
+      { t: 40, type: 'escalate', track: 'inject-36' },
+      { t: 41, type: 'select', track: 'inject-57' },
+      { t: 58, type: 'escalate', track: 'inject-57' },
+      { t: 66, type: 'select', track: 'inject-74' },
+      { t: 70, type: 'escalate', track: 'inject-74' },
+      { t: 72, type: 'select', track: 'inject-25' },
+      { t: 74, type: 'escalate', track: 'inject-25' },
+      { t: 84, type: 'select', track: 'inject-31' },
+      { t: 97, type: 'escalate', track: 'inject-31' },
+      { t: 130, type: 'select', track: 'inject-65' },
+      { t: 150, type: 'escalate', track: 'inject-65' },
+    ]
+    const record: RunRecord = { ...base.record, subject: 'SXX', events }
+    return { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+  }
+  const busy = busyRun()
+
+  it('breaks the counts sentence to the sheet’s width and grows the headline by the lines it takes', () => {
+    // Five escalations besides the threats: one line of this sentence measures 1 839 px in a
+    // browser on an 1 820 px sheet, so it is broken rather than run off the edge.
+    const svg = sheetSvg({ unaided: busy, vigil: fixture('S06-03b-vigil-1') }, { queueCap: 5 })
+    const lines = textsOf(svg, 'headline-counts')
+    expect(lines).toHaveLength(3)
+    expect(lines[0] + ' ' + lines[1]).toBe(countsSentence(busy))
+    // Words are kept whole, and no line is estimated past the width the sheet leaves it.
+    for (const line of lines) {
+      expect(line.startsWith(' ')).toBe(false)
+      expect(estimateWidth(line, 13)).toBeLessThanOrEqual(1820 - 48 - 30)
+    }
+    // The block grows by that one line, and the frames and everything under them move with it.
+    expect(svg).toContain('<svg class="frame-unaided" x="0" y="168"')
+    // The sheet renders two whole frames; the runner is slower than this machine (#166 round 1).
+  }, 30_000)
+
+  it('leaves a sheet whose sentences fit on one line exactly where S5e put it', () => {
+    for (const [unaided, vigil] of [
+      ['S05-03a-raw-1', 'S06-03b-vigil-1'],
+      ['S06-03b-raw-1', 'S05-03a-vigil-1'],
+      ['S03-02a-raw-1', 'S04-02b-vigil-1'],
+    ] as const) {
+      const svg = sheetOf(unaided, vigil)
+      expect(textsOf(svg, 'headline-counts')).toHaveLength(2)
+      expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
+    }
   })
 })

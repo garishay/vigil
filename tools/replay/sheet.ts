@@ -23,6 +23,7 @@ import {
   CONDITION_COLOR,
   frameDocument,
   mmss,
+  wrapText,
   outcomeWords,
   THEME,
   type FrameInput,
@@ -36,8 +37,17 @@ import { rangeM, SITE, trackAtSecond } from './regenerate.ts'
 const FONT = 'system-ui, sans-serif'
 const GAP = 20
 const PAD = 30
-/** The headline block above the frames: the title's row and two rows of prose per condition. */
-const HEAD_H = 150
+/** Where the headline’s prose starts, clear of its condition dot. */
+const TEXT_X = 48
+/**
+ * The headline block above the frames: the title's row, then per condition an opening sentence
+ * and its counts sentence, which wraps when a run names enough escalations to need it. At one
+ * line each the block stands 150, as S5e drew it.
+ */
+const HEAD_TOP = 62
+const HEAD_LINE = 18
+const HEAD_GAP = 30
+const HEAD_BOTTOM = 14
 const ROW_H = 320
 const FOOT_H = 80
 /** The time axis: the longer of the two windows over 900 px, as the pair scales its own. */
@@ -274,7 +284,23 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
     otherRows[0] + otherRows[1] === 0 ? 0 : OTHER_TOP + (otherRows[0] + otherRows[1]) * 18 + 20
   // The foot takes one more line when the row is there, for the counts sentence under it.
   const footH = FOOT_H + (otherH > 0 ? 18 : 0)
-  const height = HEAD_H + top + rows * ROW_H + otherH + footH
+  // The headline's own height (#174 round 1): a sentence that names every escalation grows with
+  // the run, and an SVG does not wrap, so it is broken to the sheet's width and the block grows
+  // by a line for each break. One line per condition — every run the fixtures hold, and every
+  // run with three escalations or fewer besides the threats — leaves the block at its 150.
+  const said: [FrameInput, string][] = [
+    [unaided, aColor],
+    [vigil, bColor],
+  ]
+  let hy = HEAD_TOP
+  const headRows = said.map(([input]) => {
+    const lines = wrapText(countsSentence(input), 13, width - TEXT_X - PAD)
+    const row = { y: hy, lines }
+    hy += 22 + (lines.length - 1) * HEAD_LINE + HEAD_GAP
+    return row
+  })
+  const headH = hy - HEAD_GAP + HEAD_BOTTOM
+  const height = headH + top + rows * ROW_H + otherH + footH
   const runS = Math.max(a.runS, b.runS)
   const tX = (s: number) => round1(TIME_X + (s / runS) * TIME_W)
   const parts: string[] = [
@@ -292,41 +318,40 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       `class="sheet-title" font-size="18" font-weight="600" fill="${THEME.text}"`,
     ),
   )
-  const said: [FrameInput, string, number][] = [
-    [unaided, aColor, 62],
-    [vigil, bColor, 114],
-  ]
-  for (const [input, color, y] of said) {
+  for (const [input, color] of said) {
     const m = input.metrics
+    const { y, lines } = headRows[m.mode === 'raw' ? 0 : 1]
     parts.push(
       `<circle cx="${PAD + 5}" cy="${y - 5}" r="5" fill="${color}"/>`,
       text(
-        PAD + 18,
+        TEXT_X,
         y,
         openingSentence(m),
         `class="headline" data-mode="${m.mode}" font-size="15" fill="${THEME.text}"`,
       ),
-      text(
-        PAD + 18,
-        y + 22,
-        countsSentence(input),
-        `class="headline-counts" data-mode="${m.mode}" font-size="13" fill="${THEME.muted}"`,
+      ...lines.map((line, i) =>
+        text(
+          TEXT_X,
+          y + 22 + i * HEAD_LINE,
+          line,
+          `class="headline-counts" data-mode="${m.mode}" font-size="13" fill="${THEME.muted}"`,
+        ),
       ),
     )
   }
 
   // The two frames, unaided left and Vigil right, each drawn as its own run's frame.
   parts.push(
-    `<svg class="frame-unaided" x="0" y="${HEAD_H}" width="${l.width}" height="${l.height}" viewBox="0 0 ${l.width} ${l.height}">`,
+    `<svg class="frame-unaided" x="0" y="${headH}" width="${l.width}" height="${l.height}" viewBox="0 0 ${l.width} ${l.height}">`,
     ...l.lines,
     '</svg>',
-    `<svg class="frame-vigil" x="${l.width + GAP}" y="${HEAD_H}" width="${r.width}" height="${r.height}" viewBox="0 0 ${r.width} ${r.height}">`,
+    `<svg class="frame-vigil" x="${l.width + GAP}" y="${headH}" width="${r.width}" height="${r.height}" viewBox="0 0 ${r.width} ${r.height}">`,
     ...r.lines,
     '</svg>',
   )
 
   // One row per threat by role: the time lane with a lane per condition, and the ring beside it.
-  let y = HEAD_H + top
+  let y = headH + top
   a.threats.forEach((threat, i) => {
     const other = b.threats[i]
     const ry = y

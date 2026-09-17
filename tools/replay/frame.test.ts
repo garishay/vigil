@@ -25,6 +25,8 @@ import {
   crossesBox,
   crossesRing,
   textBox,
+  wrapText,
+  estimateWidth,
   type Segment,
 } from './frame.ts'
 import { candidatesAt, rankedAtSecond } from './engine.ts'
@@ -1332,5 +1334,19 @@ describe('the whole run on the frame (S5f, #173, ruled R1, R2)', () => {
       'Unopened · 0:33 — also escalated TRK-33 · enters the ring at 6:32, after the window closed.',
       'Unopened · 2:20 — also escalated TRK-21 · never enters the ring.',
     ])
+  })
+})
+
+describe('text to a fixed width — round 1 on #174', () => {
+  it('keeps words whole and never estimates a line past the width', () => {
+    const sentence = 'Besides the threats, S06 escalated TRK-33 at 0:33 and TRK-21 at 1:10.'
+    const lines = wrapText(sentence, 13, 200)
+    expect(lines.join(' ')).toBe(sentence)
+    for (const line of lines) expect(estimateWidth(line, 13)).toBeLessThanOrEqual(200)
+    // A width that fits the whole sentence leaves it alone; one word alone is one line, however
+    // wide, since breaking inside a word would lose the reader the ident.
+    expect(wrapText(sentence, 13, 2000)).toEqual([sentence])
+    expect(wrapText('TRK-33', 13, 1)).toEqual(['TRK-33'])
+    expect(estimateWidth('abcd', 10)).toBeCloseTo(21.2, 10)
   })
 })
