@@ -48,6 +48,18 @@
 <circle class="track" data-id="inject-45" cx="723.4" cy="249" r="3" fill="#63707f"/>
 <circle class="track" data-id="inject-46" cx="579.2" cy="496.4" r="3" fill="#63707f"/>
 <circle class="track" data-id="inject-47" cx="414.4" cy="112.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-48" cx="282.8" cy="423.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-49" cx="624.6" cy="317.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-50" cx="459.3" cy="651.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-51" cx="293.3" cy="135.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-52" cx="645.1" cy="385.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-53" cx="292.7" cy="506.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-54" cx="427.6" cy="92.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-55" cx="634.5" cy="571.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-56" cx="263.8" cy="348.3" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-57" cx="447.9" cy="139.2" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-58" cx="385.7" cy="606.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-59" cx="216.3" cy="178.1" r="3" fill="#63707f"/>
 <circle class="ring" cx="450" cy="350" r="150" fill="#4c9aff" fill-opacity="0.08" stroke="#4c9aff" stroke-width="1.5"/>
 <rect x="446" y="346" width="8" height="8" fill="#4c9aff"/>
 <text x="460" y="372" font-family="system-ui, sans-serif" font-size="13" fill="#8b98a9">PHL Airfield · 5 km ring</text>
@@ -61,22 +73,46 @@
 <circle class="trail-first" data-id="inject-12" cx="591.7" cy="231.4" r="2.5" fill="#8b98a9"/>
 <circle class="entry" data-id="inject-12" cx="567" cy="256.1" r="3" fill="none" stroke="#8b98a9" stroke-width="1.5"/>
 <text x="587.9" y="260.1" font-family="system-ui, sans-serif" class="threat-label" data-id="inject-12" font-size="11" fill="#63707f">inject-12 · ring entry 3:08</text>
+<circle class="never-opened" data-id="inject-49" cx="624.6" cy="317.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="633.6" y="321.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-48" cx="282.8" cy="423.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="291.8" y="427.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-52" cx="645.1" cy="385.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="654.1" y="389.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-53" cx="292.7" cy="506.9" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="301.7" y="510.9" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-51" cx="293.3" cy="135.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="302.3" y="139.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <circle class="never-opened" data-id="inject-16" cx="674.6" cy="368.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="683.6" y="372.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-54" cx="427.6" cy="92.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="436.6" y="96.7" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <circle class="never-opened" data-id="inject-15" cx="344" cy="102.8" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="353" y="106.8" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-50" cx="459.3" cy="651.4" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="468.3" y="655.4" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-55" cx="634.5" cy="571.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="643.5" y="575.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <circle class="never-opened" data-id="inject-43" cx="232.2" cy="477.3" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="241.2" y="481.3" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <circle class="never-opened" data-id="inject-45" cx="723.4" cy="249" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="732.4" y="253" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <circle class="never-opened" data-id="inject-44" cx="198.8" cy="134.9" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="207.8" y="138.9" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-56" cx="263.8" cy="348.3" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="272.8" y="352.3" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <circle class="never-opened" data-id="inject-46" cx="579.2" cy="496.4" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="588.2" y="500.4" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-57" cx="447.9" cy="139.2" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="456.9" y="143.2" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <circle class="never-opened" data-id="inject-47" cx="414.4" cy="112.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="423.4" y="116.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <circle class="never-opened" data-id="inject-37" cx="569.2" cy="199.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="578.2" y="203.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-58" cx="385.7" cy="606.4" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="394.7" y="610.4" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
+<circle class="never-opened" data-id="inject-59" cx="216.3" cy="178.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<text x="225.3" y="182.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <polyline points="504.7,502.7 360.4,509.1 586.3,236.8 595.1,461.2 297.6,312.5" fill="none" class="path" stroke="#4c9aff" stroke-opacity="0.5" stroke-width="1.5"/>
 <circle class="hop" data-k="1" data-id="inject-13" data-t="12" cx="504.7" cy="502.7" r="9" fill="#4c9aff"/>
 <text x="504.7" y="506.7" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#0b0f14">1</text>

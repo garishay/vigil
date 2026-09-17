@@ -61,7 +61,7 @@ describe('the engine carries the score (S5c-ii, #138, ruled C1)', () => {
     )
   })
 
-  it('reads fourteen above calm at the 03a Vigil fixture’s freeze, 551 s, with the Queue’s own tags', () => {
+  it('reads twenty-six above calm at the 03a Vigil fixture’s freeze, 551 s, with the Queue’s own tags (S7c, #163)', () => {
     const tags = candidatesAt(
       rankedAtSecond(study, planFor('03a', study.timeline), STUDY.beginS + 71),
     ).map(
@@ -72,17 +72,29 @@ describe('the engine carries the score (S5c-ii, #138, ruled C1)', () => {
       '1 inject-11 73 · Non-cooperative, closing, near PHL Airfield',
       '2 inject-12 73 · Non-cooperative, closing, near PHL Airfield',
       '3 inject-42 68 · Non-cooperative, closing, near PHL Airfield',
-      '4 inject-13 68 · Loitering, non-cooperative, near PHL Airfield',
-      '5 inject-41 67 · Non-cooperative, closing, near PHL Airfield',
-      '6 inject-16 63 · Non-cooperative, closing, near PHL Airfield',
-      '7 inject-15 61 · Orbiting, non-cooperative, low and slow',
-      '8 inject-43 59 · Non-cooperative, closing, low and slow',
-      '9 inject-45 57 · Non-cooperative, closing, low and slow',
-      '10 inject-44 54 · Non-cooperative, closing, low and slow',
-      '11 inject-14 51 · Non-cooperative, near PHL Airfield, low and slow',
-      '12 inject-46 50 · Non-cooperative, near PHL Airfield, low and slow',
-      '13 inject-47 48 · Non-cooperative, near PHL Airfield, low and slow',
-      '14 inject-37 45 · Closing, near PHL Airfield, low and slow',
+      '4 inject-49 68 · Non-cooperative, closing, near PHL Airfield',
+      '5 inject-13 68 · Loitering, non-cooperative, near PHL Airfield',
+      '6 inject-41 67 · Non-cooperative, closing, near PHL Airfield',
+      '7 inject-48 67 · Non-cooperative, closing, near PHL Airfield',
+      '8 inject-52 66 · Loitering, non-cooperative, near PHL Airfield',
+      '9 inject-53 65 · Loitering, non-cooperative, near PHL Airfield',
+      '10 inject-16 63 · Non-cooperative, closing, near PHL Airfield',
+      '11 inject-54 63 · Loitering, non-cooperative, low and slow',
+      '12 inject-51 62 · Non-cooperative, closing, low and slow',
+      '13 inject-55 61 · Loitering, non-cooperative, low and slow',
+      '14 inject-15 61 · Orbiting, non-cooperative, low and slow',
+      '15 inject-50 60 · Non-cooperative, closing, low and slow',
+      '16 inject-43 59 · Non-cooperative, closing, low and slow',
+      '17 inject-45 57 · Non-cooperative, closing, low and slow',
+      '18 inject-44 54 · Non-cooperative, closing, low and slow',
+      '19 inject-14 51 · Non-cooperative, near PHL Airfield, low and slow',
+      '20 inject-56 51 · Non-cooperative, near PHL Airfield, low and slow',
+      '21 inject-46 50 · Non-cooperative, near PHL Airfield, low and slow',
+      '22 inject-57 49 · Non-cooperative, near PHL Airfield, low and slow',
+      '23 inject-47 48 · Non-cooperative, near PHL Airfield, low and slow',
+      '24 inject-58 47 · Non-cooperative, low and slow, near PHL Airfield',
+      '25 inject-37 45 · Closing, near PHL Airfield, low and slow',
+      '26 inject-59 45 · Non-cooperative, low and slow, near PHL Airfield',
     ])
   })
 })

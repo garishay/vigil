@@ -565,7 +565,7 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
   const vigilCaption = (svg: string) =>
     [...svg.matchAll(/class="caption"[^>]*>([^<]*)</g)].map((match) => match[1])
 
-  it('draws the Queue box under the map on 02a and 02b — the S5c gate’s five lines exactly — and the fourteen on 03a', () => {
+  it('draws the Queue box under the map on 02a and 02b — the S5c gate’s five lines exactly — and the twenty-six on 03a (S7c, #163)', () => {
     const a = frameSvg(vigilOf('S03-02a-vigil-1'))
     expect(textsOf(a, 'vigil-queue-title')).toEqual(['Queue at 0:58 · 5 above calm'])
     expect(queueLines(a)).toEqual([
@@ -586,11 +586,14 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
     expect(box.width).toBe('840')
     expect(Number(box.height)).toBe(30 + 5 * 18 + 6)
     const c = frameSvg(vigilOf('S05-03a-vigil-1'))
-    expect(textsOf(c, 'vigil-queue-title')).toEqual(['Queue at 1:11 · 14 above calm'])
-    expect(queueLines(c)).toHaveLength(14)
+    expect(textsOf(c, 'vigil-queue-title')).toEqual(['Queue at 1:11 · 26 above calm'])
+    expect(queueLines(c)).toHaveLength(26)
     expect(queueLines(c)[0]).toBe('1 TRK-11 73 · Non-cooperative, closing, near PHL Airfield')
-    expect(queueLines(c)[6]).toBe('7 TRK-15 61 · Orbiting, non-cooperative, low and slow')
-    expect(queueLines(c)[13]).toBe('14 UAS-9254 45 · Closing, near PHL Airfield, low and slow')
+    expect(queueLines(c)[13]).toBe('14 TRK-15 61 · Orbiting, non-cooperative, low and slow')
+    expect(queueLines(c)[24]).toBe('25 UAS-9254 45 · Closing, near PHL Airfield, low and slow')
+    expect(queueLines(c)[25]).toBe(
+      '26 TRK-59 45 · Non-cooperative, low and slow, near PHL Airfield',
+    )
     // The rank in the band's colour: warning for rank 1, caution for rank 4 on 02a.
     const spans = [
       ...a.matchAll(/class="vigil-queue-line"[^>]*><tspan[^>]*fill="([^"]+)">(\d+)<\/tspan>/g),
@@ -635,9 +638,9 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
     expect(textsOf(svg, 'vigil-entry')).toEqual(['entry in 1:05'])
     expect(textsOf(frameSvg(vigilOf('S04-02b-vigil-1')), 'vigil-entry')).toEqual(['entry in 1:04'])
     expect(tagsOf(svg, 'vigil-threat-label')).toHaveLength(0)
-    // The pair: twelve warm labels and one combined label per threat, in the band's colour.
+    // The pair: twenty-four warm labels and one combined label per threat, in the band's colour.
     const c = frameSvg(vigilOf('S05-03a-vigil-1'))
-    expect(tagsOf(c, 'vigil-label')).toHaveLength(12)
+    expect(tagsOf(c, 'vigil-label')).toHaveLength(24)
     expect(tagsOf(c, 'vigil-entry')).toHaveLength(0)
     expect(textsOf(c, 'vigil-threat-label')).toEqual([
       'TRK-11 · 73 · entry in 0:31',
@@ -697,13 +700,13 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
       'It read as TRK-12 · sensor.',
       'Vigil read it rank 2 · warning 72 · closing at 6 m/s · ring entry in 2:15.',
       'Look #1 · 0:38 — escalated inject-11 0.8 km outside the ring · 1:04 before entry, ring entry 1:42.',
-      'Look #2 · 1:11 — escalated inject-12 0.7 km outside the ring · 1:57 before entry, ring entry 3:08. 11 candidates never opened.',
+      'Look #2 · 1:11 — escalated inject-12 0.7 km outside the ring · 1:57 before entry, ring entry 3:08. 23 candidates never opened.',
     ])
     expect(vigilCaption(frameSvg(vigilOf('S06-03b-vigil-1'))).slice(2, 3)).toEqual([
       'Vigil read it rank 1 · warning 73 · closing at 6 m/s · ring entry in 1:37.',
     ])
     expect(vigilCaption(frameSvg(vigilOf('S06-03b-vigil-1'))).at(-1)).toBe(
-      'Look #3 · 1:28 — escalated inject-12 0.8 km outside the ring · 1:01 before entry, ring entry 2:29. 11 candidates never opened.',
+      'Look #3 · 1:28 — escalated inject-12 0.8 km outside the ring · 1:01 before entry, ring entry 2:29. 23 candidates never opened.',
     )
     // The Vigil line is muted like the ident line; the emphasis rule is untouched.
     const a = frameSvg(vigilOf('S03-02a-vigil-1'))
@@ -832,9 +835,9 @@ describe('the frame — round 1 (#160)', () => {
     )
     expect(tagsOf(frameSvg(fixture('S03-02a-vigil-1')), 'never-opened')).toHaveLength(4)
     expect(captionsOf(frameSvg(fixture('S05-03a-vigil-1'))).at(-1)).toMatch(
-      / 11 candidates never opened\.$/,
+      / 23 candidates never opened\.$/,
     )
-    expect(tagsOf(frameSvg(fixture('S05-03a-vigil-1')), 'never-opened')).toHaveLength(11)
+    expect(tagsOf(frameSvg(fixture('S05-03a-vigil-1')), 'never-opened')).toHaveLength(23)
   })
 
   it('paints a calm band in the neutral text colour, never a borrowed caution', () => {
@@ -866,10 +869,10 @@ describe('the frame’s document for the pair (S5d-i, ruled G2)', () => {
   it('gives its body apart from the wrapper, a clip id of the caller’s, and the Queue box capped on request', () => {
     const input = fixture('S05-03a-vigil-1')
     const whole = frameDocument(input)
-    expect(whole).toMatchObject({ width: 900, height: 1332 })
+    expect(whole).toMatchObject({ width: 900, height: 1548 })
     expect(frameSvg(input)).toBe(
       [
-        '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1332" viewBox="0 0 900 1332" data-subject="S05" data-scenario="03a" data-mode="vigil" data-run="1">',
+        '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1548" viewBox="0 0 900 1548" data-subject="S05" data-scenario="03a" data-mode="vigil" data-run="1">',
         ...whole.lines,
         '</svg>',
         '',
@@ -882,10 +885,10 @@ describe('the frame’s document for the pair (S5d-i, ruled G2)', () => {
     expect(body).toContain('clip-path="url(#panel-right)"')
     expect(tagsOf(body, 'vigil-queue-line')).toHaveLength(5)
     expect(textsOf(body, 'vigil-queue-more')).toEqual([
-      "… 9 more above calm, on the run's own frame",
+      "… 21 more above calm, on the run's own frame",
     ])
-    // Nine rows fewer, one count line more: eight lines of 18 px.
-    expect(capped.height).toBe(1332 - 8 * 18)
+    // Twenty-one rows fewer, one count line more: twenty lines of 18 px.
+    expect(capped.height).toBe(whole.height - 20 * 18)
     // A cap the box fits under changes nothing.
     expect(frameDocument(fixture('S03-02a-vigil-1'), { queueCap: 5 }).lines).toEqual(
       frameDocument(fixture('S03-02a-vigil-1')).lines,

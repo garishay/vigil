@@ -85,7 +85,7 @@ export const STUDY_CAST: Record<string, CastRoles> = {
     threats: ['inject-11', 'inject-12'],
     tangential: ['inject-14'],
     orbit: 'inject-15',
-    band: ['inject-41', 'inject-42'],
+    band: ['inject-41', 'inject-42', 'inject-48', 'inject-49'],
     lockS: STUDY.beginS,
   },
   '03b': {
@@ -93,7 +93,7 @@ export const STUDY_CAST: Record<string, CastRoles> = {
     threats: ['inject-11', 'inject-12'],
     tangential: ['inject-14'],
     orbit: 'inject-15',
-    band: ['inject-41', 'inject-42'],
+    band: ['inject-41', 'inject-42', 'inject-48', 'inject-49'],
     lockS: STUDY.beginS,
   },
 }
