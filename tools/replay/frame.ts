@@ -272,14 +272,14 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
 
 /**
  * What an escalated non-threat turned out to be, in the sheet's and the frame's one wording
- * (S5f, #173): a real aircraft is named as one, since the brief calls escalating a cooperative
- * aircraft an error whatever its path (#36 [40] B); an inject either never enters the ring or
- * enters after the window closed — an inject inside it is the metrics' throw — and a due-later
- * inbound is never called a non-threat.
+ * (S5f, #173, the wording ruled at the gate): a real aircraft is named as one, since the brief
+ * calls escalating a cooperative aircraft an error whatever its path (#36 [40] B); an inject
+ * either never enters the ring or enters after the window closed — an inject inside it is the
+ * metrics' throw — and a due-later inbound is never called a non-threat.
  */
 export const outcomeWords = (other: OtherEscalation): string =>
   other.real
-    ? 'a real aircraft — cooperative, never the threat'
+    ? 'a real aircraft — cooperative traffic, never a threat'
     : other.entryT === null
       ? 'never enters the ring'
       : `enters the ring at ${mmss(other.entryT)}, after the window closed`
@@ -296,10 +296,15 @@ export const FOOTNOTE = FOOTNOTE_LINES.join(' ')
 
 /**
  * The key to the later part of the path (S5f, #173), on a frame that has one: the picture is the
- * frozen second's and the path is the whole run's, so the marks made after the freeze say so.
+ * frozen second's and the path is the whole run's, so the marks made after the freeze say so —
+ * including the clause for a look the picture cannot place, which is left undrawn (ruled R2).
+ * Two lines for the same reason as the overlay's: SVG text does not wrap, and the sentence with
+ * that clause runs past a 900 px panel at 11 px.
  */
-export const LATE_FOOTNOTE =
-  'A look after the freeze is drawn as a dashed outline on a dashed path: the background picture, the Queue box and every reading are the frozen second’s.'
+export const LATE_FOOTNOTE_LINES = [
+  'A look after the freeze is drawn as a dashed outline on a dashed path, and one the regenerated picture no longer holds is not drawn at all:',
+  "the background picture, the Queue box and every reading are the frozen second's.",
+] as const
 
 /** The theme's tokens, for the pair and the study figure (S5d) — one palette, fixed in the SVGs. */
 export const THEME = COLOR
@@ -647,19 +652,30 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // them in order; the threat's looks in the warning colour. The whole run's looks, not the
   // frozen second's (S5f, #173): the two conditions' frames otherwise cover different spans and
   // the quieter one is overstated. A look after the freeze is the same hop at LATE_OPACITY.
-  const hops = looksOfRun(record).map((event, i) => {
+  const looks = looksOfRun(record)
+  const hops = looks.flatMap((event, i) => {
     const track = trackAtSecond(study.index, plan, event.track, beginS + event.t, record.mode)
+    const late = event.t > metrics.freezeT
     if (track === null) {
-      throw new Error(
-        `${record.subject} run ${record.run}: look #${i + 1} at t ${event.t} names ${event.track}, not in the picture then`,
-      )
+      // A look up to the freeze names the picture the frame is of, so a track the picture does
+      // not hold stops the tool, as it always has. A look after it is outside that picture's
+      // second: it is left undrawn and the footnote's key says so (S5f, #173, ruled R2).
+      if (!late) {
+        throw new Error(
+          `${record.subject} run ${record.run}: look #${i + 1} at t ${event.t} names ${event.track}, not in the picture then`,
+        )
+      }
+      return []
     }
-    return { k: i + 1, event, point: project(track.position), late: event.t > metrics.freezeT }
+    return [{ k: i + 1, event, point: project(track.position), late }]
   })
   // The path in two pieces: up to the freeze as it was drawn, and the rest lighter and dashed —
   // the segment that joins them belongs to the later piece, since it leaves the frozen second.
   const onTime = hops.filter((hop) => !hop.late)
   const late = hops.slice(onTime.length)
+  // Whether the run looked at anything after the freeze at all — every look up to it is drawn or
+  // throws, so this counts the ones R2 may leave undrawn as well as the ones the map shows.
+  const afterFreeze = looks.length > onTime.length
   parts.push(
     polyline(
       onTime.map((hop) => hop.point),
@@ -694,13 +710,15 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   } of marked) {
     const fill = threatIds.includes(event.track) ? COLOR.warning : COLOR.accent
     const n = visits.get(event.track)!
-    // A marker whose own look is after the freeze is drawn as an outline in the same colour,
-    // its numeral in that colour rather than knocked out of a solid disc; one the run came back
-    // to after the freeze keeps its weight, since it was made at the frozen second. Lighter by
-    // ink and not by opacity: dimming the disc takes the numeral's contrast to 1.6 against the
-    // panel, where the outline holds it at 6.3 — the number is what the caption is keyed to.
+    // A marker whose own look is after the freeze is drawn as a dashed outline in the same
+    // colour, its numeral in that colour rather than knocked out of a solid disc; one the run
+    // came back to after the freeze keeps its weight, since it was made at the frozen second.
+    // Lighter by ink and not by opacity: dimming the disc takes the numeral's contrast to 1.6
+    // against the panel, where the outline holds it at 6.3 — the number is what the caption is
+    // keyed to. The outline is filled with the panel's own colour (ruled R1), so the numeral
+    // reads over the panel wherever the marker lands and never over the ring, a trail or a dot.
     parts.push(
-      `<circle class="hop${isLate ? ' hop-late' : ''}" data-k="${k}"${n > 1 ? ` data-visits="${n}"` : ''} data-id="${escAttr(event.track)}" data-t="${event.t}" cx="${x}" cy="${y}" r="9" ${isLate ? `fill="none" stroke="${fill}" stroke-width="1.5" stroke-dasharray="3 2"` : `fill="${fill}"`}/>`,
+      `<circle class="${isLate ? 'hop-late' : 'hop'}" data-k="${k}"${n > 1 ? ` data-visits="${n}"` : ''} data-id="${escAttr(event.track)}" data-t="${event.t}" cx="${x}" cy="${y}" r="9" ${isLate ? `fill="${COLOR.panel}" stroke="${fill}" stroke-width="1.5" stroke-dasharray="3 2"` : `fill="${fill}"`}/>`,
       text(
         x,
         y + 4,
@@ -813,10 +831,11 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // it stands at the frozen second. A run with nothing after the freeze reads as it always did —
   // and the treatment itself is the footnote's, beside the overlay's, since the subtitle carrying
   // both counts and a key measured 842 px of the panel's 900 in a browser.
-  const span =
-    late.length === 0
-      ? plural(hops.length, 'look')
-      : `${plural(hops.length, 'look')} over the whole run, ${onTime.length} to the freeze`
+  // The counts are the run's own, not the drawn marks': a late look the picture cannot place is
+  // still a look the subject took (R2), and the key line accounts for it.
+  const span = afterFreeze
+    ? `${plural(looks.length, 'look')} over the whole run, ${onTime.length} to the freeze`
+    : plural(looks.length, 'look')
   const header = [
     text(
       30,
@@ -836,8 +855,8 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const footY = HEADER_H + PANEL.height + 20
   // The footnote takes the key’s line only on a frame that has a look after the freeze, so a
   // frame without one keeps its height to the byte (S5f, #173).
-  const footnotes = late.length > 0 ? [...FOOTNOTE_LINES, LATE_FOOTNOTE] : [...FOOTNOTE_LINES]
-  const footH = FOOT_H + (late.length > 0 ? 14 : 0)
+  const footnotes = afterFreeze ? [...FOOTNOTE_LINES, ...LATE_FOOTNOTE_LINES] : [...FOOTNOTE_LINES]
+  const footH = FOOT_H + (afterFreeze ? 28 : 0)
   // The Queue box on a Vigil frame (C2), under the map between the footnote and the caption:
   // every above-calm inject at the freeze in rank order, the rank in the band's colour, the
   // composite, and the Queue's own reason tag. On the map it would cover a threat when the

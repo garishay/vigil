@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="988" viewBox="0 0 900 988" data-subject="S05" data-scenario="03a" data-mode="raw" data-run="1">
-<rect width="900" height="988" fill="#0b0f14"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1038" viewBox="0 0 900 1038" data-subject="S05" data-scenario="03a" data-mode="raw" data-run="1">
+<rect width="900" height="1038" fill="#0b0f14"/>
 <text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">UNAIDED · frozen at the moment of the last escalation — 1:37</text>
-<text x="30" y="64" font-family="system-ui, sans-serif" class="subtitle" font-size="13" fill="#8b98a9">The subject's selection sequence from the run JSON, replayed as a path. 5 looks.</text>
+<text x="30" y="64" font-family="system-ui, sans-serif" class="subtitle" font-size="13" fill="#8b98a9">The subject's selection sequence from the run JSON, replayed as a path. 6 looks over the whole run, 5 to the freeze.</text>
 <defs><clipPath id="panel"><rect x="0" y="0" width="900" height="700"/></clipPath></defs>
 <g class="map" transform="translate(0 80)" clip-path="url(#panel)">
 <rect width="900" height="700" fill="#121821"/>
@@ -112,6 +112,7 @@
 <circle class="never-opened" data-id="inject-47" cx="216.3" cy="178.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="225.3" y="182.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <polyline points="504.7,502.7 360.4,509.1 586.3,236.8 595.1,461.2 297.6,312.5" fill="none" class="path" stroke="#4c9aff" stroke-opacity="0.5" stroke-width="1.5"/>
+<polyline points="297.6,312.5 497.1,176.8" fill="none" class="path-late" stroke="#4c9aff" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="4 4"/>
 <circle class="hop" data-k="1" data-id="inject-35" data-t="12" cx="504.7" cy="502.7" r="9" fill="#4c9aff"/>
 <text x="504.7" y="506.7" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#0b0f14">1</text>
 <circle class="hop" data-k="2" data-id="inject-36" data-t="27" cx="360.4" cy="509.1" r="9" fill="#4c9aff"/>
@@ -122,16 +123,21 @@
 <text x="595.1" y="465.2" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#0b0f14">4</text>
 <circle class="hop" data-k="5" data-id="inject-31" data-t="84" cx="297.6" cy="312.5" r="9" fill="#ff6b57"/>
 <text x="297.6" y="316.5" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#0b0f14">5</text>
+<circle class="hop-late" data-k="6" data-id="inject-65" data-t="130" cx="497.1" cy="176.8" r="9" fill="#121821" stroke="#4c9aff" stroke-width="1.5" stroke-dasharray="3 2"/>
+<text x="497.1" y="180.8" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#4c9aff">6</text>
 <text x="293.3" y="289.3" font-family="system-ui, sans-serif" class="threat-label" data-id="inject-31" font-size="11" text-anchor="end" fill="#63707f">inject-31 · ring entry 1:42</text>
 <text x="587.9" y="219.1" font-family="system-ui, sans-serif" class="threat-label" data-id="inject-57" font-size="11" fill="#63707f">inject-57 · ring entry 3:08</text>
 </g>
 <text x="30" y="800" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">"never opened" marks the engine's above-calm tracks at the freeze that the run never opened:</text>
 <text x="30" y="814" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the analyst's overlay, drawn on both conditions; raw's screen never showed that set.</text>
-<rect x="30" y="828" width="840" height="160" rx="6" fill="#121821" stroke="#1f2a37"/>
-<text x="46" y="860" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 0:41 — opened inject-57 (threat 2), 6.2 km at T0; assessed at 0:50, escalated at 0:58.</text>
-<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-57 · sensor.</text>
-<text x="46" y="904" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #5 · 1:24 — opened inject-31 (threat 1), 6.3 km at T0; assessed at 1:30, escalated at 1:37.</text>
-<text x="46" y="926" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-31 · sensor.</text>
-<text x="46" y="948" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #5 · 1:37 — escalated inject-31 0.1 km outside the ring · 0:05 before entry, ring entry 1:42.</text>
-<text x="46" y="970" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 0:58 — escalated inject-57 0.8 km outside the ring · 2:10 before entry, ring entry 3:08.</text>
+<text x="30" y="828" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">A look after the freeze is drawn as a dashed outline on a dashed path, and one the regenerated picture no longer holds is not drawn at all:</text>
+<text x="30" y="842" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the background picture, the Queue box and every reading are the frozen second's.</text>
+<rect x="30" y="856" width="840" height="182" rx="6" fill="#121821" stroke="#1f2a37"/>
+<text x="46" y="888" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 0:41 — opened inject-57 (threat 2), 6.2 km at T0; assessed at 0:50, escalated at 0:58.</text>
+<text x="46" y="910" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-57 · sensor.</text>
+<text x="46" y="932" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #5 · 1:24 — opened inject-31 (threat 1), 6.3 km at T0; assessed at 1:30, escalated at 1:37.</text>
+<text x="46" y="954" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-31 · sensor.</text>
+<text x="46" y="976" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #5 · 1:37 — escalated inject-31 0.1 km outside the ring · 0:05 before entry, ring entry 1:42.</text>
+<text x="46" y="998" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 0:58 — escalated inject-57 0.8 km outside the ring · 2:10 before entry, ring entry 3:08.</text>
+<text x="46" y="1020" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #6 · 2:30 — also escalated TRK-65 · enters the ring at 6:59, after the window closed.</text>
 </svg>
