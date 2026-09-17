@@ -369,10 +369,60 @@ const LABEL_SPOTS: readonly (readonly [number, number, boolean])[] = [
   [-9, -25, true],
 ]
 
+/** A drawn line a label would sit across: a segment of the look path (#170, ruled R1). */
+export type Segment = readonly [readonly [number, number], readonly [number, number]]
+
+/** Whether a segment enters a box — the four edges, and the case of a segment wholly inside. */
+export function crossesBox(box: Box, [[x1, y1], [x2, y2]]: Segment): boolean {
+  const inside = (x: number, y: number) =>
+    x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h
+  if (inside(x1, y1) || inside(x2, y2)) return true
+  const side = (px: number, py: number) => (x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)
+  const corners: [number, number][] = [
+    [box.x, box.y],
+    [box.x + box.w, box.y],
+    [box.x + box.w, box.y + box.h],
+    [box.x, box.y + box.h],
+  ]
+  // The segment's line must separate the corners, and the box's span must reach the segment's.
+  const signs = corners.map((c) => Math.sign(side(c[0], c[1])))
+  if (signs.every((v) => v > 0) || signs.every((v) => v < 0)) return false
+  return (
+    Math.max(x1, x2) >= box.x &&
+    Math.min(x1, x2) <= box.x + box.w &&
+    Math.max(y1, y2) >= box.y &&
+    Math.min(y1, y2) <= box.y + box.h
+  )
+}
+
 /**
- * The spot a threat's label takes (#170): the first that clears the map, or its own when none
- * does — and since the label is drawn after everything else, a label with nowhere to go is on
- * top of what crowds it rather than under it.
+ * Whether a circle's own outline enters a box (#170, ruled R1) — the 5 km ring, which is a line
+ * on the map and not a disc: the box straddles it when its nearest point is inside the radius
+ * and its farthest corner is outside.
+ */
+export function crossesRing(box: Box, cx: number, cy: number, r: number): boolean {
+  const nx = Math.max(box.x, Math.min(cx, box.x + box.w))
+  const ny = Math.max(box.y, Math.min(cy, box.y + box.h))
+  const near = Math.hypot(cx - nx, cy - ny)
+  const far = Math.max(
+    Math.hypot(cx - box.x, cy - box.y),
+    Math.hypot(cx - (box.x + box.w), cy - box.y),
+    Math.hypot(cx - (box.x + box.w), cy - (box.y + box.h)),
+    Math.hypot(cx - box.x, cy - (box.y + box.h)),
+  )
+  return near <= r && far >= r
+}
+
+/**
+ * The spot a threat's label takes (#170, ruled R1 and R2): the spots are searched twice — first
+ * for one that clears every mark and label **and** is crossed by no line, the ring or a segment
+ * of the look path; then, if none, for one that clears the marks and labels alone. Only then the
+ * fallback, its own place, which the label draws last from, so it is on top of what crowds it
+ * rather than under. A spot must lie wholly inside the panel in either pass (R2), so no label is
+ * cut by the panel's edge.
+ *
+ * The path and the threat's label are what a debrief reads, so a label across the path costs the
+ * reader something even though nothing is hidden — hence the second pass rather than one.
  */
 export function placeLabel(
   x: number,
@@ -380,14 +430,23 @@ export function placeLabel(
   size: number,
   content: string,
   occupied: readonly Box[],
-): { x: number; y: number; end: boolean } {
-  for (const [dx, dy, end] of LABEL_SPOTS) {
-    const box = textBox(x + dx, y + dy, size, content, end)
-    if (!boxInPanel(box) || occupied.some((other) => hits(box, other))) continue
-    return { x: round1(x + dx), y: round1(y + dy), end }
+  lines: readonly Segment[] = [],
+  ring: { cx: number; cy: number; r: number } | null = null,
+): { x: number; y: number; end: boolean; pass: 0 | 1 | 2 } {
+  const clears = (box: Box) => boxInPanel(box) && !occupied.some((other) => hits(box, other))
+  const noLine = (box: Box) =>
+    !lines.some((line) => crossesBox(box, line)) &&
+    !(ring !== null && crossesRing(box, ring.cx, ring.cy, ring.r))
+  for (const pass of [1, 2] as const) {
+    for (const [dx, dy, end] of LABEL_SPOTS) {
+      const box = textBox(x + dx, y + dy, size, content, end)
+      if (!clears(box)) continue
+      if (pass === 1 && !noLine(box)) continue
+      return { x: round1(x + dx), y: round1(y + dy), end, pass }
+    }
   }
   const [dx, dy, end] = LABEL_SPOTS[0]
-  return { x: round1(x + dx), y: round1(y + dy), end }
+  return { x: round1(x + dx), y: round1(y + dy), end, pass: 0 }
 }
 
 const polyline = (points: readonly (readonly [number, number])[], attrs: string): string =>
@@ -687,8 +746,11 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // The threats' own labels, last on the map and each at the first spot around its dot that
   // clears what is already there (#170). A label placed takes its own place among the obstacles,
   // so two threats' labels do not land on one another.
+  // The look path's own segments and the ring are the lines the first pass avoids (R1).
+  const pathLines: Segment[] = hops.slice(1).map((hop, i): Segment => [hops[i].point, hop.point])
+  const ringLine = { cx, cy, r }
   for (const label of pending) {
-    const spot = placeLabel(label.x, label.y, 11, label.content, occupied)
+    const spot = placeLabel(label.x, label.y, 11, label.content, occupied, pathLines, ringLine)
     parts.push(text(spot.x, spot.y, label.content, label.attrs(spot.end)))
     occupied.push(textBox(spot.x, spot.y, 11, label.content, spot.end))
   }

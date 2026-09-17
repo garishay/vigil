@@ -20,7 +20,12 @@ import {
   mmss,
   neverOpenedWords,
   PANEL,
+  placeLabel,
   project,
+  crossesBox,
+  crossesRing,
+  textBox,
+  type Segment,
 } from './frame.ts'
 import { candidatesAt, rankedAtSecond } from './engine.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
@@ -57,6 +62,17 @@ const synthetic = (events: RunEvent[], patch: Partial<RunRecord> = {}) => {
 }
 
 /** The projection, written out again here so a hop's pixel is checked against the formula, not the code. */
+/** The eight spots a threat's label may take around its dot, written out again here (#170). */
+const SPOTS: [number, number, boolean][] = [
+  [9, 16, false],
+  [9, -10, false],
+  [-9, 16, true],
+  [-9, -10, true],
+  [9, 31, false],
+  [-9, 31, true],
+  [9, -25, false],
+  [-9, -25, true],
+]
 const expectedPx = ([lon, lat]: readonly [number, number]) => {
   const kmPerDegLat = 111.32
   const kmPerDegLon = 111.32 * Math.cos((AO.center[1] * Math.PI) / 180)
@@ -366,7 +382,7 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
     return match ? attrs(match[0]) : null
   }
 
-  it('draws each threat’s trail with its marks unlabelled and one map label per threat below-right of its dot at the freeze (ruled F2)', () => {
+  it('draws each threat’s trail with its marks unlabelled and one map label per threat around its dot at the freeze (ruled F2; placed by #170)', () => {
     const input = on03('03a', shape)
     const svg = frameSvg(input)
     const trails = tagsOf(svg, 'trail')
@@ -393,10 +409,16 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
       'inject-31 · ring entry 1:42',
       'inject-57 · ring entry 3:08',
     ])
+    // Each label is at one of the eight spots around its own dot — the trail's last point —
+    // and no longer always the first of them (#170): the search moves it off what it would sit
+    // on, and off the look path and the ring (ruled R1).
     trails.forEach((trail, i) => {
       const [x, y] = trail.points.split(' ').at(-1)!.split(',').map(Number)
-      expect(Number(labels[i].x)).toBe(Math.round((x + 9) * 10) / 10)
-      expect(Number(labels[i].y)).toBe(Math.round((y + 16) * 10) / 10)
+      expect(SPOTS).toContainEqual([
+        Math.round((Number(labels[i].x) - x) * 10) / 10,
+        Math.round((Number(labels[i].y) - y) * 10) / 10,
+        labels[i]['text-anchor'] === 'end',
+      ])
     })
     // The trails run from Begin to the freeze at +97 — 98 points each.
     expect(trails[0].points.split(' ')).toHaveLength(98)
@@ -629,12 +651,20 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
       expect(labels[i].fill).toBe(entry.band === 'warning' ? '#ff6b57' : '#f5b942')
     })
     expect(labels[0]).toMatchObject({ x: '291', y: '421.4' })
-    // 02: the two labels as the S5c gate mocked them — the warm label and the entry below-right.
+    // 02: the warm label above-right as the S5c gate mocked it, and the entry at the spot the
+    // placement gives it — below-right was on the T0 label and the mismatch label (#170).
     expect(tagsOf(svg, 'vigil-entry')[0]).toMatchObject({
-      x: '291',
-      y: '444.4',
+      x: '273',
+      y: '418.4',
+      'text-anchor': 'end',
       'data-id': 'inject-11',
     })
+    const dot = expectedPx(candidates[0].track.position)
+    expect(SPOTS).toContainEqual([
+      Math.round((273 - dot[0]) * 10) / 10,
+      Math.round((418.4 - dot[1]) * 10) / 10,
+      true,
+    ])
     expect(textsOf(svg, 'vigil-entry')).toEqual(['entry in 1:05'])
     expect(textsOf(frameSvg(vigilOf('S04-02b-vigil-1')), 'vigil-entry')).toEqual(['entry in 1:04'])
     expect(tagsOf(svg, 'vigil-threat-label')).toHaveLength(0)
@@ -646,9 +676,12 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
       'TRK-31 · 73 · entry in 0:31',
       'TRK-57 · 73 · entry in 1:56',
     ])
+    // Below-right was on the threat's own entry mark, so the label takes the left-hand spot at
+    // the same height and reads away from the dot (#170).
     expect(tagsOf(c, 'vigil-threat-label')[0]).toMatchObject({
-      x: '301.9',
+      x: '283.9',
       y: '326.7',
+      'text-anchor': 'end',
       fill: '#ff6b57',
       'font-weight': '600',
     })
@@ -909,6 +942,183 @@ describe('the frame’s document for the pair (S5d-i, ruled G2)', () => {
       expect(frameSvg(fixture(name))).toBe(
         readFileSync(`tools/replay/__fixtures__/frames/${name}.svg`, 'utf8'),
       )
+    }
+  })
+})
+
+describe('a threat’s label goes where the map is clear (#170, ruled R1, R2)', () => {
+  /** The eight spots again, as offsets from a dot at the origin. */
+  const spotsAt = (x: number, y: number) =>
+    SPOTS.map(([dx, dy, end]) => ({ x: x + dx, y: y + dy, end }))
+
+  it('takes its own spot when nothing is there and no line crosses it', () => {
+    const place = placeLabel(400, 300, 11, 'TRK-11 · 72', [], [], null)
+    expect(place).toEqual({ x: 409, y: 316, end: false, pass: 1 })
+  })
+
+  it('steps past a spot a mark or a label holds, and reports the pass it took', () => {
+    // A box over the first spot only: the label takes the second, still in the first pass.
+    const first = textBox(409, 316, 11, 'TRK-11 · 72')
+    expect(placeLabel(400, 300, 11, 'TRK-11 · 72', [first], [], null)).toEqual({
+      x: 409,
+      y: 290,
+      end: false,
+      pass: 1,
+    })
+  })
+
+  it('prefers a spot no line crosses, and takes a crossed one only when none is free (R1)', () => {
+    // The look path runs through the first spot, which is otherwise clear: the first pass steps
+    // past it rather than stopping there, and takes the second spot.
+    const path: Segment[] = [
+      [
+        [380, 312],
+        [520, 312],
+      ],
+    ]
+    expect(placeLabel(400, 300, 11, 'TRK-11 · 72', [], path, null)).toEqual({
+      x: 409,
+      y: 290,
+      end: false,
+      pass: 1,
+    })
+    // The ring counts the same way: an outline through the first spot moves the label off it.
+    const ring = { cx: 409, cy: 316, r: 40 }
+    expect(placeLabel(400, 300, 11, 'TRK-11 · 72', [], [], ring).pass).toBe(1)
+    expect(placeLabel(400, 300, 11, 'TRK-11 · 72', [], [], ring)).not.toMatchObject({
+      x: 409,
+      y: 316,
+    })
+    // With every spot crossed by the path, no spot is line-free: the second pass takes the first
+    // that clears the marks and labels, which is the label's own.
+    const everywhere: Segment[] = spotsAt(400, 300).map((spot) => [
+      [spot.x - 200, spot.y - 4],
+      [spot.x + 200, spot.y - 4],
+    ])
+    const crossed = placeLabel(400, 300, 11, 'TRK-11 · 72', [], everywhere, null)
+    expect(crossed).toEqual({ x: 409, y: 316, end: false, pass: 2 })
+  })
+
+  it('falls back to its own spot, on top of what crowds it, when no spot is clear (R1)', () => {
+    const everySpot = spotsAt(400, 300).map((spot) =>
+      textBox(spot.x, spot.y, 11, 'TRK-11 · 72', spot.end),
+    )
+    const place = placeLabel(400, 300, 11, 'TRK-11 · 72', everySpot, [], null)
+    expect(place).toEqual({ x: 409, y: 316, end: false, pass: 0 })
+  })
+
+  it('keeps every spot wholly inside the panel, in both passes (R2)', () => {
+    // A dot in the panel's bottom-right corner: every right-hand spot would run off the edge,
+    // and the low ones off the bottom, so the label takes a left-hand spot that fits.
+    const place = placeLabel(PANEL.width - 20, PANEL.height - 8, 11, 'TRK-11 · 72', [], [], null)
+    const box = textBox(place.x, place.y, 11, 'TRK-11 · 72', place.end)
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.y).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.w).toBeLessThanOrEqual(PANEL.width)
+    expect(box.y + box.h).toBeLessThanOrEqual(PANEL.height)
+    expect(place.end).toBe(true)
+    // The bound holds in the second pass too: with every spot crossed by a line, the one it
+    // takes is still inside the panel.
+    const everywhere: Segment[] = spotsAt(PANEL.width - 20, PANEL.height - 8).map((spot) => [
+      [spot.x - 300, spot.y - 4],
+      [spot.x + 300, spot.y - 4],
+    ])
+    const second = placeLabel(
+      PANEL.width - 20,
+      PANEL.height - 8,
+      11,
+      'TRK-11 · 72',
+      [],
+      everywhere,
+      null,
+    )
+    const box2 = textBox(second.x, second.y, 11, 'TRK-11 · 72', second.end)
+    expect(second.pass).toBe(2)
+    expect(box2.x + box2.w).toBeLessThanOrEqual(PANEL.width)
+    expect(box2.y + box2.h).toBeLessThanOrEqual(PANEL.height)
+  })
+
+  it('reads a line across a box, and a ring the box straddles', () => {
+    const box = textBox(100, 100, 11, 'TRK-11 · 72')
+    expect(
+      crossesBox(box, [
+        [0, 95],
+        [400, 95],
+      ]),
+    ).toBe(true)
+    expect(
+      crossesBox(box, [
+        [0, 40],
+        [400, 40],
+      ]),
+    ).toBe(false)
+    // A segment that stops short of the box does not cross it.
+    expect(
+      crossesBox(box, [
+        [0, 95],
+        [50, 95],
+      ]),
+    ).toBe(false)
+    // The ring is a line, not a disc: a box wholly inside it is not crossed, one on it is.
+    expect(crossesRing(box, 110, 95, 300)).toBe(false)
+    expect(crossesRing(box, 110, 95, 20)).toBe(true)
+  })
+
+  it('never under-reads a label: the estimate against fourteen measured in a browser', () => {
+    // Widths at font-size 11 in system-ui, measured with getComputedTextLength (#170's gate).
+    const measured: [string, number][] = [
+      ['TRK-23 · 73 · entry in 1:39', 126.69],
+      ['TRK-23 · 73 · inside the ring', 137.33],
+      ['inject-23 · ring entry 3:08', 121.03],
+      ['never opened', 66.97],
+      ['UAS-A49E · 46', 72.05],
+      ['TRK-11 · 72', 53.63],
+      ['entry in 1:05', 59.95],
+      ['inside the ring', 69.38],
+      ['Remote ID says here · 1.1 km', 139.52],
+      ['T0 · 7.2 km', 52.31],
+      ['2:04 ring entry', 70.25],
+      ['PHL Airfield · 5 km ring', 111.25],
+      ['xx', 11.03],
+      ['x x', 14.05],
+    ]
+    for (const [content, width] of measured) {
+      const box = textBox(0, 100, 11, content)
+      expect(box.w).toBeGreaterThanOrEqual(width)
+      // And never wildly over: a box more than half again the real one would cost a label every
+      // spot on a crowded frame.
+      expect(box.w).toBeLessThan(width * 1.5 + 4)
+    }
+  })
+
+  it('leaves no threat label on the look path or the ring on the four 03 frames (R1)', () => {
+    for (const name of ['S05-03a-raw-1', 'S05-03a-vigil-1', 'S06-03b-raw-1', 'S06-03b-vigil-1']) {
+      const svg = readFileSync(`tools/replay/__fixtures__/frames/${name}.svg`, 'utf8')
+      const points = svg
+        .match(/<polyline points="([^"]*)" fill="none" class="path"/)![1]
+        .split(' ')
+        .map((point) => point.split(',').map(Number) as [number, number])
+      const path: Segment[] = points.slice(1).map((point, i): Segment => [points[i], point])
+      const ring = svg.match(/<circle class="ring" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/)!
+      const labels = [
+        ...svg.matchAll(
+          /<text x="([\d.]+)" y="([\d.]+)"[^>]*class="(?:threat-label|vigil-threat-label)"([^>]*)>([^<]*)</g,
+        ),
+      ]
+      expect(labels).toHaveLength(2)
+      for (const [, x, y, attrs, content] of labels) {
+        const box = textBox(Number(x), Number(y), 11, content, attrs.includes('text-anchor="end"'))
+        expect([name, content, path.some((seg) => crossesBox(box, seg))]).toEqual([
+          name,
+          content,
+          false,
+        ])
+        expect([
+          name,
+          content,
+          crossesRing(box, Number(ring[1]), Number(ring[2]), Number(ring[3])),
+        ]).toEqual([name, content, false])
+      }
     }
   })
 })
