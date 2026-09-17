@@ -483,9 +483,13 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // visit, so a revisit reads as a bend; a marker per visit stacks them where the track barely moved.
   const visits = new Map<string, number>()
   for (const hop of hops) visits.set(hop.event.track, (visits.get(hop.event.track) ?? 0) + 1)
-  const marked = hops.filter(
-    (hop, i) => hops.findIndex((first) => first.event.track === hop.event.track) === i,
-  )
+  // The marker sits at the track's first look **on the panel**: a hop off it is clipped, and
+  // before this change every look had its own circle, so a track looked at once off-panel and
+  // once on kept a visible marker (#171 round 1). With none on the panel, the first look stands.
+  const marked = [...new Set(hops.map((hop) => hop.event.track))].map((track) => {
+    const its = hops.filter((hop) => hop.event.track === track)
+    return its.find((hop) => inPanel(hop.point)) ?? its[0]
+  })
   for (const {
     k,
     event,

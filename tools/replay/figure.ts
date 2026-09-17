@@ -290,8 +290,10 @@ function countsLines(y: number, runs: readonly RunMetrics[], threats: number): s
  * The sentence that gives the counts their direction, once at the foot — the sheet's prose, so
  * the three artifacts read alike (#164).
  */
-const COUNTS_NOTE =
-  'A false alarm is a track that never enters the ring, and every real aircraft; an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.'
+const COUNTS_NOTE = [
+  'A false alarm is a track that never enters the ring, and every real aircraft;',
+  'an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.',
+] as const
 
 /** The study figure over every run, by family, as an SVG document. */
 export function studySvg(runs: readonly RunMetrics[]): string {
@@ -376,9 +378,20 @@ export function studySvg(runs: readonly RunMetrics[]): string {
       false,
     )
   }
-  body.push(
-    text(PAD, y - 24, COUNTS_NOTE, `class="counts-note" font-size="11" fill="${THEME.faint}"`),
-  )
+  // Two lines: the sentence runs past this figure's 1 000 px, where the pair's 1 820 px holds
+  // it whole (#171 round 1). With no family at all there are no counts, so no note either.
+  if (prioritization.length > 0 || corroboration.length > 0) {
+    body.push(
+      ...COUNTS_NOTE.map((line, i) =>
+        text(
+          PAD,
+          y - 30 + i * 14,
+          line,
+          `class="counts-note" font-size="11" fill="${THEME.faint}"`,
+        ),
+      ),
+    )
+  }
   const height = y + 10
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}" data-runs="${sorted.length}">`,

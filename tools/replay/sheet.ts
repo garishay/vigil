@@ -69,6 +69,9 @@ const relationWords = (threat: ThreatMetrics): string =>
 
 /** A threat by its role on the sheet: the role is the reader's handle, since the two scenarios differ. */
 const roleWord = (i: number, of: number): string => (of > 1 ? `threat ${i + 1}` : 'the threat')
+/** Its place in entry order, in words — the row's own ordinal, never a hardcoded two. */
+const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth'] as const
+export const ordinalWord = (i: number): string => ORDINALS[i] ?? `${i + 1}th`
 
 /**
  * The headline's first sentence: the condition and the scenario, what the subject opened first,
@@ -80,12 +83,17 @@ const roleWord = (i: number, of: number): string => (of > 1 ? `threat ${i + 1}` 
  */
 export function openingSentence(m: RunMetrics): string {
   const condition = m.mode === 'raw' ? 'Unaided' : 'With Vigil'
+  // A run with no select at all is not a run that opened a threat first: the Queue can be
+  // worked and a track escalated without ever being selected, and the lane below says as much
+  // (#171 round 1).
   const opened =
-    m.threats.every((threat) => threat.firstOpenS === null) && m.openedBeforeFirstThreat > 0
-      ? `opened ${inWords(m.openedBeforeFirstThreat)} ${plural(m.openedBeforeFirstThreat, 'non-threat')} and never a threat`
-      : m.openedBeforeFirstThreat === 0
-        ? 'opened a threat first'
-        : `opened ${inWords(m.openedBeforeFirstThreat)} ${plural(m.openedBeforeFirstThreat, 'non-threat')} first`
+    m.looks === 0
+      ? 'opened nothing'
+      : m.threats.every((threat) => threat.firstOpenS === null)
+        ? `opened ${inWords(m.openedBeforeFirstThreat)} ${plural(m.openedBeforeFirstThreat, 'non-threat')} and never a threat`
+        : m.openedBeforeFirstThreat === 0
+          ? 'opened a threat first'
+          : `opened ${inWords(m.openedBeforeFirstThreat)} ${plural(m.openedBeforeFirstThreat, 'non-threat')} first`
   const all = m.threats.length
   let spare = false
   const decisions = joinClauses(
@@ -127,7 +135,12 @@ export function countsSentence(m: RunMetrics, record: RunRecord): string {
   const falseWords =
     m.falseEscalations === 0
       ? 'No false alarms'
-      : `${inWords(m.falseEscalations)} ${plural(m.falseEscalations, 'false alarm')} — ${m.falseEscalations === 1 ? 'a track that never enters' : 'tracks that never enter'} the ring`
+      : // No gloss: a false alarm is a track that never enters the ring **and every real
+        // aircraft whatever its path** (#36 [40] B), and naming both classes inline makes a
+        // sentence a reader cannot parse beside the early-escalation clause. The direction the
+        // Issue asked to be told is the early escalation's, and it is told below; the definition
+        // is the one the pair and the figure carry in their shared footnote (#171 round 1).
+        `${inWords(m.falseEscalations)} ${plural(m.falseEscalations, 'false alarm')}`
   const early =
     m.escalationsOfLaterEntrants === 0
       ? 'nothing escalated early'
@@ -297,7 +310,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         PAD,
         ry + 26,
         rows > 1
-          ? `${roleWord(i, rows)} · each scenario's ${i === 0 ? 'first' : 'second'} entrant`
+          ? `${roleWord(i, rows)} · each scenario's ${ordinalWord(i)} entrant`
           : `${roleWord(i, rows)}`,
         `class="row-title" font-size="15" font-weight="600" fill="${THEME.text}"`,
       ),
@@ -345,7 +358,8 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
           ),
         )
       }
-      if (lane.firstOpenS === null || lane.timeToEscalateS === null) {
+      // A miss, or an escalation off the Queue with no look: the word sits at the axis's end.
+      if (lane.timeToEscalateS === null || lane.firstOpenS === null) {
         parts.push(
           text(
             tX(m.runS) + 8,
@@ -354,13 +368,17 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
             `class="lane-${side}" data-id="${esc(lane.id)}" font-size="12" font-weight="600" fill="${THEME.warning}"`,
           ),
         )
-        if (lane.firstOpenS === null) continue
       }
-      const openX = tX(lane.firstOpenS)
+      // The escalation is drawn wherever it happened — the lane's whole job is *when* — and
+      // only the open mark and the segment that joins them need a look (#171 round 1).
       if (lane.timeToEscalateS !== null) {
         const escX = tX(lane.timeToEscalateS)
+        if (lane.firstOpenS !== null) {
+          parts.push(
+            `<line x1="${tX(lane.firstOpenS)}" y1="${ly}" x2="${escX}" y2="${ly}" stroke="${color}" stroke-width="2"/>`,
+          )
+        }
         parts.push(
-          `<line x1="${openX}" y1="${ly}" x2="${escX}" y2="${ly}" stroke="${color}" stroke-width="2"/>`,
           `<circle class="lane-${side}-escalate" data-id="${esc(lane.id)}" cx="${escX}" cy="${ly}" r="4.5" fill="${color}"/>`,
           text(
             escX + 8,
@@ -370,15 +388,18 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
           ),
         )
       }
-      parts.push(
-        `<circle class="lane-${side}-open" data-id="${esc(lane.id)}" cx="${openX}" cy="${ly}" r="4.5" fill="${THEME.panel}" stroke="${color}" stroke-width="2"/>`,
-        text(
-          openX - 8,
-          ly + 4,
-          `opened ${mmss(lane.firstOpenS)}`,
-          `font-size="11" fill="${THEME.muted}" text-anchor="end"`,
-        ),
-      )
+      if (lane.firstOpenS !== null) {
+        const openX = tX(lane.firstOpenS)
+        parts.push(
+          `<circle class="lane-${side}-open" data-id="${esc(lane.id)}" cx="${openX}" cy="${ly}" r="4.5" fill="${THEME.panel}" stroke="${color}" stroke-width="2"/>`,
+          text(
+            openX - 8,
+            ly + 4,
+            `opened ${mmss(lane.firstOpenS)}`,
+            `font-size="11" fill="${THEME.muted}" text-anchor="end"`,
+          ),
+        )
+      }
     }
 
     // The ring, in place of the standoff axis: north up, the 5 km ring on an 8 km panel, the
@@ -445,7 +466,11 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
   // The footnotes, a line each: SVG text does not wrap, and the role rule with R4's sentence
   // behind it runs 1 839 px on an 1 820 px sheet (#164 R4).
   const footnotes = [
-    `The two runs are different scenarios of one family, so a threat is named by its role: threat 1 is each scenario's first entrant. The time axis runs the longer window (${mmss(runS)}); each lane carries its own entry and its own end.`,
+    `The two runs are different scenarios of one family${
+      rows > 1
+        ? ", so a threat is named by its role: threat 1 is each scenario's first entrant"
+        : ''
+    }. The time axis runs the longer window (${mmss(runS)}); each lane carries its own entry and its own end.`,
     ...(familyOf(a.scenario) === 'prioritization'
       ? [
           '03a and 03b are one cast turned around the site under different labels, so a row’s two tracks match in range, speed and entry time; only their bearing and label differ.',

@@ -5,8 +5,8 @@ import { injectTracksAt } from '../../src/lib/injects.ts'
 import type { FrameInput } from './frame.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
 import { runMetrics } from './metrics.ts'
-import { rangeM, SITE, trackAtSecond } from './regenerate.ts'
-import { countsSentence, openingSentence, sheetName, sheetSvg } from './sheet.ts'
+import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
+import { countsSentence, openingSentence, ordinalWord, sheetName, sheetSvg } from './sheet.ts'
 
 const study = loadStudy()
 const fixture = (name: string): FrameInput => {
@@ -80,7 +80,7 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     // A false alarm and an early escalation on one run, and no order clause: the order is null
     // while a threat is missed (#153, ruled K3).
     expect(textsOf(svg, 'headline-counts')[0]).toBe(
-      'One false alarm — a track that never enters the ring, and one early escalation — a track that would have entered after the run, a dispatch that could have waited rather than a false alarm.',
+      'One false alarm, and one early escalation — a track that would have entered after the run, a dispatch that could have waited rather than a false alarm.',
     )
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S06 · S05 · 03b unaided, 03a with Vigil',
@@ -383,5 +383,101 @@ describe('the frame’s repeat-open markers (S5e, #164, ruled K5)', () => {
       // No fixture reopens a track inside its freeze, so no frame carries a badge.
       expect(frameSvg(input)).not.toContain('class="hop-visits"')
     }
+  })
+})
+
+describe('the repeat-open markers — round 1 (#171)', () => {
+  it('marks a track at its first look on the panel, so one looked at off it first keeps a marker', async () => {
+    const { frameSvg, project } = await import('./frame.ts')
+    const base = fixture('S05-03a-raw-1')
+    // An arrival that is outside the 900 × 700 panel at Begin + 10 and inside it at Begin + 90.
+    const far = 'adsb-a3a178'
+    const events = [
+      { t: 10, type: 'select' as const, track: far },
+      { t: 90, type: 'select' as const, track: far },
+      ...base.record.events,
+    ].sort((a, b) => a.t - b.t)
+    const record = { ...base.record, events }
+    const input = { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+    const svg = frameSvg(input)
+    const mark = tagsOf(svg, 'hop').find((hop) => hop['data-id'] === far)!
+    // Two visits, so the badge counts two; the marker is the second — the one on the panel.
+    expect(mark['data-visits']).toBe('2')
+    expect(mark['data-t']).toBe('90')
+    const [x, y] = [Number(mark.cx), Number(mark.cy)]
+    expect(x >= 0 && x <= 900 && y >= 0 && y <= 700).toBe(true)
+    // The header still counts every look, and the one off the panel among them.
+    expect(textsOf(svg, 'subtitle')[0]).toContain('7 looks, 1 beyond the panel.')
+    // A track looked at only off the panel keeps its own marker where it stands, clipped.
+    const onlyFar = { ...base.record, events: [{ t: 10, type: 'select' as const, track: far }] }
+    const offSvg = frameSvg({
+      ...base,
+      record: onlyFar,
+      metrics: runMetrics(onlyFar, study.index, base.plan),
+    })
+    const offMark = tagsOf(offSvg, 'hop').find((hop) => hop['data-id'] === far)!
+    expect(offMark['data-t']).toBe('10')
+    expect(
+      project(
+        pictureAtSecond(study.index, base.plan, STUDY.beginS + 10, 'raw').find((t) => t.id === far)!
+          .position,
+      ),
+    ).toEqual([Number(offMark.cx), Number(offMark.cy)])
+  })
+})
+
+describe('the headline and the lane on a run that opened nothing — round 1 (#171)', () => {
+  const noOpens = () => {
+    const base = fixture('S05-03a-raw-1')
+    // The Queue worked and threat 1 escalated off it, with no select at all.
+    const record = {
+      ...base.record,
+      events: [{ t: 60, type: 'escalate' as const, track: 'inject-31' }],
+    }
+    return { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+  }
+
+  it('says the subject opened nothing rather than that they opened a threat first', () => {
+    const input = noOpens()
+    expect(input.metrics.looks).toBe(0)
+    expect(input.metrics.openedBeforeFirstThreat).toBe(0)
+    expect(openingSentence(input.metrics)).toBe(
+      'Unaided on 03a, S05 opened nothing, escalated threat 1 with 0.5 km to spare and missed threat 2, in 0 looks over the whole run.',
+    )
+  })
+
+  it('draws the escalation on the lane where it happened, not the word alone at the axis’s end', () => {
+    const svg = sheetSvg({ unaided: noOpens(), vigil: fixture('S06-03b-vigil-1') }, { queueCap: 5 })
+    // The word says it was never opened; the dot says when — 60 s of a 218 s window.
+    expect(textsOf(svg, 'lane-unaided')).toEqual(['escalated unopened', 'MISSED'])
+    const escalate = tagsOf(svg, 'lane-unaided-escalate')
+    expect(escalate.map((mark) => [mark['data-id'], Number(mark.cx)])).toEqual([
+      ['inject-31', timeX(60, 218)],
+    ])
+    // No open mark and no segment, since there was no look to join it to.
+    expect(tagsOf(svg, 'lane-unaided-open')).toEqual([])
+  })
+
+  it('leaves the role clause out of the footnote on a sheet that never writes “threat 1”', () => {
+    const notes = textsOf(sheetOf('S03-02a-raw-1', 'S04-02b-vigil-1'), 'sheet-footnote')
+    expect(notes[0]).toBe(
+      'The two runs are different scenarios of one family. The time axis runs the longer window (6:00); each lane carries its own entry and its own end.',
+    )
+    expect(textsOf(sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1'), 'sheet-footnote')[0]).toContain(
+      "a threat is named by its role: threat 1 is each scenario's first entrant",
+    )
+  })
+})
+
+describe('the row’s ordinal — round 1 (#171)', () => {
+  it('follows the row rather than assuming two, so a third threat is not the second entrant', () => {
+    expect([0, 1, 2, 3, 4, 5].map(ordinalWord)).toEqual([
+      'first',
+      'second',
+      'third',
+      'fourth',
+      'fifth',
+      '6th',
+    ])
   })
 })
