@@ -15,8 +15,8 @@
 
 import type { ScenarioConfig } from '../scenario.ts'
 import { SCENARIO_03A } from './03a.ts'
-import { CAST_IDS_03B } from './ids.ts'
 import { rotated } from './cast.ts'
+import { CAST_IDS_03B } from './ids.ts'
 
 /** The turn that carries 03a's cast onto other bearings. */
 export const ROTATION_03B_DEG = 135

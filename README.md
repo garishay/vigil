@@ -21,7 +21,7 @@ The prioritization pair (S7): **Study-03a-vigil**
 **Study-03b-raw** [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) ·
 **Demo-03a-vigil** [`?recording=vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03a) ·
 **Demo-03b-vigil** [`?recording=vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03b);
-a 03 run is as long as its scenario says — 3:38 on 03a, 2:59 on 03b — where a 02 run is six minutes.
+a 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turned (S7d) — where a 02 run is six minutes.
 `?scenario=on` is the default deal, `off` none; `?mode=vigil`, the default, is the app as built.
 A **study run** (S4b) adds `&subject=<code>&run=<n>` to a study link, both or neither —
 [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1):
@@ -75,7 +75,7 @@ flowchart LR
     end
     subgraph syn["Synthetic layer — 100% generated"]
       direction LR
-      scenarios["config/scenarios.ts + scenarios/<br/>the registry: default · 02a · 02b · 03a · 03b, cast-only files, one row per entry · a study scenario's own run length<br/>cast.ts: nine builders over the three cast behaviors — threat · shuttle · silentMover · mover · hover · returning · silentHover · silentAt · silentOrbit"]
+      scenarios["config/scenarios.ts + scenarios/<br/>the registry: default · 02a · 02b · 03a · 03b, cast-only files, one row per entry · a study scenario's own run length<br/>ids.ts: the prioritization pair's cast ids, disjoint between 03a and 03b, so no first run answers the second by name<br/>cast.ts: nine builders over the three cast behaviors — threat · shuttle · silentMover · mover · hover · returning · silentHover · silentAt · silentOrbit"]
     cfg --> scenarios
     scenarios --> gen
     cfg["config/scenario.ts<br/>seed · envelope · launch points · the cast"] --> gen["lib/injects.ts<br/>planScenario → injectTracksAt(t)<br/>5 dealt behaviors · 3 cast behaviors, scripted · 3 Remote ID states · UA type"]

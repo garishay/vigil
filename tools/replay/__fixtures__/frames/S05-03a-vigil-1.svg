@@ -11,179 +11,179 @@
 <circle class="track" data-id="adsb-a7c7f2" cx="817.8" cy="364.7" r="3" fill="#63707f"/>
 <circle class="track" data-id="adsb-a8021b" cx="615.4" cy="309.3" r="3" fill="#63707f"/>
 <circle class="track" data-id="adsb-aa08fb" cx="652.4" cy="59" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-11" cx="292.9" cy="310.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-12" cx="582.4" cy="240.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-13" cx="505.4" cy="502.4" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-14" cx="340.9" cy="495.5" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-15" cx="342.9" cy="99.8" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-16" cx="678.5" cy="369.1" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-17" cx="392.5" cy="508.1" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-20" cx="497.1" cy="83.3" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-21" cx="615.8" cy="113.5" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-22" cx="706.5" cy="170.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-23" cx="785.6" cy="320.9" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-24" cx="712.8" cy="445.8" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-25" cx="726.2" cy="582.1" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-26" cx="527" cy="637.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-27" cx="393.7" cy="669.9" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-28" cx="291.4" cy="576.8" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-29" cx="166.9" cy="548.6" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-30" cx="159.3" cy="375.6" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-31" cx="161.5" cy="245.2" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-32" cx="196.6" cy="97.1" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-33" cx="330.4" cy="93.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-34" cx="394.6" cy="36" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-35" cx="284.8" cy="222.4" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-36" cx="779.3" cy="540.5" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-37" cx="572.5" cy="197.6" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-38" cx="603.1" cy="545.4" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-39" cx="233.8" cy="41.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-40" cx="620.5" cy="194" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-41" cx="506" cy="172.1" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-42" cx="594.2" cy="461.4" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-43" cx="227.9" cy="479.5" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-44" cx="192.1" cy="130.5" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-45" cx="729.6" cy="247.2" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-46" cx="583.5" cy="492.8" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-47" cx="407.2" cy="112.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-48" cx="278.9" cy="421.5" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-49" cx="626.8" cy="312.8" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-50" cx="456.8" cy="663.2" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-51" cx="285.7" cy="129.6" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-52" cx="645.2" cy="384.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-53" cx="292.4" cy="506.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-54" cx="428" cy="92.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-55" cx="634.8" cy="571.2" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-56" cx="263.8" cy="354.7" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-57" cx="456" cy="138.5" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-58" cx="390.3" cy="607.6" r="3" fill="#63707f"/>
-<circle class="track" data-id="inject-59" cx="221.3" cy="169.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-100" cx="392.5" cy="508.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-103" cx="497.1" cy="83.3" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-104" cx="615.8" cy="113.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-105" cx="706.5" cy="170.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-106" cx="785.6" cy="320.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-107" cx="712.8" cy="445.8" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-108" cx="726.2" cy="582.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-109" cx="527" cy="637.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-110" cx="393.7" cy="669.9" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-111" cx="291.4" cy="576.8" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-112" cx="166.9" cy="548.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-113" cx="159.3" cy="375.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-114" cx="161.5" cy="245.2" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-115" cx="196.6" cy="97.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-116" cx="330.4" cy="93.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-117" cx="394.6" cy="36" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-118" cx="284.8" cy="222.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-119" cx="779.3" cy="540.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-12" cx="428" cy="92.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-120" cx="572.5" cy="197.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-121" cx="603.1" cy="545.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-122" cx="233.8" cy="41.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-123" cx="620.5" cy="194" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-15" cx="626.8" cy="312.8" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-20" cx="456.8" cy="663.2" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-22" cx="456" cy="138.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-25" cx="342.9" cy="99.8" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-31" cx="292.9" cy="310.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-35" cx="505.4" cy="502.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-36" cx="340.9" cy="495.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-45" cx="285.7" cy="129.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-47" cx="221.3" cy="169.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-48" cx="292.4" cy="506.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-52" cx="192.1" cy="130.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-56" cx="407.2" cy="112.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-57" cx="582.4" cy="240.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-58" cx="729.6" cy="247.2" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-60" cx="263.8" cy="354.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-62" cx="645.2" cy="384.7" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-64" cx="634.8" cy="571.2" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-65" cx="506" cy="172.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-74" cx="594.2" cy="461.4" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-84" cx="390.3" cy="607.6" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-85" cx="227.9" cy="479.5" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-86" cx="678.5" cy="369.1" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-91" cx="583.5" cy="492.8" r="3" fill="#63707f"/>
+<circle class="track" data-id="inject-94" cx="278.9" cy="421.5" r="3" fill="#63707f"/>
 <circle class="ring" cx="450" cy="350" r="150" fill="#4c9aff" fill-opacity="0.08" stroke="#4c9aff" stroke-width="1.5"/>
 <rect x="446" y="346" width="8" height="8" fill="#4c9aff"/>
 <text x="460" y="372" font-family="system-ui, sans-serif" font-size="13" fill="#8b98a9">PHL Airfield · 5 km ring</text>
-<polyline points="267.3,300.9 267.6,301.1 268,301.2 268.3,301.3 268.7,301.5 269.1,301.6 269.4,301.7 269.8,301.9 270.1,302 270.5,302.2 270.9,302.3 271.2,302.4 271.6,302.6 271.9,302.7 272.3,302.8 272.7,303 273,303.1 273.4,303.3 273.8,303.4 274.1,303.5 274.5,303.7 274.8,303.8 275.2,304 275.6,304.1 275.9,304.2 276.3,304.4 276.6,304.5 277,304.6 277.4,304.8 277.7,304.9 278.1,305.1 278.5,305.2 278.8,305.3 279.2,305.5 279.5,305.6 279.9,305.8 280.2,305.9 280.6,306.1 281,306.2 281.3,306.3 281.7,306.5 282,306.6 282.4,306.7 282.8,306.9 283.1,307 283.5,307.2 283.9,307.3 284.2,307.4 284.6,307.6 284.9,307.7 285.3,307.8 285.7,308 286,308.1 286.4,308.3 286.7,308.4 287.1,308.5 287.5,308.7 287.8,308.8 288.2,309 288.6,309.1 288.9,309.2 289.3,309.4 289.6,309.5 290,309.6 290.3,309.8 290.7,309.9 291.1,310.1 291.4,310.2 291.8,310.3 292.1,310.5 292.5,310.6 292.9,310.7" fill="none" class="trail" data-id="inject-11" stroke="#8b98a9" stroke-width="1.5" stroke-dasharray="2 4"/>
-<polyline points="292.9,310.7 293.2,310.9 293.6,311 294,311.2 294.3,311.3 294.7,311.4 295,311.6 295.4,311.7 295.8,311.8 296.1,312 296.5,312.1 296.8,312.3 297.2,312.4 297.6,312.5 297.9,312.7 298.3,312.8 298.7,313 299,313.1 299.4,313.2 299.7,313.4 300.1,313.5 300.4,313.6 300.8,313.8 301.2,313.9 301.5,314.1 301.9,314.2 302.3,314.3 302.6,314.5 303,314.6 303.3,314.7 303.7,314.9 304.1,315" fill="none" class="trail-ahead" data-id="inject-11" stroke="#63707f" stroke-width="1" stroke-dasharray="1 5"/>
-<circle class="trail-first" data-id="inject-11" cx="267.3" cy="300.9" r="2.5" fill="#8b98a9"/>
-<circle class="entry" data-id="inject-11" cx="304.1" cy="315" r="3" fill="none" stroke="#8b98a9" stroke-width="1.5"/>
-<polyline points="591.7,231.4 591.5,231.5 591.4,231.7 591.3,231.8 591.1,231.9 591,232.1 590.9,232.2 590.7,232.3 590.6,232.4 590.5,232.6 590.4,232.7 590.2,232.8 590.1,233 590,233.1 589.8,233.2 589.7,233.4 589.6,233.5 589.4,233.6 589.3,233.8 589.2,233.9 589,234 588.9,234.1 588.8,234.3 588.7,234.4 588.5,234.6 588.4,234.7 588.3,234.8 588.1,235 588,235.1 587.9,235.2 587.7,235.4 587.6,235.5 587.5,235.6 587.3,235.7 587.2,235.9 587.1,236 586.9,236.1 586.8,236.3 586.7,236.4 586.6,236.5 586.4,236.7 586.3,236.8 586.2,236.9 586,237.1 585.9,237.2 585.8,237.3 585.6,237.4 585.5,237.6 585.4,237.7 585.2,237.8 585.1,238 585,238.1 584.8,238.2 584.7,238.4 584.6,238.5 584.5,238.6 584.3,238.8 584.2,238.9 584,239 583.9,239.1 583.8,239.3 583.7,239.4 583.5,239.5 583.4,239.7 583.3,239.8 583.2,239.9 583,240.1 582.9,240.2 582.7,240.3 582.6,240.5 582.5,240.6 582.4,240.7" fill="none" class="trail" data-id="inject-12" stroke="#8b98a9" stroke-width="1.5" stroke-dasharray="2 4"/>
-<polyline points="582.4,240.7 582.2,240.9 582.1,241 581.9,241.1 581.8,241.2 581.7,241.4 581.6,241.5 581.4,241.6 581.3,241.8 581.2,241.9 581,242 580.9,242.2 580.8,242.3 580.6,242.4 580.5,242.6 580.4,242.7 580.3,242.8 580.1,242.9 580,243.1 579.9,243.2 579.7,243.3 579.6,243.5 579.5,243.6 579.3,243.7 579.2,243.9 579.1,244 578.9,244.1 578.8,244.3 578.7,244.4 578.5,244.5 578.4,244.6 578.3,244.8 578.2,244.9 578,245 577.9,245.2 577.8,245.3 577.6,245.4 577.5,245.6 577.4,245.7 577.2,245.8 577.1,246 577,246.1 576.8,246.2 576.7,246.3 576.6,246.5 576.4,246.6 576.3,246.7 576.2,246.9 576.1,247 575.9,247.1 575.8,247.3 575.7,247.4 575.5,247.5 575.4,247.7 575.3,247.8 575.1,247.9 575,248 574.9,248.2 574.7,248.3 574.6,248.4 574.5,248.6 574.4,248.7 574.2,248.8 574.1,249 573.9,249.1 573.8,249.2 573.7,249.4 573.6,249.5 573.4,249.6 573.3,249.7 573.2,249.9 573,250 572.9,250.1 572.8,250.3 572.6,250.4 572.5,250.5 572.4,250.7 572.3,250.8 572.1,250.9 572,251.1 571.8,251.2 571.7,251.3 571.6,251.4 571.5,251.6 571.3,251.7 571.2,251.8 571.1,252 570.9,252.1 570.8,252.2 570.7,252.4 570.5,252.5 570.4,252.7 570.3,252.8 570.2,252.9 570,253 569.9,253.2 569.7,253.3 569.6,253.4 569.5,253.6 569.4,253.7 569.2,253.8 569.1,254 569,254.1 568.8,254.2 568.7,254.4 568.6,254.5 568.4,254.6 568.3,254.7 568.2,254.9 568.1,255 567.9,255.1 567.8,255.3 567.6,255.4 567.5,255.5 567.4,255.7 567.3,255.8 567.1,255.9 567,256.1" fill="none" class="trail-ahead" data-id="inject-12" stroke="#63707f" stroke-width="1" stroke-dasharray="1 5"/>
-<circle class="trail-first" data-id="inject-12" cx="591.7" cy="231.4" r="2.5" fill="#8b98a9"/>
-<circle class="entry" data-id="inject-12" cx="567" cy="256.1" r="3" fill="none" stroke="#8b98a9" stroke-width="1.5"/>
-<circle class="never-opened" data-id="inject-42" cx="594.2" cy="461.4" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<polyline points="267.3,300.9 267.6,301.1 268,301.2 268.3,301.3 268.7,301.5 269.1,301.6 269.4,301.7 269.8,301.9 270.1,302 270.5,302.2 270.9,302.3 271.2,302.4 271.6,302.6 271.9,302.7 272.3,302.8 272.7,303 273,303.1 273.4,303.3 273.8,303.4 274.1,303.5 274.5,303.7 274.8,303.8 275.2,304 275.6,304.1 275.9,304.2 276.3,304.4 276.6,304.5 277,304.6 277.4,304.8 277.7,304.9 278.1,305.1 278.5,305.2 278.8,305.3 279.2,305.5 279.5,305.6 279.9,305.8 280.2,305.9 280.6,306.1 281,306.2 281.3,306.3 281.7,306.5 282,306.6 282.4,306.7 282.8,306.9 283.1,307 283.5,307.2 283.9,307.3 284.2,307.4 284.6,307.6 284.9,307.7 285.3,307.8 285.7,308 286,308.1 286.4,308.3 286.7,308.4 287.1,308.5 287.5,308.7 287.8,308.8 288.2,309 288.6,309.1 288.9,309.2 289.3,309.4 289.6,309.5 290,309.6 290.3,309.8 290.7,309.9 291.1,310.1 291.4,310.2 291.8,310.3 292.1,310.5 292.5,310.6 292.9,310.7" fill="none" class="trail" data-id="inject-31" stroke="#8b98a9" stroke-width="1.5" stroke-dasharray="2 4"/>
+<polyline points="292.9,310.7 293.2,310.9 293.6,311 294,311.2 294.3,311.3 294.7,311.4 295,311.6 295.4,311.7 295.8,311.8 296.1,312 296.5,312.1 296.8,312.3 297.2,312.4 297.6,312.5 297.9,312.7 298.3,312.8 298.7,313 299,313.1 299.4,313.2 299.7,313.4 300.1,313.5 300.4,313.6 300.8,313.8 301.2,313.9 301.5,314.1 301.9,314.2 302.3,314.3 302.6,314.5 303,314.6 303.3,314.7 303.7,314.9 304.1,315" fill="none" class="trail-ahead" data-id="inject-31" stroke="#63707f" stroke-width="1" stroke-dasharray="1 5"/>
+<circle class="trail-first" data-id="inject-31" cx="267.3" cy="300.9" r="2.5" fill="#8b98a9"/>
+<circle class="entry" data-id="inject-31" cx="304.1" cy="315" r="3" fill="none" stroke="#8b98a9" stroke-width="1.5"/>
+<polyline points="591.7,231.4 591.5,231.5 591.4,231.7 591.3,231.8 591.1,231.9 591,232.1 590.9,232.2 590.7,232.3 590.6,232.4 590.5,232.6 590.4,232.7 590.2,232.8 590.1,233 590,233.1 589.8,233.2 589.7,233.4 589.6,233.5 589.4,233.6 589.3,233.8 589.2,233.9 589,234 588.9,234.1 588.8,234.3 588.7,234.4 588.5,234.6 588.4,234.7 588.3,234.8 588.1,235 588,235.1 587.9,235.2 587.7,235.4 587.6,235.5 587.5,235.6 587.3,235.7 587.2,235.9 587.1,236 586.9,236.1 586.8,236.3 586.7,236.4 586.6,236.5 586.4,236.7 586.3,236.8 586.2,236.9 586,237.1 585.9,237.2 585.8,237.3 585.6,237.4 585.5,237.6 585.4,237.7 585.2,237.8 585.1,238 585,238.1 584.8,238.2 584.7,238.4 584.6,238.5 584.5,238.6 584.3,238.8 584.2,238.9 584,239 583.9,239.1 583.8,239.3 583.7,239.4 583.5,239.5 583.4,239.7 583.3,239.8 583.2,239.9 583,240.1 582.9,240.2 582.7,240.3 582.6,240.5 582.5,240.6 582.4,240.7" fill="none" class="trail" data-id="inject-57" stroke="#8b98a9" stroke-width="1.5" stroke-dasharray="2 4"/>
+<polyline points="582.4,240.7 582.2,240.9 582.1,241 581.9,241.1 581.8,241.2 581.7,241.4 581.6,241.5 581.4,241.6 581.3,241.8 581.2,241.9 581,242 580.9,242.2 580.8,242.3 580.6,242.4 580.5,242.6 580.4,242.7 580.3,242.8 580.1,242.9 580,243.1 579.9,243.2 579.7,243.3 579.6,243.5 579.5,243.6 579.3,243.7 579.2,243.9 579.1,244 578.9,244.1 578.8,244.3 578.7,244.4 578.5,244.5 578.4,244.6 578.3,244.8 578.2,244.9 578,245 577.9,245.2 577.8,245.3 577.6,245.4 577.5,245.6 577.4,245.7 577.2,245.8 577.1,246 577,246.1 576.8,246.2 576.7,246.3 576.6,246.5 576.4,246.6 576.3,246.7 576.2,246.9 576.1,247 575.9,247.1 575.8,247.3 575.7,247.4 575.5,247.5 575.4,247.7 575.3,247.8 575.1,247.9 575,248 574.9,248.2 574.7,248.3 574.6,248.4 574.5,248.6 574.4,248.7 574.2,248.8 574.1,249 573.9,249.1 573.8,249.2 573.7,249.4 573.6,249.5 573.4,249.6 573.3,249.7 573.2,249.9 573,250 572.9,250.1 572.8,250.3 572.6,250.4 572.5,250.5 572.4,250.7 572.3,250.8 572.1,250.9 572,251.1 571.8,251.2 571.7,251.3 571.6,251.4 571.5,251.6 571.3,251.7 571.2,251.8 571.1,252 570.9,252.1 570.8,252.2 570.7,252.4 570.5,252.5 570.4,252.7 570.3,252.8 570.2,252.9 570,253 569.9,253.2 569.7,253.3 569.6,253.4 569.5,253.6 569.4,253.7 569.2,253.8 569.1,254 569,254.1 568.8,254.2 568.7,254.4 568.6,254.5 568.4,254.6 568.3,254.7 568.2,254.9 568.1,255 567.9,255.1 567.8,255.3 567.6,255.4 567.5,255.5 567.4,255.7 567.3,255.8 567.1,255.9 567,256.1" fill="none" class="trail-ahead" data-id="inject-57" stroke="#63707f" stroke-width="1" stroke-dasharray="1 5"/>
+<circle class="trail-first" data-id="inject-57" cx="591.7" cy="231.4" r="2.5" fill="#8b98a9"/>
+<circle class="entry" data-id="inject-57" cx="567" cy="256.1" r="3" fill="none" stroke="#8b98a9" stroke-width="1.5"/>
+<circle class="never-opened" data-id="inject-74" cx="594.2" cy="461.4" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="603.2" y="465.4" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-49" cx="626.8" cy="312.8" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-15" cx="626.8" cy="312.8" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="635.8" y="316.8" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-41" cx="506" cy="172.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-65" cx="506" cy="172.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="515" y="176.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-48" cx="278.9" cy="421.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-94" cx="278.9" cy="421.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="287.9" y="425.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-52" cx="645.2" cy="384.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-62" cx="645.2" cy="384.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="654.2" y="388.7" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-53" cx="292.4" cy="506.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-48" cx="292.4" cy="506.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="301.4" y="510.7" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-16" cx="678.5" cy="369.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-86" cx="678.5" cy="369.1" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="687.5" y="373.1" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-54" cx="428" cy="92.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-12" cx="428" cy="92.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="437" y="96.7" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-51" cx="285.7" cy="129.6" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-45" cx="285.7" cy="129.6" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="294.7" y="133.6" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-55" cx="634.8" cy="571.2" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-64" cx="634.8" cy="571.2" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="643.8" y="575.2" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-15" cx="342.9" cy="99.8" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-25" cx="342.9" cy="99.8" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="351.9" y="103.8" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-50" cx="456.8" cy="663.2" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-20" cx="456.8" cy="663.2" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="465.8" y="667.2" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-43" cx="227.9" cy="479.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-85" cx="227.9" cy="479.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="236.9" y="483.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-45" cx="729.6" cy="247.2" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-58" cx="729.6" cy="247.2" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="738.6" y="251.2" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-44" cx="192.1" cy="130.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-52" cx="192.1" cy="130.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="201.1" y="134.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-14" cx="340.9" cy="495.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-36" cx="340.9" cy="495.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="349.9" y="499.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-56" cx="263.8" cy="354.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-60" cx="263.8" cy="354.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="272.8" y="358.7" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-46" cx="583.5" cy="492.8" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-91" cx="583.5" cy="492.8" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="592.5" y="496.8" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-57" cx="456" cy="138.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-22" cx="456" cy="138.5" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="465" y="142.5" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-47" cx="407.2" cy="112.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-56" cx="407.2" cy="112.7" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="416.2" y="116.7" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-58" cx="390.3" cy="607.6" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-84" cx="390.3" cy="607.6" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="399.3" y="611.6" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-37" cx="572.5" cy="197.6" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-120" cx="572.5" cy="197.6" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="581.5" y="201.6" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
-<circle class="never-opened" data-id="inject-59" cx="221.3" cy="169.4" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
+<circle class="never-opened" data-id="inject-47" cx="221.3" cy="169.4" r="6" fill="none" stroke="#63707f" stroke-width="1"/>
 <text x="230.3" y="173.4" font-family="system-ui, sans-serif" font-size="11" font-style="italic" fill="#63707f">never opened</text>
 <polyline points="271.2,302.4 584.8,238.2" fill="none" class="path" stroke="#4c9aff" stroke-opacity="0.5" stroke-width="1.5"/>
-<circle class="hop" data-k="1" data-id="inject-11" data-t="11" cx="271.2" cy="302.4" r="9" fill="#ff6b57"/>
+<circle class="hop" data-k="1" data-id="inject-31" data-t="11" cx="271.2" cy="302.4" r="9" fill="#ff6b57"/>
 <text x="271.2" y="306.4" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#0b0f14">1</text>
-<circle class="hop" data-k="2" data-id="inject-12" data-t="52" cx="584.8" cy="238.2" r="9" fill="#ff6b57"/>
+<circle class="hop" data-k="2" data-id="inject-57" data-t="52" cx="584.8" cy="238.2" r="9" fill="#ff6b57"/>
 <text x="584.8" y="242.2" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#0b0f14">2</text>
-<text x="603.2" y="454.4" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-42" font-size="11" font-weight="600" fill="#f5b942">TRK-42 · 68</text>
-<text x="635.8" y="305.8" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-49" font-size="11" font-weight="600" fill="#f5b942">TRK-49 · 68</text>
-<text x="514.4" y="495.4" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-13" font-size="11" font-weight="600" fill="#f5b942">TRK-13 · 68</text>
-<text x="515" y="165.1" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-41" font-size="11" font-weight="600" fill="#f5b942">TRK-41 · 67</text>
-<text x="287.9" y="414.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-48" font-size="11" font-weight="600" fill="#f5b942">TRK-48 · 67</text>
-<text x="654.2" y="377.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-52" font-size="11" font-weight="600" fill="#f5b942">TRK-52 · 66</text>
-<text x="301.4" y="499.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-53" font-size="11" font-weight="600" fill="#f5b942">TRK-53 · 65</text>
-<text x="687.5" y="362.1" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-16" font-size="11" font-weight="600" fill="#f5b942">TRK-16 · 63</text>
-<text x="437" y="85.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-54" font-size="11" font-weight="600" fill="#f5b942">TRK-54 · 63</text>
-<text x="294.7" y="122.6" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-51" font-size="11" font-weight="600" fill="#f5b942">TRK-51 · 62</text>
-<text x="643.8" y="564.2" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-55" font-size="11" font-weight="600" fill="#f5b942">TRK-55 · 61</text>
-<text x="351.9" y="92.8" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-15" font-size="11" font-weight="600" fill="#f5b942">TRK-15 · 61</text>
-<text x="465.8" y="656.2" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-50" font-size="11" font-weight="600" fill="#f5b942">TRK-50 · 60</text>
-<text x="236.9" y="472.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-43" font-size="11" font-weight="600" fill="#f5b942">TRK-43 · 59</text>
-<text x="738.6" y="240.2" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-45" font-size="11" font-weight="600" fill="#f5b942">TRK-45 · 57</text>
-<text x="201.1" y="123.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-44" font-size="11" font-weight="600" fill="#f5b942">TRK-44 · 54</text>
-<text x="349.9" y="488.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-14" font-size="11" font-weight="600" fill="#f5b942">TRK-14 · 51</text>
-<text x="272.8" y="347.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-56" font-size="11" font-weight="600" fill="#f5b942">TRK-56 · 51</text>
-<text x="592.5" y="485.8" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-46" font-size="11" font-weight="600" fill="#f5b942">TRK-46 · 50</text>
-<text x="465" y="131.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-57" font-size="11" font-weight="600" fill="#f5b942">TRK-57 · 49</text>
-<text x="416.2" y="105.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-47" font-size="11" font-weight="600" fill="#f5b942">TRK-47 · 48</text>
-<text x="399.3" y="600.6" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-58" font-size="11" font-weight="600" fill="#f5b942">TRK-58 · 47</text>
-<text x="581.5" y="190.6" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-37" font-size="11" font-weight="600" fill="#f5b942">UAS-9254 · 45</text>
-<text x="230.3" y="162.4" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-59" font-size="11" font-weight="600" fill="#f5b942">TRK-59 · 45</text>
-<text x="301.9" y="326.7" font-family="system-ui, sans-serif" class="vigil-threat-label" data-id="inject-11" font-size="11" font-weight="600" fill="#ff6b57">TRK-11 · 73 · entry in 0:31</text>
-<text x="591.4" y="256.7" font-family="system-ui, sans-serif" class="vigil-threat-label" data-id="inject-12" font-size="11" font-weight="600" fill="#ff6b57">TRK-12 · 73 · entry in 1:56</text>
+<text x="603.2" y="454.4" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-74" font-size="11" font-weight="600" fill="#f5b942">TRK-74 · 68</text>
+<text x="635.8" y="305.8" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-15" font-size="11" font-weight="600" fill="#f5b942">TRK-15 · 68</text>
+<text x="514.4" y="495.4" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-35" font-size="11" font-weight="600" fill="#f5b942">TRK-35 · 68</text>
+<text x="515" y="165.1" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-65" font-size="11" font-weight="600" fill="#f5b942">TRK-65 · 67</text>
+<text x="287.9" y="414.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-94" font-size="11" font-weight="600" fill="#f5b942">TRK-94 · 67</text>
+<text x="654.2" y="377.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-62" font-size="11" font-weight="600" fill="#f5b942">TRK-62 · 66</text>
+<text x="301.4" y="499.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-48" font-size="11" font-weight="600" fill="#f5b942">TRK-48 · 65</text>
+<text x="687.5" y="362.1" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-86" font-size="11" font-weight="600" fill="#f5b942">TRK-86 · 63</text>
+<text x="437" y="85.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-12" font-size="11" font-weight="600" fill="#f5b942">TRK-12 · 63</text>
+<text x="294.7" y="122.6" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-45" font-size="11" font-weight="600" fill="#f5b942">TRK-45 · 62</text>
+<text x="643.8" y="564.2" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-64" font-size="11" font-weight="600" fill="#f5b942">TRK-64 · 61</text>
+<text x="351.9" y="92.8" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-25" font-size="11" font-weight="600" fill="#f5b942">TRK-25 · 61</text>
+<text x="465.8" y="656.2" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-20" font-size="11" font-weight="600" fill="#f5b942">TRK-20 · 60</text>
+<text x="236.9" y="472.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-85" font-size="11" font-weight="600" fill="#f5b942">TRK-85 · 59</text>
+<text x="738.6" y="240.2" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-58" font-size="11" font-weight="600" fill="#f5b942">TRK-58 · 57</text>
+<text x="201.1" y="123.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-52" font-size="11" font-weight="600" fill="#f5b942">TRK-52 · 54</text>
+<text x="349.9" y="488.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-36" font-size="11" font-weight="600" fill="#f5b942">TRK-36 · 51</text>
+<text x="272.8" y="347.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-60" font-size="11" font-weight="600" fill="#f5b942">TRK-60 · 51</text>
+<text x="592.5" y="485.8" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-91" font-size="11" font-weight="600" fill="#f5b942">TRK-91 · 50</text>
+<text x="465" y="131.5" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-22" font-size="11" font-weight="600" fill="#f5b942">TRK-22 · 49</text>
+<text x="416.2" y="105.7" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-56" font-size="11" font-weight="600" fill="#f5b942">TRK-56 · 48</text>
+<text x="399.3" y="600.6" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-84" font-size="11" font-weight="600" fill="#f5b942">TRK-84 · 47</text>
+<text x="581.5" y="190.6" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-120" font-size="11" font-weight="600" fill="#f5b942">UAS-FA85 · 45</text>
+<text x="230.3" y="162.4" font-family="system-ui, sans-serif" class="vigil-label" data-id="inject-47" font-size="11" font-weight="600" fill="#f5b942">TRK-47 · 45</text>
+<text x="301.9" y="326.7" font-family="system-ui, sans-serif" class="vigil-threat-label" data-id="inject-31" font-size="11" font-weight="600" fill="#ff6b57">TRK-31 · 73 · entry in 0:31</text>
+<text x="591.4" y="256.7" font-family="system-ui, sans-serif" class="vigil-threat-label" data-id="inject-57" font-size="11" font-weight="600" fill="#ff6b57">TRK-57 · 73 · entry in 1:56</text>
 </g>
 <text x="30" y="800" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">"never opened" marks the engine's above-calm tracks at the freeze that the run never opened:</text>
 <text x="30" y="814" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the analyst's overlay, drawn on both conditions; raw's screen never showed that set.</text>
 <rect class="vigil-queue" x="30" y="828" width="840" height="504" rx="6" fill="#121821" stroke="#1f2a37"/>
 <text x="46" y="848" font-family="system-ui, sans-serif" class="vigil-queue-title" font-size="12" font-weight="700" fill="#e6edf3">Queue at 1:11 · 26 above calm</text>
-<text x="46" y="866" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-11" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#ff6b57">1</tspan> TRK-11 73 · Non-cooperative, closing, near PHL Airfield</text>
-<text x="46" y="884" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-12" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#ff6b57">2</tspan> TRK-12 73 · Non-cooperative, closing, near PHL Airfield</text>
-<text x="46" y="902" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-42" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">3</tspan> TRK-42 68 · Non-cooperative, closing, near PHL Airfield</text>
-<text x="46" y="920" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-49" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">4</tspan> TRK-49 68 · Non-cooperative, closing, near PHL Airfield</text>
-<text x="46" y="938" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-13" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">5</tspan> TRK-13 68 · Loitering, non-cooperative, near PHL Airfield</text>
-<text x="46" y="956" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-41" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">6</tspan> TRK-41 67 · Non-cooperative, closing, near PHL Airfield</text>
-<text x="46" y="974" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-48" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">7</tspan> TRK-48 67 · Non-cooperative, closing, near PHL Airfield</text>
-<text x="46" y="992" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-52" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">8</tspan> TRK-52 66 · Loitering, non-cooperative, near PHL Airfield</text>
-<text x="46" y="1010" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-53" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">9</tspan> TRK-53 65 · Loitering, non-cooperative, near PHL Airfield</text>
-<text x="46" y="1028" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-16" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">10</tspan> TRK-16 63 · Non-cooperative, closing, near PHL Airfield</text>
-<text x="46" y="1046" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-54" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">11</tspan> TRK-54 63 · Loitering, non-cooperative, low and slow</text>
-<text x="46" y="1064" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-51" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">12</tspan> TRK-51 62 · Non-cooperative, closing, low and slow</text>
-<text x="46" y="1082" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-55" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">13</tspan> TRK-55 61 · Loitering, non-cooperative, low and slow</text>
-<text x="46" y="1100" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-15" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">14</tspan> TRK-15 61 · Orbiting, non-cooperative, low and slow</text>
-<text x="46" y="1118" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-50" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">15</tspan> TRK-50 60 · Non-cooperative, closing, low and slow</text>
-<text x="46" y="1136" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-43" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">16</tspan> TRK-43 59 · Non-cooperative, closing, low and slow</text>
-<text x="46" y="1154" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-45" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">17</tspan> TRK-45 57 · Non-cooperative, closing, low and slow</text>
-<text x="46" y="1172" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-44" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">18</tspan> TRK-44 54 · Non-cooperative, closing, low and slow</text>
-<text x="46" y="1190" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-14" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">19</tspan> TRK-14 51 · Non-cooperative, near PHL Airfield, low and slow</text>
-<text x="46" y="1208" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-56" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">20</tspan> TRK-56 51 · Non-cooperative, near PHL Airfield, low and slow</text>
-<text x="46" y="1226" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-46" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">21</tspan> TRK-46 50 · Non-cooperative, near PHL Airfield, low and slow</text>
-<text x="46" y="1244" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-57" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">22</tspan> TRK-57 49 · Non-cooperative, near PHL Airfield, low and slow</text>
-<text x="46" y="1262" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-47" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">23</tspan> TRK-47 48 · Non-cooperative, near PHL Airfield, low and slow</text>
-<text x="46" y="1280" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-58" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">24</tspan> TRK-58 47 · Non-cooperative, low and slow, near PHL Airfield</text>
-<text x="46" y="1298" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-37" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">25</tspan> UAS-9254 45 · Closing, near PHL Airfield, low and slow</text>
-<text x="46" y="1316" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-59" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">26</tspan> TRK-59 45 · Non-cooperative, low and slow, near PHL Airfield</text>
+<text x="46" y="866" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-31" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#ff6b57">1</tspan> TRK-31 73 · Non-cooperative, closing, near PHL Airfield</text>
+<text x="46" y="884" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-57" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#ff6b57">2</tspan> TRK-57 73 · Non-cooperative, closing, near PHL Airfield</text>
+<text x="46" y="902" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-74" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">3</tspan> TRK-74 68 · Non-cooperative, closing, near PHL Airfield</text>
+<text x="46" y="920" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-15" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">4</tspan> TRK-15 68 · Non-cooperative, closing, near PHL Airfield</text>
+<text x="46" y="938" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-35" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">5</tspan> TRK-35 68 · Loitering, non-cooperative, near PHL Airfield</text>
+<text x="46" y="956" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-65" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">6</tspan> TRK-65 67 · Non-cooperative, closing, near PHL Airfield</text>
+<text x="46" y="974" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-94" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">7</tspan> TRK-94 67 · Non-cooperative, closing, near PHL Airfield</text>
+<text x="46" y="992" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-62" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">8</tspan> TRK-62 66 · Loitering, non-cooperative, near PHL Airfield</text>
+<text x="46" y="1010" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-48" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">9</tspan> TRK-48 65 · Loitering, non-cooperative, near PHL Airfield</text>
+<text x="46" y="1028" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-86" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">10</tspan> TRK-86 63 · Non-cooperative, closing, near PHL Airfield</text>
+<text x="46" y="1046" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-12" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">11</tspan> TRK-12 63 · Loitering, non-cooperative, low and slow</text>
+<text x="46" y="1064" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-45" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">12</tspan> TRK-45 62 · Non-cooperative, closing, low and slow</text>
+<text x="46" y="1082" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-64" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">13</tspan> TRK-64 61 · Loitering, non-cooperative, low and slow</text>
+<text x="46" y="1100" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-25" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">14</tspan> TRK-25 61 · Orbiting, non-cooperative, low and slow</text>
+<text x="46" y="1118" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-20" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">15</tspan> TRK-20 60 · Non-cooperative, closing, low and slow</text>
+<text x="46" y="1136" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-85" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">16</tspan> TRK-85 59 · Non-cooperative, closing, low and slow</text>
+<text x="46" y="1154" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-58" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">17</tspan> TRK-58 57 · Non-cooperative, closing, low and slow</text>
+<text x="46" y="1172" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-52" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">18</tspan> TRK-52 54 · Non-cooperative, closing, low and slow</text>
+<text x="46" y="1190" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-36" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">19</tspan> TRK-36 51 · Non-cooperative, near PHL Airfield, low and slow</text>
+<text x="46" y="1208" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-60" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">20</tspan> TRK-60 51 · Non-cooperative, near PHL Airfield, low and slow</text>
+<text x="46" y="1226" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-91" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">21</tspan> TRK-91 50 · Non-cooperative, near PHL Airfield, low and slow</text>
+<text x="46" y="1244" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-22" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">22</tspan> TRK-22 49 · Non-cooperative, near PHL Airfield, low and slow</text>
+<text x="46" y="1262" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-56" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">23</tspan> TRK-56 48 · Non-cooperative, near PHL Airfield, low and slow</text>
+<text x="46" y="1280" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-84" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">24</tspan> TRK-84 47 · Non-cooperative, low and slow, near PHL Airfield</text>
+<text x="46" y="1298" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-120" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">25</tspan> UAS-FA85 45 · Closing, near PHL Airfield, low and slow</text>
+<text x="46" y="1316" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-47" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">26</tspan> TRK-47 45 · Non-cooperative, low and slow, near PHL Airfield</text>
 <rect x="30" y="1344" width="840" height="204" rx="6" fill="#121821" stroke="#1f2a37"/>
-<text x="46" y="1376" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:11 — opened inject-11 (threat 1), 6.3 km at T0; assessed at 0:24, escalated at 0:38.</text>
-<text x="46" y="1398" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-11 · sensor.</text>
+<text x="46" y="1376" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:11 — opened inject-31 (threat 1), 6.3 km at T0; assessed at 0:24, escalated at 0:38.</text>
+<text x="46" y="1398" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-31 · sensor.</text>
 <text x="46" y="1420" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 1 · warning 72 · closing at 13 m/s · ring entry in 1:31.</text>
-<text x="46" y="1442" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #2 · 0:52 — opened inject-12 (threat 2), 6.2 km at T0; assessed at 1:02, escalated at 1:11.</text>
-<text x="46" y="1464" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-12 · sensor.</text>
+<text x="46" y="1442" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #2 · 0:52 — opened inject-57 (threat 2), 6.2 km at T0; assessed at 1:02, escalated at 1:11.</text>
+<text x="46" y="1464" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-57 · sensor.</text>
 <text x="46" y="1486" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 2 · warning 72 · closing at 6 m/s · ring entry in 2:15.</text>
-<text x="46" y="1508" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:38 — escalated inject-11 0.8 km outside the ring · 1:04 before entry, ring entry 1:42.</text>
-<text x="46" y="1530" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #2 · 1:11 — escalated inject-12 0.7 km outside the ring · 1:57 before entry, ring entry 3:08. 23 candidates never opened.</text>
+<text x="46" y="1508" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:38 — escalated inject-31 0.8 km outside the ring · 1:04 before entry, ring entry 1:42.</text>
+<text x="46" y="1530" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #2 · 1:11 — escalated inject-57 0.7 km outside the ring · 1:57 before entry, ring entry 3:08. 23 candidates never opened.</text>
 </svg>
