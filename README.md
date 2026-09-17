@@ -255,8 +255,9 @@ the field. The bare form also writes each run's **frame** beside the CSV —
 as a numbered hop on its path, each threat's trail and ring entry, and the analyst's
 _never opened_ overlay, drawn identically in both conditions (S5b). A threat's own map label is
 placed where the map leaves room — the first of eight spots around its dot that no mark, label or
-line holds, the look path and the ring counting on a second pass — and is drawn last, so a label
-with nowhere to go sits on top of what crowds it rather than under it (#170). The threats are the bench's
+line holds; if every spot is crossed by a line, the look path or the ring, the search runs again
+without the line test — and it is drawn last, so a label with nowhere to go sits on top of what
+crowds it rather than under it (#170). The threats are the bench's
 roles table (`scripts/study.ts`), one on 02a and 02b, two on 03a and 03b; a 03 run's CSV row
 carries the attention numbers beside the standoff — the non-threats opened before any threat, each
 threat's first open and standoff, the false escalations (tracks that never enter the ring, and any real aircraft) and the

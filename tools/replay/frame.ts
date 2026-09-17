@@ -491,6 +491,8 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
     parts.push(
       `<circle class="track" data-id="${escAttr(track.id)}" cx="${x}" cy="${y}" r="3" fill="${COLOR.faint}"/>`,
     )
+    // A track's own dot is a mark like any other: a label over one hides a track (#172 round 1).
+    occupied.push(markBox(x, y, 3))
   }
 
   // The ring, its centre, and its label — the site's own name.
@@ -511,9 +513,10 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // Each threat's trail from its first frame in the window to the freeze, its plan-known
   // continuation to the entry tick fainter, and the two marks — one threat on the corroboration
   // pair with the marks' two labels as S5b drew them; two on the prioritization pair, each trail
-  // tagged by its id, the marks unlabelled and the threat carrying one map label below-right of
+  // tagged by its id, the marks unlabelled and the threat carrying one map label at a spot around
   // its dot at the freeze — on raw its id and the ring-entry clock, on Vigil the annotation's
-  // (ruled F2); the T0 range and the entry clock are the caption's there.
+  // (ruled F2), placed where the map is clear (#170); the T0 range and the entry clock are the
+  // caption's there.
   const threatIds = threatsOf(record.scenario)
   const many = threatIds.length > 1
   for (const threat of metrics.threats) {
@@ -669,7 +672,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // read one, and the Entry row's estimate beside each threat's dot. Raw's screen showed none.
   if (record.mode === 'vigil') {
     for (const candidate of candidates) {
-      // On the prioritization pair a threat's label is drawn with its entry estimate, below-right
+      // On the prioritization pair a threat's label is drawn with its entry estimate in one label
       // (the threat block below); the marks crowd within a few pixels at 6 km.
       if (many && threatIds.includes(candidate.track.id)) continue
       const point = project(candidate.track.position)
@@ -693,25 +696,18 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
       const { track, score } = entry
       if (score.mismatch && track.source === 'inject' && track.broadcast) {
         const [bx, by] = project(track.broadcast.position)
+        const says = `Remote ID says here · ${(score.mismatch.distanceM / 1000).toFixed(1)} km`
         parts.push(
           `<line class="vigil-mismatch" data-id="${escAttr(threat.id)}" x1="${x}" y1="${y}" x2="${bx}" y2="${by}" stroke="${COLOR.warning}" stroke-width="1" stroke-dasharray="4 3"/>`,
           `<circle class="vigil-broadcast" data-id="${escAttr(threat.id)}" cx="${bx}" cy="${by}" r="3" fill="none" stroke="${COLOR.warning}" stroke-width="1"/>`,
           text(
             round1(bx + 8),
             round1(by + 4),
-            `Remote ID says here · ${(score.mismatch.distanceM / 1000).toFixed(1)} km`,
+            says,
             `class="vigil-mismatch-label" font-size="11" fill="${COLOR.warning}"`,
           ),
         )
-        occupied.push(
-          markBox(bx, by, 3),
-          textBox(
-            round1(bx + 8),
-            round1(by + 4),
-            11,
-            `Remote ID says here · ${(score.mismatch.distanceM / 1000).toFixed(1)} km`,
-          ),
-        )
+        occupied.push(markBox(bx, by, 3), textBox(round1(bx + 8), round1(by + 4), 11, says))
       }
       // The Entry row's estimate beside the dot; nothing when the row reads none or the track
       // is on the ground.
@@ -725,7 +721,8 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
               ? 'inside the ring'
               : null
       // The threat's one map label on the pair (ruled F2): ident, composite, and the entry
-      // estimate below-right in the band's colour; on one threat, the S5c gate's two labels.
+      // estimate in the band's colour, at a spot the placement gives it (#170); on one threat,
+      // the S5c gate's two labels.
       const label = many
         ? `${trackIdent(track)} · ${entry.composite}${entryText ? ` · ${entryText}` : ''}`
         : entryText

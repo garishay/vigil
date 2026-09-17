@@ -1122,3 +1122,75 @@ describe('a threat’s label goes where the map is clear (#170, ruled R1, R2)', 
     }
   })
 })
+
+describe('a threat’s label clears every drawn mark — round 1 (#172)', () => {
+  /** Every circle the map draws, as a box; the ring is a line, tested apart. */
+  const marksOf = (svg: string) =>
+    [...svg.matchAll(/<circle class="([a-z-]+)"[^>]*cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)]
+      .filter((mark) => mark[1] !== 'ring')
+      .map((mark) => ({
+        cls: mark[1],
+        x: Number(mark[2]) - Number(mark[4]),
+        y: Number(mark[3]) - Number(mark[4]),
+        w: 2 * Number(mark[4]),
+        h: 2 * Number(mark[4]),
+      }))
+  const labelsOf = (svg: string) =>
+    [
+      ...svg.matchAll(
+        /<text x="([\d.]+)" y="([\d.]+)"[^>]*class="(threat-label|vigil-threat-label|vigil-entry)"([^>]*)>([^<]*)</g,
+      ),
+    ].map((label) => ({
+      cls: label[3],
+      content: label[5],
+      box: textBox(
+        Number(label[1]),
+        Number(label[2]),
+        11,
+        label[5],
+        label[4].includes('text-anchor="end"'),
+      ),
+    }))
+  const over = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+
+  it('covers no mark the map draws — the base picture’s own track dots included', () => {
+    for (const name of [
+      'S03-02a-vigil-1',
+      'S04-02b-vigil-1',
+      'S05-03a-raw-1',
+      'S05-03a-vigil-1',
+      'S06-03b-raw-1',
+      'S06-03b-vigil-1',
+    ]) {
+      const svg = readFileSync(`tools/replay/__fixtures__/frames/${name}.svg`, 'utf8')
+      const marks = marksOf(svg)
+      // Every frame draws a track dot per in-panel track, so the set is not vacuous.
+      expect(marks.filter((mark) => mark.cls === 'track').length).toBeGreaterThan(20)
+      for (const label of labelsOf(svg)) {
+        const on = marks.filter((mark) => over(label.box, mark))
+        expect([name, label.content, on.map((mark) => mark.cls)]).toEqual([name, label.content, []])
+      }
+    }
+  })
+
+  it('steps off a track dot: the 02a Vigil run frozen at +4:30, where below-right holds two', () => {
+    // The reviewer's own case (#172 round 1): before the dots entered `occupied` this label sat
+    // at 382.4 — its first spot — across the two ADS-B dots at 453.3.
+    const base = fixture('S03-02a-vigil-1')
+    const record: RunRecord = {
+      ...base.record,
+      events: [
+        { t: 250, type: 'select', track: THREAT_ID },
+        { t: 270, type: 'escalate', track: THREAT_ID },
+      ],
+    }
+    const input = { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+    expect(input.metrics.freezeT).toBe(270)
+    const svg = frameSvg(input)
+    const [label] = labelsOf(svg)
+    expect([label.cls, label.content]).toEqual(['vigil-entry', 'inside the ring'])
+    expect(label.box.x).toBeLessThan(382.4)
+    for (const mark of marksOf(svg)) expect(over(label.box, mark)).toBe(false)
+  })
+})
