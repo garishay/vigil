@@ -112,13 +112,9 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     const inOrder = fixture('S06-03b-vigil-1')
     const inverted = fixture('S05-03a-raw-1')
     const missed = fixture('S06-03b-raw-1')
-    expect(countsSentence(inOrder.metrics, inOrder.record)).toContain(
-      '; the threats were escalated in entry order.',
-    )
-    expect(countsSentence(inverted.metrics, inverted.record)).toContain(
-      '; threat 2 was escalated before threat 1.',
-    )
-    expect(countsSentence(missed.metrics, missed.record)).not.toContain(';')
+    expect(countsSentence(inOrder)).toContain('; the threats were escalated in entry order.')
+    expect(countsSentence(inverted)).toContain('; threat 2 was escalated before threat 1.')
+    expect(countsSentence(missed)).not.toContain(';')
   })
 })
 

@@ -29,7 +29,7 @@ import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import type { Track } from '../../src/lib/tracks.ts'
 import { candidatesAt, rankedAtSecond, type RankedAt } from './engine.ts'
 import type { Study } from './load.ts'
-import { threatsOf, type RunMetrics } from './metrics.ts'
+import { otherEscalations, threatsOf, type OtherEscalation, type RunMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 
 /** The map panel: 30 km by 23.3 km at 30 px per km, the ring's centre at its middle. */
@@ -87,9 +87,9 @@ export interface FrameInput {
   plan: InjectPlan
 }
 
-/** The looks the frozen frame shows: every select up to and including the freeze second. */
-export const looksOnFrame = (record: RunRecord, freezeT: number): RunEvent[] =>
-  record.events.filter((event) => event.type === 'select' && event.t <= freezeT)
+/** Every look the run made, in the record's order — the path draws them all (S5f, #173). */
+export const looksOfRun = (record: RunRecord): RunEvent[] =>
+  record.events.filter((event) => event.type === 'select')
 
 const VERB: Partial<Record<RunEvent['type'], string>> = {
   assess: 'assessed',
@@ -171,15 +171,17 @@ export const neverOpenedWords = (record: RunRecord, candidates: readonly RankedA
 export function captionLines({ record, metrics, study, plan }: FrameInput): string[] {
   // By position in the record, not by second: two looks on one second are two looks, and an
   // action belongs to the look before it in the record's order (#151 round 1).
+  // Numbered over the whole run, as the map numbers them since S5f (#173); the threats' own
+  // lines still read to the freeze, and the numbers of those looks are the same either way.
   const looks = record.events
     .map((event, index) => ({ event, index }))
-    .filter(({ event }) => event.type === 'select' && event.t <= metrics.freezeT)
+    .filter(({ event }) => event.type === 'select')
+    .map((look, i) => ({ ...look, k: i + 1 }))
+  const onFrame = looks.filter(({ event }) => event.t <= metrics.freezeT)
   const threatIds = metrics.threats.map((threat) => threat.id)
   const many = threatIds.length > 1
   const name = (id: string) => (many ? `${id} (threat ${threatIds.indexOf(id) + 1})` : 'the threat')
-  const threatLooks = looks
-    .map(({ event, index }, i) => ({ event, index, k: i + 1 }))
-    .filter(({ event }) => threatIds.includes(event.track))
+  const threatLooks = onFrame.filter(({ event }) => threatIds.includes(event.track))
   const lines: string[] = []
   threatLooks.forEach(({ event, index, k }, j) => {
     const nextIndex =
@@ -225,7 +227,7 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
     if (threat.miss || threat.standoffM === null || threat.timeToEscalateS === null) {
       const clock = many && threat.entryT !== null ? `; ring entry ${mmss(threat.entryT)}` : ''
       lines.push(
-        `MISSED${many ? ` ${threat.id}` : ''} — never escalated; ${plural(looks.length, 'look')}${clock}.`,
+        `MISSED${many ? ` ${threat.id}` : ''} — never escalated; ${plural(onFrame.length, 'look')}${clock}.`,
       )
       continue
     }
@@ -251,8 +253,36 @@ export function captionLines({ record, metrics, study, plan }: FrameInput): stri
     lines[lines.length - 1] +=
       ` ${neverOpenedWords(record, candidatesAt(rankedAtSecond(study, plan, STUDY.beginS + metrics.freezeT)))}`
   }
+  // Every other escalation the run made, after the decisions (S5f, #173): the track as the run
+  // read it, the second, and what it turned out to be — including one made after the freeze,
+  // which the frame drew nowhere before.
+  for (const other of otherEscalations(record, study.index, plan)) {
+    const shown = trackAtSecond(study.index, plan, other.id, STUDY.beginS + other.t, record.mode)
+    // The look it came off, so the line answers the numbered marker the map now draws for it;
+    // a track escalated off the Queue was never opened, and the line says that instead.
+    const from = [...looks]
+      .reverse()
+      .find((look) => look.event.track === other.id && look.event.t <= other.t)
+    lines.push(
+      `${from ? `Look #${from.k}` : 'Unopened'} · ${mmss(other.t)} — also escalated ${shown ? trackIdent(shown) : other.id} · ${outcomeWords(other)}.`,
+    )
+  }
   return lines
 }
+
+/**
+ * What an escalated non-threat turned out to be, in the sheet's and the frame's one wording
+ * (S5f, #173): a real aircraft is named as one, since the brief calls escalating a cooperative
+ * aircraft an error whatever its path (#36 [40] B); an inject either never enters the ring or
+ * enters after the window closed — an inject inside it is the metrics' throw — and a due-later
+ * inbound is never called a non-threat.
+ */
+export const outcomeWords = (other: OtherEscalation): string =>
+  other.real
+    ? 'a real aircraft — cooperative, never the threat'
+    : other.entryT === null
+      ? 'never enters the ring'
+      : `enters the ring at ${mmss(other.entryT)}, after the window closed`
 
 /**
  * The one footnote sentence under the map (ruled on A5), on two lines: SVG text does not wrap,
@@ -263,6 +293,13 @@ export const FOOTNOTE_LINES = [
   "the analyst's overlay, drawn on both conditions; raw's screen never showed that set.",
 ] as const
 export const FOOTNOTE = FOOTNOTE_LINES.join(' ')
+
+/**
+ * The key to the later part of the path (S5f, #173), on a frame that has one: the picture is the
+ * frozen second's and the path is the whole run's, so the marks made after the freeze say so.
+ */
+export const LATE_FOOTNOTE =
+  'A look after the freeze is drawn as a dashed outline on a dashed path: the background picture, the Queue box and every reading are the frozen second’s.'
 
 /** The theme's tokens, for the pair and the study figure (S5d) — one palette, fixed in the SVGs. */
 export const THEME = COLOR
@@ -472,7 +509,6 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const clipId = options.clipId ?? 'panel'
   const { beginS } = STUDY
   const freezeS = beginS + metrics.freezeT
-  const looks = looksOnFrame(record, metrics.freezeT)
   const lines = captionLines(input)
   const captionH = 16 + lines.length * LINE_H + 12
   const parts: string[] = []
@@ -608,22 +644,36 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   }
 
   // The looks as numbered hops at the selected track's regenerated position, the path through
-  // them in order; the threat's looks in the warning colour.
-  const hops = looks.map((event, i) => {
+  // them in order; the threat's looks in the warning colour. The whole run's looks, not the
+  // frozen second's (S5f, #173): the two conditions' frames otherwise cover different spans and
+  // the quieter one is overstated. A look after the freeze is the same hop at LATE_OPACITY.
+  const hops = looksOfRun(record).map((event, i) => {
     const track = trackAtSecond(study.index, plan, event.track, beginS + event.t, record.mode)
     if (track === null) {
       throw new Error(
         `${record.subject} run ${record.run}: look #${i + 1} at t ${event.t} names ${event.track}, not in the picture then`,
       )
     }
-    return { k: i + 1, event, point: project(track.position) }
+    return { k: i + 1, event, point: project(track.position), late: event.t > metrics.freezeT }
   })
+  // The path in two pieces: up to the freeze as it was drawn, and the rest lighter and dashed —
+  // the segment that joins them belongs to the later piece, since it leaves the frozen second.
+  const onTime = hops.filter((hop) => !hop.late)
+  const late = hops.slice(onTime.length)
   parts.push(
     polyline(
-      hops.map((hop) => hop.point),
+      onTime.map((hop) => hop.point),
       `class="path" stroke="${COLOR.accent}" stroke-opacity="0.5" stroke-width="1.5"`,
     ),
   )
+  if (late.length > 0) {
+    parts.push(
+      polyline(
+        hops.slice(Math.max(onTime.length - 1, 0)).map((hop) => hop.point),
+        `class="path-late" stroke="${COLOR.accent}" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="4 4"`,
+      ),
+    )
+  }
   // One marker per distinct track visited (S5e, #164): at that track's first look, labelled with
   // its number and a `×N` badge when the run came back to it. The path still runs through every
   // visit, so a revisit reads as a bend; a marker per visit stacks them where the track barely moved.
@@ -640,16 +690,22 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
     k,
     event,
     point: [x, y],
+    late: isLate,
   } of marked) {
     const fill = threatIds.includes(event.track) ? COLOR.warning : COLOR.accent
     const n = visits.get(event.track)!
+    // A marker whose own look is after the freeze is drawn as an outline in the same colour,
+    // its numeral in that colour rather than knocked out of a solid disc; one the run came back
+    // to after the freeze keeps its weight, since it was made at the frozen second. Lighter by
+    // ink and not by opacity: dimming the disc takes the numeral's contrast to 1.6 against the
+    // panel, where the outline holds it at 6.3 — the number is what the caption is keyed to.
     parts.push(
-      `<circle class="hop" data-k="${k}"${n > 1 ? ` data-visits="${n}"` : ''} data-id="${escAttr(event.track)}" data-t="${event.t}" cx="${x}" cy="${y}" r="9" fill="${fill}"/>`,
+      `<circle class="hop${isLate ? ' hop-late' : ''}" data-k="${k}"${n > 1 ? ` data-visits="${n}"` : ''} data-id="${escAttr(event.track)}" data-t="${event.t}" cx="${x}" cy="${y}" r="9" ${isLate ? `fill="none" stroke="${fill}" stroke-width="1.5" stroke-dasharray="3 2"` : `fill="${fill}"`}/>`,
       text(
         x,
         y + 4,
         String(k),
-        `font-size="11" font-weight="700" text-anchor="middle" fill="${COLOR.bg}"`,
+        `font-size="11" font-weight="700" text-anchor="middle" fill="${isLate ? fill : COLOR.bg}"`,
       ),
       ...(n > 1
         ? [
@@ -753,6 +809,14 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   }
 
   const beyond = hops.filter((hop) => !inPanel(hop.point)).length
+  // Both counts, as the frame now draws both spans (S5f, #173): the whole run, and how much of
+  // it stands at the frozen second. A run with nothing after the freeze reads as it always did —
+  // and the treatment itself is the footnote's, beside the overlay's, since the subtitle carrying
+  // both counts and a key measured 842 px of the panel's 900 in a browser.
+  const span =
+    late.length === 0
+      ? plural(hops.length, 'look')
+      : `${plural(hops.length, 'look')} over the whole run, ${onTime.length} to the freeze`
   const header = [
     text(
       30,
@@ -765,16 +829,20 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
       64,
       // A look at a track beyond the panel keeps its hop off the panel, clipped; the count says
       // so, so the header and the frame agree (#151 round 1).
-      `The subject's selection sequence from the run JSON, replayed as a path. ${plural(looks.length, 'look')}${beyond > 0 ? `, ${beyond} beyond the panel` : ''}.`,
+      `The subject's selection sequence from the run JSON, replayed as a path. ${span}${beyond > 0 ? `, ${beyond} beyond the panel` : ''}.`,
       `class="subtitle" font-size="13" fill="${COLOR.muted}"`,
     ),
   ]
   const footY = HEADER_H + PANEL.height + 20
+  // The footnote takes the key’s line only on a frame that has a look after the freeze, so a
+  // frame without one keeps its height to the byte (S5f, #173).
+  const footnotes = late.length > 0 ? [...FOOTNOTE_LINES, LATE_FOOTNOTE] : [...FOOTNOTE_LINES]
+  const footH = FOOT_H + (late.length > 0 ? 14 : 0)
   // The Queue box on a Vigil frame (C2), under the map between the footnote and the caption:
   // every above-calm inject at the freeze in rank order, the rank in the band's colour, the
   // composite, and the Queue's own reason tag. On the map it would cover a threat when the
   // cast puts fourteen above calm (S5c-ii's gate).
-  const queueY = HEADER_H + PANEL.height + FOOT_H
+  const queueY = HEADER_H + PANEL.height + footH
   // On the pair the box shows its top rows and counts the rest (S5d); the frame every row.
   const shown =
     options.queueCap !== undefined && candidates.length > options.queueCap
@@ -818,7 +886,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
         46,
         captionY + 16 + (i + 1) * LINE_H - 6,
         line,
-        `class="caption" font-size="13" ${line.startsWith('Look') || line.startsWith('MISSED') ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
+        `class="caption" font-size="13" ${line.startsWith('Look') || line.startsWith('MISSED') || line.startsWith('Unopened') ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
       ),
     ),
   ]
@@ -831,7 +899,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
     `<rect width="${PANEL.width}" height="${PANEL.height}" fill="${COLOR.panel}"/>`,
     ...parts,
     '</g>',
-    ...FOOTNOTE_LINES.map((line, i) =>
+    ...footnotes.map((line, i) =>
       text(30, footY + i * 14, line, `class="footnote" font-size="11" fill="${COLOR.faint}"`),
     ),
     ...queue,

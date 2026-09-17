@@ -16,7 +16,6 @@ import {
   frameName,
   frameSvg,
   headerLine,
-  looksOnFrame,
   mmss,
   neverOpenedWords,
   PANEL,
@@ -124,9 +123,11 @@ describe('the frame (S5b, #138, ruled B2, B3) — the scene', () => {
     const input = fixture('S03-02a-vigil-1')
     const svg = frameSvg(input)
     const hops = tagsOf(svg, 'hop')
-    // The Vigil fixture looked twice; the second look, at +80, is after the freeze at +58.
-    expect(looksOnFrame(input.record, 58)).toHaveLength(1)
+    // The Vigil fixture looked twice; the second look, at +80, is after the freeze at +58, and
+    // the frame draws the whole run (S5f, #173): two hops, the later one lighter.
+    // one marker for the one track, its badge counting both visits (S5e K5, S5f #173).
     expect(hops).toHaveLength(1)
+    expect(hops[0]['data-visits']).toBe('2')
     expect(hops[0]).toMatchObject({
       'data-k': '1',
       'data-id': THREAT_ID,
