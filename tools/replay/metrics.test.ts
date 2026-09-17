@@ -332,7 +332,7 @@ describe('the attention numbers on two threats (S5c-i, #138 re-gate; the owner n
 
 describe('runMetrics — the hand calculation on the 03 fixtures (S5c-i, #138 re-gate, ruled E9)', () => {
   // Four real headless runs on the prioritization pair, the four event shapes the re-gate named;
-  // the entries are the S7b baselines' (582 / 668 on 03a, 586 / 629 on 03b, from Begin at 480),
+  // the entries are the baselines' — 582 and 668 from Begin at 480 on both, since S7d (#167) makes 03b 03a rotated,
   // the standoffs the cast's speeds over the seconds to entry.
   it('S05 03a raw: two baits opened first, threat 2 escalated before threat 1, a band row escalated — order ✗, one later entrant', () => {
     expect(metricsOf('S05-03a-raw-1.json')).toEqual({

@@ -166,7 +166,7 @@ describe('the study figure (S5d-ii, #138, ruled A7, N9, G4, H1–H4) — by fami
     expect(dotOf(on(1), 'time-vigil', 'S05')).toEqual([timeX(11, 218), y1 + 12])
     expect(dotOf(on(1), 'time-vigil', 'S06')).toEqual([timeX(9, 218), y1 + 26])
     expect(timeX(9, 218)).toBe(228.9)
-    // Threat 2: S06's unaided run never opened it — hollow at 2:59 on the 3:38 axis.
+    // Threat 2: S06's unaided run never opened it — hollow at 3:38, its own run's window end.
     expect(
       tagsOf(svg, 'time-raw-hollow').map((dot) => [
         dot['data-subject'],

@@ -662,5 +662,21 @@ describe('the prioritization pair’s ids and idents (S7d, #167, ruled M1, M2; R
     expect(() => planScenario(gridTimeline(80, 15000), { ...base, castIds: [40, 10, 77] })).toThrow(
       'castIds holds 10; a cast id is an integer from 11',
     )
+    // A silent row's number is what the screen draws as TRK-<n>, so it stays two digits; a heard
+    // row shows its UAS label and may take any number above them (#168 round 1).
+    expect(cast(SCENARIO_03A)[0].remoteId).toBe('silent')
+    expect(() =>
+      planScenario(gridTimeline(80, 15000), { ...base, castIds: [40, 12, 100] }),
+    ).toThrow(
+      'castIds gives the silent row 3 the id 100; a silent row draws TRK-<n> on the screen, so its id runs to 99',
+    )
+    // The furniture's own three-digit ids are fine: they never reach a screen.
+    const heard = { ...base, cast: cast(SCENARIO_03A).slice(6, 9) }
+    expect(heard.cast.every((entry) => entry.remoteId === 'broadcasting')).toBe(true)
+    expect(
+      planScenario(gridTimeline(80, 15000), { ...heard, castIds: [100, 101, 148] }).specs.map(
+        (spec) => spec.id,
+      ),
+    ).toEqual(['inject-100', 'inject-101', 'inject-148'])
   })
 })

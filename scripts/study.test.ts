@@ -448,7 +448,7 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     }
   })
 
-  it('the restated lines: above calm 26 / 26 / 27 / 26 and 26 / 26 / 27 / 27 with the twenty-six ids; the audit; the entries — every load inbound after both windows and inside the recording', () => {
+  it('the restated lines: above calm 26 / 26 / 27 / 26 on both with the twenty-six ids; the audit; the entries — every load inbound after both windows and inside the recording', () => {
     // The twenty-five silent rows — the threats, the four baits, the nineteen load rows — and
     // 02a's closing drone at row 27; by row, since the ids carry no role (S7d, #167).
     const silentRows = [1, 2, 3, 4, 5, 6, ...Array.from({ length: 19 }, (_, i) => 31 + i)]

@@ -611,6 +611,18 @@ export function planScenario(
     if (new Set(castIds).size !== castIds.length) {
       throw new Error(`castIds repeats an id; two rows on one id leave one out of the picture`)
     }
+    // A silent row's number is the one a screen reads — `trackIdent` draws it as `TRK-<n>` —
+    // so it stays inside the two digits the positional `inject-11` to `inject-99` range gave,
+    // which this list would otherwise let go. A heard row shows its `UAS-XXXX` label and may
+    // take any number above it (#168 round 1).
+    const wide = cast.findIndex(
+      (entry, index) => entry.remoteId === 'silent' && castIds[index] > 99,
+    )
+    if (wide >= 0) {
+      throw new Error(
+        `castIds gives the silent row ${wide + 1} the id ${castIds[wide]}; a silent row draws TRK-<n> on the screen, so its id runs to 99`,
+      )
+    }
   }
   // The other end of the range: a deal that could reach inject-11 would collide with the cast,
   // and a duplicate id vanishes from the picture silently (#142 round 1).

@@ -2,7 +2,9 @@
  * Study scenario 03b (S7, #152; re-cut by S7d, #167, under #131's owner amendment of
  * 2026-09-17): 03a's whole cast — threats included — turned 135° about the centre, under its
  * own ids. The pair is read threat by threat, so a row's two tracks must match in range, speed
- * and entry time; only their bearing and their label differ. Row 1 is therefore 03a's row 1
+ * and entry time; what differs is their bearing and the identity a screen reads — the label,
+ * and on a heard furniture row the UA type, both drawn from the scenario's own seed as they were
+ * before this cut. Row 1 is therefore 03a's row 1
  * rotated — 6.3 km at 25 kt, entering at 582 s (Begin + 102) — and row 2 is 03a's row 2
  * rotated — 6.15 km at 12 kt, entering at 668 s (Begin + 188) — so `runS` is 218 on both and
  * the brief reads the same length on both. Both are present from t = 0 and warning at Begin.

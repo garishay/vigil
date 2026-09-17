@@ -47,9 +47,9 @@ export const SCENARIO_03A: ScenarioConfig = {
     ...(SCENARIO_02A.cast ?? []).slice(6), // 100–123 · 02a's furniture: the three returns, the fifteen hovers, the six movers, under 03a's own ids
     silentAt(at(20, 6.5), 242, 11, T0), // 65 · load in the threats' band: silent, 6.5 km, inbound 42° off the centre line at 11 kt — enters after the run
     silentAt(at(125, 6.35), 261, 11, T0), // 74 · load in the threats' band: silent, 6.35 km, inbound 44° off the centre line at 11 kt — enters after the run
-    silentAt(at(240, 9.0), 63, 12, T0), // 85 · load: silent, steady inbound, enters at 1128 s
-    silentAt(at(310, 12.0), 124, 20, T0), // 52 · load: silent, steady inbound, enters at 1160 s
-    silentAt(at(70, 10.5), 254, 16, T0), // 58 · load: silent, steady inbound, enters at 1148 s
+    silentAt(at(240, 9.0), 63, 12, T0), // 85 · load: silent, steady inbound, enters at 1130 s
+    silentAt(at(310, 12.0), 124, 20, T0), // 52 · load: silent, steady inbound, enters at 1170 s
+    silentAt(at(70, 10.5), 254, 16, T0), // 58 · load: silent, steady inbound, enters at 1152 s
     silentAt(at(132.4, 6.557), 230, 14, T0), // 91 · load: silent, a course that misses — its closest approach 140° / 6.5 km at Begin + 120
     silentAt(at(345.2, 8.12), 85, 18, T0), // 56 · load: silent, a course that misses — its closest approach 355° / 8.0 km at Begin + 150
     silentAt(at(250, 6.45), 116, 11, T0), // 94 · load in the threats' band (S7c): silent, 6.45 km, inbound 46° off the centre line at 11 kt — enters at 942 s, after the run
