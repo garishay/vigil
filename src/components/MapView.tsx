@@ -471,8 +471,21 @@ export function MapView({
       // A symbol that moves between two ticks is placed afresh each time, and a fresh symbol
       // fades in: with the default 300 ms every airborne glyph would flicker once a second (S9).
       fadeDuration: 0,
+      // North-up, everywhere (#192, ruled; #36 [41]): the map neither rotates nor pitches — by
+      // drag, touch or keyboard — and its bearing is held at 0. Rotation serves nothing here,
+      // every frame and sheet is drawn north-up, one accidental right-drag in a run would turn
+      // the picture with no obvious way back, and raw's label rule (R1 on #182) reads the true
+      // heading, which is the screen's only while north is up.
+      bearing: 0,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      maxPitch: 0,
     })
+    map.touchZoomRotate.disableRotation()
+    map.keyboard.disableRotation()
     mapRef.current = map
+    // Zoom only: a compass would offer a turn the map refuses.
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
 
     map.on('load', () => {

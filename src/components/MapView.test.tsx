@@ -121,6 +121,9 @@ const { mapInstance, setData, clickHandlers, MapConstructor, NavigationControl }
       // Raw mode (S4a) repaints and toggles layers from an effect.
       setLayoutProperty: vi.fn(),
       setPaintProperty: vi.fn(),
+      // North-up (#192): the two handlers whose rotation is switched off after construction.
+      touchZoomRotate: { disableRotation: vi.fn() },
+      keyboard: { disableRotation: vi.fn() },
       on: vi.fn((event: string, arg2: unknown, arg3?: unknown) => {
         if (event === 'load') (arg2 as () => void)()
         if (event === 'click' && typeof arg2 === 'string')
@@ -174,6 +177,23 @@ describe('MapView', () => {
     render(<MapView ao={AO} />)
     expect(NavigationControl).toHaveBeenCalled()
     expect(mapInstance.addControl).toHaveBeenCalled()
+  })
+
+  it('holds the map north-up: no rotation or pitch by drag, touch or keyboard, the bearing 0, no compass (#192, ruled; #36 [41])', () => {
+    render(<MapView ao={AO} />)
+    // The four settings and the bearing, on the map's options.
+    expect(MapConstructor.mock.calls[0][0]).toMatchObject({
+      bearing: 0,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      maxPitch: 0,
+    })
+    // Touch and keyboard rotation switched off on their handlers; pinch zoom and arrow-key
+    // panning stay, as does the zoom control — the compass never shows.
+    expect(mapInstance.touchZoomRotate.disableRotation).toHaveBeenCalledTimes(1)
+    expect(mapInstance.keyboard.disableRotation).toHaveBeenCalledTimes(1)
+    expect(NavigationControl).toHaveBeenCalledWith({ showCompass: false })
   })
 
   it('draws one protection ring per site in the session set, pushed as a source (08a)', () => {
