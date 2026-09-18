@@ -708,6 +708,28 @@ describe('the map’s shapes on the study casts (S9, #181)', () => {
     }
   })
 
+  it('gives no threat a shape of its own on 03: every silent row is the one dot on every tick, every heard row a drone', () => {
+    // The gate's first question (#181): a threat must not be findable by shape unaided. The
+    // shape reads the callsign the rule left and nothing else, so the two threats — silent, like
+    // the twenty-three other silent rows — are the dot the baits and the load are.
+    for (const name of ['03a', '03b']) {
+      const entry = scenarioNamed(name)
+      const plan = planScenario(timelineOf(CAPTURE), entry.config)
+      const silent = new Set(
+        plan.specs.filter((spec) => spec.remoteId === 'silent').map((spec) => spec.id),
+      )
+      expect(silent.size).toBe(25)
+      const threats = plan.specs.slice(0, 2).map((spec) => spec.id)
+      expect(threats.every((id) => silent.has(id))).toBe(true)
+      for (let tSec = T0; tSec <= T0 + (entry.runS ?? STUDY_CONFIG.runS); tSec++) {
+        for (const track of injectTracksAt(plan, tSec)) {
+          const shape = trackShape(associate(track, STUDY_CONFIG.rawAssociationM))
+          expect([track.id, shape]).toEqual([track.id, silent.has(track.id) ? 'dot' : 'drone'])
+        }
+      }
+    }
+  })
+
   it('draws the corroboration pair’s threat as a drone unaided and a dot in Vigil, and nothing else differently', () => {
     // 02a lies from its first frame (481 s); 02b from 510 s. Every other row reads one shape.
     const a = shapesByMode('02a')
