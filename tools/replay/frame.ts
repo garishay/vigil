@@ -98,12 +98,16 @@ const VERB: Partial<Record<RunEvent['type'], string>> = {
 }
 
 /** The header's first line: the condition, and the moment the frame is frozen at. */
-export const headerLine = (record: RunRecord, metrics: RunMetrics): string => {
+export const headerLine = (input: FrameInput): string => {
+  const { record, metrics } = input
   const missed = metrics.threats.filter((threat) => threat.miss)
   const many = metrics.threats.length > 1
+  // A missed threat is named as the log names it, not by its id: one name per track means the
+  // header too, which is the one word a reader sees that still read `inject-23` (#176 round 1).
+  const { ident } = trackNamer(input)
   return `${record.mode === 'raw' ? 'UNAIDED' : 'WITH VIGIL'} · ${
     missed.length > 0
-      ? `MISSED${many ? ` ${missed.map((threat) => threat.id).join(', ')}` : ''} — frozen at +${mmss(metrics.runS)}`
+      ? `MISSED${many ? ` ${missed.map((threat) => ident(threat.id)).join(', ')}` : ''} — frozen at +${mmss(metrics.runS)}`
       : `frozen at the moment of ${many ? 'the last ' : ''}escalation — ${mmss(metrics.freezeT)}`
   }`
 }
@@ -165,8 +169,9 @@ export const neverOpenedWords = (record: RunRecord, candidates: readonly RankedA
 
 /**
  * What the frame calls a track (S5g, #175): the ident the screen showed, and the role in words
- * where the track has one. One name per track, so the log, the map label and the sheet beside it
- * do not give a reader two names for one thing. The ident is read at the freeze — the second the
+ * where the track has one. One name per track **on the frame** — the log, the map label and the
+ * header — so a frame, and a pair's two frames, do not give a reader two names for one thing. The
+ * sheet's own rows and sentences still name a track their own way; that is #177's. The ident is read at the freeze — the second the
  * frame is of — and, for a track the picture no longer holds there, at its last event in the run:
  * on the 02b Vigil fixture one track reads UAS-8F21 at its first look and TRK-11 at its second,
  * which is the case that makes "the name the screen showed" need a second to be read at. The ids
@@ -259,17 +264,23 @@ export function captionLines(input: FrameInput): CaptionLine[] {
   // the clock, and the split between handling the threats and working on after them is what a
   // reader is looking for. Nothing after the freeze, no rule.
   let ruled = false
-  const ruleBefore = (t: number) => {
-    if (ruled || t <= metrics.freezeT) return
-    ruled = true
-    lines.push({ text: `frozen at ${mmss(metrics.freezeT)}`, bold: false, rule: true })
+  /**
+   * The rule is laid down by the line that follows it, not by the event that would have: an
+   * `alert_ack` is not a decision and writes no line, so a run whose only work after the freeze
+   * is an acknowledgement gets no rule and no hairline over its foot (#176 round 1).
+   */
+  const ruledPush = (t: number, line: CaptionLine) => {
+    if (!ruled && t > metrics.freezeT) {
+      ruled = true
+      lines.push({ text: `frozen at ${mmss(metrics.freezeT)}`, bold: false, rule: true })
+    }
+    lines.push(line)
   }
   for (const event of record.events) {
     if (event.type === 'select') {
       k += 1
       looks.set(event.track, k)
     }
-    ruleBefore(event.t)
     const tag = looks.has(event.track) ? `Look #${looks.get(event.track)}` : 'Unopened'
     const head = `${tag} · ${mmss(event.t)} — `
     if (event.type === 'select') {
@@ -290,9 +301,15 @@ export function captionLines(input: FrameInput): CaptionLine[] {
         shown && trackIdent(shown) !== ident(event.track)
           ? `, reading ${trackIdent(shown)} then`
           : ''
-      lines.push(line(`${head}opened ${named(event.track)}${read}${then}${atT0}.`, event.track))
+      ruledPush(
+        event.t,
+        line(`${head}opened ${named(event.track)}${read}${then}${atT0}.`, event.track),
+      )
       // On a Vigil frame only: what Vigil read at that second, in the app's own words (C6, C7).
-      if (record.mode === 'vigil' && shown) {
+      // The frame's key says the Queue box and every reading are the frozen second's, so a look
+      // after the freeze carries no reading — the engine at that later second would put a second,
+      // contradicting reading on one frame (#176 round 1).
+      if (record.mode === 'vigil' && shown && event.t <= metrics.freezeT) {
         const entry = rankedAtSecond(study, plan, beginS + event.t).find(
           (ranked) => ranked.track.id === event.track,
         )
@@ -304,7 +321,7 @@ export function captionLines(input: FrameInput): CaptionLine[] {
       continue
     }
     if (event.type === 'assess' || event.type === 'dismiss') {
-      lines.push(line(`${head}${VERB[event.type]} ${named(event.track)}.`, event.track))
+      ruledPush(event.t, line(`${head}${VERB[event.type]} ${named(event.track)}.`, event.track))
       continue
     }
     if (event.type !== 'escalate') continue
@@ -319,7 +336,8 @@ export function captionLines(input: FrameInput): CaptionLine[] {
             ? `${mmss(threat.entryT - event.t)} before entry`
             : `${mmss(event.t - threat.entryT)} after entry`
       const clock = threat.entryT === null ? '' : `, ring entry ${mmss(threat.entryT)}`
-      lines.push(
+      ruledPush(
+        event.t,
         line(
           `${head}escalated ${named(event.track)} ${km} km ${side} the ring · ${margin}${clock}.`,
           event.track,
@@ -332,7 +350,8 @@ export function captionLines(input: FrameInput): CaptionLine[] {
       (candidate) => candidate.id === event.track && candidate.t === event.t,
     )
     if (other)
-      lines.push(
+      ruledPush(
+        event.t,
         line(`${head}escalated ${named(event.track)} · ${outcomeWords(other)}.`, event.track, true),
       )
   }
@@ -957,7 +976,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
     text(
       30,
       40,
-      headerLine(record, metrics),
+      headerLine(input),
       `class="title" font-size="20" font-weight="700" fill="${COLOR.text}"`,
     ),
     text(

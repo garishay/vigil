@@ -575,7 +575,7 @@ describe('the sheet’s other escalations (S5f, #173)', () => {
     // The sheet stands 150 for the headline, the taller frame, a row per threat, the row's own
     // height, and a foot of 98 for the fourth footnote line.
     expect(two).toContain(
-      `width="1820" height="${150 + 1304 + 2 * 320 + (200 + 2 * 18 + 20) + 98}"`,
+      `width="1820" height="${150 + 1282 + 2 * 320 + (200 + 2 * 18 + 20) + 98}"`,
     )
     expect(one).toContain(
       `width="1820" height="${150 + 1254 + 2 * 320 + (200 + 1 * 18 + 20) + 98}"`,
@@ -584,7 +584,7 @@ describe('the sheet’s other escalations (S5f, #173)', () => {
     const rules = [...two.matchAll(/<line x1="30" y1="([0-9.]+)" x2="1790"/g)].map((m) =>
       Number(m[1]),
     )
-    expect(rules).toEqual([150 + 1304, 150 + 1304 + 320, 150 + 1304 + 640, 150 + 1304 + 640 + 256])
+    expect(rules).toEqual([150 + 1282, 150 + 1282 + 320, 150 + 1282 + 640, 150 + 1282 + 640 + 256])
   })
 })
 

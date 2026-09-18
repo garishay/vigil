@@ -37,7 +37,7 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
   it('nests the two frames side by side with their own clip ids and stands the block under the taller', () => {
     const svg = pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')
     expect(
-      svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1820" height="1734"'),
+      svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1820" height="1712"'),
     ).toBe(true)
     expect(svg).toContain('data-left="S05-03a-raw-1" data-right="S05-03a-vigil-1"')
     // Both frames carry a look after their freeze since S5f (#173) and a decision log since S5g
@@ -52,14 +52,14 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
       x: '920',
       y: '0',
       width: '900',
-      height: '1304',
+      height: '1282',
     })
     expect(svg).toContain('<clipPath id="panel-left">')
     expect(svg).toContain('<clipPath id="panel-right">')
     expect(svg).not.toContain('<clipPath id="panel">')
-    // The block: 70 + 2 rows × 150 + 60 under the taller frame's 1 304 (the box capped: twenty-one
+    // The block: 70 + 2 rows × 150 + 60 under the taller frame's 1 282 (the box capped: twenty-one
     // rows out, the count line in).
-    expect(tagsOf(svg, 'block')[0]).toMatchObject({ y: '1304', height: '430', width: '1820' })
+    expect(tagsOf(svg, 'block')[0]).toMatchObject({ y: '1282', height: '430', width: '1820' })
     expect(pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')).toBe(svg)
   })
 

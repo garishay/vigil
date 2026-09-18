@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1220" viewBox="0 0 900 1220" data-subject="S04" data-scenario="02b" data-mode="vigil" data-run="1">
-<rect width="900" height="1220" fill="#0b0f14"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1176" viewBox="0 0 900 1176" data-subject="S04" data-scenario="02b" data-mode="vigil" data-run="1">
+<rect width="900" height="1176" fill="#0b0f14"/>
 <text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">WITH VIGIL · frozen at the moment of escalation — 0:58</text>
 <text x="30" y="64" font-family="system-ui, sans-serif" class="subtitle" font-size="13" fill="#8b98a9">The subject's selection sequence from the run JSON, replayed as a path. 2 looks over the whole run, 1 to the freeze.</text>
 <defs><clipPath id="panel"><rect x="0" y="0" width="900" height="700"/></clipPath></defs>
@@ -76,7 +76,7 @@
 <text x="46" y="930" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-13" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">3</tspan> TRK-13 58 · Non-cooperative, near PHL Airfield, low and slow</text>
 <text x="46" y="948" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-17" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">4</tspan> UAS-BEEC 49 · Closing, near PHL Airfield, low and slow</text>
 <text x="46" y="966" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-37" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">5</tspan> UAS-CF19 45 · Closing, near PHL Airfield, low and slow</text>
-<rect x="30" y="994" width="840" height="226" rx="6" fill="#121821" stroke="#1f2a37"/>
+<rect x="30" y="994" width="840" height="182" rx="6" fill="#121821" stroke="#1f2a37"/>
 <text x="46" y="1026" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:14 — opened TRK-11 (the threat) · Remote ID, reading UAS-8F21 then.</text>
 <text x="46" y="1048" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 3 · caution 47 · closing at 18 m/s · ring entry in 1:48.</text>
 <text x="46" y="1070" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:49 — assessed TRK-11 (the threat).</text>
@@ -84,7 +84,5 @@
 <text x="46" y="1111" font-family="system-ui, sans-serif" class="caption-rule-label" font-size="11" fill="#63707f">frozen at 0:58</text>
 <line class="caption-rule" x1="135.6" y1="1107" x2="854" y2="1107" stroke="#1f2a37"/>
 <text x="46" y="1136" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #2 · 1:20 — opened TRK-11 (the threat) · sensor.</text>
-<text x="46" y="1158" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 1 · warning 73 · closing at 18 m/s · ring entry in 0:42.</text>
-<text x="46" y="1180" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.</text>
-<text x="46" y="1202" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">4 candidates never opened.</text>
+<text x="46" y="1158" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">4 candidates never opened.</text>
 </svg>

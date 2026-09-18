@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1098" viewBox="0 0 900 1098" data-subject="S06" data-scenario="03b" data-mode="raw" data-run="1">
 <rect width="900" height="1098" fill="#0b0f14"/>
-<text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">UNAIDED · MISSED inject-23 — frozen at +3:38</text>
+<text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">UNAIDED · MISSED TRK-23 — frozen at +3:38</text>
 <text x="30" y="64" font-family="system-ui, sans-serif" class="subtitle" font-size="13" fill="#8b98a9">The subject's selection sequence from the run JSON, replayed as a path. 4 looks.</text>
 <defs><clipPath id="panel"><rect x="0" y="0" width="900" height="700"/></clipPath></defs>
 <g class="map" transform="translate(0 80)" clip-path="url(#panel)">

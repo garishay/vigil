@@ -227,15 +227,11 @@ describe('the frame (S5b, #138, ruled B2, B3) — the scene', () => {
 describe('the frame — the header and the caption box (ruled B3, B4)', () => {
   it('heads a raw run UNAIDED and a Vigil run WITH VIGIL, frozen at the escalation, or MISSED at +6:00', () => {
     const raw = fixture('S03-02a-raw-1')
-    expect(headerLine(raw.record, raw.metrics)).toBe(
-      'UNAIDED · frozen at the moment of escalation — 0:58',
-    )
+    expect(headerLine(raw)).toBe('UNAIDED · frozen at the moment of escalation — 0:58')
     const vigil = fixture('S04-02b-vigil-1')
-    expect(headerLine(vigil.record, vigil.metrics)).toBe(
-      'WITH VIGIL · frozen at the moment of escalation — 0:58',
-    )
+    expect(headerLine(vigil)).toBe('WITH VIGIL · frozen at the moment of escalation — 0:58')
     const missed = synthetic([{ t: 30, type: 'select', track: 'inject-12' }], { mode: 'vigil' })
-    expect(headerLine(missed.record, missed.metrics)).toBe('WITH VIGIL · MISSED — frozen at +6:00')
+    expect(headerLine(missed)).toBe('WITH VIGIL · MISSED — frozen at +6:00')
     const svg = frameSvg(raw)
     expect(textsOf(svg, 'title')).toEqual(['UNAIDED · frozen at the moment of escalation — 0:58'])
     expect(textsOf(svg, 'subtitle')).toEqual([
@@ -291,9 +287,9 @@ describe('the frame — the header and the caption box (ruled B3, B4)', () => {
       'Look #1 · 0:49 — assessed TRK-11 (the threat).',
       'Look #1 · 0:58 — escalated TRK-11 (the threat) 1.2 km outside the ring · 1:06 before entry, ring entry 2:04.',
       'frozen at 0:58',
+      // The look after the freeze carries no Vigil reading: the frame's key says every reading
+      // is the frozen second's (#176 round 1).
       'Look #2 · 1:20 — opened TRK-11 (the threat) · sensor.',
-      'Vigil read it rank 1 · warning 72 · closing at 18 m/s · ring entry in 0:43.',
-      'Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.',
       '4 candidates never opened.',
     ])
     const svg = frameSvg(fixture('S03-02a-raw-1'))
@@ -482,9 +478,7 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
 
   it('heads the pair’s frame at the last escalation, or MISSED naming the threats, at the scenario’s own window (E3)', () => {
     const last = on03('03a', shape)
-    expect(headerLine(last.record, last.metrics)).toBe(
-      'UNAIDED · frozen at the moment of the last escalation — 1:37',
-    )
+    expect(headerLine(last)).toBe('UNAIDED · frozen at the moment of the last escalation — 1:37')
     const oneMissed = on03(
       '03b',
       [
@@ -493,13 +487,9 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
       ],
       'vigil',
     )
-    expect(headerLine(oneMissed.record, oneMissed.metrics)).toBe(
-      'WITH VIGIL · MISSED inject-23 — frozen at +3:38',
-    )
+    expect(headerLine(oneMissed)).toBe('WITH VIGIL · MISSED TRK-23 — frozen at +3:38')
     const bothMissed = on03('03a', [{ t: 12, type: 'select', track: 'inject-35' }])
-    expect(headerLine(bothMissed.record, bothMissed.metrics)).toBe(
-      'UNAIDED · MISSED inject-31, inject-57 — frozen at +3:38',
-    )
+    expect(headerLine(bothMissed)).toBe('UNAIDED · MISSED TRK-31, TRK-57 — frozen at +3:38')
   })
 
   it('names each threat by its role and logs every decision in the clock’s order (E7, S5g)', () => {
@@ -557,9 +547,7 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
 describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
   it('writes the caption for the S05 03a raw fixture and the S06 03b raw fixture exactly', () => {
     const raw = fixture('S05-03a-raw-1')
-    expect(headerLine(raw.record, raw.metrics)).toBe(
-      'UNAIDED · frozen at the moment of the last escalation — 1:37',
-    )
+    expect(headerLine(raw)).toBe('UNAIDED · frozen at the moment of the last escalation — 1:37')
     expect(captionTexts(raw)).toEqual([
       'Look #1 · 0:12 — opened TRK-35 · sensor.',
       'Look #2 · 0:27 — opened TRK-36 · sensor.',
@@ -576,9 +564,7 @@ describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
       'Look #6 · 2:30 — escalated TRK-65 · enters the ring at 6:59, after the window closed.',
     ])
     const missed = fixture('S06-03b-raw-1')
-    expect(headerLine(missed.record, missed.metrics)).toBe(
-      'UNAIDED · MISSED inject-23 — frozen at +3:38',
-    )
+    expect(headerLine(missed)).toBe('UNAIDED · MISSED TRK-23 — frozen at +3:38')
     // The two escalations the run made besides the threats now sit in the clock where it made
     // them, each naming the look it came off (S5f, #173), and the miss is stated beneath (item 4).
     expect(captionTexts(missed)).toEqual([
@@ -613,7 +599,7 @@ describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
     expect(captionLines(missed).some((line) => line.rule === true)).toBe(false)
     // The Vigil frames read the same idents: the 03 threats are silent, so no mode changes them.
     const vigil = fixture('S06-03b-vigil-1')
-    expect(headerLine(vigil.record, vigil.metrics)).toBe(
+    expect(headerLine(vigil)).toBe(
       'WITH VIGIL · frozen at the moment of the last escalation — 1:28',
     )
     expect(captionTexts(vigil)[0]).toBe(
@@ -798,10 +784,9 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
       'Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.',
       'Look #1 · 0:49 — assessed TRK-11 (the threat).',
       'Look #1 · 0:58 — escalated TRK-11 (the threat) 1.2 km outside the ring · 1:06 before entry, ring entry 2:04.',
-      // The freeze's rule carries its own class, so it is not among the box's sentences here.
+      // The freeze's rule carries its own class, so it is not among the box's sentences here;
+      // the look after it carries no reading (#176 round 1).
       'Look #2 · 1:20 — opened TRK-11 (the threat) · sensor.',
-      'Vigil read it rank 1 · warning 72 · closing at 18 m/s · ring entry in 0:43.',
-      'Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.',
       // The count is the foot's own line, not a suffix on a decision about a track (item 5).
       '4 candidates never opened.',
     ])
@@ -821,7 +806,6 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
       'Look #2 · 1:02 — assessed TRK-57 (threat 2).',
       'Look #2 · 1:11 — escalated TRK-57 (threat 2) 0.7 km outside the ring · 1:57 before entry, ring entry 3:08.',
       'Look #3 · 2:00 — opened TRK-35 · sensor.',
-      'Vigil read it rank 6 · caution 68 · closing at 1 m/s · no ring entry within 20 min.',
       '23 candidates never opened.',
     ])
     expect(vigilCaption(frameSvg(vigilOf('S06-03b-vigil-1'))).at(-1)).toBe(
@@ -915,9 +899,9 @@ describe('the frame — round 1 (#160)', () => {
     const a = captionsOf(frameSvg(fixture('S03-02a-vigil-1')))
     expect(a[1]).toBe('Vigil read it rank 1 · warning 71 · closing at 18 m/s · ring entry in 1:49.')
     expect(a[2]).toBe('Remote ID UAS-8F21 broadcasts 1.1 km from the observed track.')
-    expect(a).toHaveLength(9)
+    expect(a).toHaveLength(7)
     // 02b's look at +14 read no mismatch, so no such line.
-    expect(captionsOf(frameSvg(fixture('S04-02b-vigil-1')))).toHaveLength(8)
+    expect(captionsOf(frameSvg(fixture('S04-02b-vigil-1')))).toHaveLength(6)
     // The log is narrower than the caption it replaces: the widest line of the eight frames runs
     // 111 characters where the grouped caption's ran 128, the overlay's count having moved off
     // the last decision line (item 5).
@@ -1004,10 +988,10 @@ describe('the frame’s document for the pair (S5d-i, ruled G2)', () => {
   it('gives its body apart from the wrapper, a clip id of the caller’s, and the Queue box capped on request', () => {
     const input = fixture('S05-03a-vigil-1')
     const whole = frameDocument(input)
-    expect(whole).toMatchObject({ width: 900, height: 1664 })
+    expect(whole).toMatchObject({ width: 900, height: 1642 })
     expect(frameSvg(input)).toBe(
       [
-        '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1664" viewBox="0 0 900 1664" data-subject="S05" data-scenario="03a" data-mode="vigil" data-run="1">',
+        '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1642" viewBox="0 0 900 1642" data-subject="S05" data-scenario="03a" data-mode="vigil" data-run="1">',
         ...whole.lines,
         '</svg>',
         '',
@@ -1545,5 +1529,71 @@ describe('the caption as a decision log (S5g, #175, ruled R1–R3)', () => {
       'Look #1 · 0:12 — opened TRK-35 · sensor.',
       'Look #1 · 0:20 — dismissed TRK-35.',
     ])
+  })
+})
+
+describe('the decision log — round 1 (#176)', () => {
+  const on03 = (events: RunEvent[], mode: 'raw' | 'vigil' = 'raw') =>
+    synthetic(events, { scenario: '03a', mode, subject: 'S05' })
+
+  it('lays the rule down with the line that follows it, so an acknowledgement alone leaves none', () => {
+    const decisions: RunEvent[] = [
+      { t: 41, type: 'select', track: 'inject-57' },
+      { t: 58, type: 'escalate', track: 'inject-57' },
+      { t: 84, type: 'select', track: 'inject-31' },
+      { t: 97, type: 'escalate', track: 'inject-31' },
+    ]
+    // An acknowledgement is a run event the loader accepts and the log writes no line for, so a
+    // run whose only work after the freeze is one gets no rule — and no hairline over its foot.
+    const acked = on03([...decisions, { t: 150, type: 'alert_ack', track: 'inject-65' }])
+    expect(acked.metrics.freezeT).toBe(97)
+    expect(captionLines(acked).some((line) => line.rule === true)).toBe(false)
+    expect(captionTexts(acked).at(-1)).toContain('1:37 — escalated TRK-31 (threat 1)')
+    expect(frameSvg(acked)).not.toContain('caption-rule')
+    const ackedVigil = on03(
+      [...decisions, { t: 150, type: 'alert_ack', track: 'inject-65' }],
+      'vigil',
+    )
+    expect(captionTexts(ackedVigil).at(-1)).toMatch(/candidates never opened\.$/)
+    expect(captionLines(ackedVigil).some((line) => line.rule === true)).toBe(false)
+    // A decision after the freeze still lays it down, immediately above that line.
+    const worked = on03([...decisions, { t: 150, type: 'select', track: 'inject-65' }])
+    const lines = captionLines(worked)
+    expect(lines.at(-2)?.rule).toBe(true)
+    expect(lines.at(-1)?.text).toContain('2:30 — opened TRK-65')
+  })
+
+  it('reads Vigil at the frozen second only, as the frame’s own key says it does', () => {
+    // The key under the map says the picture, the Queue box and every reading are the frozen
+    // second's, so a look after the freeze carries no reading: one frame, one reading per track.
+    const lines = captionTexts(fixture('S03-02a-vigil-1'))
+    expect(lines.filter((line) => line.startsWith('Vigil read it'))).toHaveLength(1)
+    expect(lines.indexOf('frozen at 0:58')).toBeGreaterThan(
+      lines.findIndex((line) => line.startsWith('Vigil read it')),
+    )
+    expect(lines.at(-2)).toBe('Look #2 · 1:20 — opened TRK-11 (the threat) · sensor.')
+    expect(lines.at(-1)).toBe('4 candidates never opened.')
+  })
+
+  it('names a missed threat in the header as the log names it', () => {
+    const missed = fixture('S06-03b-raw-1')
+    expect(headerLine(missed)).toBe('UNAIDED · MISSED TRK-23 — frozen at +3:38')
+    // The one word a reader saw that still read an inject id; no frame carries one now.
+    for (const name of [
+      'S03-02a-raw-1',
+      'S03-02a-vigil-1',
+      'S04-02b-raw-1',
+      'S04-02b-vigil-1',
+      'S05-03a-raw-1',
+      'S05-03a-vigil-1',
+      'S06-03b-raw-1',
+      'S06-03b-vigil-1',
+    ]) {
+      const words = [...frameSvg(fixture(name)).matchAll(/>([^<>]*)</g)].map((match) => match[1])
+      expect(
+        words.some((word) => word.includes('inject-')),
+        name,
+      ).toBe(false)
+    }
   })
 })
