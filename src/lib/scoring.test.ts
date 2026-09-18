@@ -16,6 +16,7 @@ import {
   scoreFromSnapshot,
   type Score,
 } from './scoring'
+import { PROJECTION } from '../config/projection'
 import { AO } from '../config/ao'
 import type { ProtectedSite } from '../config/ao'
 import { DEFAULT_RECORDING, recordingNamed } from '../config/recordings'
@@ -213,7 +214,7 @@ describe('closing geometry', () => {
       inject({ position: at(10_000) }),
       inject({ position: at(6000, 40), headingDeg: 200, groundSpeedKt: 45 }),
     ]) {
-      const entry = timeToEntry(track, SITES, { horizonS: 20 * 60 })!
+      const entry = timeToEntry(track, SITES, { ...PROJECTION, horizonS: 20 * 60 })!
       expect(entry.kind).toBe('entry')
       const minutes = (entry as Extract<EntryEstimate, { kind: 'entry' }>).tSec / 60
       expect(factor(track, 'closing').value).toBeCloseTo(

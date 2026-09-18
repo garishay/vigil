@@ -12,6 +12,15 @@ import { SCORING } from './scoring.ts'
 export interface ProjectionConfig {
   /** The horizon, seconds: an entry later than this reads as none. */
   horizonS: number
+  /**
+   * How far the map draws a course that meets no ring, metres (S10, #182; #192, ruled 1): the
+   * rule stays the horizon, and the line stops here — past the map's edge at the working zoom
+   * for anything the study flies, where an airliner's twenty minutes would run 278 km.
+   */
+  runOutM: number
 }
 
-export const PROJECTION: ProjectionConfig = { horizonS: SCORING.closing.entryZeroMin * 60 }
+export const PROJECTION: ProjectionConfig = {
+  horizonS: SCORING.closing.entryZeroMin * 60,
+  runOutM: 25_000,
+}

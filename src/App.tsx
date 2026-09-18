@@ -24,7 +24,7 @@ import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback
 import { clearFor, foldAlerts, type Alert } from './lib/alerts'
 import { formatElapsed, recordingLabel, simClock, trackIdent, type WarmBand } from './lib/display'
 import { mergePicture } from './lib/feeds'
-import { timeToEntry } from './lib/projection'
+import { projectedPath, timeToEntry } from './lib/projection'
 import {
   STATUSES,
   STATUS_LABEL,
@@ -588,13 +588,14 @@ export default function App({
     () => (selected ? timeToEntry(selected.track, sites) : null),
     [selected, sites],
   )
+  // The path the map draws (S10, #182): to the ring where the course meets it, else the course
+  // run out to the horizon the row reads under — one pure call, as the estimate is. The reading
+  // at its end is the row's own seconds; null where it misses.
   const projection = useMemo<readonly [number, number][]>(
-    () =>
-      selected && entryEstimate?.kind === 'entry'
-        ? [selected.track.position, entryEstimate.point]
-        : [],
+    () => (selected ? projectedPath(selected.track, entryEstimate) : []),
     [selected, entryEstimate],
   )
+  const projectionEntryS = entryEstimate?.kind === 'entry' ? entryEstimate.tSec : null
   const logFor = (entry: RankedTrack): TrackEvent[] =>
     eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), now(), tSec)
 
@@ -1131,6 +1132,7 @@ export default function App({
           // Raw (ruled A4): no projected path, no dim, no band fill — the derived readings the
           // fairness spec hides; the trail and the ring stay.
           projection={raw ? NO_LINE : projection}
+          projectionEntryS={raw ? null : projectionEntryS}
           terminalIds={raw ? NO_IDS : terminalIds}
           bands={raw ? NO_BANDS : bands}
           mode={mode}
