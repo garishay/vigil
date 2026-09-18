@@ -130,6 +130,41 @@ export const GLYPHS: Record<'aircraft' | 'drone', readonly Part[]> = {
   ],
 }
 
+/**
+ * The map's two marks (S10, #182), on the same box and raster as the glyphs: the heading tick,
+ * a bar the box's full height, drawn in raw at one screen length from a marker's edge along
+ * the observed heading; the arrowhead the projected path ends in where it meets the ring, its
+ * tip at the top of the box so the anchor is the tip.
+ */
+export const MARKS: Record<'tick' | 'arrow', readonly Part[]> = {
+  tick: [
+    {
+      kind: 'polygon',
+      points: [
+        [10.5, 0],
+        [13.5, 0],
+        [13.5, 24],
+        [10.5, 24],
+      ],
+    },
+  ],
+  arrow: [
+    {
+      kind: 'polygon',
+      points: [
+        [12, 0.5],
+        [21, 20],
+        [12, 15],
+        [3, 20],
+      ],
+    },
+  ],
+}
+
+/** The drone's full extent on the box, units — for the tick's standoff from its edge. */
+export const DRONE_EXTENT =
+  2 * (cut(DRONE.rotorAt) + cut(DRONE.rotorRadius) + cut(DRONE.rotorWidth) / 2)
+
 /** Even-odd ray cast: whether the point is inside the polygon. */
 function contains(polygon: Polygon, [px, py]: readonly [number, number]): boolean {
   let inside = false

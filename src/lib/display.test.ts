@@ -7,6 +7,7 @@ import {
   entryLine,
   formatElapsed,
   formatPosition,
+  formatEntryClock,
   formatEntryTime,
   formatScore,
   localDate,
@@ -730,6 +731,17 @@ describe('the raw drawer’s words (S4a, #136, ruled A5)', () => {
     expect(sourceWord({ source: 'inject', callsign: null } as Track)).toBe('sensor')
     // Latitude, longitude — the order a person reads — to four decimals, about ten metres.
     expect(formatPosition([-75.20547, 39.81341])).toBe('39.8134, -75.2055')
+  })
+})
+
+describe('the map’s entry reading (S10, #182)', () => {
+  it('prints the row’s own seconds as m:ss at the arrowhead, rounded first as the row rounds', () => {
+    expect(formatEntryClock(108)).toBe('1:48')
+    expect(formatEntryClock(119.6)).toBe('2:00')
+    expect(formatEntryClock(7)).toBe('0:07')
+    expect(formatEntryClock(1200)).toBe('20:00')
+    // The same seconds the drawer prints in words.
+    expect(formatEntryTime(108)).toBe('108 s')
   })
 })
 

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   DRONE,
+  DRONE_EXTENT,
   GLYPHS,
   GLYPH_BOX,
+  MARKS,
   glyphImage,
   polygonPoints,
   signedDistance,
@@ -113,6 +115,40 @@ describe('the two glyphs (S9, #181)', () => {
     // The full extent at the cut: 2 · (6.12 + 2.88 + 0.72) = 19.44 units, 17.8 px at the 22 px box.
     const [x0, x1] = extent(rings[0])
     expect(Math.min(x0, GLYPH_BOX - x1)).toBeCloseTo((GLYPH_BOX - 19.44) / 2, 9)
+  })
+})
+
+describe('the two marks (S10, #182)', () => {
+  it('sit inside the box: the tick a bar the box’s full height on the axis, the arrowhead its tip at the top on the axis', () => {
+    for (const mark of Object.values(MARKS))
+      for (const part of mark) {
+        const [x0, x1, y0, y1] = extent(part)
+        expect([x0 >= 0, x1 <= GLYPH_BOX, y0 >= 0, y1 <= GLYPH_BOX]).toEqual([
+          true,
+          true,
+          true,
+          true,
+        ])
+      }
+    const [bar] = MARKS.tick
+    if (bar.kind !== 'polygon') throw new Error('bar')
+    expect(extent(bar)).toEqual([10.5, 13.5, 0, GLYPH_BOX])
+    const [head] = MARKS.arrow
+    if (head.kind !== 'polygon') throw new Error('head')
+    expect(head.points[0]).toEqual([GLYPH_BOX / 2, 0.5])
+    expect(head.points.every(([, y]) => y >= 0.5)).toBe(true)
+    // Both mirrored about the axis, as the glyphs are.
+    for (const mark of Object.values(MARKS))
+      for (let y = 0.5; y < GLYPH_BOX; y += 1)
+        for (let x = 0.5; x < GLYPH_BOX / 2; x += 1)
+          expect(signedDistance(mark, [x, y])).toBeCloseTo(
+            signedDistance(mark, [GLYPH_BOX - x, y]),
+            6,
+          )
+  })
+
+  it('states the drone’s extent for the tick’s standoff: 19.44 units at the cut', () => {
+    expect(DRONE_EXTENT).toBeCloseTo(19.44, 9)
   })
 })
 
