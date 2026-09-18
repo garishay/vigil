@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useState, type DragEvent } from 'react'
 import './SheetPage.css'
+import { SheetDocument } from './SheetDocument'
 import { documentOf, fetchStudy, filesFor, runsIn, splitPasted, type SaveFile } from '../data/sheet'
-import { useCopy } from './useCopy'
+import { clearRuns, savedKeys } from '../lib/runs'
 import type { Study } from '../../tools/replay/load'
 
 /**
@@ -21,22 +22,6 @@ interface Input {
 }
 
 /**
- * One click, one file (round 1 on #187, ruled 5). The anchor is attached before the click,
- * because a detached one does not download in every browser, and the object URL is revoked on a
- * later turn: the click is taken synchronously but the blob is not read until after it.
- */
-const save = (name: string, type: string, text: string) => {
-  const url = URL.createObjectURL(new Blob([text], { type }))
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = name
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 0)
-}
-
-/**
  * `fetcher` is the network seam, injected the way the capture's and the photo lookup's are
  * (03d): the page fetches the study recording, and no test reaches the network.
  */
@@ -47,8 +32,11 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
   const [document_, setDocument] = useState<{ name: string; svg: string } | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [over, setOver] = useState(false)
-  const textRef = useRef<HTMLTextAreaElement>(null)
-  const { copy, copied } = useCopy(textRef)
+  // What this browser is holding, so the page can say it and offer to clear it (item 8).
+  const [saved, setSaved] = useState(() => savedKeys().length)
+  // Clear asks once before it clears (ruled R3): the control becomes its own question in place,
+  // never a dialog. One click must not be able to destroy a subject's unsent session.
+  const [asking, setAsking] = useState(false)
 
   // The recording, once: the sheet regenerates every position from it, so nothing renders until
   // it is in. A fetch that fails says so where the refusals go.
@@ -90,8 +78,6 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
     [study],
   )
 
-  const copyText = source === null ? '' : source.map((file) => file.text).join('\n')
-
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     setOver(false)
@@ -117,34 +103,14 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
         <h1 className="sheet__title">Vigil — subject sheet</h1>
         {document_ === null ? (
           <p className="sheet__lead">
-            Drop a results file, or both run files, below — or paste their JSON. Nothing is stored
-            and nothing is sent: the sheet is drawn in this tab.
+            Drop a results file, or both run files, below — or paste their JSON. The sheet is drawn
+            in this tab and nothing is sent anywhere.{' '}
+            {saved === 0
+              ? 'No runs are kept in this browser.'
+              : `${saved} run${saved === 1 ? '' : 's'} ${saved === 1 ? 'is' : 'are'} kept in this browser, under the subject's own code, so a study session can be finished and handed over; Clear saved runs below removes ${saved === 1 ? 'it' : 'them'}.`}
           </p>
         ) : (
-          <div className="sheet__actions">
-            <button
-              type="button"
-              className="sheet__button"
-              onClick={() => save(document_.name, 'image/svg+xml', document_.svg)}
-            >
-              Download the sheet
-            </button>
-            <button type="button" className="sheet__button" onClick={() => window.print()}>
-              Print
-            </button>
-            {/* One button per file, so one click is one file: a document of one subject's two
-                runs saves their results file, and any other pair saves each run's own, named
-                for what tells it from the other (round 1, ruled 5). */}
-            {(source ?? []).map((file) => (
-              <button
-                key={file.name}
-                type="button"
-                className="sheet__button"
-                onClick={() => save(file.name, 'application/json', file.text)}
-              >
-                Save {file.label}
-              </button>
-            ))}
+          <SheetDocument document_={document_} files={source ?? []}>
             <button
               type="button"
               className="sheet__button"
@@ -156,7 +122,7 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
             >
               Start over
             </button>
-          </div>
+          </SheetDocument>
         )}
       </header>
       {refusal !== null && (
@@ -164,7 +130,7 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
           {refusal}
         </p>
       )}
-      {document_ === null ? (
+      {document_ === null && (
         <div className="sheet__intake">
           <div
             className={`sheet__drop${over ? ' sheet__drop--over' : ''}`}
@@ -185,42 +151,45 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
             rows={10}
             aria-label="Paste a results file or two run files"
           />
-          <button
-            type="button"
-            className="sheet__button"
-            disabled={study === null || pasted.trim() === ''}
-            onClick={() => render(splitPasted(pasted))}
-          >
-            Render the sheet
-          </button>
-        </div>
-      ) : (
-        <div
-          className="sheet__document"
-          // The tool's own SVG, built in this tab from text this tab parsed: the string is the
-          // renderer's output, not the file's, and every value a file supplied is escaped for
-          // the context it lands in — text by `esc`, attributes by `escAttr` (round 1).
-          dangerouslySetInnerHTML={{ __html: document_.svg }}
-        />
-      )}
-      {document_ !== null && source !== null && (
-        <div className="sheet__copy">
-          {/* The clipboard fallback for Save (round 1, finding 4): `useCopy` selects this
-              textarea when the clipboard API is missing or refused, so it is on screen and
-              holding the text rather than unmounted — and a manual Ctrl+C works either way.
-              What it holds is what the paste box reads back: `splitPasted` finds each object by
-              brace depth, so two files joined here come apart there (R2). */}
-          <button type="button" className="sheet__button" onClick={() => void copy(copyText)}>
-            {copied(copyText) ? 'Copied' : 'Copy the runs'}
-          </button>
-          <textarea
-            ref={textRef}
-            className="sheet__paste sheet__saved"
-            readOnly
-            value={copyText}
-            rows={4}
-            aria-label="The runs, to copy"
-          />
+          <div className="sheet__actions">
+            <button
+              type="button"
+              className="sheet__button"
+              disabled={study === null || pasted.trim() === ''}
+              onClick={() => render(splitPasted(pasted))}
+            >
+              Render the sheet
+            </button>
+            {/* The one place a subject's saved runs can be removed (item 8). It clears this
+                browser's runs whatever subject wrote them, which is what a shared machine
+                between two subjects needs, and says how many it cleared. */}
+            {saved > 0 &&
+              (asking ? (
+                <>
+                  <span className="sheet__asking" role="alert">
+                    Clear {saved} saved run{saved === 1 ? '' : 's'}? This cannot be undone.
+                  </span>
+                  <button
+                    type="button"
+                    className="sheet__button"
+                    onClick={() => {
+                      clearRuns()
+                      setSaved(savedKeys().length)
+                      setAsking(false)
+                    }}
+                  >
+                    Clear
+                  </button>
+                  <button type="button" className="sheet__quiet" onClick={() => setAsking(false)}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="sheet__quiet" onClick={() => setAsking(true)}>
+                  Clear saved runs
+                </button>
+              ))}
+          </div>
         </div>
       )}
     </div>

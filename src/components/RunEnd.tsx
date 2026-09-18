@@ -9,10 +9,12 @@ import type { RunAnswers } from '../lib/run'
  *
  * Once all three are answered the run is saved in this browser and the card reads in the order
  * the subject moves through it (ruled R1): **the saved line**, which says what to do and not
- * only what happened; then **the way on** as the card's one primary button; then the backups as
- * a quiet row that says it is optional; then the JSON behind its disclosure. A subject should
- * never have to wonder whether Copy run must be pressed before Start run 2 — the hierarchy
- * answers it without a word.
+ * only what happened; then **the way on** as the card's one primary button — *Start run 2* after
+ * run 1, *See your results* after run 2, or, when the earlier run is not in this browser, the
+ * words for that with *Download a copy* as the primary instead; then the backups as a quiet row
+ * that says it is optional; then the JSON behind its disclosure. A subject should never have to
+ * wonder whether Copy run must be pressed before Start run 2 — the hierarchy answers it without
+ * a word.
  *
  * When the browser refuses to keep the run the order flips: the warning first, and *Download a
  * copy* as the primary, because the file is then the only way the run survives the tab.
@@ -34,6 +36,8 @@ export function RunEnd({
   saved,
   onDownload,
   onNext,
+  onResults,
+  resultsMissing,
 }: {
   title: string
   /** This run's index, for the saved line's own words. */
@@ -50,6 +54,10 @@ export function RunEnd({
   onDownload: () => void
   /** Opens the next run of this session; absent on the session's last run. */
   onNext?: () => void
+  /** Draws this subject's results; absent until every run of the session is in this browser. */
+  onResults?: () => void
+  /** On the last run, whether an earlier run is missing from this browser — the words for it. */
+  resultsMissing?: boolean
 }) {
   const textRef = useRef<HTMLTextAreaElement>(null)
   const { copy, copied } = useCopy(textRef)
@@ -119,20 +127,40 @@ export function RunEnd({
             <p className="run__saved">
               Run {run} is saved in this browser.
               {onNext !== undefined && ` Start run ${run + 1} when you are ready.`}
+              {onResults !== undefined && ' Your results are ready.'}
             </p>
+            {/* When the earlier run is not in this browser there is nothing to draw, so the words
+                say so and the file becomes the way out — the primary, as when a write is refused
+                (ruled R1). */}
+            {resultsMissing === true && (
+              <p className="run__warn" role="alert">
+                Your first run is not saved in this browser, so your results cannot be drawn here.
+                Download this run and hand both runs over.
+              </p>
+            )}
             {onNext !== undefined && (
               <button type="button" className="run__button run__next" onClick={onNext}>
                 Start run {run + 1}
               </button>
             )}
+            {onResults !== undefined && (
+              <button type="button" className="run__button run__next" onClick={onResults}>
+                See your results
+              </button>
+            )}
+            {resultsMissing === true && (
+              <button type="button" className="run__button run__next" onClick={onDownload}>
+                Download a copy
+              </button>
+            )}
             <div className="run__optional">
               {/* Labelled optional only where a primary way on exists; where these are the way
                   out, calling them a backup would be a lie (ruled R1). */}
-              {onNext !== undefined && (
+              {(onNext !== undefined || onResults !== undefined || resultsMissing === true) && (
                 <span className="run__optional-label">Optional backup:</span>
               )}
               {copyRun}
-              {downloadQuiet}
+              {resultsMissing !== true && downloadQuiet}
             </div>
           </>
         )}

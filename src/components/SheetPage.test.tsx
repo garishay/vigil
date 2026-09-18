@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { SheetPage } from './SheetPage'
 
 import rawRun from '../../tools/replay/__fixtures__/S03-02a-raw-1.json?raw'
@@ -194,5 +194,75 @@ describe('the sheet page (S6a-ii, #165, ruled B3–B6)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'runs: cannot be read — The object is a directory.',
     )
+  }, 30_000)
+})
+
+describe('what this browser keeps (S6a-iii-b, #165, item 8, ruled R3)', () => {
+  const run = (index: number) =>
+    JSON.stringify({
+      subject: 'S13',
+      scenario: index === 1 ? '03a' : '03b',
+      mode: index === 1 ? 'raw' : 'vigil',
+      run: index,
+      build: '2.60.0+deadbee',
+      began_at: '2026-09-18T18:00:00.000Z',
+      events: [],
+      answers: { demand: 6, pressure: 7, confidence: 5 },
+    })
+
+  afterEach(() => {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('vigil.run.')) localStorage.removeItem(key)
+    }
+  })
+
+  it('says what is kept and where to remove it, and says when nothing is', async () => {
+    // The page stopped claiming nothing is stored the moment a run could be (ruled R3 of the
+    // S6a-iii gate): it says what is kept, under whose code, and what removes it.
+    localStorage.setItem('vigil.run.S13.1', run(1))
+    localStorage.setItem('vigil.run.S13.2', run(2))
+    render(<SheetPage fetcher={fetcher} />)
+    expect(screen.getByText(/2 runs are kept in this browser/)).toHaveTextContent(
+      "2 runs are kept in this browser, under the subject's own code, so a study session can be finished and handed over; Clear saved runs below removes them.",
+    )
+    await waitFor(() => expect(screen.getByText('Drop the files here')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Clear saved runs' })).toHaveClass('sheet__quiet')
+  }, 30_000)
+
+  it('asks once before it clears, in place, and takes Cancel for an answer', async () => {
+    localStorage.setItem('vigil.run.S13.1', run(1))
+    localStorage.setItem('vigil.run.S13.2', run(2))
+    render(<SheetPage fetcher={fetcher} />)
+    await waitFor(() => expect(screen.getByText('Drop the files here')).toBeInTheDocument())
+    // One click must not be able to destroy a subject’s unsent session (ruled R3).
+    fireEvent.click(screen.getByRole('button', { name: 'Clear saved runs' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Clear 2 saved runs? This cannot be undone.',
+    )
+    expect(localStorage.getItem('vigil.run.S13.1')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(localStorage.getItem('vigil.run.S13.1')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Clear saved runs' })).toBeInTheDocument()
+  }, 30_000)
+
+  it('clears on the second click, and the page then says nothing is kept', async () => {
+    localStorage.setItem('vigil.run.S13.1', run(1))
+    render(<SheetPage fetcher={fetcher} />)
+    await waitFor(() => expect(screen.getByText('Drop the files here')).toBeInTheDocument())
+    expect(screen.getByText(/1 run is kept in this browser/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear saved runs' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Clear 1 saved run? This cannot be undone.')
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(localStorage.getItem('vigil.run.S13.1')).toBeNull()
+    expect(screen.getByText(/No runs are kept in this browser/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clear saved runs' })).toBeNull()
+  }, 30_000)
+
+  it('offers nothing to clear when this browser holds nothing', async () => {
+    render(<SheetPage fetcher={fetcher} />)
+    await waitFor(() => expect(screen.getByText('Drop the files here')).toBeInTheDocument())
+    expect(screen.getByText(/No runs are kept in this browser/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clear saved runs' })).toBeNull()
   }, 30_000)
 })

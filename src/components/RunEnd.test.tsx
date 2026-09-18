@@ -105,3 +105,49 @@ describe('the end screen’s hierarchy (S6a-iii, #165, ruled R1)', () => {
     expect(onNext).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('the last run’s end screen (S6a-iii-b, #165, item 4, ruled R1)', () => {
+  const last = (over: Partial<Props> = {}) => props({ run: 2, onNext: undefined, ...over })
+
+  it('makes See your results the one way on once both runs are in this browser', () => {
+    const onResults = vi.fn()
+    render(<RunEnd {...last({ onResults })} />)
+    expect(order()).toEqual(['h2', 'saved', 'primary:See your results', 'optional', 'details'])
+    expect(screen.getByText(/Run 2 is saved in this browser./)).toHaveTextContent(
+      'Run 2 is saved in this browser. Your results are ready.',
+    )
+    expect(document.querySelectorAll('.run__button')).toHaveLength(1)
+    expect(document.querySelector('.run__optional')).toHaveTextContent('Optional backup:')
+    fireEvent.click(screen.getByRole('button', { name: 'See your results' }))
+    expect(onResults).toHaveBeenCalledTimes(1)
+  })
+
+  it('says which run is missing, and makes the file the way out, when it cannot draw them', () => {
+    const onDownload = vi.fn()
+    render(<RunEnd {...last({ resultsMissing: true, onDownload })} />)
+    // Nothing to draw, so the words say so and the file is the primary — the same shape as a
+    // refused write (ruled R1).
+    expect(order()).toEqual([
+      'h2',
+      'saved',
+      'warning',
+      'primary:Download a copy',
+      'optional',
+      'details',
+    ])
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Your first run is not saved in this browser, so your results cannot be drawn here. Download this run and hand both runs over.',
+    )
+    expect(screen.queryByRole('button', { name: 'See your results' })).toBeNull()
+    // One Download a copy, not two: the primary is the one the words name.
+    expect(screen.getAllByRole('button', { name: 'Download a copy' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Download a copy' }))
+    expect(onDownload).toHaveBeenCalledTimes(1)
+  })
+
+  it('withholds the results until the questions are answered', () => {
+    render(<RunEnd {...last({ json: null, saved: false, onResults: () => {} })} />)
+    expect(screen.queryByRole('button', { name: 'See your results' })).toBeNull()
+    expect(screen.getByText('Answer all three to continue.')).toBeInTheDocument()
+  })
+})

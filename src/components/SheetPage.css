@@ -143,3 +143,20 @@
   margin-top: 0.75rem;
   max-width: 44rem;
 }
+
+/* The page's own quiet control, beside the primary (ruled R2), and the one question Clear asks
+   before it clears (ruled R3) — in place, never a dialog. */
+.sheet__quiet {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  padding: 0.5rem 1.25rem;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sheet__asking {
+  color: var(--text);
+  line-height: 1.5;
+}

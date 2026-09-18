@@ -126,3 +126,35 @@ export function firstUnsaved(
   }
   return null
 }
+
+/** Every run key this browser holds, whatever subject wrote it — what *Clear saved runs* clears. */
+export function savedKeys(store: RunStore | null = browserStore()): string[] {
+  const keys: string[] = []
+  try {
+    if (store === null) return keys
+    for (let i = 0; i < store.length; i++) {
+      const key = store.key(i)
+      if (key !== null && key.startsWith('vigil.run.')) keys.push(key)
+    }
+  } catch {
+    return keys
+  }
+  return keys
+}
+
+/**
+ * Clears every saved run in this browser, and says how many it cleared.
+ *
+ * Every subject's, not one's: the sheet page has no subject in hand, and a machine shared between
+ * two subjects is the case this exists for (ruled E4). Only the run keys — another key of the
+ * app's own, the site plan's, is not this control's to remove.
+ */
+export function clearRuns(store: RunStore | null = browserStore()): number {
+  const keys = savedKeys(store)
+  try {
+    for (const key of keys) store?.removeItem(key)
+  } catch {
+    return 0
+  }
+  return keys.length
+}

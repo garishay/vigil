@@ -8,6 +8,7 @@ import { Queue } from './components/Queue'
 import { ReviewDrawer } from './components/ReviewDrawer'
 import { RunBrief } from './components/RunBrief'
 import { RunEnd } from './components/RunEnd'
+import type { RunResults as RunResultsView } from './components/RunResults'
 import { SitesPanel, type Placing } from './components/SitesPanel'
 import { AO } from './config/ao'
 import { CONTACTS, type ContactId } from './config/contacts'
@@ -275,6 +276,9 @@ export default function App({
     study === null ? [] : runsOf(study.subject, RUNS_PER_SUBJECT),
   )
   const [saveRefused, setSaveRefused] = useState(false)
+  // The results view is a chunk of its own, fetched on the See your results click and nowhere
+  // else (S6a-ii, ruled R1): never at load, never at Begin, never on run 1’s end screen.
+  const [Results, setResults] = useState<typeof RunResultsView | null>(null)
 
   /**
    * The picture at the clock, through the seam (#115): the feeds in session order, then the
@@ -873,8 +877,18 @@ export default function App({
     if (nextSearch !== null && nextSearch !== window.location.search) navigate(nextSearch)
   }, [study, resume, beganAt, nextSearch, navigate])
 
+  const showResults = useCallback(() => {
+    void import('./components/RunResults.tsx').then((module) => setResults(() => module.RunResults))
+  }, [])
+
   const overlay = study !== null && beganAt === null && !sessionDone
   const covered = overlay || runEnded || sessionDone
+
+  // The results stand in the shell’s place rather than after it: the run is over, and the
+  // picture is not what the subject is reading any more (ruled E8).
+  if (Results !== null && savedRuns.length === RUNS_PER_SUBJECT) {
+    return <Results runs={savedRuns} />
+  }
 
   return (
     <div className="shell">
@@ -1136,7 +1150,17 @@ export default function App({
                 ? 'Both of your runs are saved in this browser. There is nothing left to run.'
                 : 'This run is already saved in this browser, and there is no next run to open from here.'}
             </p>
-            <div className="run__copy">
+            {/* The same order the end screen reads in (ruled R1): the way on first, as the card's
+                one primary, then the files as a quiet row that says it is optional. */}
+            {savedRuns.length === RUNS_PER_SUBJECT && (
+              <button type="button" className="run__button run__next" onClick={showResults}>
+                See your results
+              </button>
+            )}
+            <div className="run__optional">
+              {savedRuns.length === RUNS_PER_SUBJECT && (
+                <span className="run__optional-label">Optional backup:</span>
+              )}
               {savedRuns.map((record) => (
                 <button
                   key={record.run}
@@ -1170,6 +1194,14 @@ export default function App({
               ? undefined
               : () => navigate(nextSearch)
           }
+          // The results are offered on the session’s last run, once every run is in this
+          // browser; short of that the screen says which one is missing (ruled R1).
+          onResults={
+            study.run < RUNS_PER_SUBJECT || savedRuns.length < RUNS_PER_SUBJECT
+              ? undefined
+              : showResults
+          }
+          resultsMissing={study.run >= RUNS_PER_SUBJECT && savedRuns.length < RUNS_PER_SUBJECT}
         />
       )}
     </div>

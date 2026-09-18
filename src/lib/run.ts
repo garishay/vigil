@@ -137,3 +137,22 @@ export function runText(record: RunRecord): string {
       : `  "events": [\n${events.map((event) => `    ${JSON.stringify(event)}`).join(',\n')}\n  ],`
   return `{\n${headLines.join('\n')}\n${eventLines}\n  "answers": ${JSON.stringify(answers)}\n}`
 }
+
+/**
+ * The results file a subject hands over (S6a-iii, #165, item 5): their two runs under one
+ * envelope, in run order, written the way `runJson` writes a run so a reader can see down the
+ * page. `tools/replay/load.ts` reads it wherever it reads a run file (S6a-i).
+ *
+ * What it holds, and what it does not: a subject code, every selection and action with its
+ * second from Begin, the three answers, the build each run was made on. No name, no position, no
+ * score — the scenario is deterministic under its seed, so the replay regenerates the picture.
+ */
+export function resultsJson(records: readonly RunRecord[]): string {
+  const runs = [...records].sort((a, b) => a.run - b.run)
+  const head = [
+    `  ${JSON.stringify('subject')}: ${JSON.stringify(runs[0].subject)},`,
+    `  ${JSON.stringify('build')}: ${JSON.stringify(runs[0].build)},`,
+  ]
+  const body = runs.map((run) => runText(run).replace(/^/gm, '    ')).join(',\n')
+  return `{\n${head.join('\n')}\n  "runs": [\n${body}\n  ]\n}`
+}
