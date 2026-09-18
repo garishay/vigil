@@ -2255,6 +2255,9 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
   afterEach(() => {
     vi.unstubAllGlobals()
     localStorage.removeItem(STORE_KEY)
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('vigil.run.')) localStorage.removeItem(key)
+    }
   })
 
   it('opens on the brief — the run named, the text word for word, one button — with the clock held at Begin, one track count, and the shell inert', () => {
@@ -2398,16 +2401,18 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(screen.getByRole('main')).toHaveAttribute('inert')
     fireEvent.click(screen.getByTestId('map-select'))
     // Copy run waits for all three answers; the JSON is printed only then.
-    const copyRun = within(dialog()).getByRole('button', { name: 'Copy run' })
-    expect(copyRun).toBeDisabled()
-    expect(within(dialog()).getByText('Enabled once all three are answered')).toBeInTheDocument()
+    // Before the answers the card is the questions and one hint: no backups, no way on, so the
+    // backups never look like the goal (ruled, round 1).
+    expect(within(dialog()).queryByRole('button')).toBeNull()
+    expect(within(dialog()).getByText('Answer all three to continue.')).toBeInTheDocument()
     expect(within(dialog()).queryByLabelText('Run JSON')).toBeNull()
     answer('Mental demand', '6')
     answer('Time pressure', '7')
-    expect(copyRun).toBeDisabled()
+    expect(within(dialog()).queryByRole('button', { name: 'Copy run' })).toBeNull()
     answer('Confidence in your decisions', '5')
-    expect(copyRun).toBeEnabled()
-    expect(within(dialog()).queryByText('Enabled once all three are answered')).toBeNull()
+    // The backups appear with the rest, in their own row under the way on (ruled R1).
+    expect(within(dialog()).getByRole('button', { name: 'Copy run' })).toBeEnabled()
+    expect(within(dialog()).queryByText('Answer all three to continue.')).toBeNull()
     // The JSON behind a Show JSON disclosure, closed by default, the textarea inside it for the
     // copy fallback (#36 [39], ruled A).
     const details = within(dialog()).getByText('Show JSON').closest('details') as HTMLElement
@@ -2430,8 +2435,11 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     })
     expect(typeof import.meta.env.VITE_BUILD).toBe('string')
     expect(json).not.toMatch(/position|score|band|-75[.]|UAS-|TRK-/)
-    fireEvent.click(copyRun)
-    await waitFor(() => expect(copyRun).toHaveTextContent('Copied'))
+    const copyNow = within(dialog()).getByRole('button', { name: 'Copy run' })
+    fireEvent.click(copyNow)
+    await waitFor(() =>
+      expect(within(dialog()).getByRole('button', { name: 'Copied' })).toBeInTheDocument(),
+    )
     expect(writeText).toHaveBeenCalledWith(json)
   })
 
@@ -2504,5 +2512,225 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByText('Cooperative')).toBeInTheDocument()
     expect(field('Playback')).toHaveTextContent(/^[0-9][0-9]:[0-9][0-9]$/)
+  })
+})
+
+describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
+  const NOW = '2026-09-16T01:12:04.000Z'
+  /** A run of the prioritization pair, which is a scenario that knows its other half. */
+  const paired = (mode: 'raw' | 'vigil', index: number, name = '03a'): SessionState => {
+    if (LONG.status !== 'ready') throw new Error('LONG is a ready session')
+    return {
+      ...LONG,
+      session: {
+        ...LONG.session,
+        mode,
+        scenario: { on: true, name, seed: `study-${name}`, runS: 218 },
+        study: { subject: 'S03', run: index },
+      },
+    }
+  }
+  const open = (session: SessionState, navigate = vi.fn()) => {
+    useSession.mockReturnValue(session)
+    const replay = manualClock()
+    render(<App schedule={replay.schedule} now={() => NOW} navigate={navigate} />)
+    return { replay, navigate }
+  }
+  const dialog = () => screen.getByRole('dialog')
+  const answer = (group: string, value: string) =>
+    fireEvent.click(
+      within(within(dialog()).getByRole('group', { name: group })).getByRole('radio', {
+        name: value,
+      }),
+    )
+  const answerAll = () => {
+    answer('Mental demand', '6')
+    answer('Time pressure', '7')
+    answer('Confidence in your decisions', '5')
+  }
+  /** A run as the store holds one — the fields the shell reads back. */
+  const savedRun = (index: number) => ({
+    subject: 'S03',
+    scenario: index === 1 ? '03a' : '03b',
+    mode: index === 1 ? 'raw' : 'vigil',
+    run: index,
+    build: '2.60.0+deadbee',
+    began_at: NOW,
+    events: [],
+    answers: { demand: 6, pressure: 7, confidence: 5 },
+  })
+  /** Run the window out: Begin, then every tick of the scenario's own length. */
+  const toTheEnd = (replay: ReturnType<typeof manualClock>) => {
+    fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+    replay.tick(218)
+  }
+
+  afterEach(() => {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('vigil.run.')) localStorage.removeItem(key)
+    }
+  })
+
+  it('saves the run when the third answer lands, and says so', () => {
+    const { replay } = open(paired('raw', 1))
+    toTheEnd(replay)
+    // Nothing is stored until the run is a run: two answers is not three.
+    answer('Mental demand', '6')
+    answer('Time pressure', '7')
+    expect(localStorage.getItem('vigil.run.S03.1')).toBeNull()
+    expect(within(dialog()).queryByText(/is saved in this browser/)).toBeNull()
+    answer('Confidence in your decisions', '5')
+    // What is stored is the run's own text — byte for byte what Copy run puts on the clipboard.
+    const stored = localStorage.getItem('vigil.run.S03.1')
+    expect(stored).toBe((within(dialog()).getByLabelText('Run JSON') as HTMLTextAreaElement).value)
+    expect(JSON.parse(stored as string)).toMatchObject({ subject: 'S03', run: 1, mode: 'raw' })
+    expect(within(dialog()).getByText(/is saved in this browser/)).toHaveTextContent(
+      'Run 1 is saved in this browser. Start run 2 when you are ready.',
+    )
+  })
+
+  it('makes the file the way out when the browser will not keep the run', () => {
+    const refuse = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    const { replay } = open(paired('raw', 1))
+    toTheEnd(replay)
+    answerAll()
+    expect(within(dialog()).getByRole('alert')).toHaveTextContent(
+      'This browser would not keep this run. Download it before you close the tab.',
+    )
+    expect(dialog().querySelector('.run__next')).toHaveTextContent('Download a copy')
+    expect(within(dialog()).queryByRole('button', { name: 'Start run 2' })).toBeNull()
+    refuse.mockRestore()
+  })
+
+  it('Start run 2 opens the pair’s other scenario in the other mode, same subject', () => {
+    const { replay, navigate } = open(paired('raw', 1))
+    toTheEnd(replay)
+    answerAll()
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Start run 2' }))
+    expect(navigate).toHaveBeenCalledTimes(1)
+    const params = new URLSearchParams(navigate.mock.calls[0][0] as string)
+    expect(params.get('scenario')).toBe('03b')
+    expect(params.get('mode')).toBe('vigil')
+    expect(params.get('subject')).toBe('S03')
+    expect(params.get('run')).toBe('2')
+  })
+
+  it('a link opened again resumes at the first run not yet saved, and never re-runs a saved one', () => {
+    localStorage.setItem('vigil.run.S03.1', JSON.stringify(savedRun(1)))
+    const { navigate } = open(paired('raw', 1))
+    expect(navigate).toHaveBeenCalledTimes(1)
+    const params = new URLSearchParams(navigate.mock.calls[0][0] as string)
+    expect(params.get('run')).toBe('2')
+    // The condition moves with it: run 2 is the other scenario in the other mode (E7).
+    expect(params.get('scenario')).toBe('03b')
+    expect(params.get('mode')).toBe('vigil')
+  })
+
+  it('does not move a link that is already on the first unsaved run', () => {
+    const { navigate } = open(paired('raw', 1))
+    expect(navigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Begin' })).toBeInTheDocument()
+  })
+
+  it('runs a link that asks for a run this browser has not reached, forward only', () => {
+    // Nothing saved and the link asks for run 2: it runs run 2 as asked rather than sending the
+    // subject back to run 1 under run 2's scenario and mode (E7).
+    const { navigate } = open(paired('vigil', 2, '03b'))
+    expect(navigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Begin' })).toBeInTheDocument()
+  })
+
+  it('makes the shell inert behind the session-complete card, as every other overlay does', () => {
+    localStorage.setItem('vigil.run.S03.1', JSON.stringify(savedRun(1)))
+    localStorage.setItem('vigil.run.S03.2', JSON.stringify(savedRun(2)))
+    open(paired('vigil', 2, '03b'))
+    // A card with aria-modal over a shell a subject can still tab into is not a modal at all
+    // (round 1, finding 1).
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    expect(screen.getByRole('banner')).toHaveAttribute('inert')
+  })
+
+  it('withholds the brief when the run is saved and there is no next link, on any scenario', () => {
+    // A scenario with no pair — the default deal — has no run 2 to send anyone to, so forward
+    // only would have fallen through to the brief and re-run a saved run (round 1, finding 3).
+    localStorage.setItem(
+      'vigil.run.S03.1',
+      JSON.stringify({ ...savedRun(1), scenario: 'default', mode: 'raw' }),
+    )
+    if (LONG.status !== 'ready') throw new Error('LONG is a ready session')
+    const { navigate } = open({
+      ...LONG,
+      session: { ...LONG.session, mode: 'raw', study: { subject: 'S03', run: 1 } },
+    })
+    expect(navigate).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Begin' })).toBeNull()
+    expect(screen.getByText('Already run — subject S03')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Download run 1' })).toBeInTheDocument()
+    // And the saved run is still the saved run: nothing re-ran and nothing was overwritten.
+    expect(JSON.parse(localStorage.getItem('vigil.run.S03.1') as string)).toMatchObject({
+      scenario: 'default',
+      run: 1,
+    })
+  })
+
+  it('sends a resumed link once, not once per render (round 1, finding 4)', () => {
+    // Rendered without injecting `navigate`, so the default's identity is what decides: an
+    // inline arrow rebuilt each render re-fires the effect it is a dependency of.
+    localStorage.setItem('vigil.run.S03.1', JSON.stringify(savedRun(1)))
+    const sent: string[] = []
+    const real = Object.getOwnPropertyDescriptor(window, 'location')
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...window.location,
+        get search() {
+          return '?scenario=03a&mode=raw&subject=S03&run=1'
+        },
+        set search(next: string) {
+          sent.push(next)
+        },
+      },
+    })
+    useSession.mockReturnValue(paired('raw', 1))
+    const replay = manualClock()
+    const { rerender } = render(<App schedule={replay.schedule} now={() => NOW} />)
+    // A render that changes nothing must send nothing more. With an inline-arrow default the
+    // effect's dependency is a new function here and the subject is sent again.
+    rerender(<App schedule={replay.schedule} now={() => NOW} />)
+    rerender(<App schedule={replay.schedule} now={() => NOW} />)
+    expect(sent).toHaveLength(1)
+    expect(new URLSearchParams(sent[0]).get('run')).toBe('2')
+    if (real) Object.defineProperty(window, 'location', real)
+  })
+
+  it('does not offer a run this browser already holds, however the session was run', () => {
+    // Run 2 first, then run 1 — a direct run-2 link is run as asked (E7), so this is reachable.
+    // The way on must read what the store holds now, not what it held when the page opened.
+    localStorage.setItem('vigil.run.S03.2', JSON.stringify(savedRun(2)))
+    const { replay } = open(paired('raw', 1))
+    toTheEnd(replay)
+    answerAll()
+    expect(within(dialog()).getByText(/is saved in this browser/)).toHaveTextContent(
+      'Run 1 is saved in this browser.',
+    )
+    expect(within(dialog()).queryByRole('button', { name: 'Start run 2' })).toBeNull()
+    // And the run that was already there is untouched.
+    expect(JSON.parse(localStorage.getItem('vigil.run.S03.2') as string)).toMatchObject({
+      run: 2,
+    })
+  })
+
+  it('shows the session as complete rather than the brief when both runs are saved', () => {
+    localStorage.setItem('vigil.run.S03.1', JSON.stringify(savedRun(1)))
+    localStorage.setItem('vigil.run.S03.2', JSON.stringify(savedRun(2)))
+    const { navigate } = open(paired('vigil', 2, '03b'))
+    expect(navigate).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Begin' })).toBeNull()
+    expect(screen.getByText('Session complete — subject S03')).toBeInTheDocument()
+    expect(screen.getByText(/Both of your runs are saved in this browser/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Download run 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Download run 2' })).toBeInTheDocument()
   })
 })

@@ -4,33 +4,73 @@ import type { QuestionId, WorkloadQuestion } from '../config/study'
 import type { RunAnswers } from '../lib/run'
 
 /**
- * The end screen (S4b, #137, ruled A7; #131): over the frozen picture at the run's end, the
- * three workload questions as rows of radio buttons on the scale, and Copy run — enabled once
- * all three are answered, copying the run JSON with the handoff's mechanics (the clipboard, the
- * textarea fallback) and reading *Copied* for the text actually copied. The JSON is printed
- * read-only under the button too, so a subject who cannot copy can select it. Nothing is
- * transmitted: the subject pastes it themselves. There is no way on: the run is over, and a
- * reload of the same link opens its brief again.
+ * The end screen (S4b, #137, ruled A7; #131; S6a-iii, #165, items 2 and 3): over the frozen
+ * picture at the run's end, the three workload questions as rows of radio buttons on the scale.
+ *
+ * Once all three are answered the run is saved in this browser and the card reads in the order
+ * the subject moves through it (ruled R1): **the saved line**, which says what to do and not
+ * only what happened; then **the way on** as the card's one primary button; then the backups as
+ * a quiet row that says it is optional; then the JSON behind its disclosure. A subject should
+ * never have to wonder whether Copy run must be pressed before Start run 2 — the hierarchy
+ * answers it without a word.
+ *
+ * When the browser refuses to keep the run the order flips: the warning first, and *Download a
+ * copy* as the primary, because the file is then the only way the run survives the tab.
+ *
+ * Before the three answers there is nothing to save, copy or go on to, so the card is the
+ * questions and one hint and nothing else.
+ *
+ * Nothing of the run just finished is shown either way: no frame, no counts, no answer read
+ * back (item 3). Nothing is transmitted; the subject hands it over themselves.
  */
 export function RunEnd({
   title,
+  run,
   questions,
   scale,
   answers,
   onAnswer,
   json,
+  saved,
+  onDownload,
+  onNext,
 }: {
   title: string
+  /** This run's index, for the saved line's own words. */
+  run: number
   questions: readonly WorkloadQuestion[]
   scale: { min: number; max: number }
   answers: Partial<RunAnswers>
   onAnswer: (id: QuestionId, value: number) => void
   /** The run JSON once every question is answered; null before. */
   json: string | null
+  /** Whether this browser kept the run. False before the answers, and after a refused write. */
+  saved: boolean
+  /** Saves this run as its own file. */
+  onDownload: () => void
+  /** Opens the next run of this session; absent on the session's last run. */
+  onNext?: () => void
 }) {
   const textRef = useRef<HTMLTextAreaElement>(null)
   const { copy, copied } = useCopy(textRef)
   const values = Array.from({ length: scale.max - scale.min + 1 }, (_, i) => scale.min + i)
+  const answered = json !== null
+  const copyRun = (
+    <button
+      type="button"
+      className="run__quiet"
+      onClick={() => {
+        if (json !== null) void copy(json)
+      }}
+    >
+      {copied(json ?? '') ? 'Copied' : 'Copy run'}
+    </button>
+  )
+  const downloadQuiet = (
+    <button type="button" className="run__quiet" onClick={onDownload}>
+      Download a copy
+    </button>
+  )
   return (
     <div className="run" role="dialog" aria-modal="true" aria-labelledby="run-title">
       <div className="run__card">
@@ -56,19 +96,46 @@ export function RunEnd({
             </div>
           </fieldset>
         ))}
-        <div className="run__copy">
-          <button
-            type="button"
-            className="run__button"
-            disabled={json === null}
-            onClick={() => {
-              if (json !== null) void copy(json)
-            }}
-          >
-            {json !== null && copied(json) ? 'Copied' : 'Copy run'}
-          </button>
-          {json === null && <span className="run__hint">Enabled once all three are answered</span>}
-        </div>
+        {/* Before the answers the card is the questions and one hint. The backups appear
+            with the rest once the third answer lands: two disabled buttons under a hint made
+            the backups look like the goal (ruled, round 1). */}
+        {!answered && <p className="run__hint">Answer all three to continue.</p>}
+        {answered && !saved && (
+          <>
+            <p className="run__warn" role="alert">
+              This browser would not keep this run. Download it before you close the tab.
+            </p>
+            <button type="button" className="run__button run__next" onClick={onDownload}>
+              Download a copy
+            </button>
+            <div className="run__optional">
+              <span className="run__optional-label">Also:</span>
+              {copyRun}
+            </div>
+          </>
+        )}
+        {answered && saved && (
+          <>
+            <p className="run__saved">
+              Run {run} is saved in this browser.
+              {onNext !== undefined && ` Start run ${run + 1} when you are ready.`}
+            </p>
+            {onNext !== undefined && (
+              <button type="button" className="run__button run__next" onClick={onNext}>
+                Start run {run + 1}
+              </button>
+            )}
+            <div className="run__optional">
+              {/* Labelled optional only where a primary way on exists; where these are the way
+                  out, calling them a backup would be a lie (ruled R1). */}
+              {onNext !== undefined && (
+                <span className="run__optional-label">Optional backup:</span>
+              )}
+              {copyRun}
+              {downloadQuiet}
+            </div>
+          </>
+        )}
         {/* Behind a disclosure, closed by default (#36 [39], ruled A): the subject copies without
           reading the ids; the textarea stays mounted for the copy fallback and for a subject who
           cannot copy. */}

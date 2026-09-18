@@ -23,15 +23,24 @@ export interface NamedScenario {
    * file is the generator's doctrine, the run length is the study's.
    */
   runS?: number
+  /**
+   * The other scenario of this one's matched pair (S6a-iii, #165): a subject runs one of a pair
+   * and then the other, so run 1's end screen can name run 2's link without asking anyone. The
+   * registry, not the roles table — this says which two scenarios are a pair, never which track
+   * is a threat, so the app can read it and the answer key stays where it is (R1).
+   */
+  pairedWith?: string
 }
 
 /** The registry, the default first. */
 export const SCENARIOS: readonly NamedScenario[] = [
   { name: 'default', config: SCENARIO },
-  { name: '02a', config: SCENARIO_02A },
-  { name: '02b', config: SCENARIO_02B },
-  { name: '03a', config: SCENARIO_03A, runS: 218 }, // the last threat enters at 668 s: 668 − 480 + 30
-  { name: '03b', config: SCENARIO_03B, runS: 218 }, // 03a rotated, so 03a's last entry: 668 − 480 + 30 (S7d)
+  { name: '02a', config: SCENARIO_02A, pairedWith: '02b' },
+  { name: '02b', config: SCENARIO_02B, pairedWith: '02a' },
+  // the last threat enters at 668 s: 668 − 480 + 30
+  { name: '03a', config: SCENARIO_03A, runS: 218, pairedWith: '03b' },
+  // 03a rotated, so 03a's last entry: 668 − 480 + 30 (S7d)
+  { name: '03b', config: SCENARIO_03B, runS: 218, pairedWith: '03a' },
 ]
 
 /** The scenario a resolved session names — the resolver already refused any name not here. */

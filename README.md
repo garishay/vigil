@@ -26,6 +26,11 @@ a 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turn
 A **study run** (S4b) adds `&subject=<code>&run=<n>` to a study link, both or neither —
 [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1):
 the brief, the scenario's minutes on the clock, the end screen with Copy run.
+One link per subject (S6a-iii): once the three questions are answered the run is kept in that
+browser under the subject’s code, and run 1’s end screen carries **Start run 2** — the pair’s
+other scenario, the other mode, the same subject. A link opened again resumes at the first run
+not yet saved and never re-runs a saved one; with both saved the session is complete and each
+run’s file is offered.
 The **sheet page** (S6a-ii) is [`?sheet`](https://garishay.github.io/vigil/?sheet): drop a results
 file, or both run files, or paste them, and the subject sheet is drawn in that tab, downloaded, or
 printed to one page. It reads what the replay tool reads and refuses what the replay tool refuses.
@@ -145,6 +150,10 @@ flowchart LR
   gen -- injectTracksAt, through associate at the run's mode --> replaytool
   replay -- pictureAt --> replaytool
   studycfg -- Begin · the run · raw's distance --> replaytool
+  filesave["lib/download.ts<br/>one click, one file: the anchor attached before the click, the object URL revoked after it<br/>the end screen’s Download a copy and, at S6a-ii, the sheet’s own downloads"]
+  runstore["lib/runs.ts<br/>a subject’s runs, kept in their own browser under their code and each run’s index (S6a-iii)<br/>fail-soft: a browser that will not keep a run says so on the end screen, and the run is still there to copy or download<br/>what Start run 2 chains from and what a reopened link resumes at"]
+  app -. a study run saves itself, and reads what this browser holds .-> runstore
+  app -. one click, one file .-> filesave
   sheetpage["components/SheetPage.tsx + data/sheet.ts<br/>?sheet (S6a-ii): a results file or two run files, dropped or pasted, read by the loader and drawn by the tool<br/>the study's recording fetched as the app fetches every recording — the CLI's loadStudy over the network<br/>the document downloaded, printed to one page, and the runs handed back as files; nothing stored, nothing sent"]
   sheetpage -. loaded on demand: a chunk of its own, never on the run's path .-> replaytool
   spec -- the roles table: each cast's threats --> replaytool

@@ -123,8 +123,11 @@ export function runRecord(input: RunInput): RunRecord {
  * line, every event on a line of its own so a run reads down the page, the answers on one.
  * `JSON.parse` of it is `runRecord` of the same input.
  */
-export function runJson(input: RunInput): string {
-  const { events, answers, ...head } = runRecord(input)
+export const runJson = (input: RunInput): string => runText(runRecord(input))
+
+/** One run, printed: the head fields one per line, one event per line, the answers on one. */
+export function runText(record: RunRecord): string {
+  const { events, answers, ...head } = record
   const headLines = Object.entries(head).map(
     ([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)},`,
   )
