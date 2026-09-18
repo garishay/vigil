@@ -628,7 +628,8 @@ describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
       "The subject's selection sequence from the run JSON, replayed as a path. 6 looks over the whole run, 5 to the freeze.",
     ])
     expect(frameSvg(raw)).toBe(frameSvg(raw))
-  })
+    // It builds the 03 frames several times over; the runner is slower than this machine.
+  }, 30_000)
 })
 
 describe('the frame — round 1 (#159)', () => {

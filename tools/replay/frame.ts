@@ -187,7 +187,12 @@ export function trackNamer({ record, metrics, study, plan }: FrameInput): TrackN
     const i = threatIds.indexOf(id)
     return i < 0 ? '' : many ? ` (threat ${i + 1})` : ' (the threat)'
   }
+  // Memoised: the log asks for a track's name on every line it writes about it, and each ask
+  // reads the regenerated picture from the freeze back through that track's events.
+  const idents = new Map<string, string>()
   const ident = (id: string) => {
+    const hit = idents.get(id)
+    if (hit !== undefined) return hit
     const seconds = [
       metrics.freezeT,
       ...record.events
@@ -195,11 +200,13 @@ export function trackNamer({ record, metrics, study, plan }: FrameInput): TrackN
         .map((event) => event.t)
         .reverse(),
     ]
-    for (const t of seconds) {
-      const track = trackAtSecond(study.index, plan, id, beginS + t, record.mode)
-      if (track) return trackIdent(track)
-    }
-    return id
+    const found =
+      seconds
+        .map((t) => trackAtSecond(study.index, plan, id, beginS + t, record.mode))
+        .find((track) => track !== null) ?? null
+    const name = found === null ? id : trackIdent(found)
+    idents.set(id, name)
+    return name
   }
   return { ident, name: (id: string) => `${ident(id)}${role(id)}` }
 }
@@ -236,6 +243,7 @@ export function captionLines(input: FrameInput): CaptionLine[] {
   const threatIds = metrics.threats.map((threat) => threat.id)
   const many = threatIds.length > 1
   const { ident, name: named } = trackNamer(input)
+  const others = otherEscalations(record, study.index, plan)
   // By position in the record, not by second: two looks on one second are two looks, and an
   // action belongs to the look before it in the record's order (#151 round 1). The whole run,
   // as the map draws it since S5f (#173).
@@ -320,7 +328,7 @@ export function captionLines(input: FrameInput): CaptionLine[] {
       )
       continue
     }
-    const other = otherEscalations(record, study.index, plan).find(
+    const other = others.find(
       (candidate) => candidate.id === event.track && candidate.t === event.t,
     )
     if (other)

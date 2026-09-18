@@ -201,7 +201,8 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     expect(threeLog).toHaveLength(3)
     expect(threeLog.some((line) => line.includes('pair-'))).toBe(false)
     expect(readdirSync(three).filter((name) => name.startsWith('pair-'))).toEqual([])
-  })
+    // It writes six documents through the CLI; the runner is slower than this machine (#166 round 1).
+  }, 30_000)
 
   it('builds one plan per scenario across the runs, and stops on a refused file with nothing written', () => {
     const metrics = metricsOf(collectRunFiles([FIXTURES]), study)
