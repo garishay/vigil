@@ -3,10 +3,11 @@ import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
+import { GLYPHS, glyphImage } from './glyphs'
 import { IdentityLegend } from './IdentityDot'
 import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao'
 import { circlePolygon, destinationPoint } from '../lib/geo'
-import { BAND_COLOR, trackIdent, type WarmBand } from '../lib/display'
+import { BAND_COLOR, trackIdent, trackShape, type WarmBand } from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { Mode } from '../lib/session'
 import type { AdsbTrack, InjectTrack, Track } from '../lib/tracks'
@@ -21,6 +22,13 @@ const PROJECTION_SOURCE = 'selected-projection'
 const HEADING_SOURCE = 'heading-ticks'
 /** The tick's length on the ground, metres — the mockup's stub, readable at the AO's zoom. */
 const HEADING_TICK_M = 300
+/**
+ * The glyphs' box on screen, pixels (S9, #181): one visual weight across the three shapes — the
+ * plain dot is 13 px across with its stroke, and a silhouette needs a wider box to carry the
+ * same ink — rasterised at twice the ratio so the edge stays crisp on a dense display.
+ */
+const GLYPH_PX = 22
+const GLYPH_RATIO = 2
 /**
  * Raw mode's one colour (S4a, #136, ruled A4; #131's fairness spec): every dot, every tick, every
  * label the same neutral — no band fill, no identity colour. Identity is read off the label.
@@ -168,6 +176,24 @@ const BAND_FILL: ExpressionSpecification = [
   ],
 ]
 
+/**
+ * The drone glyph's fill (#186, ruled on R2): the band for caution and warning, off the same
+ * score the dot's fill reads, and the cooperative layer's tone otherwise — calm or terminal —
+ * since a heard, calm drone is cooperative traffic, the background a threat stands out against.
+ * It wears no identity stroke in either mode: a drone glyph already says heard and associated,
+ * so a stroke would carry nothing the shape has not said, and wrapped eight ring edges it
+ * outweighed the dot beside it.
+ */
+const DRONE_FILL: ExpressionSpecification = [
+  'match',
+  ['get', 'band'],
+  'caution',
+  BAND_COLOR.caution,
+  'warning',
+  BAND_COLOR.warning,
+  ADSB_COLOR,
+]
+
 function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
   return {
     type: 'FeatureCollection' as const,
@@ -177,8 +203,10 @@ function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
       properties: {
         id: track.id,
         callsign: track.callsign ?? '',
-        // The label raw mode prints beside the dot (S4a): the ident, observed.
+        // The label raw mode prints beside the glyph (S4a): the ident, observed.
         ident: trackIdent(track),
+        // The aircraft glyph turns to its heading (S9); an aircraft reporting none points north.
+        heading: track.headingDeg ?? 0,
         onGround: track.onGround,
         terminal: terminalIds.includes(track.id),
       },
@@ -205,6 +233,9 @@ function injectFeatures(
         callsign: track.callsign ?? '',
         ident: trackIdent(track),
         identity: track.identity,
+        // The shape (S9): a drone glyph for a heard, associated Remote ID, the dot otherwise —
+        // read off the callsign the association rule left, never off the generator.
+        shape: trackShape(track),
         terminal: terminalIds.includes(track.id),
         band: bands.get(track.id) ?? 'calm',
       },
@@ -212,7 +243,10 @@ function injectFeatures(
   }
 }
 
-/** Raw mode's heading ticks: a moving, airborne track with a heading gets a stub along it. */
+/**
+ * Raw mode's heading ticks: a moving, airborne inject with a heading gets a stub along it. An
+ * aircraft gets none — its glyph is turned to its heading (S9).
+ */
 function headingFeatures(tracks: readonly Track[]) {
   return {
     type: 'FeatureCollection' as const,
@@ -304,10 +338,10 @@ export function MapView({
    */
   projection?: readonly [number, number][]
   /**
-   * The study's condition (S4a, #136, ruled A4): in `raw` every dot wears one neutral colour, a
-   * label prints each track's ident and a tick its heading, and the legend is not drawn — the
-   * layers exist in both modes, toggled and repainted from an effect, since the session may
-   * resolve after the map has built. `vigil` is the map as built.
+   * The study's condition (S4a, #136, ruled A4): in `raw` every shape wears one neutral colour,
+   * a label prints each track's ident and a tick the heading of a drone or a dot, and the legend
+   * is not drawn — the layers exist in both modes, toggled and repainted from an effect, since
+   * the session may resolve after the map has built. `vigil` is the map as built.
    */
   mode?: Mode
   onSelect?: (id: string) => void
@@ -342,11 +376,22 @@ export function MapView({
       center: ao.center,
       zoom: ao.zoom,
       attributionControl: { compact: true },
+      // A symbol that moves between two ticks is placed afresh each time, and a fresh symbol
+      // fades in: with the default 300 ms every airborne glyph would flicker once a second (S9).
+      fadeDuration: 0,
     })
     mapRef.current = map
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
 
     map.on('load', () => {
+      // The two glyphs (S9) as SDF images, so paint colours them as it colours the dot: the band
+      // on the fill, the identity on the halo, raw's neutral on both, the dim on the opacity.
+      for (const shape of ['aircraft', 'drone'] as const) {
+        map.addImage(shape, glyphImage(GLYPHS[shape], GLYPH_PX, GLYPH_RATIO), {
+          sdf: true,
+          pixelRatio: GLYPH_RATIO,
+        })
+      }
       // Added empty and fed by the sites effect below (08a): the rings are the session's, not
       // the AO's, and a set change re-pushes the source rather than rebuilding the layer.
       map.addSource(SITES_SOURCE, { type: 'geojson', data: siteFeatures([], [], null) })
@@ -385,36 +430,38 @@ export function MapView({
 
       // Added empty and fed by the effect below, so track updates never rebuild the layer.
       map.addSource(ADSB_SOURCE, { type: 'geojson', data: trackFeatures([], NO_TERMINAL) })
-      // Invisible hit area, deliberately *below* the visible dot: the ADS-B dot is ~3 px of
-      // visible radius, close to unclickable on a dense frame, so this widens the click target
-      // without changing the picture — and because click dispatch prefers the topmost feature,
-      // a visible parked dot under the cursor beats an overlapping invisible airborne ring.
+      // The one click target for an aircraft, invisible, under the glyph: a disc the inject
+      // halo's size, which the 22 px glyph's box just covers — so the target is what the operator
+      // sees, on the apron too, where a parked glyph is as visible as an airborne one now (S9).
+      // The glyph layer itself is never in the click dispatch: a symbol is hit-tested by its
+      // collision box, the padded quad of the whole image, axis-aligned around the rotated
+      // glyph — up to twice the glyph's width — not by the silhouette drawn (#186 round 1).
       map.addLayer({
         id: `${ADSB_SOURCE}-hit`,
         type: 'circle',
         source: ADSB_SOURCE,
-        // Airborne only: a parked aircraft draws at 1.8 px, and giving it an invisible 16 px
-        // target would blanket the apron with clicks on traffic the operator cannot see. Ground
-        // dots stay clickable at exactly their visible size through the dot layer above.
-        filter: ['!', ['get', 'onGround']],
-        paint: { 'circle-radius': 8, 'circle-opacity': 0 },
+        paint: { 'circle-radius': 11, 'circle-opacity': 0 },
       })
+      // The aircraft glyph (S9), turned to its heading and drawn whatever it overlaps: every
+      // track is on the map, and the apron is the apron.
       map.addLayer({
-        id: `${ADSB_SOURCE}-dot`,
-        type: 'circle',
+        id: `${ADSB_SOURCE}-glyph`,
+        type: 'symbol',
         source: ADSB_SOURCE,
+        layout: {
+          'icon-image': 'aircraft',
+          'icon-rotate': ['get', 'heading'],
+          'icon-rotation-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
         paint: {
-          'circle-radius': ['case', ['get', 'onGround'], 1.8, 2.8],
-          'circle-color': ADSB_COLOR,
+          'icon-color': ADSB_COLOR,
           // One expression, two conditions, one value — the Queue's own rule transplanted
           // (`.queue__row--ground, .queue__row--terminal { opacity: 0.55 }`), so a handled
           // ground track does not dim twice. Composing the two instead would put a terminal
-          // ground dot at 0.22, which on this background is gone. The radius is untouched, so a
-          // terminal airborne dot still reads larger than an active ground one (ruled on #61).
-          'circle-opacity': ['case', ['any', ['get', 'terminal'], ['get', 'onGround']], 0.4, 0.8],
-          'circle-stroke-width': 0.5,
-          'circle-stroke-color': ADSB_COLOR,
-          'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.18, 0.35],
+          // ground glyph at 0.22, which on this background is gone (ruled on #61).
+          'icon-opacity': ['case', ['any', ['get', 'terminal'], ['get', 'onGround']], 0.4, 0.8],
         },
       })
       // The breadcrumb trail (06b) sits under the injects and the ring: where the selected
@@ -458,7 +505,8 @@ export function MapView({
           'text-font': RAW_LABEL_FONT,
           'text-size': 11,
           'text-anchor': 'left',
-          'text-offset': [0.6, 0],
+          // Clear of the glyph's box at any heading (S9); the dot's label sat at 0.6.
+          'text-offset': [1.2, 0],
           'text-allow-overlap': true,
         },
         paint: { 'text-color': RAW_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
@@ -479,10 +527,12 @@ export function MapView({
           'circle-blur': 0.6,
         },
       })
+      // The plain dot (S9): a track with no associated broadcast, whatever it is.
       map.addLayer({
         id: `${INJECT_SOURCE}-dot`,
         type: 'circle',
         source: INJECT_SOURCE,
+        filter: ['==', ['get', 'shape'], 'dot'],
         paint: {
           'circle-radius': 4.5,
           'circle-color': BAND_FILL,
@@ -490,6 +540,24 @@ export function MapView({
           'circle-stroke-width': 2,
           'circle-stroke-color': IDENTITY_STROKE,
           'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.5, 1],
+        },
+      })
+      // The drone glyph (S9): a heard, associated Remote ID, drawn whatever it overlaps — the
+      // fill by the rule above, the dot's dim, and no outline in either mode.
+      map.addLayer({
+        id: `${INJECT_SOURCE}-glyph`,
+        type: 'symbol',
+        source: INJECT_SOURCE,
+        filter: ['==', ['get', 'shape'], 'drone'],
+        layout: {
+          'icon-image': 'drone',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: {
+          'icon-color': DRONE_FILL,
+          'icon-opacity': ['case', ['get', 'terminal'], 0.5, 0.95],
+          'icon-halo-width': 0,
         },
       })
 
@@ -507,7 +575,7 @@ export function MapView({
           'text-font': RAW_LABEL_FONT,
           'text-size': 11,
           'text-anchor': 'left',
-          'text-offset': [0.9, 0],
+          'text-offset': [1.2, 0],
           'text-allow-overlap': true,
         },
         paint: { 'text-color': RAW_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
@@ -531,19 +599,14 @@ export function MapView({
       // One registration, one dispatch, one selection: every clickable layer shares a single
       // array-form listener, so an overlap cannot fire two handlers and let the later one
       // overwrite the first — features[0] under a single dispatch is the top-rendered feature,
-      // the one under the cursor visually. The dot layer is in the array for the ground traffic
-      // the filtered hit layer excludes; for airborne, dot and hit are the same dispatch. Empty
-      // basemap clicks select nothing.
-      map.on(
-        'click',
-        [`${ADSB_SOURCE}-hit`, `${ADSB_SOURCE}-dot`, `${INJECT_SOURCE}-halo`],
-        (event) => {
-          // An armed map is placing a site, not selecting a track (08a).
-          if (placingRef.current) return
-          const id = event.features?.[0]?.properties?.id as unknown
-          if (typeof id === 'string') onSelectRef.current?.(id)
-        },
-      )
+      // the one under the cursor visually. Each layer's disc is the whole target; the glyphs
+      // stay out (their collision box is not their shape). Empty basemap clicks select nothing.
+      map.on('click', [`${ADSB_SOURCE}-hit`, `${INJECT_SOURCE}-halo`], (event) => {
+        // An armed map is placing a site, not selecting a track (08a).
+        if (placingRef.current) return
+        const id = event.features?.[0]?.properties?.id as unknown
+        if (typeof id === 'string') onSelectRef.current?.(id)
+      })
       // The placement click (08a): anywhere on the map, dot or not, while the editor has it armed.
       map.on('click', (event) => {
         if (!placingRef.current) return
@@ -598,8 +661,7 @@ export function MapView({
     for (const id of [`${HEADING_SOURCE}-line`, `${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
       map.setLayoutProperty(id, 'visibility', visibility)
     }
-    map.setPaintProperty(`${ADSB_SOURCE}-dot`, 'circle-color', raw ? RAW_COLOR : ADSB_COLOR)
-    map.setPaintProperty(`${ADSB_SOURCE}-dot`, 'circle-stroke-color', raw ? RAW_COLOR : ADSB_COLOR)
+    map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-color', raw ? RAW_COLOR : ADSB_COLOR)
     map.setPaintProperty(`${INJECT_SOURCE}-halo`, 'circle-color', raw ? RAW_COLOR : IDENTITY_STROKE)
     map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-color', raw ? RAW_COLOR : BAND_FILL)
     map.setPaintProperty(
@@ -607,6 +669,7 @@ export function MapView({
       'circle-stroke-color',
       raw ? RAW_COLOR : IDENTITY_STROKE,
     )
+    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', raw ? RAW_COLOR : DRONE_FILL)
   }, [mode, styleReady])
 
   // Whether the tick source holds anything: in Vigil it is left empty — created so — and never
@@ -622,8 +685,8 @@ export function MapView({
       return
     }
     ticksShownRef.current = true
-    source?.setData(headingFeatures([...tracks, ...injects]))
-  }, [tracks, injects, mode, styleReady])
+    source?.setData(headingFeatures(injects))
+  }, [injects, mode, styleReady])
 
   useEffect(() => {
     const map = mapRef.current

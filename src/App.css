@@ -336,6 +336,14 @@
   border-radius: 50%;
 }
 
+/* The legend's shape rows (S9): the map's own polygons, in the legend's muted ink. */
+.shape-glyph {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  fill: currentColor;
+}
+
 .map-frame {
   position: relative;
   min-height: 0;
