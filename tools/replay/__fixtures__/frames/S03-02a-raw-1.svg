@@ -61,7 +61,7 @@
 <text x="30" y="800" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">"never opened" marks the engine's above-calm tracks at the freeze that the run never opened:</text>
 <text x="30" y="814" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the analyst's overlay, drawn on both conditions; raw's screen never showed that set.</text>
 <rect x="30" y="828" width="840" height="94" rx="6" fill="#121821" stroke="#1f2a37"/>
-<text x="46" y="860" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:14 — opened the threat; assessed at 0:49, escalated at 0:58.</text>
-<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as UAS-8F21 · Remote ID.</text>
-<text x="46" y="904" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:58 — escalated it 1.2 km outside the ring · 1:06 before entry.</text>
+<text x="46" y="860" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:14 — opened UAS-8F21 (the threat) · Remote ID.</text>
+<text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:49 — assessed UAS-8F21 (the threat).</text>
+<text x="46" y="904" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:58 — escalated UAS-8F21 (the threat) 1.2 km outside the ring · 1:06 before entry, ring entry 2:04.</text>
 </svg>

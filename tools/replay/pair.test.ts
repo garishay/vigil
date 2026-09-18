@@ -37,29 +37,29 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
   it('nests the two frames side by side with their own clip ids and stands the block under the taller', () => {
     const svg = pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')
     expect(
-      svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1820" height="1646"'),
+      svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1820" height="1712"'),
     ).toBe(true)
     expect(svg).toContain('data-left="S05-03a-raw-1" data-right="S05-03a-vigil-1"')
-    // Both frames carry a look after their freeze since S5f (#173), so both stand 28 px taller
-    // for the key's two lines, and the unaided one a caption line taller for its escalation.
+    // Both frames carry a look after their freeze since S5f (#173) and a decision log since S5g
+    // (#175), so both stand taller: the unaided run's log is twelve lines and a rule.
     expect(tagsOf(svg, 'frame-left')[0]).toMatchObject({
       x: '0',
       y: '0',
       width: '900',
-      height: '1038',
+      height: '1170',
     })
     expect(tagsOf(svg, 'frame-right')[0]).toMatchObject({
       x: '920',
       y: '0',
       width: '900',
-      height: '1216',
+      height: '1282',
     })
     expect(svg).toContain('<clipPath id="panel-left">')
     expect(svg).toContain('<clipPath id="panel-right">')
     expect(svg).not.toContain('<clipPath id="panel">')
-    // The block: 70 + 2 rows × 150 + 60 under the taller frame's 1 216 (the box capped: twenty-one
+    // The block: 70 + 2 rows × 150 + 60 under the taller frame's 1 282 (the box capped: twenty-one
     // rows out, the count line in).
-    expect(tagsOf(svg, 'block')[0]).toMatchObject({ y: '1216', height: '430', width: '1820' })
+    expect(tagsOf(svg, 'block')[0]).toMatchObject({ y: '1282', height: '430', width: '1820' })
     expect(pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')).toBe(svg)
   })
 

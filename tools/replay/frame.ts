@@ -98,12 +98,16 @@ const VERB: Partial<Record<RunEvent['type'], string>> = {
 }
 
 /** The header's first line: the condition, and the moment the frame is frozen at. */
-export const headerLine = (record: RunRecord, metrics: RunMetrics): string => {
+export const headerLine = (input: FrameInput): string => {
+  const { record, metrics } = input
   const missed = metrics.threats.filter((threat) => threat.miss)
   const many = metrics.threats.length > 1
+  // A missed threat is named as the log names it, not by its id: one name per track means the
+  // header too, which is the one word a reader sees that still read `inject-23` (#176 round 1).
+  const { ident } = trackNamer(input)
   return `${record.mode === 'raw' ? 'UNAIDED' : 'WITH VIGIL'} · ${
     missed.length > 0
-      ? `MISSED${many ? ` ${missed.map((threat) => threat.id).join(', ')}` : ''} — frozen at +${mmss(metrics.runS)}`
+      ? `MISSED${many ? ` ${missed.map((threat) => ident(threat.id)).join(', ')}` : ''} — frozen at +${mmss(metrics.runS)}`
       : `frozen at the moment of ${many ? 'the last ' : ''}escalation — ${mmss(metrics.freezeT)}`
   }`
 }
@@ -164,112 +168,213 @@ export const neverOpenedWords = (record: RunRecord, candidates: readonly RankedA
 }
 
 /**
- * The caption box's lines, the same template in both modes: one pair per look at the threat on
- * the frame — what the subject did on it before their next look at it, and what it read as at
- * that second in the run's mode — then the decision line.
+ * What the frame calls a track (S5g, #175): the ident the screen showed, and the role in words
+ * where the track has one. One name per track **on the frame** — the log, the map label and the
+ * header — so a frame, and a pair's two frames, do not give a reader two names for one thing. The
+ * sheet's own rows and sentences still name a track their own way; that is #177's. The ident is read at the freeze — the second the
+ * frame is of — and, for a track the picture no longer holds there, at its last event in the run:
+ * on the 02b Vigil fixture one track reads UAS-8F21 at its first look and TRK-11 at its second,
+ * which is the case that makes "the name the screen showed" need a second to be read at. The ids
+ * the CSV and the metrics carry are untouched.
  */
-export function captionLines({ record, metrics, study, plan }: FrameInput): string[] {
-  // By position in the record, not by second: two looks on one second are two looks, and an
-  // action belongs to the look before it in the record's order (#151 round 1).
-  // Numbered over the whole run, as the map numbers them since S5f (#173); the threats' own
-  // lines still read to the freeze, and the numbers of those looks are the same either way.
-  const looks = record.events
-    .map((event, index) => ({ event, index }))
-    .filter(({ event }) => event.type === 'select')
-    .map((look, i) => ({ ...look, k: i + 1 }))
-  const onFrame = looks.filter(({ event }) => event.t <= metrics.freezeT)
+export interface TrackNames {
+  /** The ident alone, as the map labels a track. */
+  ident: (id: string) => string
+  /** The ident with the role in words, as the log names it. */
+  name: (id: string) => string
+}
+
+export function trackNamer({ record, metrics, study, plan }: FrameInput): TrackNames {
+  const { beginS } = STUDY
   const threatIds = metrics.threats.map((threat) => threat.id)
   const many = threatIds.length > 1
-  const name = (id: string) => (many ? `${id} (threat ${threatIds.indexOf(id) + 1})` : 'the threat')
-  const threatLooks = onFrame.filter(({ event }) => threatIds.includes(event.track))
-  const lines: string[] = []
-  threatLooks.forEach(({ event, index, k }, j) => {
-    const nextIndex =
-      threatLooks.slice(j + 1).find((look) => look.event.track === event.track)?.index ?? Infinity
-    const actions = record.events
-      .filter(
-        (action, i) =>
-          action.track === event.track &&
-          VERB[action.type] !== undefined &&
-          i > index &&
-          i < nextIndex &&
-          action.t <= metrics.freezeT,
-      )
-      .map((action) => `${VERB[action.type]} at ${mmss(action.t)}`)
-    // On the pair the T0 range comes here from the map (ruled F2): the marks carry no labels.
-    const first = many
-      ? firstInWindow(plan, event.track, STUDY.beginS, STUDY.beginS + metrics.freezeT)
-      : null
-    const atT0 = first ? `, ${(rangeM(first.track) / 1000).toFixed(1)} km at T0` : ''
-    lines.push(
-      `Look #${k} · ${mmss(event.t)} — opened ${name(event.track)}${atT0}${actions.length > 0 ? `; ${actions.join(', ')}` : ''}.`,
-    )
-    const shown = trackAtSecond(study.index, plan, event.track, STUDY.beginS + event.t, record.mode)
-    lines.push(
-      shown
-        ? `It read as ${trackIdent(shown)} · ${sourceWord(shown)}.`
-        : 'It was not in the picture.',
-    )
-    // On a Vigil frame only: what Vigil read at that second, in the app's own words (C6, C7).
-    if (record.mode === 'vigil' && shown) {
-      const entry = rankedAtSecond(study, plan, STUDY.beginS + event.t).find(
-        (ranked) => ranked.track.id === event.track,
-      )
-      if (entry) {
-        lines.push(`${vigilReading(entry)}.`)
-        if (entry.score.mismatch) lines.push(`${mismatchLine(entry.score.mismatch)}.`)
-      }
-    }
+  const role = (id: string) => {
+    const i = threatIds.indexOf(id)
+    return i < 0 ? '' : many ? ` (threat ${i + 1})` : ' (the threat)'
+  }
+  // Memoised: the log asks for a track's name on every line it writes about it, and each ask
+  // reads the regenerated picture from the freeze back through that track's events.
+  const idents = new Map<string, string>()
+  const ident = (id: string) => {
+    const hit = idents.get(id)
+    if (hit !== undefined) return hit
+    const seconds = [
+      metrics.freezeT,
+      ...record.events
+        .filter((event) => event.track === id)
+        .map((event) => event.t)
+        .reverse(),
+    ]
+    const found =
+      seconds
+        .map((t) => trackAtSecond(study.index, plan, id, beginS + t, record.mode))
+        .find((track) => track !== null) ?? null
+    const name = found === null ? id : trackIdent(found)
+    idents.set(id, name)
+    return name
+  }
+  return { ident, name: (id: string) => `${ident(id)}${role(id)}` }
+}
+
+/**
+ * A line of the caption box and the weight it draws in (S5g, #175): a decision on a threat keeps
+ * the weight the box has always given a decision line, and every other line is muted — the
+ * non-threats' decisions among them, so a reader's eye finds the threats down a long log.
+ */
+export interface CaptionLine {
+  text: string
+  /**
+   * Drawn in the box's own weight rather than muted: every line about a threat, and **every
+   * escalation whatever the track** (ruled R3) — an escalation is the run's only irreversible
+   * act, and a run's most consequential lines can be escalations of tracks that are not threats.
+   */
+  bold: boolean
+  /** The freeze's own rule across the box rather than a decision line (ruled R2). */
+  rule?: true
+}
+
+/**
+ * The caption box: the run's decisions as a log (S5g, #175). One line per decision — open,
+ * dismiss, escalate — in the clock's order over the whole run, each tagged with the look it came
+ * off, and each fact said once: an open line carries what the track read as and its T0 range, the
+ * escalation's own line carries the standoff and the margin, and neither carries the other's
+ * clock. A threat's lines keep the weight the frame gave them and the rest are muted. The Vigil
+ * reading stays under the line it belongs to; a miss is stated once beneath the log; the
+ * overlay's count is the foot's own line.
+ */
+export function captionLines(input: FrameInput): CaptionLine[] {
+  const { record, metrics, study, plan } = input
+  const { beginS } = STUDY
+  const threatIds = metrics.threats.map((threat) => threat.id)
+  const many = threatIds.length > 1
+  const { ident, name: named } = trackNamer(input)
+  const others = otherEscalations(record, study.index, plan)
+  // By position in the record, not by second: two looks on one second are two looks, and an
+  // action belongs to the look before it in the record's order (#151 round 1). The whole run,
+  // as the map draws it since S5f (#173).
+  let k = 0
+  const looks = new Map<string, number>()
+  const lines: CaptionLine[] = []
+  const line = (text: string, id: string | null, escalation = false): CaptionLine => ({
+    text,
+    bold: escalation || (id !== null && threatIds.includes(id)),
   })
-  // The decision line, one per threat in the bench's row order: the escalation with its standoff
-  // and its distance from the entry, or the miss; on one threat, S5b's line as it was.
-  for (const threat of metrics.threats) {
-    if (threat.miss || threat.standoffM === null || threat.timeToEscalateS === null) {
-      const clock = many && threat.entryT !== null ? `; ring entry ${mmss(threat.entryT)}` : ''
-      lines.push(
-        `MISSED${many ? ` ${threat.id}` : ''} — never escalated; ${plural(onFrame.length, 'look')}${clock}.`,
+  // The freeze's rule, before the first line the run wrote after it (ruled R2): the header names
+  // the second and the map draws a late look lighter, but the log is the artifact that runs on
+  // the clock, and the split between handling the threats and working on after them is what a
+  // reader is looking for. Nothing after the freeze, no rule.
+  let ruled = false
+  /**
+   * The rule is laid down by the line that follows it, not by the event that would have: an
+   * `alert_ack` is not a decision and writes no line, so a run whose only work after the freeze
+   * is an acknowledgement gets no rule and no hairline over its foot (#176 round 1).
+   */
+  const ruledPush = (t: number, line: CaptionLine) => {
+    if (!ruled && t > metrics.freezeT) {
+      ruled = true
+      lines.push({ text: `frozen at ${mmss(metrics.freezeT)}`, bold: false, rule: true })
+    }
+    lines.push(line)
+  }
+  for (const event of record.events) {
+    if (event.type === 'select') {
+      k += 1
+      looks.set(event.track, k)
+    }
+    const tag = looks.has(event.track) ? `Look #${looks.get(event.track)}` : 'Unopened'
+    const head = `${tag} · ${mmss(event.t)} — `
+    if (event.type === 'select') {
+      const shown = trackAtSecond(study.index, plan, event.track, beginS + event.t, record.mode)
+      // On the pair the T0 range comes to the caption from the map (ruled F2): the marks carry
+      // no labels there.
+      const first =
+        many && threatIds.includes(event.track)
+          ? firstInWindow(plan, event.track, beginS, beginS + metrics.freezeT)
+          : null
+      const read = shown ? ` · ${sourceWord(shown)}` : ' · not in the picture'
+      const atT0 = first ? `, ${(rangeM(first.track) / 1000).toFixed(1)} km at T0` : ''
+      // Where the screen's ident at this look is not the name the log gives the track, the line
+      // says what it read then (ruled R1): one name still rules the log, and what this keeps is
+      // that the screen said something else at that second — on the corroboration pair, the
+      // thing the run is about. Only where they differ, so no 03 line carries it.
+      const then =
+        shown && trackIdent(shown) !== ident(event.track)
+          ? `, reading ${trackIdent(shown)} then`
+          : ''
+      ruledPush(
+        event.t,
+        line(`${head}opened ${named(event.track)}${read}${then}${atT0}.`, event.track),
+      )
+      // On a Vigil frame only: what Vigil read at that second, in the app's own words (C6, C7).
+      // The frame's key says the Queue box and every reading are the frozen second's, so a look
+      // after the freeze carries no reading — the engine at that later second would put a second,
+      // contradicting reading on one frame (#176 round 1).
+      if (record.mode === 'vigil' && shown && event.t <= metrics.freezeT) {
+        const entry = rankedAtSecond(study, plan, beginS + event.t).find(
+          (ranked) => ranked.track.id === event.track,
+        )
+        if (entry) {
+          lines.push(line(`${vigilReading(entry)}.`, null))
+          if (entry.score.mismatch) lines.push(line(`${mismatchLine(entry.score.mismatch)}.`, null))
+        }
+      }
+      continue
+    }
+    if (event.type === 'assess' || event.type === 'dismiss') {
+      ruledPush(event.t, line(`${head}${VERB[event.type]} ${named(event.track)}.`, event.track))
+      continue
+    }
+    if (event.type !== 'escalate') continue
+    const threat = metrics.threats.find((candidate) => candidate.id === event.track)
+    if (threat && threat.standoffM !== null && threat.timeToEscalateS === event.t) {
+      const km = (Math.abs(threat.standoffM) / 1000).toFixed(1)
+      const side = threat.standoffM >= 0 ? 'outside' : 'inside'
+      const margin =
+        threat.entryT === null
+          ? 'no ring entry'
+          : threat.entryT >= event.t
+            ? `${mmss(threat.entryT - event.t)} before entry`
+            : `${mmss(event.t - threat.entryT)} after entry`
+      const clock = threat.entryT === null ? '' : `, ring entry ${mmss(threat.entryT)}`
+      ruledPush(
+        event.t,
+        line(
+          `${head}escalated ${named(event.track)} ${km} km ${side} the ring · ${margin}${clock}.`,
+          event.track,
+          true,
+        ),
       )
       continue
     }
-    const last = [...threatLooks]
-      .reverse()
-      .find((look) => look.event.track === threat.id && look.event.t <= threat.timeToEscalateS!)
-    const who = last ? `Look #${last.k} · ${mmss(threat.timeToEscalateS)} — ` : ''
-    const km = (Math.abs(threat.standoffM) / 1000).toFixed(1)
-    const side = threat.standoffM >= 0 ? 'outside' : 'inside'
-    const entry =
-      threat.entryT === null
-        ? 'no ring entry'
-        : threat.entryT >= threat.timeToEscalateS
-          ? `${mmss(threat.entryT - threat.timeToEscalateS)} before entry`
-          : `${mmss(threat.timeToEscalateS - threat.entryT)} after entry`
-    const clock = many && threat.entryT !== null ? `, ring entry ${mmss(threat.entryT)}` : ''
-    lines.push(
-      `${who}escalated ${many ? threat.id : 'it'} ${km} km ${side} the ring · ${entry}${clock}.`,
+    const other = others.find(
+      (candidate) => candidate.id === event.track && candidate.t === event.t,
     )
+    if (other)
+      ruledPush(
+        event.t,
+        line(`${head}escalated ${named(event.track)} · ${outcomeWords(other)}.`, event.track, true),
+      )
   }
-  // The overlay's count in words, on the last decision line of a Vigil frame (C6).
+  // A miss, once, beneath the log, with the ring entry it crossed while the run watched.
+  for (const threat of metrics.threats) {
+    if (!threat.miss) continue
+    const clock = threat.entryT === null ? '' : `; ring entry ${mmss(threat.entryT)}`
+    lines.push(line(`MISSED ${named(threat.id)} — never escalated${clock}.`, threat.id))
+  }
+  // The overlay's count on its own line at the foot of a Vigil frame (C6, S5g).
   if (record.mode === 'vigil') {
-    lines[lines.length - 1] +=
-      ` ${neverOpenedWords(record, candidatesAt(rankedAtSecond(study, plan, STUDY.beginS + metrics.freezeT)))}`
-  }
-  // Every other escalation the run made, after the decisions (S5f, #173): the track as the run
-  // read it, the second, and what it turned out to be — including one made after the freeze,
-  // which the frame drew nowhere before.
-  for (const other of otherEscalations(record, study.index, plan)) {
-    const shown = trackAtSecond(study.index, plan, other.id, STUDY.beginS + other.t, record.mode)
-    // The look it came off, so the line answers the numbered marker the map now draws for it;
-    // a track escalated off the Queue was never opened, and the line says that instead.
-    const from = [...looks]
-      .reverse()
-      .find((look) => look.event.track === other.id && look.event.t <= other.t)
     lines.push(
-      `${from ? `Look #${from.k}` : 'Unopened'} · ${mmss(other.t)} — also escalated ${shown ? trackIdent(shown) : other.id} · ${outcomeWords(other)}.`,
+      line(
+        neverOpenedWords(
+          record,
+          candidatesAt(rankedAtSecond(study, plan, beginS + metrics.freezeT)),
+        ),
+        null,
+      ),
     )
   }
   return lines
 }
-
 /**
  * What an escalated non-threat turned out to be, in the sheet's and the frame's one wording
  * (S5f, #173, the wording ruled at the gate): a real aircraft is named as one, since the brief
@@ -541,6 +646,8 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const { beginS } = STUDY
   const freezeS = beginS + metrics.freezeT
   const lines = captionLines(input)
+  // One name per track, the log’s (S5g, #175): the ident without the role, for the map.
+  const { ident } = trackNamer(input)
   const captionH = 16 + lines.length * LINE_H + 12
   const parts: string[] = []
   // What the map has already drawn, for the one label whose place is computed (#170): a threat's
@@ -640,13 +747,15 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
       }
     }
     // The pair's one map label per threat on a raw frame; a Vigil frame's is the annotation's.
-    // Held back to the end and placed where the map is clear (#170).
+    // Held back to the end and placed where the map is clear (#170). It names the track as the
+    // log names it (S5g, #175), so a sheet's two maps call one track one thing; the role stays
+    // in the log's prose, where a reader is reading rather than scanning a map.
     if (many && record.mode === 'raw' && trail.length > 0) {
       const [x, y] = trail[trail.length - 1]
       pending.push({
         x,
         y,
-        content: `${threat.id}${threat.entryT === null ? '' : ` · ring entry ${mmss(threat.entryT)}`}`,
+        content: `${ident(threat.id)}${threat.entryT === null ? '' : ` · ring entry ${mmss(threat.entryT)}`}`,
         attrs: (end) =>
           `class="threat-label" data-id="${escAttr(threat.id)}" font-size="11"${end ? ' text-anchor="end"' : ''} fill="${COLOR.faint}"`,
       })
@@ -867,7 +976,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
     text(
       30,
       40,
-      headerLine(record, metrics),
+      headerLine(input),
       `class="title" font-size="20" font-weight="700" fill="${COLOR.text}"`,
     ),
     text(
@@ -927,14 +1036,30 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const height = captionY + captionH
   const caption = [
     `<rect x="30" y="${captionY}" width="${PANEL.width - 60}" height="${captionH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
-    ...lines.map((line, i) =>
-      text(
-        46,
-        captionY + 16 + (i + 1) * LINE_H - 6,
-        line,
-        `class="caption" font-size="13" ${line.startsWith('Look') || line.startsWith('MISSED') || line.startsWith('Unopened') ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
-      ),
-    ),
+    ...lines.flatMap((line, i) => {
+      const y = captionY + 16 + (i + 1) * LINE_H - 6
+      if (line.rule !== true) {
+        return [
+          text(
+            46,
+            y,
+            line.text,
+            `class="caption" font-size="13" ${line.bold ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
+          ),
+        ]
+      }
+      // The rule sits on the line's own middle, its label to the left of it (R2).
+      const from = round1(46 + estimateWidth(line.text, 11) + 8)
+      return [
+        text(
+          46,
+          y - 3,
+          line.text,
+          `class="caption-rule-label" font-size="11" fill="${COLOR.faint}"`,
+        ),
+        `<line class="caption-rule" x1="${from}" y1="${y - 7}" x2="${PANEL.width - 46}" y2="${y - 7}" stroke="${COLOR.line}"/>`,
+      ]
+    }),
   ]
 
   const lines_ = [
