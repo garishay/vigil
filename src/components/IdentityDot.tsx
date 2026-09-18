@@ -1,5 +1,6 @@
 import { BANDS, BAND_LABEL } from '../config/scoring'
-import { BAND_COLOR, type WarmBand } from '../lib/display'
+import { GLYPHS, GLYPH_BOX, polygonPoints, type Part } from './glyphs'
+import { BAND_COLOR, SHAPES, SHAPE_LABEL, type TrackShape, type WarmBand } from '../lib/display'
 import { IDENTITIES, IDENTITY_COLOR, IDENTITY_LABEL } from '../lib/identity'
 import type { Identity } from '../lib/tracks'
 
@@ -34,17 +35,78 @@ export function BandDot({ band }: { band: WarmBand }) {
   )
 }
 
+/** One glyph part as SVG: a polygon filled, a ring stroked at its width, the body a rounded square. */
+function GlyphPart({ part }: { part: Part }) {
+  switch (part.kind) {
+    case 'polygon':
+      return <polygon points={polygonPoints(part.points)} />
+    case 'ring':
+      return (
+        <circle
+          cx={part.center[0]}
+          cy={part.center[1]}
+          r={part.radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={part.width}
+        />
+      )
+    case 'rect':
+      return (
+        <rect
+          x={part.center[0] - part.size / 2}
+          y={part.center[1] - part.size / 2}
+          width={part.size}
+          height={part.size}
+          rx={part.corner}
+        />
+      )
+  }
+}
+
+/**
+ * The map's shape as inline SVG (S9, #181): the same parts the map rasterises, so the key and
+ * the marker cannot drift; the dot is the circle the map draws. Decorative, as the dots are, and
+ * the brief's legend draws with it too (S8).
+ */
+export function ShapeGlyph({ shape }: { shape: TrackShape }) {
+  const c = GLYPH_BOX / 2
+  return (
+    <svg
+      className="shape-glyph"
+      viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`}
+      data-shape={shape}
+      aria-hidden="true"
+    >
+      {shape === 'dot' ? (
+        <circle cx={c} cy={c} r={7} />
+      ) : (
+        GLYPHS[shape].map((part, i) => <GlyphPart key={i} part={part} />)
+      )}
+    </svg>
+  )
+}
+
 /** The bands that have a swatch, in band order — calm is the marker's default and has none. */
 const WARM_BANDS = BANDS.filter((band): band is WarmBand => band !== 'calm')
 
 /**
- * The three identity states in queue order, then the two warm bands beside them (#96), in a map
+ * The three shapes first — what a track said about itself (S9) — then the three identity states
+ * in queue order and the two warm bands beside them (#96), what Vigil made of it, in a map
  * corner. Visible on every surface, which matters on Home — there is no Queue there to read the
  * colours from.
  */
 export function IdentityLegend() {
   return (
     <div className="legend" role="group" aria-label="Map legend">
+      <ul className="legend__group" aria-label="Shape legend">
+        {SHAPES.map((shape) => (
+          <li key={shape} className="legend__item">
+            <ShapeGlyph shape={shape} />
+            {SHAPE_LABEL[shape]}
+          </li>
+        ))}
+      </ul>
       <ul className="legend__group" aria-label="Identity legend">
         {IDENTITIES.map((identity) => (
           <li key={identity} className="legend__item">

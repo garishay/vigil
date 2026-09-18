@@ -23,11 +23,15 @@ import {
   mismatchHandoffLine,
   mismatchLine,
   sourceWord,
+  SHAPES,
+  SHAPE_LABEL,
+  trackShape,
 } from './display'
 import type { EntryEstimate } from './projection'
 import { scoreTrack, type Score, type ScoringContext } from './scoring'
 import { AO } from '../config/ao'
 import { DEFAULT_RECORDING, recordingNamed } from '../config/recordings'
+import { associate } from './feeds'
 import { destinationPoint } from './geo'
 import type { TrackEvent } from './lifecycle'
 import type { RankedTrack } from './ranking'
@@ -726,5 +730,61 @@ describe('the raw drawer’s words (S4a, #136, ruled A5)', () => {
     expect(sourceWord({ source: 'inject', callsign: null } as Track)).toBe('sensor')
     // Latitude, longitude — the order a person reads — to four decimals, about ten metres.
     expect(formatPosition([-75.20547, 39.81341])).toBe('39.8134, -75.2055')
+  })
+})
+
+describe('the map’s shapes (S9, #181)', () => {
+  const heard: InjectTrack = {
+    id: 'inject-14',
+    source: 'inject',
+    identity: 'cooperative',
+    callsign: 'UAS-8F21',
+    uaType: 'multirotor',
+    broadcast: { label: 'UAS-8F21', position: [-75.2, 39.9] },
+    position: [-75.2, 39.9],
+    altitudeFt: 200,
+    onGround: false,
+    groundSpeedKt: 35,
+    headingDeg: 65,
+    verticalRateFpm: 0,
+    lastSeenSec: 0,
+  }
+
+  it('is the Source row’s three cases as three shapes: shape is what the track said, never the generator', () => {
+    expect(trackShape({ source: 'adsb', callsign: 'AAL423' } as Track)).toBe('aircraft')
+    expect(trackShape({ source: 'adsb', callsign: null } as Track)).toBe('aircraft')
+    expect(trackShape(heard)).toBe('drone')
+    // A silent inject, and an intermittent one on a frame it is not heard: the plain dot.
+    expect(trackShape({ ...heard, callsign: null, broadcast: null, identity: 'unknown' })).toBe(
+      'dot',
+    )
+    // The Source word and the shape are one rule: the drawer and the map cannot disagree.
+    for (const track of [heard, { ...heard, callsign: null }, { source: 'adsb' } as Track]) {
+      expect([sourceWord(track), trackShape(track)]).toEqual(
+        {
+          'ADS-B': ['ADS-B', 'aircraft'],
+          'Remote ID': ['Remote ID', 'drone'],
+          sensor: ['sensor', 'dot'],
+        }[sourceWord(track)],
+      )
+    }
+  })
+
+  it('follows the broadcast associate attached: withheld under the mismatch rule, the drone is a dot', () => {
+    // The corroboration pair’s difference made visible (#181): the same track, its broadcast
+    // 1.1 km off, is a drone glyph at raw’s 1 500 m and a plain dot at Vigil’s 1 000 m.
+    const lying: InjectTrack = {
+      ...heard,
+      broadcast: { label: 'UAS-8F21', position: destinationPoint(heard.position, 90, 1100) },
+    }
+    expect(trackShape(associate(lying, 1500))).toBe('drone')
+    expect(trackShape(associate(lying, 1000))).toBe('dot')
+    // The broadcast stays on the withheld track for the mismatch reading; the shape never reads it.
+    expect(associate(lying, 1000)).toMatchObject({ broadcast: lying.broadcast, callsign: null })
+  })
+
+  it('names the three rows in the Issue’s order, in plain words', () => {
+    expect(SHAPES).toEqual(['aircraft', 'drone', 'dot'])
+    expect(SHAPES.map((shape) => SHAPE_LABEL[shape])).toEqual(['Aircraft', 'Drone', 'No broadcast'])
   })
 })
