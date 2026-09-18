@@ -918,7 +918,7 @@ describe('raw mode (S4a, #136, ruled A4)', () => {
 })
 
 describe('the heading tick (S4a; S10, #182 item 5)', () => {
-  it('is visible at any zoom: one screen length from the marker’s edge along the heading, never culled, raw only', () => {
+  it('holds the fairness spec’s heading line by visibility, not presence: one screen length from the marker’s edge at any zoom, never culled, raw only (#182 item 5)', () => {
     render(<MapView ao={AO} mode="raw" injects={INJECTS} />)
     const tick = mapInstance.addLayer.mock.calls.find(
       ([layer]) => layer.id === 'inject-tracks-tick',
