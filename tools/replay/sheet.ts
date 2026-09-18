@@ -350,6 +350,24 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
     '</svg>',
   )
 
+  // The axis’s own ticks at a lane block’s baseline: every minute the window reaches, and its
+  // end, with a minute dropped when the end would crowd it. The third row runs the same scale
+  // as the threats’ rows, so it draws the same ticks (#174 round 1).
+  const ticks = (ay: number): string[] =>
+    [...new Set([0, 60, 120, 180, 240, 300, runS])].flatMap((s) =>
+      s > runS || (s !== runS && runS - s < 20)
+        ? []
+        : [
+            `<line x1="${tX(s)}" y1="${ay - 3}" x2="${tX(s)}" y2="${ay + 3}" stroke="${THEME.faint}"/>`,
+            text(
+              tX(s),
+              ay + 18,
+              mmss(s),
+              `font-size="11" fill="${THEME.faint}" text-anchor="middle"`,
+            ),
+          ],
+    )
+
   // One row per threat by role: the time lane with a lane per condition, and the ring beside it.
   let y = headH + top
   a.threats.forEach((threat, i) => {
@@ -374,13 +392,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       ),
       `<line class="time-axis" x1="${TIME_X}" y1="${ay}" x2="${TIME_X + TIME_W}" y2="${ay}" stroke="${THEME.faint}"/>`,
     )
-    for (const s of [...new Set([0, 60, 120, 180, 240, 300, runS])]) {
-      if (s > runS || (s !== runS && runS - s < 20)) continue
-      parts.push(
-        `<line x1="${tX(s)}" y1="${ay - 3}" x2="${tX(s)}" y2="${ay + 3}" stroke="${THEME.faint}"/>`,
-        text(tX(s), ay + 18, mmss(s), `font-size="11" fill="${THEME.faint}" text-anchor="middle"`),
-      )
-    }
+    parts.push(...ticks(ay))
     // The two lanes 50 px apart: each carries its own entry clock above it and its escalation
     // below, and the two scenarios' entries fall within seconds of each other on the axis.
     const lanes: [RunMetrics, ThreatMetrics, number, string, string][] = [
@@ -538,13 +550,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       ),
       `<line class="time-axis" x1="${TIME_X}" y1="${ay}" x2="${TIME_X + TIME_W}" y2="${ay}" stroke="${THEME.faint}"/>`,
     )
-    for (const s of [...new Set([0, 60, 120, 180, 240, 300, runS])]) {
-      if (s > runS || (s !== runS && runS - s < 20)) continue
-      parts.push(
-        `<line x1="${tX(s)}" y1="${ay - 3}" x2="${tX(s)}" y2="${ay + 3}" stroke="${THEME.faint}"/>`,
-        text(tX(s), ay + 18, mmss(s), `font-size="11" fill="${THEME.faint}" text-anchor="middle"`),
-      )
-    }
+    parts.push(...ticks(ay))
     let line = 0
     others.forEach(([input, color, side], k) => {
       const ly = ry + 86 + k * 40

@@ -677,7 +677,8 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // The looks as numbered hops at the selected track's regenerated position, the path through
   // them in order; the threat's looks in the warning colour. The whole run's looks, not the
   // frozen second's (S5f, #173): the two conditions' frames otherwise cover different spans and
-  // the quieter one is overstated. A look after the freeze is the same hop at LATE_OPACITY.
+  // the quieter one is overstated. A look after the freeze is the same hop, drawn as a dashed
+  // outline in its track’s colour and filled with the panel’s (ruled R1); the marker below says why.
   const looks = looksOfRun(record)
   const hops = looks.flatMap((event, i) => {
     const track = trackAtSecond(study.index, plan, event.track, beginS + event.t, record.mode)
