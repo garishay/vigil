@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { firstUnsaved, readRun, runKey, runsOf, writeRun } from './runs'
+import { clearRuns, firstUnsaved, readRun, runKey, runsOf, savedKeys, writeRun } from './runs'
 import type { RunStore } from './runs'
 import type { RunRecord } from './run'
 
@@ -67,6 +67,7 @@ describe('a subject’s runs, kept in their own browser (S6a-iii, #165, item 2)'
     expect(writeRun(record('S14', 1), fourteen, store)).toBe(true)
     expect(store.getItem('vigil.run.S13.1')).toBe(thirteen)
     expect(store.getItem('vigil.run.S14.1')).toBe(fourteen)
+    expect(savedKeys(store).sort()).toEqual(['vigil.run.S13.1', 'vigil.run.S14.1'])
   })
 
   it('stores the run’s own text, so what is handed over is what was copied', () => {
@@ -86,6 +87,8 @@ describe('a subject’s runs, kept in their own browser (S6a-iii, #165, item 2)'
     expect(readRun('S13', 1, store)).toBeNull()
     expect(runsOf('S13', 2, store)).toEqual([])
     expect(firstUnsaved('S13', 2, store)).toBe(1)
+    expect(savedKeys(store)).toEqual([])
+    expect(clearRuns(store)).toBe(0)
     expect(writeRun(record('S13', 1), 'text', null)).toBe(false)
     expect(readRun('S13', 1, null)).toBeNull()
     expect(firstUnsaved('S13', 2, null)).toBe(1)
@@ -159,5 +162,41 @@ describe('the run a link opens at (S6a-iii, #165, item 8)', () => {
     const gapped = memory()
     writeRun(record('S14', 2), JSON.stringify(record('S14', 2)), gapped)
     expect(firstUnsaved('S14', 2, gapped)).toBe(1)
+  })
+})
+
+describe('Clear saved runs (S6a-iii-b, #165, item 8, ruled E4)', () => {
+  it('refuses a record the key it came from does not confirm (round 1, finding 4)', () => {
+    const store = memory()
+    // A `vigil.run.*` key on a shared origin — github.io is one — can hold anything, and a run
+    // written under one key can be copied under another. The key is the only claim this store
+    // makes, so a record that contradicts it reads as not saved: otherwise run 1's key would
+    // hand back a record saying `run: 2`, which then travels into a results file under the
+    // wrong index and makes `firstUnsaved` count a run the subject never gave.
+    store.setItem('vigil.run.S13.1', JSON.stringify(record('S13', 2)))
+    expect(readRun('S13', 1, store)).toBeNull()
+    expect(firstUnsaved('S13', 2, store)).toBe(1)
+    expect(runsOf('S13', 2, store)).toEqual([])
+
+    store.setItem('vigil.run.S13.1', JSON.stringify(record('S14', 1)))
+    expect(readRun('S13', 1, store)).toBeNull()
+
+    // And the record the key does confirm still reads back whole.
+    store.setItem('vigil.run.S13.1', JSON.stringify(record('S13', 1)))
+    expect(readRun('S13', 1, store)).toMatchObject({ subject: 'S13', run: 1 })
+  })
+
+  it('clears every saved run in this browser, and says how many', () => {
+    const store = memory()
+    writeRun(record('S13', 1), JSON.stringify(record('S13', 1)), store)
+    writeRun(record('S14', 2), JSON.stringify(record('S14', 2)), store)
+    store.setItem('vigil.site-plan', 'kept')
+    expect(clearRuns(store)).toBe(2)
+    expect(savedKeys(store)).toEqual([])
+    // Every subject's, because the sheet page has no subject in hand and a machine shared
+    // between two subjects is the case this exists for. Only the runs, though: another key of
+    // the app's own is not this control's to remove.
+    expect(store.getItem('vigil.site-plan')).toBe('kept')
+    expect(clearRuns(store)).toBe(0)
   })
 })

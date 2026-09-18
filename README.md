@@ -28,12 +28,16 @@ A **study run** (S4b) adds `&subject=<code>&run=<n>` to a study link, both or ne
 the brief, the scenario's minutes on the clock, the end screen with Copy run.
 One link per subject (S6a-iii): once the three questions are answered the run is kept in that
 browser under the subject’s code, and run 1’s end screen carries **Start run 2** — the pair’s
-other scenario, the other mode, the same subject. A link opened again resumes at the first run
-not yet saved and never re-runs a saved one; with both saved the session is complete and each
-run’s file is offered.
+other scenario, the other mode, the same subject. Run 2’s carries **See your results**, and with
+both runs in the browser the subject sheet is drawn in the tab they ran in, with **Download
+results** — the one file to hand over — as its primary. When run 1 is not in that browser the end
+screen says so and offers the run’s own file instead. A link opened again resumes at the first run
+not yet saved and never re-runs a saved one; with both saved the session is complete and the
+results are offered there too.
 The **sheet page** (S6a-ii) is [`?sheet`](https://garishay.github.io/vigil/?sheet): drop a results
 file, or both run files, or paste them, and the subject sheet is drawn in that tab, downloaded, or
-printed to one page. It reads what the replay tool reads and refuses what the replay tool refuses.
+printed to one page. It reads what the replay tool reads and refuses what the replay tool refuses,
+and **Clear saved runs** asks once, in place, before it removes what the browser holds.
 
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
@@ -151,11 +155,15 @@ flowchart LR
   replay -- pictureAt --> replaytool
   studycfg -- Begin · the run · raw's distance --> replaytool
   filesave["lib/download.ts<br/>one click, one file: the anchor attached before the click, the object URL revoked after it<br/>the end screen’s Download a copy and, at S6a-ii, the sheet’s own downloads"]
-  runstore["lib/runs.ts<br/>a subject’s runs, kept in their own browser under their code and each run’s index (S6a-iii)<br/>fail-soft: a browser that will not keep a run says so on the end screen, and the run is still there to copy or download<br/>what Start run 2 chains from and what a reopened link resumes at"]
+  runstore["lib/runs.ts<br/>a subject’s runs, kept in their own browser under their code and each run’s index (S6a-iii)<br/>fail-soft: a browser that will not keep a run says so on the end screen, and the run is still there to copy or download<br/>what Start run 2 chains from, what a reopened link resumes at, and what See your results draws<br/>every subject’s runs and only the run keys, for the sheet page’s Clear saved runs"]
   app -. a study run saves itself, and reads what this browser holds .-> runstore
   app -. one click, one file .-> filesave
-  sheetpage["components/SheetPage.tsx + data/sheet.ts<br/>?sheet (S6a-ii): a results file or two run files, dropped or pasted, read by the loader and drawn by the tool<br/>the study's recording fetched as the app fetches every recording — the CLI's loadStudy over the network<br/>the document downloaded, printed to one page, and the runs handed back as files; nothing stored, nothing sent"]
+  sheetpage["components/SheetPage.tsx + SheetDocument.tsx + data/sheet.ts<br/>?sheet (S6a-ii): a results file or two run files, dropped or pasted, read by the loader and drawn by the tool<br/>the study's recording fetched as the app fetches every recording — the CLI's loadStudy over the network<br/>the document downloaded, printed to one page, and the runs handed back as files; nothing stored, nothing sent<br/>Clear saved runs asks once, in place, before it clears (S6a-iii-b)"]
+  results["components/RunResults.tsx<br/>the subject's own two runs drawn as the subject sheet, in the tab they ran them in (S6a-iii)<br/>the sheet page's document by the sheet page's seam — subject and owner read the same sheet<br/>one primary, Download results: the file to hand over, and the words for what it holds"]
   sheetpage -. loaded on demand: a chunk of its own, never on the run's path .-> replaytool
+  sheetpage -- documentOf · filesFor · the document and its actions --> results
+  app -. loaded on the See your results click, in the sheet's chunk .-> results
+  runstore -- both runs, once they are in this browser --> results
   spec -- the roles table: each cast's threats --> replaytool
   study -- loadRecording: the study's recording, read from disk by replay/files.ts --> replaytool
   score -- scoreTrack · bandOf --> study

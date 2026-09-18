@@ -596,13 +596,6 @@
   font-size: 0.875rem;
 }
 
-.run__copy {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
 .run__hint {
   color: var(--faint);
   font-size: 0.75rem;

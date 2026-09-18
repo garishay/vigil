@@ -35,7 +35,10 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.ts', 'tools/**/*.test.ts'],
     // Stylesheets resolve empty under test by default; the theme is let through so a test can
-    // hold a MapLibre literal to its CSS token (#96).
-    css: { include: [/\/src\/index\.css(\?|$)/] },
+    // hold a MapLibre literal to its CSS token (#96), and the sheet page's so a test can read
+    // its print rule rather than restate it (round 1 on #193, finding 1).
+    css: {
+      include: [/\/src\/index\.css(\?|$)/, /\/src\/components\/SheetPage\.css(\?|$)/],
+    },
   },
 })

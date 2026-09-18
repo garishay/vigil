@@ -154,6 +154,11 @@ describe('the sheet renders in a browser (S6a-i, #165, ruled A7, R1)', () => {
     // own, which the app never fetches unless `?sheet` is opened (S6a-ii, ruled B2, R1).
     expect(readFileSync('src/main.tsx', 'utf8')).toContain("import('./components/SheetPage.tsx')")
     expect(graph.has('src/components/SheetPage.tsx')).toBe(false)
+    // And the results view the same way, from the See your results click (S6a-iii-b): a
+    // subject who never presses it never downloads the replay tool, nor the roles table.
+    expect(readFileSync('src/App.tsx', 'utf8')).toContain("import('./components/RunResults.tsx')")
+    expect(graph.has('src/components/RunResults.tsx')).toBe(false)
+    expect(graph.has('src/data/sheet.ts')).toBe(false)
   })
 
   it('carries the roles table on the sheet page’s own graph, so R1 is not a vacuous pin', () => {
@@ -161,6 +166,12 @@ describe('the sheet renders in a browser (S6a-i, #165, ruled A7, R1)', () => {
     // sheet without it — so the test above is a statement about a separation rather than about a
     // module nothing imports. And the page's own graph is browser-safe, which is what S6a-i's
     // move was for.
+    for (const entry of ['src/components/SheetPage.tsx', 'src/components/RunResults.tsx']) {
+      const door = graphFrom(entry)
+      expect(door.has('scripts/study-spec.ts')).toBe(true)
+      expect(door.has('tools/replay/sheet.ts')).toBe(true)
+      expect(notBrowserSafe(door)).toEqual([])
+    }
     const page = graphFrom('src/components/SheetPage.tsx')
     expect(page.has('scripts/study-spec.ts')).toBe(true)
     expect(page.has('tools/replay/sheet.ts')).toBe(true)

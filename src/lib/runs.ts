@@ -52,7 +52,14 @@ function isRunRecord(value: unknown): value is RunRecord {
   )
 }
 
-/** The run saved under a subject and index, or null — anything that is not a run is null. */
+/**
+ * The run saved under a subject and index, or null — anything that is not a run is null.
+ *
+ * And nothing is trusted that the key cannot confirm (ruled, round 1): a record whose `subject`
+ * or `run` disagrees with the key it came out from reads as not saved. The key is the only claim
+ * this store makes; a value that contradicts it would otherwise travel into a results file under
+ * a run index it does not hold, and `firstUnsaved` would count a run the subject never gave.
+ */
 export function readRun(
   subject: string,
   run: number,
@@ -62,7 +69,8 @@ export function readRun(
     const text = store?.getItem(runKey(subject, run)) ?? null
     if (text === null) return null
     const value: unknown = JSON.parse(text)
-    return isRunRecord(value) ? value : null
+    if (!isRunRecord(value)) return null
+    return value.subject === subject && value.run === run ? value : null
   } catch {
     return null
   }
@@ -125,4 +133,36 @@ export function firstUnsaved(
     if (readRun(subject, run, store) === null) return run
   }
   return null
+}
+
+/** Every run key this browser holds, whatever subject wrote it — what *Clear saved runs* clears. */
+export function savedKeys(store: RunStore | null = browserStore()): string[] {
+  const keys: string[] = []
+  try {
+    if (store === null) return keys
+    for (let i = 0; i < store.length; i++) {
+      const key = store.key(i)
+      if (key !== null && key.startsWith('vigil.run.')) keys.push(key)
+    }
+  } catch {
+    return keys
+  }
+  return keys
+}
+
+/**
+ * Clears every saved run in this browser, and says how many it cleared.
+ *
+ * Every subject's, not one's: the sheet page has no subject in hand, and a machine shared between
+ * two subjects is the case this exists for (ruled E4). Only the run keys — another key of the
+ * app's own, the site plan's, is not this control's to remove.
+ */
+export function clearRuns(store: RunStore | null = browserStore()): number {
+  const keys = savedKeys(store)
+  try {
+    for (const key of keys) store?.removeItem(key)
+  } catch {
+    return 0
+  }
+  return keys.length
 }

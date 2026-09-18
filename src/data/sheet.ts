@@ -18,6 +18,7 @@ import { STUDY_RECORDING } from '../../scripts/study-spec.ts'
 import { planFor, studyOf, type Study } from '../../tools/replay/load.ts'
 import { runMetrics } from '../../tools/replay/metrics.ts'
 import { conditionWord } from '../../tools/replay/pair.ts'
+import { resultsJson } from '../lib/run.ts'
 import type { RunRecord } from '../lib/run.ts'
 
 export { runsIn } from '../../tools/replay/load.ts'
@@ -74,7 +75,7 @@ export function filesFor(records: readonly RunRecord[]): SaveFile[] {
     return [
       {
         name: `vigil-${runs[0].subject}-results.json`,
-        text: JSON.stringify({ subject: runs[0].subject, build: runs[0].build, runs }, null, 2),
+        text: resultsJson(runs),
         label: 'the runs',
       },
     ]
