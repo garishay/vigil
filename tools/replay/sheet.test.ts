@@ -178,8 +178,9 @@ describe('the subject sheet — the rows', () => {
   })
 
   it('plots each escalation on the ring at its true bearing and range, hollow inside it (K6)', () => {
-    // The rows stand under the taller frame — the Vigil frame's 1 188 px — and the headline's 150.
-    const cy = [150 + 1188 + 146, 150 + 1188 + 320 + 146]
+    // The rows stand under the taller frame — the Vigil frame's 1 254 px since the log (#175) —
+    // and the headline's 150.
+    const cy = [150 + 1254 + 146, 150 + 1254 + 320 + 146]
     for (const [side, input] of [
       ['unaided', unaided],
       ['vigil', vigil],
@@ -226,7 +227,7 @@ describe('the subject sheet — the rows', () => {
         (track) => track.id === threat.id,
       )!
       const bearing = bearingDegrees(SITE.center, atEntry.position)
-      const [x, y] = ringPoint(150 + 1188 + 146, bearing, SITE.radiusM)
+      const [x, y] = ringPoint(150 + 1254 + 146, bearing, SITE.radiusM)
       expect(Math.hypot(Number(ticks[0].x1) - x, Number(ticks[0].y1) - y)).toBeLessThan(11)
     }
   })
@@ -291,10 +292,10 @@ describe('the subject sheet — the document', () => {
     const svg = sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1')
     expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
     expect(svg).toContain('<svg class="frame-vigil" x="920" y="150"')
-    // The sheet stands 150 for the headline, the taller frame (1 188), a row each, the third
+    // The sheet stands 150 for the headline, the taller frame (1 254 since the log, #175), a row
     // row's own 238 for its one escalation, and a foot of 98 — the fourth footnote's line (#173).
-    expect(svg).toContain('width="1820" height="2314"')
-    expect(150 + 1188 + 2 * 320 + 238 + 98).toBe(2314)
+    expect(svg).toContain('width="1820" height="2380"')
+    expect(150 + 1254 + 2 * 320 + 238 + 98).toBe(2380)
     expect(textsOf(svg, 'vigil-queue-more')).toEqual([
       "… 21 more above calm, on the run's own frame",
     ])
@@ -574,16 +575,16 @@ describe('the sheet’s other escalations (S5f, #173)', () => {
     // The sheet stands 150 for the headline, the taller frame, a row per threat, the row's own
     // height, and a foot of 98 for the fourth footnote line.
     expect(two).toContain(
-      `width="1820" height="${150 + 1216 + 2 * 320 + (200 + 2 * 18 + 20) + 98}"`,
+      `width="1820" height="${150 + 1304 + 2 * 320 + (200 + 2 * 18 + 20) + 98}"`,
     )
     expect(one).toContain(
-      `width="1820" height="${150 + 1188 + 2 * 320 + (200 + 1 * 18 + 20) + 98}"`,
+      `width="1820" height="${150 + 1254 + 2 * 320 + (200 + 1 * 18 + 20) + 98}"`,
     )
     // The row's rule sits under the threats' rows, and its axis runs the same scale as theirs.
     const rules = [...two.matchAll(/<line x1="30" y1="([0-9.]+)" x2="1790"/g)].map((m) =>
       Number(m[1]),
     )
-    expect(rules).toEqual([150 + 1216, 150 + 1216 + 320, 150 + 1216 + 640, 150 + 1216 + 640 + 256])
+    expect(rules).toEqual([150 + 1304, 150 + 1304 + 320, 150 + 1304 + 640, 150 + 1304 + 640 + 256])
   })
 })
 

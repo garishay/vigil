@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1548" viewBox="0 0 900 1548" data-subject="S06" data-scenario="03b" data-mode="vigil" data-run="1">
-<rect width="900" height="1548" fill="#0b0f14"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1614" viewBox="0 0 900 1614" data-subject="S06" data-scenario="03b" data-mode="vigil" data-run="1">
+<rect width="900" height="1614" fill="#0b0f14"/>
 <text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">WITH VIGIL · frozen at the moment of the last escalation — 1:28</text>
 <text x="30" y="64" font-family="system-ui, sans-serif" class="subtitle" font-size="13" fill="#8b98a9">The subject's selection sequence from the run JSON, replayed as a path. 3 looks.</text>
 <defs><clipPath id="panel"><rect x="0" y="0" width="900" height="700"/></clipPath></defs>
@@ -181,13 +181,16 @@
 <text x="46" y="1280" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-24" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">24</tspan> TRK-24 47 · Non-cooperative, low and slow, near PHL Airfield</text>
 <text x="46" y="1298" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-144" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">25</tspan> UAS-A49E 46 · Closing, near PHL Airfield, low and slow</text>
 <text x="46" y="1316" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-68" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">26</tspan> TRK-68 45 · Non-cooperative, low and slow, near PHL Airfield</text>
-<rect x="30" y="1344" width="840" height="204" rx="6" fill="#121821" stroke="#1f2a37"/>
-<text x="46" y="1376" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:09 — opened inject-29 (threat 1), 6.3 km at T0; assessed at 0:20, escalated at 0:30.</text>
-<text x="46" y="1398" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-29 · sensor.</text>
-<text x="46" y="1420" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 1 · warning 72 · closing at 13 m/s · ring entry in 1:33.</text>
-<text x="46" y="1442" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 1:01 — opened inject-23 (threat 2), 6.2 km at T0; assessed at 1:15, escalated at 1:28.</text>
-<text x="46" y="1464" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-23 · sensor.</text>
-<text x="46" y="1486" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 2 · warning 72 · closing at 6 m/s · ring entry in 2:06.</text>
-<text x="46" y="1508" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:30 — escalated inject-29 0.9 km outside the ring · 1:12 before entry, ring entry 1:42.</text>
-<text x="46" y="1530" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 1:28 — escalated inject-23 0.6 km outside the ring · 1:40 before entry, ring entry 3:08. 23 candidates never opened.</text>
+<rect x="30" y="1344" width="840" height="270" rx="6" fill="#121821" stroke="#1f2a37"/>
+<text x="46" y="1376" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:09 — opened TRK-29 (threat 1) · sensor, 6.3 km at T0.</text>
+<text x="46" y="1398" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 1 · warning 72 · closing at 13 m/s · ring entry in 1:33.</text>
+<text x="46" y="1420" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:20 — assessed TRK-29 (threat 1).</text>
+<text x="46" y="1442" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:30 — escalated TRK-29 (threat 1) 0.9 km outside the ring · 1:12 before entry, ring entry 1:42.</text>
+<text x="46" y="1464" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Look #2 · 0:44 — opened TRK-33 · sensor.</text>
+<text x="46" y="1486" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 5 · caution 67 · closing at 6 m/s · ring entry in 5:49.</text>
+<text x="46" y="1508" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 1:01 — opened TRK-23 (threat 2) · sensor, 6.2 km at T0.</text>
+<text x="46" y="1530" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">Vigil read it rank 2 · warning 72 · closing at 6 m/s · ring entry in 2:06.</text>
+<text x="46" y="1552" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 1:15 — assessed TRK-23 (threat 2).</text>
+<text x="46" y="1574" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 1:28 — escalated TRK-23 (threat 2) 0.6 km outside the ring · 1:40 before entry, ring entry 3:08.</text>
+<text x="46" y="1596" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">23 candidates never opened.</text>
 </svg>

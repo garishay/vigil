@@ -172,7 +172,14 @@ export const neverOpenedWords = (record: RunRecord, candidates: readonly RankedA
  * which is the case that makes "the name the screen showed" need a second to be read at. The ids
  * the CSV and the metrics carry are untouched.
  */
-export function trackNamer({ record, metrics, study, plan }: FrameInput): (id: string) => string {
+export interface TrackNames {
+  /** The ident alone, as the map labels a track. */
+  ident: (id: string) => string
+  /** The ident with the role in words, as the log names it. */
+  name: (id: string) => string
+}
+
+export function trackNamer({ record, metrics, study, plan }: FrameInput): TrackNames {
   const { beginS } = STUDY
   const threatIds = metrics.threats.map((threat) => threat.id)
   const many = threatIds.length > 1
@@ -180,7 +187,7 @@ export function trackNamer({ record, metrics, study, plan }: FrameInput): (id: s
     const i = threatIds.indexOf(id)
     return i < 0 ? '' : many ? ` (threat ${i + 1})` : ' (the threat)'
   }
-  return (id: string) => {
+  const ident = (id: string) => {
     const seconds = [
       metrics.freezeT,
       ...record.events
@@ -190,10 +197,11 @@ export function trackNamer({ record, metrics, study, plan }: FrameInput): (id: s
     ]
     for (const t of seconds) {
       const track = trackAtSecond(study.index, plan, id, beginS + t, record.mode)
-      if (track) return `${trackIdent(track)}${role(id)}`
+      if (track) return trackIdent(track)
     }
-    return `${id}${role(id)}`
+    return id
   }
+  return { ident, name: (id: string) => `${ident(id)}${role(id)}` }
 }
 
 /**
@@ -203,7 +211,14 @@ export function trackNamer({ record, metrics, study, plan }: FrameInput): (id: s
  */
 export interface CaptionLine {
   text: string
-  threat: boolean
+  /**
+   * Drawn in the box's own weight rather than muted: every line about a threat, and **every
+   * escalation whatever the track** (ruled R3) — an escalation is the run's only irreversible
+   * act, and a run's most consequential lines can be escalations of tracks that are not threats.
+   */
+  bold: boolean
+  /** The freeze's own rule across the box rather than a decision line (ruled R2). */
+  rule?: true
 }
 
 /**
@@ -220,22 +235,33 @@ export function captionLines(input: FrameInput): CaptionLine[] {
   const { beginS } = STUDY
   const threatIds = metrics.threats.map((threat) => threat.id)
   const many = threatIds.length > 1
-  const named = trackNamer(input)
+  const { ident, name: named } = trackNamer(input)
   // By position in the record, not by second: two looks on one second are two looks, and an
   // action belongs to the look before it in the record's order (#151 round 1). The whole run,
   // as the map draws it since S5f (#173).
   let k = 0
   const looks = new Map<string, number>()
   const lines: CaptionLine[] = []
-  const line = (text: string, id: string | null): CaptionLine => ({
+  const line = (text: string, id: string | null, escalation = false): CaptionLine => ({
     text,
-    threat: id !== null && threatIds.includes(id),
+    bold: escalation || (id !== null && threatIds.includes(id)),
   })
+  // The freeze's rule, before the first line the run wrote after it (ruled R2): the header names
+  // the second and the map draws a late look lighter, but the log is the artifact that runs on
+  // the clock, and the split between handling the threats and working on after them is what a
+  // reader is looking for. Nothing after the freeze, no rule.
+  let ruled = false
+  const ruleBefore = (t: number) => {
+    if (ruled || t <= metrics.freezeT) return
+    ruled = true
+    lines.push({ text: `frozen at ${mmss(metrics.freezeT)}`, bold: false, rule: true })
+  }
   for (const event of record.events) {
     if (event.type === 'select') {
       k += 1
       looks.set(event.track, k)
     }
+    ruleBefore(event.t)
     const tag = looks.has(event.track) ? `Look #${looks.get(event.track)}` : 'Unopened'
     const head = `${tag} · ${mmss(event.t)} — `
     if (event.type === 'select') {
@@ -248,7 +274,15 @@ export function captionLines(input: FrameInput): CaptionLine[] {
           : null
       const read = shown ? ` · ${sourceWord(shown)}` : ' · not in the picture'
       const atT0 = first ? `, ${(rangeM(first.track) / 1000).toFixed(1)} km at T0` : ''
-      lines.push(line(`${head}opened ${named(event.track)}${read}${atT0}.`, event.track))
+      // Where the screen's ident at this look is not the name the log gives the track, the line
+      // says what it read then (ruled R1): one name still rules the log, and what this keeps is
+      // that the screen said something else at that second — on the corroboration pair, the
+      // thing the run is about. Only where they differ, so no 03 line carries it.
+      const then =
+        shown && trackIdent(shown) !== ident(event.track)
+          ? `, reading ${trackIdent(shown)} then`
+          : ''
+      lines.push(line(`${head}opened ${named(event.track)}${read}${then}${atT0}.`, event.track))
       // On a Vigil frame only: what Vigil read at that second, in the app's own words (C6, C7).
       if (record.mode === 'vigil' && shown) {
         const entry = rankedAtSecond(study, plan, beginS + event.t).find(
@@ -281,6 +315,7 @@ export function captionLines(input: FrameInput): CaptionLine[] {
         line(
           `${head}escalated ${named(event.track)} ${km} km ${side} the ring · ${margin}${clock}.`,
           event.track,
+          true,
         ),
       )
       continue
@@ -290,7 +325,7 @@ export function captionLines(input: FrameInput): CaptionLine[] {
     )
     if (other)
       lines.push(
-        line(`${head}escalated ${named(event.track)} · ${outcomeWords(other)}.`, event.track),
+        line(`${head}escalated ${named(event.track)} · ${outcomeWords(other)}.`, event.track, true),
       )
   }
   // A miss, once, beneath the log, with the ring entry it crossed while the run watched.
@@ -585,7 +620,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const freezeS = beginS + metrics.freezeT
   const lines = captionLines(input)
   // One name per track, the log’s (S5g, #175): the ident without the role, for the map.
-  const ident = (id: string) => trackNamer(input)(id).replace(/ \(.*\)$/, '')
+  const { ident } = trackNamer(input)
   const captionH = 16 + lines.length * LINE_H + 12
   const parts: string[] = []
   // What the map has already drawn, for the one label whose place is computed (#170): a threat's
@@ -974,14 +1009,30 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const height = captionY + captionH
   const caption = [
     `<rect x="30" y="${captionY}" width="${PANEL.width - 60}" height="${captionH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
-    ...lines.map((line, i) =>
-      text(
-        46,
-        captionY + 16 + (i + 1) * LINE_H - 6,
-        line.text,
-        `class="caption" font-size="13" ${line.threat ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
-      ),
-    ),
+    ...lines.flatMap((line, i) => {
+      const y = captionY + 16 + (i + 1) * LINE_H - 6
+      if (line.rule !== true) {
+        return [
+          text(
+            46,
+            y,
+            line.text,
+            `class="caption" font-size="13" ${line.bold ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
+          ),
+        ]
+      }
+      // The rule sits on the line's own middle, its label to the left of it (R2).
+      const from = round1(46 + estimateWidth(line.text, 11) + 8)
+      return [
+        text(
+          46,
+          y - 3,
+          line.text,
+          `class="caption-rule-label" font-size="11" fill="${COLOR.faint}"`,
+        ),
+        `<line class="caption-rule" x1="${from}" y1="${y - 7}" x2="${PANEL.width - 46}" y2="${y - 7}" stroke="${COLOR.line}"/>`,
+      ]
+    }),
   ]
 
   const lines_ = [
