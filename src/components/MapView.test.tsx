@@ -759,8 +759,9 @@ describe('MapView', () => {
       paint: { 'icon-color': '#8b98a9' },
     })
     expect(layers['selected-entry-arrow'].layout['icon-offset'][1]).toBeCloseTo(5.75, 6)
-    // The reading: the same colour and face as the map's labels, anchored behind the
-    // arrowhead by the quadrant the path points into — outside the ring.
+    // The reading: the same colour and face as the map's labels, anchored ahead of the
+    // arrowhead by the quadrant the path points into — just inside the ring, clear of a close
+    // track's own marker.
     expect(layers['selected-entry-reading']).toMatchObject({
       type: 'symbol',
       layout: {
@@ -775,15 +776,15 @@ describe('MapView', () => {
     expect(layers['selected-entry-reading'].layout['text-anchor']).toEqual([
       'step',
       ['get', 'bearing'],
-      'top',
-      45,
-      'right',
-      135,
       'bottom',
-      225,
+      45,
       'left',
-      315,
+      135,
       'top',
+      225,
+      'right',
+      315,
+      'bottom',
     ])
     // Home hides the end with the path.
     rerender(
@@ -805,16 +806,26 @@ describe('MapView', () => {
       ([layer]) => layer.id === 'selected-trail-line',
     )![0]
     // The gradient runs over the line's progress, oldest point first as the trail is built:
-    // transparent at 0, the trail's blue at 1. No line-color: the gradient is the colour.
-    expect(layer.paint['line-gradient']).toEqual([
-      'interpolate',
-      ['linear'],
-      ['line-progress'],
-      0,
-      'rgba(76, 154, 255, 0)',
-      1,
-      '#4c9aff',
-    ])
+    // transparent at 0, the trail's blue at 1, concave between — the older half of the wake,
+    // the part outside a slow track's marker and ring, stays above half strength. No
+    // line-color: the gradient is the colour.
+    const gradient = layer.paint['line-gradient'] as unknown[]
+    expect(gradient.slice(0, 3)).toEqual(['interpolate', ['linear'], ['line-progress']])
+    const stops: [number, string][] = []
+    for (let i = 3; i < gradient.length; i += 2)
+      stops.push([gradient[i] as number, gradient[i + 1] as string])
+    expect(stops[0]).toEqual([0, 'rgba(76, 154, 255, 0)'])
+    expect(stops.at(-1)).toEqual([1, '#4c9aff'])
+    const alphaAt = (stop: [number, string]) => Number(stop[1].match(/, ([\d.]+)\)$/)?.[1] ?? 1)
+    for (let i = 1; i < stops.length; i++) {
+      // Monotone in progress and in alpha, and above the straight line between the ends.
+      expect(stops[i][0]).toBeGreaterThan(stops[i - 1][0])
+      expect(alphaAt(stops[i])).toBeGreaterThan(alphaAt(stops[i - 1]))
+      if (stops[i][0] < 1) expect(alphaAt(stops[i])).toBeGreaterThan(stops[i][0])
+    }
+    expect(
+      stops.every(([, colour]) => colour.startsWith('rgba(76, 154, 255') || colour === '#4c9aff'),
+    ).toBe(true)
     expect(layer.paint).not.toHaveProperty('line-color')
     expect(layer.paint['line-width']).toBe(1.5)
   })

@@ -149,8 +149,29 @@ const RING_COLOR = '#4c9aff'
  * dashed with an arrowhead where it meets the ring.
  */
 const PROJECTION_COLOR = '#8b98a9'
-/** The trail's colour with no alpha, for the gradient's old end. */
-const TRAIL_FADED = 'rgba(76, 154, 255, 0)'
+/**
+ * The trail's fade (S10, #182 item 1): full strength at the track, nothing at the oldest point,
+ * over the line's own progress. The curve is concave — the middle of the wake at three
+ * quarters, the last tenth at a third — because a slow track's newest minute lies under its
+ * marker and the selection ring (25 kt covers 13 px in a minute at the working zoom, the ring's
+ * radius), so the part of the wake an operator can see is the older half; a straight fade
+ * would leave it at half strength or less, which on this basemap is gone.
+ */
+const TRAIL_FADE: ExpressionSpecification = [
+  'interpolate',
+  ['linear'],
+  ['line-progress'],
+  0,
+  'rgba(76, 154, 255, 0)',
+  0.1,
+  'rgba(76, 154, 255, 0.32)',
+  0.3,
+  'rgba(76, 154, 255, 0.55)',
+  0.6,
+  'rgba(76, 154, 255, 0.77)',
+  1,
+  RING_COLOR,
+]
 
 /**
  * Cooperative traffic is drawn small, cool, and quiet on purpose (§3): it is the calm background
@@ -512,19 +533,7 @@ export function MapView({
         id: `${TRAIL_SOURCE}-line`,
         type: 'line',
         source: TRAIL_SOURCE,
-        paint: {
-          'line-gradient': [
-            'interpolate',
-            ['linear'],
-            ['line-progress'],
-            0,
-            TRAIL_FADED,
-            1,
-            RING_COLOR,
-          ],
-          'line-width': 1.5,
-          'line-opacity': 0.55,
-        },
+        paint: { 'line-gradient': TRAIL_FADE, 'line-width': 1.5, 'line-opacity': 0.55 },
       })
       // The projected path (#102) sits with the trail, under the injects: where the selected
       // track is going, from the dot to the ring — dashed (S10), so it is told from the trail
@@ -542,8 +551,9 @@ export function MapView({
         },
       })
       // Where the path meets the ring (S10): the arrowhead, its tip on the entry point, turned
-      // to the path's bearing; and the entry reading beside it, set behind the arrowhead —
-      // outside the ring — by the quadrant the path points into.
+      // to the path's bearing; and the entry reading beside it, set ahead of the arrowhead —
+      // just inside the ring, clear of the track's own marker, which a close track's short path
+      // ends beside — by the quadrant the path points into.
       map.addSource(ENTRY_SOURCE, { type: 'geojson', data: entryFeature([], null) })
       map.addLayer({
         id: `${ENTRY_SOURCE}-arrow`,
@@ -570,15 +580,15 @@ export function MapView({
           'text-anchor': [
             'step',
             ['get', 'bearing'],
-            'top',
-            45,
-            'right',
-            135,
             'bottom',
-            225,
+            45,
             'left',
-            315,
+            135,
             'top',
+            225,
+            'right',
+            315,
+            'bottom',
           ],
           'text-radial-offset': 1,
           'text-allow-overlap': true,
