@@ -76,20 +76,32 @@ describe('IdentityLegend', () => {
 })
 
 describe('ShapeGlyph (S9)', () => {
-  it('draws the map’s own polygons for the two glyphs and a circle for the dot, decoratively', () => {
+  it('draws the map’s own parts for the two glyphs and a circle for the dot, decoratively', () => {
     const { rerender } = render(<ShapeGlyph shape="aircraft" />)
     const svg = () => document.querySelector('.shape-glyph') as SVGElement
     expect(svg()).toHaveAttribute('aria-hidden', 'true')
-    expect(svg().querySelectorAll('polygon')).toHaveLength(GLYPHS.aircraft.length)
-    rerender(<ShapeGlyph shape="drone" />)
-    expect(svg().querySelectorAll('polygon')).toHaveLength(GLYPHS.drone.length)
-    // The first polygon's points are the glyph's first polygon, verbatim.
+    // The aircraft is one outline, its points verbatim.
+    expect(svg().querySelectorAll('polygon')).toHaveLength(1)
+    const [outline] = GLYPHS.aircraft
+    if (outline.kind !== 'polygon') throw new Error('the aircraft is one outline')
     expect(svg().querySelector('polygon')?.getAttribute('points')).toBe(
-      GLYPHS.drone[0].map(([x, y]) => `${x},${y}`).join(' '),
+      outline.points.map(([x, y]) => `${x},${y}`).join(' '),
     )
+    // The drone: the body a rounded square, four arms, four rotor rings stroked at their width
+    // and unfilled — the hole is the point (R1).
+    rerender(<ShapeGlyph shape="drone" />)
+    expect(svg().querySelectorAll('rect')).toHaveLength(1)
+    expect(svg().querySelectorAll('polygon')).toHaveLength(4)
+    const rings = [...svg().querySelectorAll('circle')]
+    expect(rings).toHaveLength(4)
+    for (const ring of rings) {
+      expect(ring.getAttribute('fill')).toBe('none')
+      expect(ring.getAttribute('stroke-width')).toBe('1.6')
+      expect(ring.getAttribute('r')).toBe('3.2')
+    }
     rerender(<ShapeGlyph shape="dot" />)
     expect(svg().querySelectorAll('polygon')).toHaveLength(0)
-    expect(svg().querySelector('circle')).not.toBeNull()
+    expect(svg().querySelector('circle')?.getAttribute('fill')).toBeNull()
   })
 })
 

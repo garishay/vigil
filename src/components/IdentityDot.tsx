@@ -1,5 +1,5 @@
 import { BANDS, BAND_LABEL } from '../config/scoring'
-import { GLYPHS, GLYPH_BOX, polygonPoints } from './glyphs'
+import { GLYPHS, GLYPH_BOX, polygonPoints, type Part } from './glyphs'
 import { BAND_COLOR, SHAPES, SHAPE_LABEL, type TrackShape, type WarmBand } from '../lib/display'
 import { IDENTITIES, IDENTITY_COLOR, IDENTITY_LABEL } from '../lib/identity'
 import type { Identity } from '../lib/tracks'
@@ -35,8 +35,37 @@ export function BandDot({ band }: { band: WarmBand }) {
   )
 }
 
+/** One glyph part as SVG: a polygon filled, a ring stroked at its width, the body a rounded square. */
+function GlyphPart({ part }: { part: Part }) {
+  switch (part.kind) {
+    case 'polygon':
+      return <polygon points={polygonPoints(part.points)} />
+    case 'ring':
+      return (
+        <circle
+          cx={part.center[0]}
+          cy={part.center[1]}
+          r={part.radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={part.width}
+        />
+      )
+    case 'rect':
+      return (
+        <rect
+          x={part.center[0] - part.size / 2}
+          y={part.center[1] - part.size / 2}
+          width={part.size}
+          height={part.size}
+          rx={part.corner}
+        />
+      )
+  }
+}
+
 /**
- * The map's shape as inline SVG (S9, #181): the same polygons the map rasterises, so the key and
+ * The map's shape as inline SVG (S9, #181): the same parts the map rasterises, so the key and
  * the marker cannot drift; the dot is the circle the map draws. Decorative, as the dots are, and
  * the brief's legend draws with it too (S8).
  */
@@ -52,7 +81,7 @@ export function ShapeGlyph({ shape }: { shape: TrackShape }) {
       {shape === 'dot' ? (
         <circle cx={c} cy={c} r={7} />
       ) : (
-        GLYPHS[shape].map((polygon, i) => <polygon key={i} points={polygonPoints(polygon)} />)
+        GLYPHS[shape].map((part, i) => <GlyphPart key={i} part={part} />)
       )}
     </svg>
   )

@@ -1,80 +1,120 @@
 /**
- * The map's two glyphs (S9, #181): an aircraft and a quadcopter, seen from above, nose up, as
- * polygons on a 24-unit box — original, drawn here rather than imported, like the drawer's
- * silhouettes (#22). The map rasterises them into signed-distance fields for MapLibre, whose
- * `icon-color` and `icon-halo-color` paint only an SDF image, so one shape takes the band fill,
- * the identity stroke, raw's neutral, and the dim from paint exactly as the dot does; the legend
- * draws the same polygons as SVG. Pure: no canvas, no DOM, so the raster is tested directly.
+ * The map's two glyphs (S9, #181): an aircraft and a quadcopter, seen from above, nose up, on a
+ * 24-unit box — original, drawn here rather than imported, like the drawer's silhouettes (#22).
+ * The map rasterises them into signed-distance fields for MapLibre, whose `icon-color` and
+ * `icon-halo-color` paint only an SDF image, so one shape takes the band fill, the identity
+ * stroke, raw's neutral, and the dim from paint exactly as the dot does; the legend draws the
+ * same parts as SVG. Pure: no canvas, no DOM, so the raster is tested directly.
  */
 
 export type Polygon = readonly (readonly [number, number])[]
 
-/** The glyph box, units. A glyph's union of polygons is the shape; nose up is north. */
+/**
+ * A glyph is the union of its parts: a polygon; an open ring, drawn as a band of `width` about
+ * a circle of `radius` (R1 on #181: a rotor is a ring, so it carries the shape without the ink
+ * a disc spends); a square with rounded corners.
+ */
+export type Part =
+  | { readonly kind: 'polygon'; readonly points: Polygon }
+  | {
+      readonly kind: 'ring'
+      readonly center: readonly [number, number]
+      readonly radius: number
+      readonly width: number
+    }
+  | {
+      readonly kind: 'rect'
+      readonly center: readonly [number, number]
+      readonly size: number
+      readonly corner: number
+    }
+
+/** The glyph box, units. A glyph's union of parts is the shape; nose up is north. */
 export const GLYPH_BOX = 24
+const C = GLYPH_BOX / 2
 
-/** A regular polygon standing in for a disc, so the raster reads the rotors exactly. */
-function disc(cx: number, cy: number, r: number, sides = 12): Polygon {
-  return Array.from({ length: sides }, (_, i) => {
-    const a = (i / sides) * 2 * Math.PI
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as const
-  })
-}
-
-/** A bar from the box's centre out to (x, y), `w` wide — a quadcopter's arm. */
-function arm(x: number, y: number, w: number): Polygon {
-  const c = GLYPH_BOX / 2
-  const len = Math.hypot(x - c, y - c)
-  const nx = (-(y - c) / len) * (w / 2)
-  const ny = ((x - c) / len) * (w / 2)
-  return [
-    [c + nx, c + ny],
-    [x + nx, y + ny],
-    [x - nx, y - ny],
-    [c - nx, c - ny],
-  ]
+/** A bar between two points, `w` wide — a quadcopter's arm, bridging the body to a rotor. */
+function bar(from: readonly [number, number], to: readonly [number, number], w: number): Part {
+  const len = Math.hypot(to[0] - from[0], to[1] - from[1])
+  const nx = (-(to[1] - from[1]) / len) * (w / 2)
+  const ny = ((to[0] - from[0]) / len) * (w / 2)
+  return {
+    kind: 'polygon',
+    points: [
+      [from[0] + nx, from[1] + ny],
+      [to[0] + nx, to[1] + ny],
+      [to[0] - nx, to[1] - ny],
+      [from[0] - nx, from[1] - ny],
+    ],
+  }
 }
 
 /**
- * The aircraft: one outline — a slender fuselage, swept wings, a tailplane — that reads as a
- * plane at the map's working size and claims nothing finer. The drone: a body with four arms to
- * four rotor discs, the X every quadcopter is drawn as; its arms run through the body so the
- * raster's inside distance holds across the joins.
+ * The drone's geometry, in units from the box's centre (the owner's note on #181, R1): four open
+ * rings at the corners, a small solid body, and arms no longer than the gap between the two —
+ * the rotors carry the shape. `ROTOR_AT` is a rotor's centre on each axis, `ARM` the arm's run
+ * along each axis. What moved from the note, and why, is in the PR.
  */
-export const GLYPHS: Record<'aircraft' | 'drone', readonly Polygon[]> = {
+const ROTOR_AT = 6.8
+const ROTOR_RADIUS = 3.2
+const ROTOR_WIDTH = 1.6
+const BODY = 5.5
+const BODY_CORNER = 1.2
+const ARM = [2.4, 4.2] as const
+const ARM_WIDTH = 1.5
+
+/** The four corners' signs, for the rotors and the arms. */
+const CORNERS: readonly (readonly [number, number])[] = [
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
+  [1, 1],
+]
+
+/**
+ * The aircraft: one outline — a slender fuselage, swept wings, a tailplane — that reads as a
+ * plane at the map's working size and claims nothing finer. The drone: the body, the four arms,
+ * the four rotor rings.
+ */
+export const GLYPHS: Record<'aircraft' | 'drone', readonly Part[]> = {
   aircraft: [
-    [
-      [12, 0.5],
-      [13.8, 3.4],
-      [13.8, 8],
-      [23.5, 13.2],
-      [23.5, 16.4],
-      [13.8, 12.8],
-      [13.8, 18.2],
-      [17.6, 21.2],
-      [17.6, 23.5],
-      [13.2, 22.4],
-      [12, 23.5],
-      [10.8, 22.4],
-      [6.4, 23.5],
-      [6.4, 21.2],
-      [10.2, 18.2],
-      [10.2, 12.8],
-      [0.5, 16.4],
-      [0.5, 13.2],
-      [10.2, 8],
-      [10.2, 3.4],
-    ],
+    {
+      kind: 'polygon',
+      points: [
+        [12, 0.5],
+        [13.8, 3.4],
+        [13.8, 8],
+        [23.5, 13.2],
+        [23.5, 16.4],
+        [13.8, 12.8],
+        [13.8, 18.2],
+        [17.6, 21.2],
+        [17.6, 23.5],
+        [13.2, 22.4],
+        [12, 23.5],
+        [10.8, 22.4],
+        [6.4, 23.5],
+        [6.4, 21.2],
+        [10.2, 18.2],
+        [10.2, 12.8],
+        [0.5, 16.4],
+        [0.5, 13.2],
+        [10.2, 8],
+        [10.2, 3.4],
+      ],
+    },
   ],
   drone: [
-    disc(12, 12, 2.5, 8),
-    arm(5.6, 5.6, 1.3),
-    arm(18.4, 5.6, 1.3),
-    arm(5.6, 18.4, 1.3),
-    arm(18.4, 18.4, 1.3),
-    disc(5.6, 5.6, 1.8),
-    disc(18.4, 5.6, 1.8),
-    disc(5.6, 18.4, 1.8),
-    disc(18.4, 18.4, 1.8),
+    { kind: 'rect', center: [C, C], size: BODY, corner: BODY_CORNER },
+    ...CORNERS.map(([sx, sy]) =>
+      bar([C + sx * ARM[0], C + sy * ARM[0]], [C + sx * ARM[1], C + sy * ARM[1]], ARM_WIDTH),
+    ),
+    ...CORNERS.map(([sx, sy]): Part => ({
+      kind: 'ring',
+      center: [C + sx * ROTOR_AT, C + sy * ROTOR_AT],
+      radius: ROTOR_RADIUS,
+      width: ROTOR_WIDTH,
+    })),
   ],
 }
 
@@ -103,20 +143,40 @@ function edgeDistance(polygon: Polygon, [px, py]: readonly [number, number]): nu
   return best
 }
 
+/** One part's signed distance: negative inside, the distance to its boundary either way. */
+function partDistance(part: Part, [px, py]: readonly [number, number]): number {
+  switch (part.kind) {
+    case 'polygon':
+      return (contains(part.points, [px, py]) ? -1 : 1) * edgeDistance(part.points, [px, py])
+    case 'ring':
+      return (
+        Math.abs(Math.hypot(px - part.center[0], py - part.center[1]) - part.radius) -
+        part.width / 2
+      )
+    case 'rect': {
+      const qx = Math.abs(px - part.center[0]) - (part.size / 2 - part.corner)
+      const qy = Math.abs(py - part.center[1]) - (part.size / 2 - part.corner)
+      return (
+        Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - part.corner
+      )
+    }
+  }
+}
+
 /**
  * The signed distance from a point to the union's boundary, negative inside: outside, the
- * nearest polygon's edge; inside, the deepest containing polygon's — exact for one polygon and
- * for a union whose overlaps run deep, which is how the drone is drawn.
+ * nearest part's boundary; inside, the deepest containing part's — exact for one part and for a
+ * union whose overlaps run deep, which is how the drone's arms meet its body and its rings.
  */
-export function signedDistance(polygons: readonly Polygon[], point: readonly [number, number]) {
+export function signedDistance(parts: readonly Part[], point: readonly [number, number]) {
   let inside = false
   let deepest = 0
   let nearest = Infinity
-  for (const polygon of polygons) {
-    const d = edgeDistance(polygon, point)
-    if (contains(polygon, point)) {
+  for (const part of parts) {
+    const d = partDistance(part, point)
+    if (d < 0) {
       inside = true
-      deepest = Math.max(deepest, d)
+      deepest = Math.max(deepest, -d)
     } else {
       nearest = Math.min(nearest, d)
     }
@@ -144,19 +204,19 @@ export interface GlyphImage {
  * drawn `boxPx` screen pixels wide at the given ratio, the distance in the alpha channel and
  * nothing in the colour channels, since paint supplies the colour.
  */
-export function glyphImage(polygons: readonly Polygon[], boxPx: number, pixelRatio: number) {
+export function glyphImage(parts: readonly Part[], boxPx: number, pixelRatio: number) {
   const scale = (boxPx * pixelRatio) / GLYPH_BOX
   const size = Math.ceil(GLYPH_BOX * scale) + 2 * SDF_PAD_PX
   const data = new Uint8ClampedArray(size * size * 4)
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const point = [(x + 0.5 - SDF_PAD_PX) / scale, (y + 0.5 - SDF_PAD_PX) / scale] as const
-      const d = signedDistance(polygons, point) * scale
+      const d = signedDistance(parts, point) * scale
       data[(y * size + x) * 4 + 3] = Math.round(255 - 255 * (d / SDF_RADIUS_PX + SDF_CUTOFF))
     }
   }
   return { width: size, height: size, data } satisfies GlyphImage
 }
 
-/** The polygons as SVG `points` strings, for the legend and the brief. */
+/** A polygon as an SVG `points` string, for the legend and the brief. */
 export const polygonPoints = (polygon: Polygon) => polygon.map(([x, y]) => `${x},${y}`).join(' ')

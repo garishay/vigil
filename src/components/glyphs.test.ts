@@ -5,19 +5,39 @@ import {
   glyphImage,
   polygonPoints,
   signedDistance,
+  type Part,
   type Polygon,
 } from './glyphs'
+
+/** A part's extent on each axis, for the box check. */
+function extent(part: Part): [number, number, number, number] {
+  switch (part.kind) {
+    case 'polygon': {
+      const xs = part.points.map(([x]) => x)
+      const ys = part.points.map(([, y]) => y)
+      return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
+    }
+    case 'ring': {
+      const r = part.radius + part.width / 2
+      return [part.center[0] - r, part.center[0] + r, part.center[1] - r, part.center[1] + r]
+    }
+    case 'rect': {
+      const h = part.size / 2
+      return [part.center[0] - h, part.center[0] + h, part.center[1] - h, part.center[1] + h]
+    }
+  }
+}
 
 describe('the two glyphs (S9, #181)', () => {
   it('sit inside the 24-unit box, nose up, mirrored about the vertical axis', () => {
     for (const glyph of Object.values(GLYPHS)) {
-      for (const polygon of glyph)
-        for (const [x, y] of polygon) {
-          expect(x).toBeGreaterThanOrEqual(0)
-          expect(x).toBeLessThanOrEqual(GLYPH_BOX)
-          expect(y).toBeGreaterThanOrEqual(0)
-          expect(y).toBeLessThanOrEqual(GLYPH_BOX)
-        }
+      for (const part of glyph) {
+        const [x0, x1, y0, y1] = extent(part)
+        expect(x0).toBeGreaterThanOrEqual(0)
+        expect(x1).toBeLessThanOrEqual(GLYPH_BOX)
+        expect(y0).toBeGreaterThanOrEqual(0)
+        expect(y1).toBeLessThanOrEqual(GLYPH_BOX)
+      }
       // Symmetric: the signed distance reads the same on either side of the axis, sampled.
       for (let y = 0.5; y < GLYPH_BOX; y += 1)
         for (let x = 0.5; x < GLYPH_BOX / 2; x += 1)
@@ -28,33 +48,61 @@ describe('the two glyphs (S9, #181)', () => {
     }
     // The aircraft's nose is its topmost point, on the axis: `icon-rotate` by the heading turns
     // the nose to the course.
-    const [nose] = GLYPHS.aircraft[0]
+    const [outline] = GLYPHS.aircraft
+    if (outline.kind !== 'polygon') throw new Error('the aircraft is one outline')
+    const [nose] = outline.points
     expect(nose).toEqual([GLYPH_BOX / 2, 0.5])
-    expect(GLYPHS.aircraft[0].every(([, y]) => y >= nose[1])).toBe(true)
+    expect(outline.points.every(([, y]) => y >= nose[1])).toBe(true)
   })
 
-  it('reads as one plane and one quadcopter: the fuselage and the body are inside, the box corner is out', () => {
+  it('reads as one plane and one quadcopter: the rotors are open rings, the body solid, the arms bridge them (R1)', () => {
     const c = GLYPH_BOX / 2
     expect(signedDistance(GLYPHS.aircraft, [c, c])).toBeLessThan(0)
+    // The body's centre is inside; a rotor's band is inside and its hole is not — a ring, not a
+    // disc; the top edge's midpoint between two rotors is not; an arm's midpoint is.
     expect(signedDistance(GLYPHS.drone, [c, c])).toBeLessThan(0)
-    // A rotor disc's centre is inside the drone; the top edge's midpoint, between two discs, is
-    // not — the X, not a blob.
-    expect(signedDistance(GLYPHS.drone, [5.6, 5.6])).toBeLessThan(0)
+    expect(signedDistance(GLYPHS.drone, [c - 6.8 + 3.2, c - 6.8])).toBeLessThan(0)
+    expect(signedDistance(GLYPHS.drone, [c - 6.8, c - 6.8])).toBeGreaterThan(0)
     expect(signedDistance(GLYPHS.drone, [c, 2])).toBeGreaterThan(0)
+    expect(signedDistance(GLYPHS.drone, [c - 3.3, c - 3.3])).toBeLessThan(0)
+    // The arm reaches from inside the body to inside the ring's band: no gap on the diagonal
+    // out to the band (axis offset 3.97 to 5.10), then the hole.
+    for (let d = 2; d <= 5; d += 0.25)
+      expect([d, signedDistance(GLYPHS.drone, [c - d, c - d]) < 0]).toEqual([d, true])
+    expect(signedDistance(GLYPHS.drone, [c - 6, c - 6])).toBeGreaterThan(0)
     // The aircraft's wing tip is inside and the space behind the wing root is not.
     expect(signedDistance(GLYPHS.aircraft, [22, 15])).toBeLessThan(0)
     expect(signedDistance(GLYPHS.aircraft, [18, 20])).toBeGreaterThan(0)
     expect(signedDistance(GLYPHS.aircraft, [0.2, 0.2])).toBeGreaterThan(0)
   })
+
+  it('draws the drone as the owner’s note has it: rings at ±6.8, radius 3.2, width 1.6; a 5.5 body; arms from 2.4 to 4.2', () => {
+    const c = GLYPH_BOX / 2
+    const rings = GLYPHS.drone.filter((part) => part.kind === 'ring')
+    expect(rings).toHaveLength(4)
+    for (const ring of rings) {
+      if (ring.kind !== 'ring') throw new Error('ring')
+      expect(Math.abs(ring.center[0] - c)).toBeCloseTo(6.8, 9)
+      expect(Math.abs(ring.center[1] - c)).toBeCloseTo(6.8, 9)
+      expect([ring.radius, ring.width]).toEqual([3.2, 1.6])
+    }
+    const [body] = GLYPHS.drone
+    expect(body).toEqual({ kind: 'rect', center: [c, c], size: 5.5, corner: 1.2 })
+    const arms = GLYPHS.drone.filter((part) => part.kind === 'polygon')
+    expect(arms).toHaveLength(4)
+  })
 })
 
 describe('signedDistance', () => {
-  const square: Polygon = [
-    [4, 4],
-    [20, 4],
-    [20, 20],
-    [4, 20],
-  ]
+  const square: Part = {
+    kind: 'polygon',
+    points: [
+      [4, 4],
+      [20, 4],
+      [20, 20],
+      [4, 20],
+    ],
+  }
 
   it('is the distance to the nearest edge, negative inside, zero on the edge', () => {
     expect(signedDistance([square], [12, 12])).toBe(-8)
@@ -65,13 +113,29 @@ describe('signedDistance', () => {
     expect(signedDistance([square], [1, 0])).toBeCloseTo(5, 6)
   })
 
-  it('takes the deepest containing polygon inside a union, so an overlap leaves no seam', () => {
-    const bar: Polygon = [
-      [0, 11],
-      [24, 11],
-      [24, 13],
-      [0, 13],
-    ]
+  it('reads a ring as a band about its circle, its hole outside, and a rounded square by its corner', () => {
+    const ring: Part = { kind: 'ring', center: [12, 12], radius: 5, width: 2 }
+    expect(signedDistance([ring], [12, 12])).toBe(4)
+    expect(signedDistance([ring], [17, 12])).toBe(-1)
+    expect(signedDistance([ring], [18, 12])).toBeCloseTo(0, 12)
+    expect(signedDistance([ring], [19, 12])).toBe(1)
+    const rect: Part = { kind: 'rect', center: [12, 12], size: 6, corner: 1 }
+    expect(signedDistance([rect], [12, 12])).toBe(-3)
+    expect(signedDistance([rect], [16, 12])).toBe(1)
+    // The corner is rounded: the square's corner point is outside by the rounding.
+    expect(signedDistance([rect], [15, 15])).toBeCloseTo(Math.SQRT2 * 1 - 1, 6)
+  })
+
+  it('takes the deepest containing part inside a union, so an overlap leaves no seam', () => {
+    const bar: Part = {
+      kind: 'polygon',
+      points: [
+        [0, 11],
+        [24, 11],
+        [24, 13],
+        [0, 13],
+      ],
+    }
     // Inside both: the square's 8 beats the bar's 1. Inside the bar alone: the bar's own edge.
     expect(signedDistance([square, bar], [12, 12])).toBe(-8)
     expect(signedDistance([square, bar], [2, 12])).toBe(-1)
@@ -81,12 +145,15 @@ describe('signedDistance', () => {
 })
 
 describe('glyphImage', () => {
-  const square: Polygon = [
-    [4, 4],
-    [20, 4],
-    [20, 20],
-    [4, 20],
-  ]
+  const square: Part = {
+    kind: 'polygon',
+    points: [
+      [4, 4],
+      [20, 4],
+      [20, 20],
+      [4, 20],
+    ],
+  }
 
   it('encodes the distance as MapLibre reads an SDF: the edge at 191 of 255, 8 pixels of range, in alpha alone', () => {
     // A 22 px box at ratio 2: 44 px for the glyph, 7 px of margin each side.
@@ -132,7 +199,19 @@ describe('glyphImage', () => {
     }
   })
 
+  it('keeps a rotor’s hole open in the raster at the map’s own size', () => {
+    // At 22 px and ratio 2 the hole is 4.4 image px across; its centre pixel reads outside.
+    const image = glyphImage(GLYPHS.drone, 22, 2)
+    const scale = 44 / GLYPH_BOX
+    const px = Math.round(7 + (12 - 6.8) * scale)
+    expect(image.data[(px * image.width + px) * 4 + 3]).toBeLessThan(191)
+  })
+
   it('prints a polygon as SVG points', () => {
-    expect(polygonPoints(square)).toBe('4,4 20,4 20,20 4,20')
+    const polygon: Polygon = [
+      [4, 4],
+      [20, 4],
+    ]
+    expect(polygonPoints(polygon)).toBe('4,4 20,4')
   })
 })
