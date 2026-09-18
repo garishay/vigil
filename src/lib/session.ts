@@ -250,3 +250,9 @@ export function resolveSession(
     study,
   }
 }
+
+/**
+ * `?sheet` — the sheet page rather than the app (S6a, #165, A4). Read before the session is
+ * resolved: the page takes files, not a feed, and a link to it names neither.
+ */
+export const isSheetPage = (search: string): boolean => new URLSearchParams(search).has('sheet')
