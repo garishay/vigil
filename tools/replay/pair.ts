@@ -20,8 +20,9 @@ import {
   THEME,
   type FrameInput,
   type FrameOptions,
+  trackNamer,
 } from './frame.ts'
-import type { RunMetrics, ThreatMetrics } from './metrics.ts'
+import type { ThreatMetrics } from './metrics.ts'
 
 const FONT = 'system-ui, sans-serif'
 const GAP = 20
@@ -59,7 +60,11 @@ const kmWord = (m: number): string => `${m >= 0 ? '+' : '−'}${(Math.abs(m) / 1
  * The order is the escalations' positions in the record — the verdict's own reading, so two on
  * one second keep the order the record writes (#161 round 1).
  */
-export function orderWords(m: RunMetrics, record: RunRecord): string {
+export function orderWords(input: FrameInput): string {
+  const { metrics: m, record } = input
+  // The threats are named as the frames above the block name them (#177, R1): the run's own
+  // screen name at its freeze, never the study's id, which no screen printed.
+  const { ident } = trackNamer(input)
   if (m.orderCorrect === true) return '✓'
   if (m.orderCorrect === false) {
     const at = (id: string) =>
@@ -67,21 +72,23 @@ export function orderWords(m: RunMetrics, record: RunRecord): string {
     const order = [...m.threats]
       .filter((threat) => at(threat.id) >= 0)
       .sort((a, b) => at(a.id) - at(b.id))
-      .map((threat) => threat.id)
+      .map((threat) => ident(threat.id))
     return `✗ (${order.join(' before ')})`
   }
-  const missed = m.threats.filter((threat) => threat.miss).map((threat) => threat.id)
+  const missed = m.threats.filter((threat) => threat.miss).map((threat) => ident(threat.id))
   return `— (${missed.length > 0 ? `${missed.join(', ')} missed` : 'one threat'})`
 }
 
 /** The counts line: each attention number for both conditions, the order last on the pair only. */
 export function countsLine(
-  a: RunMetrics,
-  b: RunMetrics,
+  [left, right]: [FrameInput, FrameInput],
   aWord: string,
   bWord: string,
-  records: [RunRecord, RunRecord],
 ): string {
+  // The two runs once: the numbers and the order clause read the same pair, which a separate
+  // pair of metrics could not be held to (#178 round 1).
+  const a = left.metrics
+  const b = right.metrics
   const item = (label: string, x: string, y: string) => `${label} ${aWord} ${x} · ${bWord} ${y}`
   const items = [
     item(
@@ -95,9 +102,7 @@ export function countsLine(
       String(a.escalationsOfLaterEntrants),
       String(b.escalationsOfLaterEntrants),
     ),
-    ...(a.threats.length > 1
-      ? [item('order', orderWords(a, records[0]), orderWords(b, records[1]))]
-      : []),
+    ...(a.threats.length > 1 ? [item('order', orderWords(left), orderWords(right))] : []),
   ]
   return items.join('     |     ')
 }
@@ -122,6 +127,26 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
   }
   const aWord = conditionWord(left.record)
   const bWord = conditionWord(right.record)
+  // What tells the two runs apart, for a row that must say which name is whose: the condition
+  // word where the modes differ, else the subject, else the run index. The pair takes two runs
+  // of one scenario "whatever their modes or subjects", so the condition word alone would label
+  // both sides of a same-mode pair the same way (#178 round 1).
+  const [aSide, bSide] =
+    aWord !== bWord
+      ? [aWord, bWord]
+      : left.record.subject !== right.record.subject
+        ? [left.record.subject, right.record.subject]
+        : [`run ${left.record.run}`, `run ${right.record.run}`]
+  // The row names its track the way each run's screen named it, the frame's rule (#177, R1): the
+  // two frames stand on this same document, so an id neither screen printed would be a third
+  // name for one track. A pair reads one scenario, so the two names agree unless the screens
+  // differed — which is what F2 protects, and what the 02 cast does.
+  const aNames = trackNamer(left)
+  const bNames = trackNamer(right)
+  const rowName = (id: string) =>
+    aNames.ident(id) === bNames.ident(id)
+      ? aNames.ident(id)
+      : `${aNames.ident(id)} ${aSide}, ${bNames.ident(id)} ${bSide}`
   const aColor = CONDITION_COLOR[left.record.mode]
   const bColor = CONDITION_COLOR[right.record.mode]
   const width = l.width + GAP + r.width
@@ -159,7 +184,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
     text(
       BLOCK_PAD,
       y + 50,
-      countsLine(a, b, aWord, bWord, [left.record, right.record]),
+      countsLine([left, right], aWord, bWord),
       `class="counts" font-size="14" fill="${THEME.text}"`,
     ),
   )
@@ -179,7 +204,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
       text(
         BLOCK_PAD,
         ry + 26,
-        rows > 1 ? `threat ${i + 1} · ${threat.id}` : `the threat · ${threat.id}`,
+        `${rows > 1 ? `threat ${i + 1}` : 'the threat'} · ${rowName(threat.id)}`,
         `class="row-title" data-id="${esc(threat.id)}" font-size="15" font-weight="600" fill="${THEME.text}"`,
       ),
       text(

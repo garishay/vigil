@@ -14,7 +14,6 @@
  * that condition's colour. Pure and deterministic; the metrics and the CSV are untouched.
  */
 
-import { trackIdent } from '../../src/lib/display.ts'
 import { bearingDegrees } from '../../src/lib/geo.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
 import { STUDY } from '../../src/config/study.ts'
@@ -26,6 +25,7 @@ import {
   wrapText,
   outcomeWords,
   THEME,
+  trackNamer,
   type FrameInput,
   type FrameOptions,
 } from './frame.ts'
@@ -150,16 +150,13 @@ function joinClauses(clauses: readonly (readonly [string, string])[]): string {
 export function countsChunks(input: FrameInput): string[] {
   const { metrics: m, record } = input
   const others = otherEscalations(record, input.study.index, input.plan)
-  const named = others.map((other) => {
-    const shown = trackAtSecond(
-      input.study.index,
-      input.plan,
-      other.id,
-      STUDY.beginS + other.t,
-      record.mode,
-    )
-    return `${shown ? trackIdent(shown) : other.id} at ${mmss(other.t)} (${outcomeWords(other)})`
-  })
+  // The run's own name for the track, the frame's rule (#177): the ident the screen showed at
+  // the freeze, falling back to the track's last event. Resolving it here at the escalation's
+  // own second would print one ident where the frame beside it prints another.
+  const { ident } = trackNamer(input)
+  const named = others.map(
+    (other) => `${ident(other.id)} at ${mmss(other.t)} (${outcomeWords(other)})`,
+  )
   const order =
     m.orderCorrect === null
       ? ''
@@ -274,6 +271,11 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
   const rows = a.threats.length
   const aColor = CONDITION_COLOR.raw
   const bColor = CONDITION_COLOR.vigil
+  // Each run names its own tracks by the frame's rule, so a row's two sides read as the two
+  // frames above them do — and where the two conditions' screens differed, the subtitle shows
+  // that difference rather than hiding it behind an id neither screen printed (#177).
+  const unaidedNames = trackNamer(unaided)
+  const vigilNames = trackNamer(vigil)
   // The other escalations, per condition (S5f, #173): the row below exists when either run made
   // one, and its height is its own — a lane apiece and a line of words per escalation.
   const others: [FrameInput, string, string][] = [
@@ -390,7 +392,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       text(
         PAD,
         ry + 46,
-        `unaided ${a.scenario} ${threat.id} · with Vigil ${b.scenario} ${other.id}`,
+        `unaided ${a.scenario} ${unaidedNames.ident(threat.id)} · with Vigil ${b.scenario} ${vigilNames.ident(other.id)}`,
         `class="row-subtitle" font-size="12" fill="${THEME.muted}"`,
       ),
       `<line class="time-axis" x1="${TIME_X}" y1="${ay}" x2="${TIME_X + TIME_W}" y2="${ay}" stroke="${THEME.faint}"/>`,
@@ -579,18 +581,16 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         )
         return
       }
+      const { ident } = side === 'unaided' ? unaidedNames : vigilNames
       for (const other of made) {
-        const shown = trackAtSecond(
-          input.study.index,
-          input.plan,
-          other.id,
-          STUDY.beginS + other.t,
-          input.record.mode,
-        )
-        const ident = shown ? trackIdent(shown) : other.id
         parts.push(
           `<circle class="other-mark-${side}" data-id="${esc(other.id)}" data-t="${other.t}" cx="${tX(other.t)}" cy="${ly}" r="4.5" fill="${color}"/>`,
-          text(tX(other.t), ly - 10, ident, `font-size="11" fill="${color}" text-anchor="middle"`),
+          text(
+            tX(other.t),
+            ly - 10,
+            ident(other.id),
+            `font-size="11" fill="${color}" text-anchor="middle"`,
+          ),
         )
         // The words under the row, in the lane's colour and in the run's order: the mark says
         // when, the line says what it turned out to be — never "a non-threat" for a due-later
@@ -600,7 +600,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
           text(
             PAD + 16,
             ry + OTHER_TOP + line * 18,
-            `${side === 'unaided' ? 'unaided' : 'Vigil'} · ${ident} escalated ${mmss(other.t)} — ${outcomeWords(other)}`,
+            `${side === 'unaided' ? 'unaided' : 'Vigil'} · ${ident(other.id)} escalated ${mmss(other.t)} — ${outcomeWords(other)}`,
             `class="other-legend-${side}" data-id="${esc(other.id)}" font-size="11" fill="${THEME.text}"`,
           ),
         )
