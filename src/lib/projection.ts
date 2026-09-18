@@ -160,3 +160,20 @@ export function timeToEntry(
   }
   return inside ? { kind: 'inside', ...named(inside.site), coastedS } : best
 }
+
+/**
+ * The path the map draws for the selected track (S10, #182): its position to the point where
+ * the course meets the ring while the estimate is an entry, or the course run out to the row's
+ * horizon when it meets none; nothing inside a ring, nothing with no speed or heading to
+ * project. Two points or none.
+ */
+export function projectedPath(
+  track: Projectable,
+  estimate: EntryEstimate | null,
+): [number, number][] {
+  if (!estimate) return []
+  if (estimate.kind === 'entry') return [track.position, estimate.point]
+  if (estimate.kind !== 'none') return []
+  const end = projectPosition(track, estimate.horizonS)
+  return end === track.position ? [] : [track.position, end]
+}

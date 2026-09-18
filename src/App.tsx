@@ -23,7 +23,7 @@ import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback
 import { clearFor, foldAlerts, type Alert } from './lib/alerts'
 import { formatElapsed, recordingLabel, simClock, trackIdent, type WarmBand } from './lib/display'
 import { mergePicture } from './lib/feeds'
-import { projectPosition, timeToEntry } from './lib/projection'
+import { projectedPath, timeToEntry } from './lib/projection'
 import {
   STATUSES,
   STATUS_LABEL,
@@ -570,15 +570,12 @@ export default function App({
     [selected, sites],
   )
   // The path the map draws (S10, #182): to the ring where the course meets it, else the course
-  // run out to the horizon the row reads under — nothing inside a ring, nothing with no speed or
-  // heading to project. The reading at its end is the row's own seconds; null where it misses.
-  const projection = useMemo<readonly [number, number][]>(() => {
-    if (!selected || !entryEstimate) return []
-    if (entryEstimate.kind === 'entry') return [selected.track.position, entryEstimate.point]
-    if (entryEstimate.kind !== 'none') return []
-    const end = projectPosition(selected.track, entryEstimate.horizonS)
-    return end === selected.track.position ? [] : [selected.track.position, end]
-  }, [selected, entryEstimate])
+  // run out to the horizon the row reads under — one pure call, as the estimate is. The reading
+  // at its end is the row's own seconds; null where it misses.
+  const projection = useMemo<readonly [number, number][]>(
+    () => (selected ? projectedPath(selected.track, entryEstimate) : []),
+    [selected, entryEstimate],
+  )
   const projectionEntryS = entryEstimate?.kind === 'entry' ? entryEstimate.tSec : null
   const logFor = (entry: RankedTrack): TrackEvent[] =>
     eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), now(), tSec)
