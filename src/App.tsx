@@ -1162,7 +1162,14 @@ export default function App({
           json={json}
           saved={json !== null && !saveRefused}
           onDownload={() => json !== null && downloadRun(study.subject, study.run, json)}
-          onNext={nextSearch === null ? undefined : () => navigate(nextSearch)}
+          // The way on reads what this browser holds now, not what it held at mount: a
+          // subject who ran run 2 first and then run 1 has both, and offering Start run 2
+          // there would name a run already given (Codex, round 1).
+          onNext={
+            nextSearch === null || savedRuns.some((saved) => saved.run === study.run + 1)
+              ? undefined
+              : () => navigate(nextSearch)
+          }
         />
       )}
     </div>

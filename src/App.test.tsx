@@ -2697,6 +2697,23 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     if (real) Object.defineProperty(window, 'location', real)
   })
 
+  it('does not offer a run this browser already holds, however the session was run', () => {
+    // Run 2 first, then run 1 — a direct run-2 link is run as asked (E7), so this is reachable.
+    // The way on must read what the store holds now, not what it held when the page opened.
+    localStorage.setItem('vigil.run.S03.2', JSON.stringify(savedRun(2)))
+    const { replay } = open(paired('raw', 1))
+    toTheEnd(replay)
+    answerAll()
+    expect(within(dialog()).getByText(/is saved in this browser/)).toHaveTextContent(
+      'Run 1 is saved in this browser.',
+    )
+    expect(within(dialog()).queryByRole('button', { name: 'Start run 2' })).toBeNull()
+    // And the run that was already there is untouched.
+    expect(JSON.parse(localStorage.getItem('vigil.run.S03.2') as string)).toMatchObject({
+      run: 2,
+    })
+  })
+
   it('shows the session as complete rather than the brief when both runs are saved', () => {
     localStorage.setItem('vigil.run.S03.1', JSON.stringify(savedRun(1)))
     localStorage.setItem('vigil.run.S03.2', JSON.stringify(savedRun(2)))
