@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { frameSvg, trackNamer, type FrameInput } from './frame.ts'
 import type { RunRecord } from '../../src/lib/run.ts'
-import { loadStudy, planFor, readRun } from './load.ts'
+import { planFor } from './load.ts'
+import { loadStudy, readRuns } from './files.ts'
 import { runMetrics } from './metrics.ts'
 import { conditionWord, countsLine, orderWords, pairName, pairSvg } from './pair.ts'
 
 const study = loadStudy()
 const fixture = (name: string): FrameInput => {
-  const record = readRun(`tools/replay/__fixtures__/${name}.json`)
+  const record = readRuns(`tools/replay/__fixtures__/${name}.json`)[0]
   const plan = planFor(record.scenario, study.timeline)
   return { record, plan, study, metrics: runMetrics(record, study.index, plan) }
 }

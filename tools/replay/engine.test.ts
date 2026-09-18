@@ -4,7 +4,8 @@ import { STUDY } from '../../src/config/study.ts'
 import { AO } from '../../src/config/ao.ts'
 import { reasonTag } from '../../src/lib/display.ts'
 import { candidatesAt, rankedAtSecond } from './engine.ts'
-import { loadStudy, planFor } from './load.ts'
+import { planFor } from './load.ts'
+import { loadStudy } from './files.ts'
 
 const study = loadStudy()
 const FREEZE = STUDY.beginS + 58

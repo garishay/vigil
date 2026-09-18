@@ -14,7 +14,7 @@
  * reads *unaided* wherever the figure names it. Pure and deterministic.
  */
 
-import { STUDY_CAST, type Family } from '../../scripts/study.ts'
+import { STUDY_CAST, type Family } from '../../scripts/study-spec.ts'
 import { CONDITION_COLOR, mmss, THEME } from './frame.ts'
 import type { RunMetrics } from './metrics.ts'
 

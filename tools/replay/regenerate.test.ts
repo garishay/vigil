@@ -3,7 +3,8 @@ import { REVISIT_ID, THREAT_ID } from '../../scripts/study.ts'
 import { SCORING } from '../../src/config/scoring.ts'
 import { STUDY } from '../../src/config/study.ts'
 import { trackIdent } from '../../src/lib/display.ts'
-import { loadStudy, planFor } from './load.ts'
+import { planFor } from './load.ts'
+import { loadStudy } from './files.ts'
 import {
   associationFor,
   entrySecond,

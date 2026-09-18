@@ -19,7 +19,7 @@
  * escalations' positions in the record, and null before.
  */
 
-import { STUDY_CAST } from '../../scripts/study.ts'
+import { STUDY_CAST } from '../../scripts/study-spec.ts'
 import { STUDY } from '../../src/config/study.ts'
 import { runSOf } from './load.ts'
 import type { InjectPlan } from '../../src/lib/injects.ts'

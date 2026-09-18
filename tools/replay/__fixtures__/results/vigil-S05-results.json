@@ -1,0 +1,131 @@
+{
+  "subject": "S05",
+  "build": "2.60.0+a2b58ca",
+  "runs": [
+    {
+      "subject": "S05",
+      "scenario": "03a",
+      "mode": "raw",
+      "run": 1,
+      "build": "2.60.0+a2b58ca",
+      "began_at": "2026-09-17T15:15:54.751Z",
+      "events": [
+        {
+          "t": 12,
+          "type": "select",
+          "track": "inject-35"
+        },
+        {
+          "t": 27,
+          "type": "select",
+          "track": "inject-36"
+        },
+        {
+          "t": 41,
+          "type": "select",
+          "track": "inject-57"
+        },
+        {
+          "t": 50,
+          "type": "assess",
+          "track": "inject-57"
+        },
+        {
+          "t": 58,
+          "type": "escalate",
+          "track": "inject-57"
+        },
+        {
+          "t": 66,
+          "type": "select",
+          "track": "inject-74"
+        },
+        {
+          "t": 84,
+          "type": "select",
+          "track": "inject-31"
+        },
+        {
+          "t": 90,
+          "type": "assess",
+          "track": "inject-31"
+        },
+        {
+          "t": 97,
+          "type": "escalate",
+          "track": "inject-31"
+        },
+        {
+          "t": 130,
+          "type": "select",
+          "track": "inject-65"
+        },
+        {
+          "t": 140,
+          "type": "assess",
+          "track": "inject-65"
+        },
+        {
+          "t": 150,
+          "type": "escalate",
+          "track": "inject-65"
+        }
+      ],
+      "answers": {
+        "demand": 5,
+        "pressure": 6,
+        "confidence": 4
+      }
+    },
+    {
+      "subject": "S05",
+      "scenario": "03a",
+      "mode": "vigil",
+      "run": 2,
+      "build": "2.60.0+a2b58ca",
+      "began_at": "2026-09-17T15:15:54.753Z",
+      "events": [
+        {
+          "t": 11,
+          "type": "select",
+          "track": "inject-31"
+        },
+        {
+          "t": 24,
+          "type": "assess",
+          "track": "inject-31"
+        },
+        {
+          "t": 38,
+          "type": "escalate",
+          "track": "inject-31"
+        },
+        {
+          "t": 52,
+          "type": "select",
+          "track": "inject-57"
+        },
+        {
+          "t": 62,
+          "type": "assess",
+          "track": "inject-57"
+        },
+        {
+          "t": 71,
+          "type": "escalate",
+          "track": "inject-57"
+        },
+        {
+          "t": 120,
+          "type": "select",
+          "track": "inject-35"
+        }
+      ],
+      "answers": {
+        "demand": 5,
+        "pressure": 6,
+        "confidence": 4
+      }
+    }
+  ]
+}

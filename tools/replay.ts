@@ -25,17 +25,16 @@ import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { csvText } from './replay/csv.ts'
 import { studySvg } from './replay/figure.ts'
+import { compose, PAIR_QUEUE_CAP } from './replay/compose.ts'
 import { frameName, frameSvg } from './replay/frame.ts'
-import { pairName, pairSvg } from './replay/pair.ts'
-import { sheetName, sheetSvg } from './replay/sheet.ts'
-import { loadStudy, planFor, readRun, type Study } from './replay/load.ts'
+import { loadStudy, readRuns } from './replay/files.ts'
+import { planFor, type Study } from './replay/load.ts'
 import { runMetrics, type RunMetrics } from './replay/metrics.ts'
 import type { InjectPlan } from '../src/lib/injects.ts'
 import type { RunRecord } from '../src/lib/run.ts'
 
 export const DEFAULT_OUT = 'study'
-/** The pair's Queue boxes show this many rows and count the rest; the run's own frame shows every row (S5d-i, ruled G2). */
-export const PAIR_QUEUE_CAP = 5
+export { PAIR_QUEUE_CAP }
 
 export interface Args {
   study: boolean
@@ -81,10 +80,17 @@ export interface Run {
   metrics: RunMetrics
 }
 
+/**
+ * Each file as the runs it holds: a run file is its run, a results file is both of its runs
+ * (S6a, #165, A7) — so a subject hands over one file wherever the tool took two, the folder walk
+ * of `--study` included. The file's name rides along with each run, for the messages that name it.
+ */
+export const runRecordsOf = (files: readonly string[]): { file: string; record: RunRecord }[] =>
+  files.flatMap((file) => readRuns(file).map((record) => ({ file, record })))
+
 export function runsOf(files: readonly string[], study: Study = loadStudy()): Run[] {
   const plans = new Map<string, InjectPlan>()
-  return files.map((file) => {
-    const record = readRun(file)
+  return runRecordsOf(files).map(({ file, record }) => {
     let plan = plans.get(record.scenario)
     if (plan === undefined) {
       plan = planFor(record.scenario, study.timeline)
@@ -98,25 +104,10 @@ export function runsOf(files: readonly string[], study: Study = loadStudy()): Ru
 export const metricsOf = (files: readonly string[], study: Study = loadStudy()): RunMetrics[] =>
   runsOf(files, study).map((run) => run.metrics)
 
-/**
- * Two runs composed into one document: one scenario is the pair (S5d-i), two scenarios of one
- * family the subject sheet (S5e) — the unaided run left, the Vigil run right, whichever order
- * they were named in. Two of unlike families are refused in words by the sheet itself.
- */
+/** The pair or the sheet, under `--out` — the branch and the name are `compose`'s (S6a, A3). */
 function composite(runs: readonly Run[], study: Study, out: string): { out: string; svg: string } {
-  const [first, second] = runs.map((run) => ({ ...run, study }))
-  if (first.record.scenario === second.record.scenario) {
-    return {
-      out: join(out, pairName(first.record, second.record)),
-      svg: pairSvg({ left: first, right: second }, { queueCap: PAIR_QUEUE_CAP }),
-    }
-  }
-  const unaided = first.record.mode === 'raw' ? first : second
-  const vigil = unaided === first ? second : first
-  return {
-    out: join(out, sheetName(unaided.record, vigil.record)),
-    svg: sheetSvg({ unaided, vigil }, { queueCap: PAIR_QUEUE_CAP }),
-  }
+  const { name, svg } = compose(runs.map((run) => ({ ...run, study })))
+  return { out: join(out, name), svg }
 }
 
 /**
@@ -139,7 +130,7 @@ export function main(argv: readonly string[], log: (line: string) => void = () =
     writeFileSync(out, csv)
     writeFileSync(figure, svg)
     log(`${figure}: written\n`)
-    return `${out}: ${files.length} run${files.length === 1 ? '' : 's'}\n`
+    return `${out}: ${runs.length} run${runs.length === 1 ? '' : 's'}\n`
   }
   // Every frame drawn, and every name checked, before anything is written: a run the frame
   // refuses, or two runs that would share a file, leaves no partial set behind (#151 round 1).

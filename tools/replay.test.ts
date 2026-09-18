@@ -11,7 +11,8 @@ import {
   parseArgs,
 } from './replay.ts'
 import { CSV_COLUMNS } from './replay/csv.ts'
-import { loadStudy, RunRefusal } from './replay/load.ts'
+import { RunRefusal } from './replay/load.ts'
+import { loadStudy, readRuns } from './replay/files.ts'
 
 // Vitest runs from the repo root, as the tool does; the fixtures are named from there.
 const FIXTURES = 'tools/replay/__fixtures__'
@@ -256,4 +257,64 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     )
     expect(existsSync(join(out, 'S03-02a-raw-1.svg'))).toBe(false)
   })
+})
+
+describe('a results file reads wherever a run file does (S6a-i, #165, ruled A5, A7; D3)', () => {
+  const RESULTS = join(FIXTURES, 'results', 'vigil-S05-results.json')
+
+  it('is the two committed run fixtures, and the second run’s index is the only edit', () => {
+    // D3, ruled: the one edited field is stated here, not only at the gate. A results file holds
+    // a subject's run 1 and run 2; every committed run fixture is run 1 and no subject spans two
+    // scenarios, so the fixture is S05's two 03a runs with the second re-indexed and nothing else
+    // touched. That claim is proven rather than asserted, so it cannot drift from the runs.
+    const results = JSON.parse(readFileSync(RESULTS, 'utf8')) as {
+      subject: string
+      build: string
+      runs: unknown[]
+    }
+    const raw = JSON.parse(readFileSync(join(FIXTURES, 'S05-03a-raw-1.json'), 'utf8')) as {
+      run: number
+      build: string
+    }
+    const vigil = JSON.parse(readFileSync(join(FIXTURES, 'S05-03a-vigil-1.json'), 'utf8')) as {
+      run: number
+    }
+    expect(vigil.run).toBe(1)
+    expect(results.runs[0]).toEqual(raw)
+    expect(results.runs[1]).toEqual({ ...vigil, run: 2 })
+    expect(results).toEqual({ subject: 'S05', build: raw.build, runs: results.runs })
+  })
+
+  it('reads as two runs through readRuns, and as one file the folder walk does not see twice', () => {
+    expect(readRuns(RESULTS).map((run) => `${run.mode} ${run.run}`)).toEqual(['raw 1', 'vigil 2'])
+    // The fixture sits in its own directory, so the eight run fixtures the other tests walk are
+    // still eight — the walk lists a directory's `.json` files, never its subdirectories.
+    expect(collectRunFiles([FIXTURES])).toHaveLength(8)
+    expect(collectRunFiles([join(FIXTURES, 'results')])).toEqual([RESULTS])
+  })
+
+  it('writes both frames and the pair from one file, and --study counts runs rather than files', () => {
+    const out = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(out)
+    const logged: string[] = []
+    const printed = main([RESULTS, '--out', out], (line) => logged.push(line))
+    expect(logged).toEqual([
+      `${join(out, 'S05-03a-raw-1.svg')}: written\n`,
+      `${join(out, 'S05-03a-vigil-2.svg')}: written\n`,
+      `${join(out, 'pair-S05-03a.svg')}: written\n`,
+    ])
+    // The rows the two run files print, but for the run index the envelope re-indexed.
+    const separate = main(
+      [join(FIXTURES, 'S05-03a-raw-1.json'), join(FIXTURES, 'S05-03a-vigil-1.json'), '--out', out],
+      () => {},
+    )
+    expect(printed).toBe(separate.replace('S05,03a,vigil,1,', 'S05,03a,vigil,2,'))
+    // --study over a folder holding that one file: one file in, two runs measured (item 7).
+    const study = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(study)
+    expect(main(['--study', join(FIXTURES, 'results'), '--out', study], () => {})).toBe(
+      `${join(study, 'study.csv')}: 2 runs\n`,
+    )
+    expect(readFileSync(join(study, 'study.csv'), 'utf8')).toBe(printed)
+  }, 30_000)
 })
