@@ -9,7 +9,8 @@ import {
   stacksOf,
   studySvg,
 } from './figure.ts'
-import { loadStudy, planFor, readRun } from './load.ts'
+import { planFor } from './load.ts'
+import { loadStudy, readRuns } from './files.ts'
 import { runMetrics, type RunMetrics } from './metrics.ts'
 
 const study = loadStudy()
@@ -24,7 +25,7 @@ const FIXTURES = [
   'S06-03b-vigil-1',
 ]
 const metricsOf = (name: string): RunMetrics => {
-  const record = readRun(`tools/replay/__fixtures__/${name}.json`)
+  const record = readRuns(`tools/replay/__fixtures__/${name}.json`)[0]
   return runMetrics(record, study.index, planFor(record.scenario, study.timeline))
 }
 const all = FIXTURES.map(metricsOf)

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { loadStudy, parseRun, planFor, readRun, RunRefusal, runSOf } from './load.ts'
+import { parseResults, parseRun, planFor, RunRefusal, runSOf, runsIn } from './load.ts'
+import { loadStudy, readRuns } from './files.ts'
 
 // Vitest runs from the repo root, as the tool does; the fixtures are named from there.
 const FIXTURES = 'tools/replay/__fixtures__/'
@@ -36,7 +37,7 @@ describe('parseRun (S5a, #138, ruled A2)', () => {
       ],
       answers: { demand: 6, pressure: 7, confidence: 5 },
     })
-    expect(readRun(FIXTURES + 'S03-02a-vigil-1.json').mode).toBe('vigil')
+    expect(readRuns(FIXTURES + 'S03-02a-vigil-1.json')[0].mode).toBe('vigil')
   })
 
   it('refuses what is not a run, naming the path and the field', () => {
@@ -140,5 +141,89 @@ describe('the loader on the prioritization pair (S5c-i, #138 re-gate, ruled N2)'
     expect(on('02b', 360)).toBeNull()
     expect(on('02b', 361)).toBe("run.json: events[0].t is 361 — a run's t runs 0 to 360")
     expect(planFor('03a', loadStudy().timeline).seed).toBe('study-03a')
+  })
+})
+
+describe('parseResults and runsIn — the results file (S6a-i, #165, ruled A5)', () => {
+  const VIGIL = JSON.parse(fixture('S03-02a-vigil-1.json')) as Record<string, unknown>
+  const envelope = (patch: Record<string, unknown> = {}) => ({
+    subject: 'S03',
+    build: GOOD.build,
+    runs: [GOOD, { ...VIGIL, run: 2 }],
+    ...patch,
+  })
+  /** The refusal's words for an envelope with one field changed, or null when it parses. */
+  const refuseResults = (patch: Record<string, unknown>, path = 'results.json') => {
+    try {
+      parseResults(JSON.stringify(envelope(patch)), path)
+      return null
+    } catch (error) {
+      expect(error).toBeInstanceOf(RunRefusal)
+      return (error as Error).message
+    }
+  }
+
+  it('reads a subject’s two runs under one envelope, every run through parseRun', () => {
+    const results = parseResults(JSON.stringify(envelope()), 'results.json')
+    expect(results.subject).toBe('S03')
+    expect(results.runs.map((run) => `${run.mode} ${run.run}`)).toEqual(['raw 1', 'vigil 2'])
+    // The runs are the loader's own records, not the envelope's raw objects: an event list the
+    // loader would refuse in a run file is refused inside an envelope too, naming where it sat.
+    expect(refuseResults({ runs: [GOOD, { ...VIGIL, run: 2, scenario: '02c' }] })).toBe(
+      'results.json runs[1]: scenario "02c" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
+    )
+  })
+
+  it('refuses what is not a results file, naming the path and the field', () => {
+    expect(() => parseResults('{', 'bad.json')).toThrow(/^bad\.json: not JSON — /)
+    expect(() => parseResults('[]', 'bad.json')).toThrow(
+      'bad.json: a results file is one JSON object',
+    )
+    expect(refuseResults({ runs: undefined })).toBe('results.json: "runs" is missing')
+    expect(refuseResults({ subject: 'Gary Smith' })).toBe(
+      'results.json: subject is a subject code, not "Gary Smith"',
+    )
+    expect(refuseResults({ build: '' })).toBe('results.json: build is the build string, not ""')
+    expect(refuseResults({ runs: [] })).toBe('results.json: runs is a list of runs')
+    expect(refuseResults({ runs: {} })).toBe('results.json: runs is a list of runs')
+    // The envelope carries nothing the runs do not: a run of another subject, or runs out of run
+    // order, is refused rather than resolved by precedence.
+    expect(refuseResults({ runs: [GOOD, { ...VIGIL, run: 2, subject: 'S04' }] })).toBe(
+      'results.json: runs[1] is subject S04, not S03',
+    )
+    expect(refuseResults({ runs: [GOOD, VIGIL] })).toBe(
+      'results.json: runs[1] is run 1, not after run 1',
+    )
+    expect(refuseResults({ runs: [{ ...VIGIL, run: 2 }, GOOD] })).toBe(
+      'results.json: runs[1] is run 1, not after run 2',
+    )
+  })
+
+  it('lets a run carry a build the envelope does not: a session can span a deploy', () => {
+    // Ruled, round 1: the envelope's build is what wrote the envelope; each run keeps the build
+    // it was made on. A deploy between a subject's two runs is a real session, and the pilot's
+    // separator reads the runs' builds, not the envelope's.
+    const spanned = parseResults(
+      JSON.stringify(
+        envelope({
+          build: '2.61.0+deadbee',
+          runs: [GOOD, { ...VIGIL, run: 2, build: '2.62.0+f00dfee' }],
+        }),
+      ),
+      'results.json',
+    )
+    expect(spanned.build).toBe('2.61.0+deadbee')
+    expect(spanned.runs.map((run) => run.build)).toEqual([GOOD.build, '2.62.0+f00dfee'])
+  })
+
+  it('tells the two files apart by the envelope’s own key', () => {
+    expect(runsIn(JSON.stringify(envelope()), 'results.json')).toHaveLength(2)
+    expect(runsIn(fixture('S03-02a-raw-1.json'), 'run.json')).toHaveLength(1)
+    expect(runsIn(fixture('S03-02a-raw-1.json'), 'run.json')[0].mode).toBe('raw')
+    // A file with `runs` is read as an envelope and refused as one; a file without it is read as
+    // a run, so neither refusal can be reached by guessing at the other shape.
+    expect(() => runsIn('{"runs":[]}', 'bad.json')).toThrow('bad.json: "subject" is missing')
+    expect(() => runsIn('{"subject":"S03"}', 'bad.json')).toThrow('bad.json: "scenario" is missing')
+    expect(() => runsIn('{', 'bad.json')).toThrow(/^bad\.json: not JSON — /)
   })
 })

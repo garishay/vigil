@@ -6,7 +6,8 @@ import { STUDY } from '../../src/config/study.ts'
 import { planScenario } from '../../src/lib/injects.ts'
 import { pictureAt } from '../../src/lib/replay.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
-import { loadStudy, planFor, readRun } from './load.ts'
+import { planFor } from './load.ts'
+import { loadStudy, readRuns } from './files.ts'
 import { BEYOND_S, otherEscalations, runMetrics, threatsOf } from './metrics.ts'
 import { rangeM, SITE } from './regenerate.ts'
 
@@ -21,7 +22,7 @@ const plans = {
 }
 type Study = keyof typeof plans
 const metricsOf = (name: string) => {
-  const record = readRun(fixturePath(name))
+  const record = readRuns(fixturePath(name))[0]
   return runMetrics(record, study.index, plans[record.scenario as Study])
 }
 const record = (events: RunEvent[], patch: Partial<RunRecord> = {}): RunRecord => ({
@@ -603,11 +604,11 @@ describe('every escalation besides the threats, as one list (S5f, #173)', () => 
     record(events, { scenario: '03a', mode: 'raw', subject: 'S05' })
 
   it('lists them in the record’s order with the class each count is read from', () => {
-    const raw = readRun(fixturePath('S05-03a-raw-1.json'))
+    const raw = readRuns(fixturePath('S05-03a-raw-1.json'))[0]
     expect(otherEscalations(raw, study.index, plans['03a'])).toEqual([
       { id: 'inject-65', t: 150, entryT: 419, real: false },
     ])
-    const missed = readRun(fixturePath('S06-03b-raw-1.json'))
+    const missed = readRuns(fixturePath('S06-03b-raw-1.json'))[0]
     expect(otherEscalations(missed, study.index, plans['03b'])).toEqual([
       { id: 'inject-33', t: 33, entryT: 392, real: false },
       { id: 'inject-21', t: 70, entryT: null, real: false },

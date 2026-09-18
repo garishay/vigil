@@ -30,7 +30,8 @@ import {
   type Segment,
 } from './frame.ts'
 import { candidatesAt, rankedAtSecond } from './engine.ts'
-import { loadStudy, planFor, readRun } from './load.ts'
+import { planFor } from './load.ts'
+import { loadStudy, readRuns } from './files.ts'
 import { runMetrics } from './metrics.ts'
 import { pictureAtSecond, trackAtSecond } from './regenerate.ts'
 
@@ -43,7 +44,7 @@ const plans = {
 }
 type Study = keyof typeof plans
 const fixture = (name: string) => {
-  const record = readRun(`tools/replay/__fixtures__/${name}.json`)
+  const record = readRuns(`tools/replay/__fixtures__/${name}.json`)[0]
   const plan = plans[record.scenario as Study]
   return { record, plan, study, metrics: runMetrics(record, study.index, plan) }
 }
