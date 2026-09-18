@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { bearingDegrees } from '../../src/lib/geo.ts'
 import { STUDY } from '../../src/config/study.ts'
+import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
-import type { FrameInput } from './frame.ts'
+import { estimateWidth, type FrameInput } from './frame.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
 import { runMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
@@ -59,9 +60,11 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
       'Unaided on 03a, S05 opened two non-threats first, escalated threat 1 with 0.1 km to spare and threat 2 with 0.8 km, in 6 looks over the whole run.',
       'With Vigil on 03b, S06 opened a threat first, escalated threat 1 with 0.9 km to spare and threat 2 with 0.6 km, in 3 looks over the whole run.',
     ])
+    // The second sentence names every escalation the run made besides the threats, with what
+    // each turned out to be, where it counted classes before (S5f, #173, ruled N4 A).
     expect(textsOf(svg, 'headline-counts')).toEqual([
-      'No false alarms, and one early escalation — a track that would have entered after the run, a dispatch that could have waited rather than a false alarm; threat 2 was escalated before threat 1.',
-      'No false alarms, and nothing escalated early; the threats were escalated in entry order.',
+      'Besides the threats, S05 escalated TRK-65 at 2:30 (enters the ring at 6:59, after the window closed); threat 2 was escalated before threat 1.',
+      'Nothing else was escalated; the threats were escalated in entry order.',
     ])
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S05 · S06 · 03a unaided, 03b with Vigil',
@@ -77,10 +80,10 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
       'Unaided on 03b, S06 opened two non-threats first, escalated threat 1 inside the ring and missed threat 2, in 4 looks over the whole run.',
       'With Vigil on 03a, S05 opened a threat first, escalated threat 1 with 0.8 km to spare and threat 2 with 0.7 km, in 3 looks over the whole run.',
     ])
-    // A false alarm and an early escalation on one run, and no order clause: the order is null
+    // The two escalations named in the record's order, and no order clause: the order is null
     // while a threat is missed (#153, ruled K3).
     expect(textsOf(svg, 'headline-counts')[0]).toBe(
-      'One false alarm, and one early escalation — a track that would have entered after the run, a dispatch that could have waited rather than a false alarm.',
+      'Besides the threats, S06 escalated TRK-33 at 0:33 (enters the ring at 6:32, after the window closed) and TRK-21 at 1:10 (never enters the ring).',
     )
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S06 · S05 · 03b unaided, 03a with Vigil',
@@ -93,10 +96,10 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
       'Unaided on 02a, S03 opened a threat first, escalated the threat with 1.2 km to spare, in 1 look over the whole run.',
       'With Vigil on 02b, S04 opened a threat first, escalated the threat with 1.2 km to spare, in 2 looks over the whole run.',
     ])
-    // One threat, so no order clause at all (K3); both zeros read as words.
+    // One threat, so no order clause at all (K3); neither run escalated anything else.
     expect(textsOf(svg, 'headline-counts')).toEqual([
-      'No false alarms, and nothing escalated early.',
-      'No false alarms, and nothing escalated early.',
+      'Nothing else was escalated.',
+      'Nothing else was escalated.',
     ])
   })
 
@@ -112,13 +115,9 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     const inOrder = fixture('S06-03b-vigil-1')
     const inverted = fixture('S05-03a-raw-1')
     const missed = fixture('S06-03b-raw-1')
-    expect(countsSentence(inOrder.metrics, inOrder.record)).toContain(
-      '; the threats were escalated in entry order.',
-    )
-    expect(countsSentence(inverted.metrics, inverted.record)).toContain(
-      '; threat 2 was escalated before threat 1.',
-    )
-    expect(countsSentence(missed.metrics, missed.record)).not.toContain(';')
+    expect(countsSentence(inOrder)).toContain('; the threats were escalated in entry order.')
+    expect(countsSentence(inverted)).toContain('; threat 2 was escalated before threat 1.')
+    expect(countsSentence(missed)).not.toContain(';')
   })
 })
 
@@ -130,13 +129,16 @@ describe('the subject sheet — the rows', () => {
   const runS = 218
 
   it('titles each row by its role and names the two tracks it compares', () => {
+    // The two threat rows, and beneath them the row S5f adds for what else was escalated (#173).
     expect(textsOf(svg, 'row-title')).toEqual([
       "threat 1 · each scenario's first entrant",
       "threat 2 · each scenario's second entrant",
+      'other escalations',
     ])
     expect(textsOf(svg, 'row-subtitle')).toEqual([
       'unaided 03a inject-31 · with Vigil 03b inject-29',
       'unaided 03a inject-57 · with Vigil 03b inject-23',
+      'every escalation the run made besides the threats above, and what each track turned out to be',
     ])
   })
 
@@ -154,12 +156,17 @@ describe('the subject sheet — the rows', () => {
         input.metrics.threats.map((threat) => timeX(threat.timeToEscalateS!, runS)),
       )
       // Each lane carries its own end, and since S7d the pair's two windows are the same length,
-      // so the two bars land together at the axis's end.
+      // so the bars land together at the axis's end — one per threat row and one on the third
+      // row's lane (S5f, #173).
       expect(
         tagsOf(svg, 'lane-end')
           .filter((bar) => bar['data-lane'] === side)
           .map((bar) => Number(bar.x1)),
-      ).toEqual([timeX(input.metrics.runS, runS), timeX(input.metrics.runS, runS)])
+      ).toEqual([
+        timeX(input.metrics.runS, runS),
+        timeX(input.metrics.runS, runS),
+        timeX(input.metrics.runS, runS),
+      ])
       expect(
         [
           ...svg.matchAll(new RegExp(`<line class="entry-tick" data-lane="${side}"[^>]*>`, 'g')),
@@ -250,17 +257,24 @@ describe('the subject sheet — the rows', () => {
 
   it('carries the role rule and the ring’s reading in its footnotes, the pair’s sentence on 03 only (R4)', () => {
     const notes = textsOf(svg, 'sheet-footnote')
-    expect(notes).toHaveLength(3)
+    expect(notes).toHaveLength(4)
     expect(notes[0]).toContain("threat 1 is each scenario's first entrant")
     expect(notes[0]).toContain('The time axis runs the longer window (3:38)')
     expect(notes[1]).toBe(
       '03a and 03b are one cast turned around the site under different labels, so a row’s two tracks match in range, speed and entry time; only their bearing and label differ.',
     )
     expect(notes[2]).toContain('hollow inside the ring')
-    // The corroboration pair is not one cast turned, so the sentence is not written there.
+    // The classes the CSV counts, under the row that shows the events they count — the pair's and
+    // the figure's own sentence (K8 B), which the headline said inline before S5f (#173).
+    expect(notes[3]).toBe(
+      'A false alarm is a track that never enters the ring, and every real aircraft; an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.',
+    )
+    // The corroboration pair is not one cast turned, so the sentence is not written there; and
+    // neither of its runs escalated anything else, so there is no row and no counts sentence.
     const corroboration = textsOf(sheetOf('S03-02a-raw-1', 'S04-02b-vigil-1'), 'sheet-footnote')
     expect(corroboration).toHaveLength(2)
     expect(corroboration.some((note) => note.includes('turned around the site'))).toBe(false)
+    expect(corroboration.some((note) => note.includes('A false alarm is'))).toBe(false)
   })
 
   it('reads one row on the corroboration family, titled as the frame names its threat', () => {
@@ -277,8 +291,10 @@ describe('the subject sheet — the document', () => {
     const svg = sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1')
     expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
     expect(svg).toContain('<svg class="frame-vigil" x="920" y="150"')
-    // The sheet stands 150 for the headline, the taller frame, a row each, and 80 of footnotes.
-    expect(svg).toContain('width="1820" height="2058"')
+    // The sheet stands 150 for the headline, the taller frame (1 188), a row each, the third
+    // row's own 238 for its one escalation, and a foot of 98 — the fourth footnote's line (#173).
+    expect(svg).toContain('width="1820" height="2314"')
+    expect(150 + 1188 + 2 * 320 + 238 + 98).toBe(2314)
     expect(textsOf(svg, 'vigil-queue-more')).toEqual([
       "… 21 more above calm, on the run's own frame",
     ])
@@ -380,8 +396,11 @@ describe('the frame’s repeat-open markers (S5e, #164, ruled K5)', () => {
       expect(frameSvg(input)).toBe(
         readFileSync(`tools/replay/__fixtures__/frames/${frameName(input.record)}`, 'utf8'),
       )
-      // No fixture reopens a track inside its freeze, so no frame carries a badge.
-      expect(frameSvg(input)).not.toContain('class="hop-visits"')
+      // No fixture reopens a track inside its freeze; the two 02 Vigil runs reopen the threat
+      // after it, and since S5f the frame draws the whole run, so those two carry a badge (#173).
+      expect(frameSvg(input).includes('class="hop-visits"')).toBe(
+        name === 'S03-02a-vigil-1' || name === 'S04-02b-vigil-1',
+      )
     }
   })
 })
@@ -406,8 +425,11 @@ describe('the repeat-open markers — round 1 (#171)', () => {
     expect(mark['data-t']).toBe('90')
     const [x, y] = [Number(mark.cx), Number(mark.cy)]
     expect(x >= 0 && x <= 900 && y >= 0 && y <= 700).toBe(true)
-    // The header still counts every look, and the one off the panel among them.
-    expect(textsOf(svg, 'subtitle')[0]).toContain('7 looks, 1 beyond the panel.')
+    // The header still counts every look, and the one off the panel among them; since S5f it
+    // gives the whole run's count and the freeze's, the eighth look being at +130 (#173).
+    expect(textsOf(svg, 'subtitle')[0]).toContain(
+      '8 looks over the whole run, 7 to the freeze, 1 beyond the panel.',
+    )
     // A track looked at only off the panel keeps its own marker where it stands, clipped.
     const onlyFar = { ...base.record, events: [{ t: 10, type: 'select' as const, track: far }] }
     const offSvg = frameSvg({
@@ -479,5 +501,147 @@ describe('the row’s ordinal — round 1 (#171)', () => {
       'fifth',
       '6th',
     ])
+  })
+})
+
+describe('the sheet’s other escalations (S5f, #173)', () => {
+  /** The layout half the pilot's subjects produce, and the one whose unaided run made two. */
+  const two = sheetOf('S06-03b-raw-1', 'S05-03a-vigil-1')
+  const one = sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1')
+  const runS = 218
+
+  it('marks every escalation that is no row above, on the same axis, the track above each mark', () => {
+    expect(tagsOf(two, 'other-mark-unaided')).toEqual([
+      expect.objectContaining({
+        'data-id': 'inject-33',
+        'data-t': '33',
+        cx: String(timeX(33, runS)),
+      }),
+      expect.objectContaining({
+        'data-id': 'inject-21',
+        'data-t': '70',
+        cx: String(timeX(70, runS)),
+      }),
+    ])
+    expect(timeX(33, runS)).toBe(356.2)
+    expect(timeX(70, runS)).toBe(509)
+    // The track as the run read it, above its mark and centred on it.
+    expect(two).toContain(`<text x="${timeX(33, runS)}" y="`)
+    expect(tagsOf(one, 'other-mark-unaided')).toEqual([
+      expect.objectContaining({
+        'data-id': 'inject-65',
+        'data-t': '150',
+        cx: String(timeX(150, runS)),
+      }),
+    ])
+    expect(timeX(150, runS)).toBe(839.3)
+  })
+
+  it('says what each turned out to be, and never calls a due-later inbound a non-threat', () => {
+    expect(textsOf(two, 'other-legend-unaided')).toEqual([
+      'unaided · TRK-33 escalated 0:33 — enters the ring at 6:32, after the window closed',
+      'unaided · TRK-21 escalated 1:10 — never enters the ring',
+    ])
+    expect(textsOf(one, 'other-legend-unaided')).toEqual([
+      'unaided · TRK-65 escalated 2:30 — enters the ring at 6:59, after the window closed',
+    ])
+    // The row names outcomes, never verdicts: a track that enters after the window is not a
+    // non-threat, which is what the run could not have known (#173).
+    for (const svg of [one, two]) {
+      const row = [
+        ...textsOf(svg, 'other-legend-unaided'),
+        ...textsOf(svg, 'other-legend-vigil'),
+        ...textsOf(svg, 'row-title'),
+        ...textsOf(svg, 'row-subtitle'),
+      ]
+      expect(row.some((line) => line.includes('non-threat'))).toBe(false)
+      expect(row.some((line) => line.includes('false alarm'))).toBe(false)
+    }
+  })
+
+  it('says so on a lane that escalated nothing else, and leaves the row out when neither did', () => {
+    // The row belongs to the pair, so the quiet condition says it was quiet rather than going blank.
+    expect(textsOf(two, 'other-none-vigil')).toEqual(['nothing else escalated'])
+    expect(tagsOf(two, 'other-mark-vigil')).toHaveLength(0)
+    // Neither 02 run escalated anything besides its threat, so there is no row at all.
+    const none = sheetOf('S03-02a-raw-1', 'S04-02b-vigil-1')
+    expect(textsOf(none, 'row-title')).toEqual(['the threat'])
+    expect(none).not.toContain('other-mark-')
+    expect(none).not.toContain('nothing else escalated')
+  })
+
+  it('takes its own height — 200 above its words, 18 a line, 20 under them', () => {
+    // The sheet stands 150 for the headline, the taller frame, a row per threat, the row's own
+    // height, and a foot of 98 for the fourth footnote line.
+    expect(two).toContain(
+      `width="1820" height="${150 + 1216 + 2 * 320 + (200 + 2 * 18 + 20) + 98}"`,
+    )
+    expect(one).toContain(
+      `width="1820" height="${150 + 1188 + 2 * 320 + (200 + 1 * 18 + 20) + 98}"`,
+    )
+    // The row's rule sits under the threats' rows, and its axis runs the same scale as theirs.
+    const rules = [...two.matchAll(/<line x1="30" y1="([0-9.]+)" x2="1790"/g)].map((m) =>
+      Number(m[1]),
+    )
+    expect(rules).toEqual([150 + 1216, 150 + 1216 + 320, 150 + 1216 + 640, 150 + 1216 + 640 + 256])
+  })
+})
+
+describe('the headline’s width — round 1 (#174)', () => {
+  /** A run that escalated five tracks besides its threats: two baits, three rows due later. */
+  const busyRun = (): FrameInput => {
+    const base = fixture('S05-03a-raw-1')
+    const events: RunEvent[] = [
+      { t: 10, type: 'select', track: 'inject-35' },
+      { t: 20, type: 'escalate', track: 'inject-35' },
+      { t: 30, type: 'select', track: 'inject-36' },
+      { t: 40, type: 'escalate', track: 'inject-36' },
+      { t: 41, type: 'select', track: 'inject-57' },
+      { t: 58, type: 'escalate', track: 'inject-57' },
+      { t: 66, type: 'select', track: 'inject-74' },
+      { t: 70, type: 'escalate', track: 'inject-74' },
+      { t: 72, type: 'select', track: 'inject-25' },
+      { t: 74, type: 'escalate', track: 'inject-25' },
+      { t: 84, type: 'select', track: 'inject-31' },
+      { t: 97, type: 'escalate', track: 'inject-31' },
+      { t: 130, type: 'select', track: 'inject-65' },
+      { t: 150, type: 'escalate', track: 'inject-65' },
+    ]
+    const record: RunRecord = { ...base.record, subject: 'SXX', events }
+    return { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+  }
+  const busy = busyRun()
+
+  it('breaks the counts sentence to the sheet’s width and grows the headline by the lines it takes', () => {
+    // Five escalations besides the threats: one line of this sentence measures 1 839 px in a
+    // browser on an 1 820 px sheet, so it is broken rather than run off the edge.
+    const svg = sheetSvg({ unaided: busy, vigil: fixture('S06-03b-vigil-1') }, { queueCap: 5 })
+    const lines = textsOf(svg, 'headline-counts')
+    expect(lines).toHaveLength(3)
+    expect(lines[0] + ' ' + lines[1]).toBe(countsSentence(busy))
+    // The break falls between two named escalations and never inside one: the parentheses are
+    // what make the list scannable, so the first line ends on a closed one and the second opens
+    // with the last item's *and* (#174 round 1).
+    expect(lines[0].endsWith('(never enters the ring)')).toBe(true)
+    expect(lines[1].startsWith('and TRK-65 at 2:30 (')).toBe(true)
+    for (const line of lines) {
+      expect(line.startsWith(' ')).toBe(false)
+      expect(estimateWidth(line, 13)).toBeLessThanOrEqual(1820 - 48 - 30)
+    }
+    // The block grows by that one line, and the frames and everything under them move with it.
+    expect(svg).toContain('<svg class="frame-unaided" x="0" y="168"')
+    // The sheet renders two whole frames; the runner is slower than this machine (#166 round 1).
+  }, 30_000)
+
+  it('leaves a sheet whose sentences fit on one line exactly where S5e put it', () => {
+    for (const [unaided, vigil] of [
+      ['S05-03a-raw-1', 'S06-03b-vigil-1'],
+      ['S06-03b-raw-1', 'S05-03a-vigil-1'],
+      ['S03-02a-raw-1', 'S04-02b-vigil-1'],
+    ] as const) {
+      const svg = sheetOf(unaided, vigil)
+      expect(textsOf(svg, 'headline-counts')).toHaveLength(2)
+      expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
+    }
   })
 })

@@ -10,13 +10,13 @@ import {
   captionLines,
   FOOTNOTE,
   FOOTNOTE_LINES,
+  LATE_FOOTNOTE_LINES,
   bandFill,
   entryWords,
   frameDocument,
   frameName,
   frameSvg,
   headerLine,
-  looksOnFrame,
   mmss,
   neverOpenedWords,
   PANEL,
@@ -25,6 +25,8 @@ import {
   crossesBox,
   crossesRing,
   textBox,
+  wrapText,
+  estimateWidth,
   type Segment,
 } from './frame.ts'
 import { candidatesAt, rankedAtSecond } from './engine.ts'
@@ -124,9 +126,11 @@ describe('the frame (S5b, #138, ruled B2, B3) — the scene', () => {
     const input = fixture('S03-02a-vigil-1')
     const svg = frameSvg(input)
     const hops = tagsOf(svg, 'hop')
-    // The Vigil fixture looked twice; the second look, at +80, is after the freeze at +58.
-    expect(looksOnFrame(input.record, 58)).toHaveLength(1)
+    // The Vigil fixture looked twice; the second look, at +80, is after the freeze at +58, and
+    // the frame draws the whole run (S5f, #173). Both looks are on one track, so there is one
+    // marker — the solid one, made at the first look — with a badge counting both (S5e K5).
     expect(hops).toHaveLength(1)
+    expect(hops[0]['data-visits']).toBe('2')
     expect(hops[0]).toMatchObject({
       'data-k': '1',
       'data-id': THREAT_ID,
@@ -187,9 +191,14 @@ describe('the frame (S5b, #138, ruled B2, B3) — the scene', () => {
         'inject-17',
         'inject-37',
       ])
-      // The one sentence on two lines, since SVG text does not wrap (#151 round 1).
-      expect(textsOf(svg, 'footnote')).toEqual([...FOOTNOTE_LINES])
-      expect(textsOf(svg, 'footnote').join(' ')).toBe(FOOTNOTE)
+      // The one sentence on two lines, since SVG text does not wrap (#151 round 1); the two 02
+      // Vigil runs reopen the threat after the freeze, so they carry the key's two lines as well
+      // (S5f, #173) and the unaided runs, which stop at the freeze, carry neither.
+      const late = name.endsWith('vigil-1')
+      expect(textsOf(svg, 'footnote')).toEqual(
+        late ? [...FOOTNOTE_LINES, ...LATE_FOOTNOTE_LINES] : [...FOOTNOTE_LINES],
+      )
+      expect(textsOf(svg, 'footnote').slice(0, 2).join(' ')).toBe(FOOTNOTE)
       expect((svg.match(/>never opened</g) ?? []).length).toBe(4)
     }
     // "Never" is about the whole run: a candidate opened after the freeze is not marked (#151 round 1).
@@ -475,6 +484,9 @@ describe('the frame per threat on the prioritization pair (S5c-i, #138 re-gate, 
       'It read as TRK-31 · sensor.',
       'Look #5 · 1:37 — escalated inject-31 0.1 km outside the ring · 0:05 before entry, ring entry 1:42.',
       'Look #3 · 0:58 — escalated inject-57 0.8 km outside the ring · 2:10 before entry, ring entry 3:08.',
+      // Every other escalation the run made, after the decisions (S5f, #173) — this one at 2:30,
+      // past the 1:37 freeze, which the frame drew nowhere before.
+      'Look #6 · 2:30 — also escalated TRK-65 · enters the ring at 6:59, after the window closed.',
     ])
     expect(
       captionLines(
@@ -521,6 +533,7 @@ describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
       'It read as TRK-31 · sensor.',
       'Look #5 · 1:37 — escalated inject-31 0.1 km outside the ring · 0:05 before entry, ring entry 1:42.',
       'Look #3 · 0:58 — escalated inject-57 0.8 km outside the ring · 2:10 before entry, ring entry 3:08.',
+      'Look #6 · 2:30 — also escalated TRK-65 · enters the ring at 6:59, after the window closed.',
     ])
     const missed = fixture('S06-03b-raw-1')
     expect(headerLine(missed.record, missed.metrics)).toBe(
@@ -531,6 +544,10 @@ describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
       'It read as TRK-29 · sensor.',
       'Look #3 · 1:58 — escalated inject-29 0.2 km inside the ring · 0:16 after entry, ring entry 1:42.',
       'MISSED inject-23 — never escalated; 4 looks; ring entry 3:08.',
+      // The two the run made besides the threats, each naming the look it came off (S5f, #173):
+      // a later entrant at 0:33 and a track that never enters at 1:10.
+      'Look #1 · 0:33 — also escalated TRK-33 · enters the ring at 6:32, after the window closed.',
+      'Look #2 · 1:10 — also escalated TRK-21 · never enters the ring.',
     ])
     // The Vigil frames read the same idents: the 03 threats are silent, so no mode changes them.
     const vigil = fixture('S06-03b-vigil-1')
@@ -538,11 +555,13 @@ describe('the frame on the 03 fixtures (S5c-i, ruled E9)', () => {
       'WITH VIGIL · frozen at the moment of the last escalation — 1:28',
     )
     expect(captionLines(vigil)[1]).toBe('It read as TRK-29 · sensor.')
-    // Five hops on the raw frame up to the freeze at +97; the sixth look at +130 is after it.
+    // Six hops on the raw frame: five up to the freeze at +97, and the sixth look at +130 after
+    // it, which the frame draws too since S5f (#173). The subtitle gives both counts.
     const svg = frameSvg(raw)
     expect(tagsOf(svg, 'hop')).toHaveLength(5)
+    expect(tagsOf(svg, 'hop-late').map((hop) => hop['data-t'])).toEqual(['130'])
     expect(textsOf(svg, 'subtitle')).toEqual([
-      "The subject's selection sequence from the run JSON, replayed as a path. 5 looks.",
+      "The subject's selection sequence from the run JSON, replayed as a path. 6 looks over the whole run, 5 to the freeze.",
     ])
     expect(frameSvg(raw)).toBe(frameSvg(raw))
   })
@@ -602,9 +621,11 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
       '4 UAS-BEEC 49 · Closing, near PHL Airfield, low and slow',
       '5 UAS-CF19 45 · Closing, near PHL Airfield, low and slow',
     ])
-    // Under the map: the box's rect sits below the panel and above the caption, full width.
+    // Under the map: the box's rect sits below the panel and above the caption, full width —
+    // below the key's two lines as well on a frame with a look after the freeze, as 02a has
+    // (S5f, #173).
     const [box] = tagsOf(a, 'vigil-queue')
-    expect(Number(box.y)).toBe(80 + 700 + 48)
+    expect(Number(box.y)).toBe(80 + 700 + 48 + 28)
     expect(box.width).toBe('840')
     expect(Number(box.height)).toBe(30 + 5 * 18 + 6)
     const c = frameSvg(vigilOf('S05-03a-vigil-1'))
@@ -902,10 +923,10 @@ describe('the frame’s document for the pair (S5d-i, ruled G2)', () => {
   it('gives its body apart from the wrapper, a clip id of the caller’s, and the Queue box capped on request', () => {
     const input = fixture('S05-03a-vigil-1')
     const whole = frameDocument(input)
-    expect(whole).toMatchObject({ width: 900, height: 1548 })
+    expect(whole).toMatchObject({ width: 900, height: 1576 })
     expect(frameSvg(input)).toBe(
       [
-        '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1548" viewBox="0 0 900 1548" data-subject="S05" data-scenario="03a" data-mode="vigil" data-run="1">',
+        '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1576" viewBox="0 0 900 1576" data-subject="S05" data-scenario="03a" data-mode="vigil" data-run="1">',
         ...whole.lines,
         '</svg>',
         '',
@@ -1192,5 +1213,148 @@ describe('a threat’s label clears every drawn mark — round 1 (#172)', () => 
     expect([label.cls, label.content]).toEqual(['vigil-entry', 'inside the ring'])
     expect(label.box.x).toBeLessThan(382.4)
     for (const mark of marksOf(svg)) expect(over(label.box, mark)).toBe(false)
+  })
+})
+
+describe('the whole run on the frame (S5f, #173, ruled R1, R2)', () => {
+  const on03 = (events: RunEvent[], mode: 'raw' | 'vigil' = 'raw') =>
+    synthetic(events, { scenario: '03a', mode, subject: 'S05' })
+  /** A real aircraft the recording holds at +0:50 and no longer holds at +3:20. */
+  const gone = 'adsb-a0cb44'
+  const threats: RunEvent[] = [
+    { t: 41, type: 'select', track: 'inject-57' },
+    { t: 58, type: 'escalate', track: 'inject-57' },
+    { t: 84, type: 'select', track: 'inject-31' },
+    { t: 97, type: 'escalate', track: 'inject-31' },
+  ]
+
+  it('draws the path in two pieces and a look after the freeze as a dashed outline the panel fills (R1)', () => {
+    const input = fixture('S05-03a-raw-1')
+    const svg = frameSvg(input)
+    // Five looks up to the freeze at 1:37 keep their solid markers; the sixth, at 2:10, is the
+    // one the frame drew nowhere before S5f.
+    expect(tagsOf(svg, 'hop').map((hop) => hop['data-t'])).toEqual(['12', '27', '41', '66', '84'])
+    const [late] = tagsOf(svg, 'hop-late')
+    expect(late).toMatchObject({
+      'data-k': '6',
+      'data-t': '130',
+      'data-id': 'inject-65',
+      r: '9',
+      fill: '#121821',
+      stroke: '#4c9aff',
+      'stroke-dasharray': '3 2',
+    })
+    // R1: the outline takes the panel's own fill, so its numeral reads over the panel and never
+    // over the ring, a trail or a dot — and the marker is drawn after the ring, so it covers it.
+    expect(svg.indexOf('class="ring"')).toBeLessThan(svg.indexOf('class="hop-late"'))
+    expect(svg).toContain(
+      `<text x="${late.cx}" y="${Number(late.cy) + 4}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#4c9aff">6</text>`,
+    )
+    // The path up to the freeze, then the later piece — which starts at the last on-time hop, so
+    // the segment that leaves the frozen second is the dashed one.
+    const solid = tagsOf(svg, 'path')[0].points.split(' ')
+    const dashed = tagsOf(svg, 'path-late')[0]
+    expect(solid).toHaveLength(5)
+    expect(dashed.points).toBe(`${solid[4]} ${late.cx},${late.cy}`)
+    expect(dashed['stroke-dasharray']).toBe('4 4')
+  })
+
+  it('gives both counts in the subtitle, and keeps the old wording when nothing follows the freeze', () => {
+    expect(textsOf(frameSvg(fixture('S05-03a-raw-1')), 'subtitle')).toEqual([
+      "The subject's selection sequence from the run JSON, replayed as a path. 6 looks over the whole run, 5 to the freeze.",
+    ])
+    // S06's 03b run misses a threat, so its freeze is the window end and every look is on it.
+    expect(textsOf(frameSvg(fixture('S06-03b-raw-1')), 'subtitle')).toEqual([
+      "The subject's selection sequence from the run JSON, replayed as a path. 4 looks.",
+    ])
+  })
+
+  it('carries the key’s two lines only on a frame that has a look after the freeze', () => {
+    expect(textsOf(frameSvg(fixture('S05-03a-raw-1')), 'footnote')).toEqual([
+      ...FOOTNOTE_LINES,
+      ...LATE_FOOTNOTE_LINES,
+    ])
+    expect(textsOf(frameSvg(fixture('S06-03b-raw-1')), 'footnote')).toEqual([...FOOTNOTE_LINES])
+    // The key's own words, and the Queue box standing below them on a Vigil frame.
+    expect(LATE_FOOTNOTE_LINES[0]).toContain(
+      'and one the regenerated picture no longer holds is not drawn at all',
+    )
+  })
+
+  it('skips a look after the freeze the picture cannot place, and still throws for one up to it (R2)', () => {
+    // The same look, on the same track, at the same second: only the freeze differs. The picture
+    // the frame is of no longer holds this arrival at +3:20.
+    const look: RunEvent = { t: 200, type: 'select', track: gone }
+    const after = on03([...threats, look])
+    expect(after.metrics.freezeT).toBe(97)
+    const svg = frameSvg(after)
+    expect(tagsOf(svg, 'hop-late')).toHaveLength(0)
+    expect(tagsOf(svg, 'hop').map((hop) => hop['data-id'])).toEqual(['inject-57', 'inject-31'])
+    // The count is the run's own, not the drawn marks': three looks, two of them on the frame.
+    expect(textsOf(svg, 'subtitle')[0]).toContain('3 looks over the whole run, 2 to the freeze')
+    // The same look before a later freeze stops the tool, as it always has.
+    const before = on03([
+      { t: 150, type: 'select', track: 'inject-57' },
+      look,
+      { t: 205, type: 'escalate', track: 'inject-31' },
+      { t: 210, type: 'escalate', track: 'inject-57' },
+    ])
+    expect(before.metrics.freezeT).toBe(210)
+    expect(() => frameSvg(before)).toThrow(/at t 200 names adsb-a0cb44, not in the picture then/)
+  })
+
+  it('writes a line for every escalation besides the threats, with what the track turned out to be', () => {
+    // A real aircraft, the one shape no committed run holds: escalating a cooperative aircraft is
+    // an error whatever its path (#36 [40] B), and the line says what it was, not what it counted.
+    // In t order, as the loader requires: the threat's look is #1 and the aircraft's #2.
+    const real = on03(
+      (
+        [
+          ...threats,
+          { t: 50, type: 'select', track: gone },
+          { t: 60, type: 'escalate', track: gone },
+        ] as RunEvent[]
+      ).sort((a, b) => a.t - b.t),
+    )
+    expect(captionLines(real)).toContain(
+      'Look #2 · 1:00 — also escalated POD2 · a real aircraft — cooperative traffic, never a threat.',
+    )
+    expect(real.metrics.falseEscalations).toBe(1)
+    // An escalation worked off the Queue with no look of its own names no look.
+    const unopened = synthetic(
+      [
+        { t: 33, type: 'escalate', track: 'inject-33' },
+        { t: 95, type: 'select', track: 'inject-29' },
+        { t: 118, type: 'escalate', track: 'inject-29' },
+        { t: 140, type: 'escalate', track: 'inject-21' },
+      ],
+      { scenario: '03b', subject: 'S06' },
+    )
+    expect(captionLines(unopened).slice(-2)).toEqual([
+      'Unopened · 0:33 — also escalated TRK-33 · enters the ring at 6:32, after the window closed.',
+      'Unopened · 2:20 — also escalated TRK-21 · never enters the ring.',
+    ])
+  })
+})
+
+describe('text to a fixed width — round 1 on #174', () => {
+  it('fills a line with whole chunks and never estimates one past the width', () => {
+    // The caller decides what may not be broken; the sheet's chunks are one named escalation
+    // each, so a line ends between two of them rather than inside a parenthesis.
+    const chunks = [
+      'Besides the threats, S06 escalated',
+      'TRK-33 at 0:33 (enters the ring at 6:32, after the window closed),',
+      'TRK-21 at 1:10 (never enters the ring).',
+    ]
+    const lines = wrapText(chunks, 13, 500)
+    expect(lines.join(' ')).toBe(chunks.join(' '))
+    expect(lines).toEqual(chunks)
+    for (const line of lines) expect(estimateWidth(line, 13)).toBeLessThanOrEqual(500)
+    // A width that fits them all leaves one line; a chunk too wide for any line stands alone
+    // rather than being broken, since breaking inside one is the thing the chunks prevent.
+    expect(wrapText(chunks, 13, 4000)).toEqual([chunks.join(' ')])
+    expect(wrapText([chunks[1]], 13, 1)).toEqual([chunks[1]])
+    expect(estimateWidth(chunks[1], 13)).toBeGreaterThan(400)
+    expect(estimateWidth('abcd', 10)).toBeCloseTo(21.2, 10)
   })
 })

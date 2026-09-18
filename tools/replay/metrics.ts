@@ -90,6 +90,64 @@ export const threatsOf = (scenario: string): readonly string[] => {
   return roles.threats
 }
 
+/** One escalation the run made on a track that is not a threat (S5f, #173). */
+export interface OtherEscalation {
+  /** The track as the record names it. */
+  id: string
+  /** The Escalate, sim seconds from Begin. */
+  t: number
+  /** Its ring entry over the whole recording, sim seconds from Begin; null when it never enters. */
+  entryT: number | null
+  /** A track from the recording's real layer — an aircraft, which counts false whatever its path (#36 [40] B). */
+  real: boolean
+}
+
+/**
+ * Every escalation of a non-threat, in the record's order, classed as the addendum on #138 and
+ * #36 [40] B class it — the counts below are counted from this list, and the frame's caption and
+ * the sheet's third row name its rows (S5f, #173). The two throws are here: an inject inside the
+ * ring within the run, and one on an entering course whose entry lies past the recording, are
+ * neither never-entrants nor later entrants and cannot be read (E5, extended).
+ */
+export function otherEscalations(
+  record: RunRecord,
+  index: ReplayIndex,
+  plan: InjectPlan,
+): OtherEscalation[] {
+  const { beginS } = STUDY
+  const runS = runSOf(record.scenario)
+  const threatIds = threatsOf(record.scenario)
+  const isInject = (id: string) => plan.specs.some((spec) => spec.id === id)
+  const entryOf = new Map<string, number | null>()
+  return record.events
+    .filter((event) => event.type === 'escalate' && !threatIds.includes(event.track))
+    .map((event) => {
+      const real = !isInject(event.track)
+      if (real) return { id: event.track, t: event.t, entryT: null, real }
+      if (!entryOf.has(event.track)) {
+        const entry = entrySecond(plan, event.track, 0, index.durationS)
+        entryOf.set(event.track, entry === null ? null : entry - beginS)
+        // The addendum's two classes are the four casts' only ones (the bench's line 2, its entry
+        // list); a run that escalates anything else cannot be read and says so (E5, extended).
+        if (entry !== null && entry - beginS <= runS) {
+          throw new Error(
+            `${record.subject} run ${record.run}: ${event.track} is not a threat but is inside the ring within the run (entry ${entry - beginS} s from Begin) — neither a never-entrant nor a later entrant`,
+          )
+        }
+        const beyond =
+          entry === null
+            ? entrySecond(plan, event.track, index.durationS + 1, index.durationS + BEYOND_S)
+            : null
+        if (beyond !== null) {
+          throw new Error(
+            `${record.subject} run ${record.run}: ${event.track} is not a threat but is on an entering course — its entry lies ${beyond - index.durationS} s past the recording's end — not a never-entrant, so never a false escalation`,
+          )
+        }
+      }
+      return { id: event.track, t: event.t, entryT: entryOf.get(event.track)!, real }
+    })
+}
+
 export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPlan): RunMetrics {
   const { beginS } = STUDY
   const runS = runSOf(record.scenario)
@@ -137,40 +195,12 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
   // The freeze: the last threat's first Escalate, or the run's end when any threat is missed —
   // one threat, and it is that threat's Escalate or the miss, as S5a wrote it.
   const freezeT = anyMiss ? runS : Math.max(...threats.map((threat) => threat.timeToEscalateS!))
-  // Every escalation of a non-threat: a track from the recording's real layer counts false
-  // whatever its path — the brief calls escalating an aircraft an error (#36 [40] B, round 2);
-  // an inject is classed by its ring entry over the recording (the addendum on #138): never
-  // entering is false, entering after the run is a later entrant.
-  const others = record.events.filter(
-    (event) => event.type === 'escalate' && !threatIds.includes(event.track),
-  )
-  const isInject = (id: string) => plan.specs.some((spec) => spec.id === id)
-  const entryOf = new Map<string, number | null>()
-  for (const event of others) {
-    if (!isInject(event.track) || entryOf.has(event.track)) continue
-    const entry = entrySecond(plan, event.track, 0, index.durationS)
-    entryOf.set(event.track, entry)
-    // The addendum's two classes are the four casts' only ones (the bench's line 2, its entry
-    // list); a run that escalates anything else cannot be read and says so (E5, extended).
-    if (entry !== null && entry - beginS <= runS) {
-      throw new Error(
-        `${record.subject} run ${record.run}: ${event.track} is not a threat but is inside the ring within the run (entry ${entry - beginS} s from Begin) — neither a never-entrant nor a later entrant`,
-      )
-    }
-    const beyond =
-      entry === null
-        ? entrySecond(plan, event.track, index.durationS + 1, index.durationS + BEYOND_S)
-        : null
-    if (beyond !== null) {
-      throw new Error(
-        `${record.subject} run ${record.run}: ${event.track} is not a threat but is on an entering course — its entry lies ${beyond - index.durationS} s past the recording's end — not a never-entrant, so never a false escalation`,
-      )
-    }
-  }
-  const laterEntrant = (id: string) => {
-    const entry = entryOf.get(id) ?? null
-    return entry !== null && entry - beginS > runS
-  }
+  // Every escalation of a non-threat, classed once and counted here (S5f, #173): a track from
+  // the recording's real layer counts false whatever its path — the brief calls escalating an
+  // aircraft an error (#36 [40] B, round 2); an inject is classed by its ring entry over the
+  // recording (the addendum on #138): never entering is false, entering after the run is a
+  // later entrant.
+  const others = otherEscalations(record, index, plan)
   // By position, as every tie in the record is settled (#150 round 1): two looks on one second
   // are two looks, in the order the record writes them (round 1).
   const firstThreatOpenIndex = record.events.findIndex(
@@ -201,10 +231,10 @@ export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPl
     standoffM: first.standoffM,
     timeToEscalateS: first.timeToEscalateS,
     miss: first.miss,
-    falseEscalations: others.filter(
-      (event) => !isInject(event.track) || (entryOf.get(event.track) ?? null) === null,
+    falseEscalations: others.filter((other) => other.real || other.entryT === null).length,
+    escalationsOfLaterEntrants: others.filter(
+      (other) => !other.real && other.entryT !== null && other.entryT > runS,
     ).length,
-    escalationsOfLaterEntrants: others.filter((event) => laterEntrant(event.track)).length,
     looksBeforeFirstCorrect: record.events.filter(
       (event, i) => event.type === 'select' && (firstEscalateIndex < 0 || i < firstEscalateIndex),
     ).length,

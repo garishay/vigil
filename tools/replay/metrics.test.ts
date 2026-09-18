@@ -7,7 +7,7 @@ import { planScenario } from '../../src/lib/injects.ts'
 import { pictureAt } from '../../src/lib/replay.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
-import { BEYOND_S, runMetrics, threatsOf } from './metrics.ts'
+import { BEYOND_S, otherEscalations, runMetrics, threatsOf } from './metrics.ts'
 import { rangeM, SITE } from './regenerate.ts'
 
 // Vitest runs from the repo root, as the tool does; the fixtures are named from there.
@@ -595,5 +595,44 @@ describe('the attention numbers — round 1 (#159)', () => {
     ).toThrow(
       "03a: the roles table's row order is not entry order — inject-31 enters 188, inject-57 enters 102 (seconds from Begin)",
     )
+  })
+})
+
+describe('every escalation besides the threats, as one list (S5f, #173)', () => {
+  const on03a = (events: RunEvent[]) =>
+    record(events, { scenario: '03a', mode: 'raw', subject: 'S05' })
+
+  it('lists them in the record’s order with the class each count is read from', () => {
+    const raw = readRun(fixturePath('S05-03a-raw-1.json'))
+    expect(otherEscalations(raw, study.index, plans['03a'])).toEqual([
+      { id: 'inject-65', t: 150, entryT: 419, real: false },
+    ])
+    const missed = readRun(fixturePath('S06-03b-raw-1.json'))
+    expect(otherEscalations(missed, study.index, plans['03b'])).toEqual([
+      { id: 'inject-33', t: 33, entryT: 392, real: false },
+      { id: 'inject-21', t: 70, entryT: null, real: false },
+    ])
+    // The counts are counted from that list, so a class cannot drift between the number and the
+    // words the frame and the sheet write from it.
+    const m = runMetrics(missed, study.index, plans['03b'])
+    expect(m).toMatchObject({ falseEscalations: 1, escalationsOfLaterEntrants: 1 })
+  })
+
+  it('marks a track from the recording’s real layer real, whatever its path (#36 [40] B)', () => {
+    const real = on03a([
+      { t: 41, type: 'select', track: 'inject-57' },
+      { t: 50, type: 'select', track: 'adsb-a0cb44' },
+      { t: 58, type: 'escalate', track: 'inject-57' },
+      { t: 60, type: 'escalate', track: 'adsb-a0cb44' },
+      { t: 84, type: 'select', track: 'inject-31' },
+      { t: 97, type: 'escalate', track: 'inject-31' },
+    ])
+    expect(otherEscalations(real, study.index, plans['03a'])).toEqual([
+      { id: 'adsb-a0cb44', t: 60, entryT: null, real: true },
+    ])
+    expect(runMetrics(real, study.index, plans['03a'])).toMatchObject({
+      falseEscalations: 1,
+      escalationsOfLaterEntrants: 0,
+    })
   })
 })

@@ -14,6 +14,7 @@
  * that condition's colour. Pure and deterministic; the metrics and the CSV are untouched.
  */
 
+import { trackIdent } from '../../src/lib/display.ts'
 import { bearingDegrees } from '../../src/lib/geo.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
 import { STUDY } from '../../src/config/study.ts'
@@ -22,25 +23,38 @@ import {
   CONDITION_COLOR,
   frameDocument,
   mmss,
+  wrapText,
+  outcomeWords,
   THEME,
   type FrameInput,
   type FrameOptions,
 } from './frame.ts'
 import { familyOf } from './figure.ts'
-import type { RunMetrics, ThreatMetrics } from './metrics.ts'
+import { otherEscalations, type RunMetrics, type ThreatMetrics } from './metrics.ts'
 import { conditionWord } from './pair.ts'
 import { rangeM, SITE, trackAtSecond } from './regenerate.ts'
 
 const FONT = 'system-ui, sans-serif'
 const GAP = 20
 const PAD = 30
-/** The headline block above the frames: the title's row and two rows of prose per condition. */
-const HEAD_H = 150
+/** Where the headline’s prose starts, clear of its condition dot. */
+const TEXT_X = 48
+/**
+ * The headline block above the frames: the title's row, then per condition an opening sentence
+ * and its counts sentence, which wraps when a run names enough escalations to need it. At one
+ * line each the block stands 150, as S5e drew it.
+ */
+const HEAD_TOP = 62
+const HEAD_LINE = 18
+const HEAD_GAP = 30
+const HEAD_BOTTOM = 14
 const ROW_H = 320
 const FOOT_H = 80
 /** The time axis: the longer of the two windows over 900 px, as the pair scales its own. */
 const TIME_X = 220
 const TIME_W = 900
+/** The other-escalations row (S5f, #173): its title, two lanes and its own axis, above its words. */
+const OTHER_TOP = 200
 /** The ring panel: 8 km from its centre to the outer circle, at 15 px per km. */
 const RING_CX = 1480
 const RING_KM = 8
@@ -127,32 +141,44 @@ function joinClauses(clauses: readonly (readonly [string, string])[]): string {
 }
 
 /**
- * The headline's second sentence: the counts in prose (#164). *Escalations of later entrants*
- * reads as *early escalations* with the direction spelled out — a dispatch that could have
- * waited, not a false alarm — and the order is reported after them, never as the headline (#153).
+ * The headline's second sentence (#164; S5f, #173): **every escalation the run made besides the
+ * threats, named** — the track as the run read it, the second, and what it turned out to be in
+ * the frame's own words — where it counted classes before. A reader who watched the run finds
+ * each dispatch here and in the row below; the classes the CSV counts are the footnote's, under
+ * the row that shows them. The order is reported last, never as the headline (#153).
  */
-export function countsSentence(m: RunMetrics, record: RunRecord): string {
-  const falseWords =
-    m.falseEscalations === 0
-      ? 'No false alarms'
-      : // No gloss: a false alarm is a track that never enters the ring **and every real
-        // aircraft whatever its path** (#36 [40] B), and naming both classes inline makes a
-        // sentence a reader cannot parse beside the early-escalation clause. The direction the
-        // Issue asked to be told is the early escalation's, and it is told below; the definition
-        // is the one the pair and the figure carry in their shared footnote (#171 round 1).
-        `${inWords(m.falseEscalations)} ${plural(m.falseEscalations, 'false alarm')}`
-  const early =
-    m.escalationsOfLaterEntrants === 0
-      ? 'nothing escalated early'
-      : `${inWords(m.escalationsOfLaterEntrants)} early ${plural(m.escalationsOfLaterEntrants, 'escalation')} — ${m.escalationsOfLaterEntrants === 1 ? 'a track that would have entered' : 'tracks that would have entered'} after the run, a dispatch that could have waited rather than a false alarm`
+export function countsChunks(input: FrameInput): string[] {
+  const { metrics: m, record } = input
+  const others = otherEscalations(record, input.study.index, input.plan)
+  const named = others.map((other) => {
+    const shown = trackAtSecond(
+      input.study.index,
+      input.plan,
+      other.id,
+      STUDY.beginS + other.t,
+      record.mode,
+    )
+    return `${shown ? trackIdent(shown) : other.id} at ${mmss(other.t)} (${outcomeWords(other)})`
+  })
   const order =
     m.orderCorrect === null
       ? ''
       : m.orderCorrect
         ? '; the threats were escalated in entry order'
         : `; ${escalationOrderWords(m, record)}`
-  return `${m.falseEscalations === 0 ? falseWords : falseWords.charAt(0).toUpperCase() + falseWords.slice(1)}, and ${early}${order}.`
+  if (named.length === 0) return [`Nothing else was escalated${order}.`]
+  // One chunk per escalation, its comma or its *and* carried with it, so a line ends between two
+  // of them and never inside one: the parentheses are what make the list scannable (#174 round 1).
+  const items = named.map((name, i) =>
+    i === named.length - 1
+      ? `${named.length > 1 ? 'and ' : ''}${name}${order}.`
+      : `${name}${i === named.length - 2 ? '' : ','}`,
+  )
+  return [`Besides the threats, ${record.subject} escalated`, ...items]
 }
+
+/** The same sentence, whole — what a reader hears, and what the sheet writes when it fits one line. */
+export const countsSentence = (input: FrameInput): string => countsChunks(input).join(' ')
 
 /** The roles in the order the record escalated them: *threat 2 was escalated before threat 1*. */
 function escalationOrderWords(m: RunMetrics, record: RunRecord): string {
@@ -246,11 +272,40 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
   const width = l.width + GAP + r.width
   const top = Math.max(l.height, r.height)
   const rows = a.threats.length
-  const height = HEAD_H + top + rows * ROW_H + FOOT_H
-  const runS = Math.max(a.runS, b.runS)
-  const tX = (s: number) => round1(TIME_X + (s / runS) * TIME_W)
   const aColor = CONDITION_COLOR.raw
   const bColor = CONDITION_COLOR.vigil
+  // The other escalations, per condition (S5f, #173): the row below exists when either run made
+  // one, and its height is its own — a lane apiece and a line of words per escalation.
+  const others: [FrameInput, string, string][] = [
+    [unaided, aColor, 'unaided'],
+    [vigil, bColor, 'vigil'],
+  ]
+  const otherRows = others.map(
+    ([input]) => otherEscalations(input.record, input.study.index, input.plan).length,
+  )
+  const otherH =
+    otherRows[0] + otherRows[1] === 0 ? 0 : OTHER_TOP + (otherRows[0] + otherRows[1]) * 18 + 20
+  // The foot takes one more line when the row is there, for the counts sentence under it.
+  const footH = FOOT_H + (otherH > 0 ? 18 : 0)
+  // The headline's own height (#174 round 1): a sentence that names every escalation grows with
+  // the run, and an SVG does not wrap, so it is broken to the sheet's width and the block grows
+  // by a line for each break. One line per condition — every run the fixtures hold, and every
+  // run with three escalations or fewer besides the threats — leaves the block at its 150.
+  const said: [FrameInput, string][] = [
+    [unaided, aColor],
+    [vigil, bColor],
+  ]
+  let hy = HEAD_TOP
+  const headRows = said.map(([input]) => {
+    const lines = wrapText(countsChunks(input), 13, width - TEXT_X - PAD)
+    const row = { y: hy, lines }
+    hy += 22 + (lines.length - 1) * HEAD_LINE + HEAD_GAP
+    return row
+  })
+  const headH = hy - HEAD_GAP + HEAD_BOTTOM
+  const height = headH + top + rows * ROW_H + otherH + footH
+  const runS = Math.max(a.runS, b.runS)
+  const tX = (s: number) => round1(TIME_X + (s / runS) * TIME_W)
   const parts: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-unaided="${esc(a.subject)}-${esc(a.scenario)}-${a.mode}-${a.run}" data-vigil="${esc(b.subject)}-${esc(b.scenario)}-${b.mode}-${b.run}">`,
     `<rect width="${width}" height="${height}" fill="${THEME.bg}"/>`,
@@ -266,40 +321,58 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       `class="sheet-title" font-size="18" font-weight="600" fill="${THEME.text}"`,
     ),
   )
-  const said: [RunMetrics, RunRecord, string, number][] = [
-    [a, unaided.record, aColor, 62],
-    [b, vigil.record, bColor, 114],
-  ]
-  for (const [m, record, color, y] of said) {
+  for (const [input, color] of said) {
+    const m = input.metrics
+    const { y, lines } = headRows[m.mode === 'raw' ? 0 : 1]
     parts.push(
       `<circle cx="${PAD + 5}" cy="${y - 5}" r="5" fill="${color}"/>`,
       text(
-        PAD + 18,
+        TEXT_X,
         y,
         openingSentence(m),
         `class="headline" data-mode="${m.mode}" font-size="15" fill="${THEME.text}"`,
       ),
-      text(
-        PAD + 18,
-        y + 22,
-        countsSentence(m, record),
-        `class="headline-counts" data-mode="${m.mode}" font-size="13" fill="${THEME.muted}"`,
+      ...lines.map((line, i) =>
+        text(
+          TEXT_X,
+          y + 22 + i * HEAD_LINE,
+          line,
+          `class="headline-counts" data-mode="${m.mode}" font-size="13" fill="${THEME.muted}"`,
+        ),
       ),
     )
   }
 
   // The two frames, unaided left and Vigil right, each drawn as its own run's frame.
   parts.push(
-    `<svg class="frame-unaided" x="0" y="${HEAD_H}" width="${l.width}" height="${l.height}" viewBox="0 0 ${l.width} ${l.height}">`,
+    `<svg class="frame-unaided" x="0" y="${headH}" width="${l.width}" height="${l.height}" viewBox="0 0 ${l.width} ${l.height}">`,
     ...l.lines,
     '</svg>',
-    `<svg class="frame-vigil" x="${l.width + GAP}" y="${HEAD_H}" width="${r.width}" height="${r.height}" viewBox="0 0 ${r.width} ${r.height}">`,
+    `<svg class="frame-vigil" x="${l.width + GAP}" y="${headH}" width="${r.width}" height="${r.height}" viewBox="0 0 ${r.width} ${r.height}">`,
     ...r.lines,
     '</svg>',
   )
 
+  // The axis’s own ticks at a lane block’s baseline: every minute the window reaches, and its
+  // end, with a minute dropped when the end would crowd it. The third row runs the same scale
+  // as the threats’ rows, so it draws the same ticks (#174 round 1).
+  const ticks = (ay: number): string[] =>
+    [...new Set([0, 60, 120, 180, 240, 300, runS])].flatMap((s) =>
+      s > runS || (s !== runS && runS - s < 20)
+        ? []
+        : [
+            `<line x1="${tX(s)}" y1="${ay - 3}" x2="${tX(s)}" y2="${ay + 3}" stroke="${THEME.faint}"/>`,
+            text(
+              tX(s),
+              ay + 18,
+              mmss(s),
+              `font-size="11" fill="${THEME.faint}" text-anchor="middle"`,
+            ),
+          ],
+    )
+
   // One row per threat by role: the time lane with a lane per condition, and the ring beside it.
-  let y = HEAD_H + top
+  let y = headH + top
   a.threats.forEach((threat, i) => {
     const other = b.threats[i]
     const ry = y
@@ -322,13 +395,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       ),
       `<line class="time-axis" x1="${TIME_X}" y1="${ay}" x2="${TIME_X + TIME_W}" y2="${ay}" stroke="${THEME.faint}"/>`,
     )
-    for (const s of [...new Set([0, 60, 120, 180, 240, 300, runS])]) {
-      if (s > runS || (s !== runS && runS - s < 20)) continue
-      parts.push(
-        `<line x1="${tX(s)}" y1="${ay - 3}" x2="${tX(s)}" y2="${ay + 3}" stroke="${THEME.faint}"/>`,
-        text(tX(s), ay + 18, mmss(s), `font-size="11" fill="${THEME.faint}" text-anchor="middle"`),
-      )
-    }
+    parts.push(...ticks(ay))
     // The two lanes 50 px apart: each carries its own entry clock above it and its escalation
     // below, and the two scenarios' entries fall within seconds of each other on the axis.
     const lanes: [RunMetrics, ThreatMetrics, number, string, string][] = [
@@ -463,6 +530,86 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
     y += ROW_H
   })
 
+  // The third row (S5f, #173): every escalation the run made that is no row above, one lane per
+  // condition on the same axis, each mark carrying the track as the run read it and each line
+  // beneath saying what it turned out to be. Absent when neither condition made one — and a
+  // condition that made none says so on its lane, since the row is the other condition's.
+  if (otherH > 0) {
+    const ry = y
+    const ay = ry + 156
+    parts.push(
+      `<line x1="${PAD}" y1="${ry}" x2="${width - PAD}" y2="${ry}" stroke="${THEME.line}"/>`,
+      text(
+        PAD,
+        ry + 26,
+        'other escalations',
+        `class="row-title" font-size="15" font-weight="600" fill="${THEME.text}"`,
+      ),
+      text(
+        PAD,
+        ry + 46,
+        'every escalation the run made besides the threats above, and what each track turned out to be',
+        `class="row-subtitle" font-size="12" fill="${THEME.muted}"`,
+      ),
+      `<line class="time-axis" x1="${TIME_X}" y1="${ay}" x2="${TIME_X + TIME_W}" y2="${ay}" stroke="${THEME.faint}"/>`,
+    )
+    parts.push(...ticks(ay))
+    let line = 0
+    others.forEach(([input, color, side], k) => {
+      const ly = ry + 86 + k * 40
+      const m = input.metrics
+      const made = otherEscalations(input.record, input.study.index, input.plan)
+      parts.push(
+        text(
+          PAD,
+          ly + 4,
+          `${side === 'unaided' ? 'unaided' : 'Vigil'} · ${m.scenario}`,
+          `class="lane-label" font-size="12" font-weight="600" fill="${color}"`,
+        ),
+        `<line class="lane-end" data-lane="${side}" x1="${tX(m.runS)}" y1="${ly - 9}" x2="${tX(m.runS)}" y2="${ly + 9}" stroke="${color}" stroke-opacity="0.5"/>`,
+      )
+      if (made.length === 0) {
+        parts.push(
+          text(
+            TIME_X + 8,
+            ly + 4,
+            'nothing else escalated',
+            `class="other-none-${side}" font-size="11" font-style="italic" fill="${THEME.faint}"`,
+          ),
+        )
+        return
+      }
+      for (const other of made) {
+        const shown = trackAtSecond(
+          input.study.index,
+          input.plan,
+          other.id,
+          STUDY.beginS + other.t,
+          input.record.mode,
+        )
+        const ident = shown ? trackIdent(shown) : other.id
+        parts.push(
+          `<circle class="other-mark-${side}" data-id="${esc(other.id)}" data-t="${other.t}" cx="${tX(other.t)}" cy="${ly}" r="4.5" fill="${color}"/>`,
+          text(tX(other.t), ly - 10, ident, `font-size="11" fill="${color}" text-anchor="middle"`),
+        )
+        // The words under the row, in the lane's colour and in the run's order: the mark says
+        // when, the line says what it turned out to be — never "a non-threat" for a due-later
+        // inbound, which is what the run could not have known.
+        parts.push(
+          `<circle cx="${PAD + 5}" cy="${ry + OTHER_TOP + line * 18 - 4}" r="4" fill="${color}"/>`,
+          text(
+            PAD + 16,
+            ry + OTHER_TOP + line * 18,
+            `${side === 'unaided' ? 'unaided' : 'Vigil'} · ${ident} escalated ${mmss(other.t)} — ${outcomeWords(other)}`,
+            `class="other-legend-${side}" data-id="${esc(other.id)}" font-size="11" fill="${THEME.text}"`,
+          ),
+        )
+        line += 1
+      }
+    })
+    y += otherH
+  }
+
   // The footnotes, a line each: SVG text does not wrap, and the role rule with R4's sentence
   // behind it runs 1 839 px on an 1 820 px sheet (#164 R4).
   const footnotes = [
@@ -477,6 +624,13 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         ]
       : []),
     `The ring panel is north up, the site at its centre, the 5 km ring on an ${RING_KM} km panel: each condition's mark is where that threat stood when it was escalated — hollow inside the ring — and the thick tick is where that scenario's threat crossed. Standoff is the range less 5 km, signed.`,
+    // The classes the CSV counts, under the row that shows the events they count — the pair's
+    // and the figure's own sentence (K8 B), which the headline said inline before S5f (#173).
+    ...(otherH > 0
+      ? [
+          'A false alarm is a track that never enters the ring, and every real aircraft; an early escalation is a track that would have entered after the run — a dispatch that could have waited rather than a false alarm.',
+        ]
+      : []),
   ]
   parts.push(
     `<line x1="${PAD}" y1="${y}" x2="${width - PAD}" y2="${y}" stroke="${THEME.line}"/>`,

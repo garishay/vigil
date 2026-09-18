@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="944" viewBox="0 0 900 944" data-subject="S06" data-scenario="03b" data-mode="raw" data-run="1">
-<rect width="900" height="944" fill="#0b0f14"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="988" viewBox="0 0 900 988" data-subject="S06" data-scenario="03b" data-mode="raw" data-run="1">
+<rect width="900" height="988" fill="#0b0f14"/>
 <text x="30" y="40" font-family="system-ui, sans-serif" class="title" font-size="20" font-weight="700" fill="#e6edf3">UNAIDED · MISSED inject-23 — frozen at +3:38</text>
 <text x="30" y="64" font-family="system-ui, sans-serif" class="subtitle" font-size="13" fill="#8b98a9">The subject's selection sequence from the run JSON, replayed as a path. 4 looks.</text>
 <defs><clipPath id="panel"><rect x="0" y="0" width="900" height="700"/></clipPath></defs>
@@ -125,9 +125,11 @@
 </g>
 <text x="30" y="800" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">"never opened" marks the engine's above-calm tracks at the freeze that the run never opened:</text>
 <text x="30" y="814" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the analyst's overlay, drawn on both conditions; raw's screen never showed that set.</text>
-<rect x="30" y="828" width="840" height="116" rx="6" fill="#121821" stroke="#1f2a37"/>
+<rect x="30" y="828" width="840" height="160" rx="6" fill="#121821" stroke="#1f2a37"/>
 <text x="46" y="860" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 1:35 — opened inject-29 (threat 1), 6.3 km at T0; assessed at 1:48, escalated at 1:58.</text>
 <text x="46" y="882" font-family="system-ui, sans-serif" class="caption" font-size="13" fill="#8b98a9">It read as TRK-29 · sensor.</text>
 <text x="46" y="904" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #3 · 1:58 — escalated inject-29 0.2 km inside the ring · 0:16 after entry, ring entry 1:42.</text>
 <text x="46" y="926" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">MISSED inject-23 — never escalated; 4 looks; ring entry 3:08.</text>
+<text x="46" y="948" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #1 · 0:33 — also escalated TRK-33 · enters the ring at 6:32, after the window closed.</text>
+<text x="46" y="970" font-family="system-ui, sans-serif" class="caption" font-size="13" font-weight="600" fill="#e6edf3">Look #2 · 1:10 — also escalated TRK-21 · never enters the ring.</text>
 </svg>
