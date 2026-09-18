@@ -1,5 +1,10 @@
-/* The sheet page (S6a, #165, A4). Its own stylesheet, so it rides the page's own chunk and the
-   app's shell CSS is not downloaded to read a sheet. */
+/* The sheet page (S6a, #165, A4). Its own stylesheet, so it rides the page's own chunk rather
+   than growing the app's: `index.css` does not move by a byte for this page.
+
+   What that does not do, said plainly (round 1 on #187, Codex): the entry still loads the app's
+   JS and CSS on any visit, `?sheet` included, because `App` is a static import in `main.tsx`.
+   Splitting the app side too is a change to how every visitor loads the workstation, not to this
+   page, so it is filed rather than taken here. */
 
 .sheet {
   min-height: 100%;
@@ -130,4 +135,11 @@
   .sheet__document {
     overflow: visible;
   }
+}
+
+/* The runs, on screen for the clipboard fallback to select and for a manual Ctrl+C (round 1 on
+   #187, finding 4). Read-only and short: what it holds is what the paste box reads back. */
+.sheet__saved {
+  margin-top: 0.75rem;
+  max-width: 44rem;
 }

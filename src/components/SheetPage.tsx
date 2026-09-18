@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import './SheetPage.css'
-import { documentOf, fetchStudy, filesFor, runsIn, splitPasted } from '../data/sheet'
+import { documentOf, fetchStudy, filesFor, runsIn, splitPasted, type SaveFile } from '../data/sheet'
 import { useCopy } from './useCopy'
 import type { Study } from '../../tools/replay/load'
 
@@ -14,13 +14,26 @@ import type { Study } from '../../tools/replay/load'
  * this tab, and the download is the browser's own save.
  */
 
-const download = (name: string, type: string, text: string) => {
+/** What a run or a file gave the page, under the name its refusal will carry. */
+interface Input {
+  name: string
+  text: string
+}
+
+/**
+ * One click, one file (round 1 on #187, ruled 5). The anchor is attached before the click,
+ * because a detached one does not download in every browser, and the object URL is revoked on a
+ * later turn: the click is taken synchronously but the blob is not read until after it.
+ */
+const save = (name: string, type: string, text: string) => {
   const url = URL.createObjectURL(new Blob([text], { type }))
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = name
+  document.body.append(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  anchor.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 /**
@@ -30,7 +43,7 @@ const download = (name: string, type: string, text: string) => {
 export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) {
   const [study, setStudy] = useState<Study | null>(null)
   const [pasted, setPasted] = useState('')
-  const [source, setSource] = useState<{ name: string; text: string }[] | null>(null)
+  const [source, setSource] = useState<SaveFile[] | null>(null)
   const [document_, setDocument] = useState<{ name: string; svg: string } | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [over, setOver] = useState(false)
@@ -51,11 +64,17 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
   }, [fetcher])
 
   const render = useCallback(
-    (inputs: readonly { name: string; text: string }[]) => {
+    (inputs: readonly Input[]) => {
       if (study === null) return
       setRefusal(null)
       setDocument(null)
       setSource(null)
+      // Nothing to read at all — an empty drop, or a paste holding no object. The sentence names
+      // nothing, because there is nothing it was given to name (round 1, finding 7).
+      if (inputs.length === 0) {
+        setRefusal('nothing to read — a results file, or both run files')
+        return
+      }
       try {
         const records = inputs.flatMap((input) => runsIn(input.text, input.name))
         // The document is drawn before anything is set, as the CLI draws before it writes: a
@@ -65,14 +84,7 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
         setSource(filesFor(records))
         setDocument(drawn)
       } catch (error) {
-        const message = (error as Error).message
-        // The loader's refusals already name the file they read, since `runsIn` was given that
-        // name; `compose`'s and the sheet's do not, so the page names what it was handed.
-        setRefusal(
-          inputs.some((input) => message.startsWith(`${input.name}: `))
-            ? message
-            : `${inputs.map((input) => input.name).join(', ')}: ${message}`,
-        )
+        setRefusal(named(inputs, (error as Error).message))
       }
     },
     [study],
@@ -85,8 +97,18 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
     setOver(false)
     const files = [...event.dataTransfer.files]
     void Promise.all(
-      files.map(async (file) => ({ name: file.name, text: await file.text() })),
-    ).then(render)
+      // A file that cannot be read — a dropped folder, a file the browser refuses — is refused
+      // in words under its own name rather than leaving the page silent (round 1, finding 6).
+      files.map(async (file): Promise<Input> => {
+        try {
+          return { name: file.name, text: await file.text() }
+        } catch (error) {
+          throw new Error(`${file.name}: cannot be read — ${(error as Error).message}`, {
+            cause: error,
+          })
+        }
+      }),
+    ).then(render, (error: Error) => setRefusal(error.message))
   }
 
   return (
@@ -103,24 +125,26 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
             <button
               type="button"
               className="sheet__button"
-              onClick={() => download(document_.name, 'image/svg+xml', document_.svg)}
+              onClick={() => save(document_.name, 'image/svg+xml', document_.svg)}
             >
               Download the sheet
             </button>
             <button type="button" className="sheet__button" onClick={() => window.print()}>
               Print
             </button>
-            {source !== null && (
+            {/* One button per file, so one click is one file: a document of one subject's two
+                runs saves their results file, and any other pair saves each run's own, named
+                for what tells it from the other (round 1, ruled 5). */}
+            {(source ?? []).map((file) => (
               <button
+                key={file.name}
                 type="button"
                 className="sheet__button"
-                onClick={() => {
-                  for (const file of source) download(file.name, 'application/json', file.text)
-                }}
+                onClick={() => save(file.name, 'application/json', file.text)}
               >
-                Save the runs
+                Save {file.label}
               </button>
-            )}
+            ))}
             <button
               type="button"
               className="sheet__button"
@@ -154,7 +178,6 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
             {study === null ? 'Loading the recording…' : 'Drop the files here'}
           </div>
           <textarea
-            ref={textRef}
             className="sheet__paste"
             value={pasted}
             onChange={(event) => setPasted(event.target.value)}
@@ -175,20 +198,43 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
         <div
           className="sheet__document"
           // The tool's own SVG, built in this tab from text this tab parsed: the string is the
-          // renderer's output, not the file's, and the loader refused anything it could not read.
+          // renderer's output, not the file's, and every value a file supplied is escaped for
+          // the context it lands in — text by `esc`, attributes by `escAttr` (round 1).
           dangerouslySetInnerHTML={{ __html: document_.svg }}
         />
       )}
       {document_ !== null && source !== null && (
         <div className="sheet__copy">
-          {/* The clipboard fallback for Save the runs. What it copies is what the paste box
-              reads back: `splitPasted` finds each object by brace depth, so two files joined
-              here come apart there whatever the clipboard does to the line breaks (R2). */}
+          {/* The clipboard fallback for Save (round 1, finding 4): `useCopy` selects this
+              textarea when the clipboard API is missing or refused, so it is on screen and
+              holding the text rather than unmounted — and a manual Ctrl+C works either way.
+              What it holds is what the paste box reads back: `splitPasted` finds each object by
+              brace depth, so two files joined here come apart there (R2). */}
           <button type="button" className="sheet__button" onClick={() => void copy(copyText)}>
             {copied(copyText) ? 'Copied' : 'Copy the runs'}
           </button>
+          <textarea
+            ref={textRef}
+            className="sheet__paste sheet__saved"
+            readOnly
+            value={copyText}
+            rows={4}
+            aria-label="The runs, to copy"
+          />
         </div>
       )}
     </div>
   )
+}
+
+/**
+ * A refusal under the name of what was read. The loader's already carry it — `runsIn` was given
+ * that name — including a results file's inner refusals, which read `<name> runs[1]: …`, so the
+ * page prefixes only what carries no name at all (round 1, finding 3).
+ */
+function named(inputs: readonly Input[], message: string): string {
+  const already = inputs.some(
+    (input) => message.startsWith(`${input.name}: `) || message.startsWith(`${input.name} `),
+  )
+  return already ? message : `${inputs.map((input) => input.name).join(', ')}: ${message}`
 }

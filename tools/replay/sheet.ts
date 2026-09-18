@@ -20,6 +20,7 @@ import { STUDY } from '../../src/config/study.ts'
 import type { RunRecord } from '../../src/lib/run.ts'
 import {
   CONDITION_COLOR,
+  escAttr,
   frameDocument,
   mmss,
   wrapText,
@@ -309,7 +310,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
   const runS = Math.max(a.runS, b.runS)
   const tX = (s: number) => round1(TIME_X + (s / runS) * TIME_W)
   const parts: string[] = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-unaided="${esc(a.subject)}-${esc(a.scenario)}-${a.mode}-${a.run}" data-vigil="${esc(b.subject)}-${esc(b.scenario)}-${b.mode}-${b.run}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-unaided="${escAttr(a.subject)}-${escAttr(a.scenario)}-${a.mode}-${a.run}" data-vigil="${escAttr(b.subject)}-${escAttr(b.scenario)}-${b.mode}-${b.run}">`,
     `<rect width="${width}" height="${height}" fill="${THEME.bg}"/>`,
   ]
 
@@ -434,7 +435,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
             tX(m.runS) + 8,
             ly + 4,
             lane.miss ? 'MISSED' : 'escalated unopened',
-            `class="lane-${side}" data-id="${esc(lane.id)}" font-size="12" font-weight="600" fill="${THEME.warning}"`,
+            `class="lane-${side}" data-id="${escAttr(lane.id)}" font-size="12" font-weight="600" fill="${THEME.warning}"`,
           ),
         )
       }
@@ -448,7 +449,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
           )
         }
         parts.push(
-          `<circle class="lane-${side}-escalate" data-id="${esc(lane.id)}" cx="${escX}" cy="${ly}" r="4.5" fill="${color}"/>`,
+          `<circle class="lane-${side}-escalate" data-id="${escAttr(lane.id)}" cx="${escX}" cy="${ly}" r="4.5" fill="${color}"/>`,
           text(
             escX + 8,
             ly + 16,
@@ -460,7 +461,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       if (lane.firstOpenS !== null) {
         const openX = tX(lane.firstOpenS)
         parts.push(
-          `<circle class="lane-${side}-open" data-id="${esc(lane.id)}" cx="${openX}" cy="${ly}" r="4.5" fill="${THEME.panel}" stroke="${color}" stroke-width="2"/>`,
+          `<circle class="lane-${side}-open" data-id="${escAttr(lane.id)}" cx="${openX}" cy="${ly}" r="4.5" fill="${THEME.panel}" stroke="${color}" stroke-width="2"/>`,
           text(
             openX - 8,
             ly + 4,
@@ -506,7 +507,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         const [ix, iy] = ringPoint(cy, entryBearing, SITE.radiusM - 700)
         const [ox, oy] = ringPoint(cy, entryBearing, SITE.radiusM + 700)
         parts.push(
-          `<line class="ring-entry-${side}" data-id="${esc(lane.id)}" x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${color}" stroke-width="2.5"/>`,
+          `<line class="ring-entry-${side}" data-id="${escAttr(lane.id)}" x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${color}" stroke-width="2.5"/>`,
         )
       }
       const at = atSecond(input, lane.id, lane.timeToEscalateS)
@@ -514,7 +515,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         const [x, y_] = ringPoint(cy, at.bearing, at.rangeM)
         const inside = lane.standoffM < 0
         parts.push(
-          `<circle class="ring-mark-${side}" data-id="${esc(lane.id)}" cx="${x}" cy="${y_}" r="4" fill="${inside ? 'none' : color}" stroke="${color}" stroke-width="2"/>`,
+          `<circle class="ring-mark-${side}" data-id="${escAttr(lane.id)}" cx="${x}" cy="${y_}" r="4" fill="${inside ? 'none' : color}" stroke="${color}" stroke-width="2"/>`,
         )
       }
       parts.push(
@@ -525,7 +526,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
           at === null || lane.standoffM === null
             ? `${side === 'unaided' ? 'unaided' : 'Vigil'} · MISSED — never escalated`
             : `${side === 'unaided' ? 'unaided' : 'Vigil'} · ${kmWord(lane.standoffM)} · ${relationWords(lane)}`,
-          `class="ring-legend-${side}" data-id="${esc(lane.id)}" font-size="11" fill="${THEME.text}"`,
+          `class="ring-legend-${side}" data-id="${escAttr(lane.id)}" font-size="11" fill="${THEME.text}"`,
         ),
       )
     })
@@ -584,7 +585,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       const { ident } = side === 'unaided' ? unaidedNames : vigilNames
       for (const other of made) {
         parts.push(
-          `<circle class="other-mark-${side}" data-id="${esc(other.id)}" data-t="${other.t}" cx="${tX(other.t)}" cy="${ly}" r="4.5" fill="${color}"/>`,
+          `<circle class="other-mark-${side}" data-id="${escAttr(other.id)}" data-t="${other.t}" cx="${tX(other.t)}" cy="${ly}" r="4.5" fill="${color}"/>`,
           text(
             tX(other.t),
             ly - 10,
@@ -601,7 +602,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
             PAD + 16,
             ry + OTHER_TOP + line * 18,
             `${side === 'unaided' ? 'unaided' : 'Vigil'} · ${ident(other.id)} escalated ${mmss(other.t)} — ${outcomeWords(other)}`,
-            `class="other-legend-${side}" data-id="${esc(other.id)}" font-size="11" fill="${THEME.text}"`,
+            `class="other-legend-${side}" data-id="${escAttr(other.id)}" font-size="11" fill="${THEME.text}"`,
           ),
         )
         line += 1

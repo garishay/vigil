@@ -15,6 +15,7 @@
 import type { RunRecord } from '../../src/lib/run.ts'
 import {
   CONDITION_COLOR,
+  escAttr,
   frameDocument,
   mmss,
   THEME,
@@ -159,7 +160,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
   const sX = (m: number) => round1(BAND_X + ((m + BAND_KM * 1000) / (2 * BAND_KM * 1000)) * BAND_W)
   const parts: string[] = []
   parts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-left="${esc(left.record.subject)}-${esc(left.record.scenario)}-${left.record.mode}-${left.record.run}" data-right="${esc(right.record.subject)}-${esc(right.record.scenario)}-${right.record.mode}-${right.record.run}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-left="${escAttr(left.record.subject)}-${escAttr(left.record.scenario)}-${left.record.mode}-${left.record.run}" data-right="${escAttr(right.record.subject)}-${escAttr(right.record.scenario)}-${right.record.mode}-${right.record.run}">`,
     `<rect width="${width}" height="${height}" fill="${THEME.bg}"/>`,
     `<svg class="frame-left" x="0" y="0" width="${l.width}" height="${l.height}" viewBox="0 0 ${l.width} ${l.height}">`,
     ...l.lines,
@@ -205,7 +206,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
         BLOCK_PAD,
         ry + 26,
         `${rows > 1 ? `threat ${i + 1}` : 'the threat'} · ${rowName(threat.id)}`,
-        `class="row-title" data-id="${esc(threat.id)}" font-size="15" font-weight="600" fill="${THEME.text}"`,
+        `class="row-title" data-id="${escAttr(threat.id)}" font-size="15" font-weight="600" fill="${THEME.text}"`,
       ),
       text(
         BLOCK_PAD,
@@ -249,7 +250,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
             tX(runS) + 8,
             ly + 4,
             lane && !lane.miss ? 'escalated unopened' : 'MISSED',
-            `class="lane-${side}" data-id="${esc(threat.id)}" font-size="12" font-weight="600" fill="${THEME.warning}"`,
+            `class="lane-${side}" data-id="${escAttr(threat.id)}" font-size="12" font-weight="600" fill="${THEME.warning}"`,
           ),
         )
         continue
@@ -259,7 +260,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
         const escX = tX(lane.timeToEscalateS)
         parts.push(
           `<line x1="${openX}" y1="${ly}" x2="${escX}" y2="${ly}" stroke="${color}" stroke-width="2"/>`,
-          `<circle class="lane-${side}-escalate" data-id="${esc(threat.id)}" cx="${escX}" cy="${ly}" r="4.5" fill="${color}"/>`,
+          `<circle class="lane-${side}-escalate" data-id="${escAttr(threat.id)}" cx="${escX}" cy="${ly}" r="4.5" fill="${color}"/>`,
           text(
             escX + 8,
             ly + 4,
@@ -273,12 +274,12 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
             tX(runS) + 8,
             ly + 4,
             'MISSED',
-            `class="lane-${side}" data-id="${esc(threat.id)}" font-size="12" font-weight="600" fill="${THEME.warning}"`,
+            `class="lane-${side}" data-id="${escAttr(threat.id)}" font-size="12" font-weight="600" fill="${THEME.warning}"`,
           ),
         )
       }
       parts.push(
-        `<circle class="lane-${side}-open" data-id="${esc(threat.id)}" cx="${openX}" cy="${ly}" r="4.5" fill="${THEME.panel}" stroke="${color}" stroke-width="2"/>`,
+        `<circle class="lane-${side}-open" data-id="${escAttr(threat.id)}" cx="${openX}" cy="${ly}" r="4.5" fill="${THEME.panel}" stroke="${color}" stroke-width="2"/>`,
         text(
           openX - 8,
           ly + 4,
@@ -314,7 +315,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
     for (const [lane, dy, color, side] of dots) {
       if (!lane || lane.standoffM === null || lane.timeToEscalateS === null) {
         parts.push(
-          `<circle class="band-${side}-miss" data-id="${esc(threat.id)}" cx="${BAND_X + 6}" cy="${by + dy}" r="5" fill="none" stroke="${color}" stroke-width="2"/>`,
+          `<circle class="band-${side}-miss" data-id="${escAttr(threat.id)}" cx="${BAND_X + 6}" cy="${by + dy}" r="5" fill="none" stroke="${color}" stroke-width="2"/>`,
           text(BAND_X + 16, by + dy + 4, 'MISSED', `font-size="11" fill="${THEME.warning}"`),
         )
         continue
@@ -328,7 +329,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
             ? `${mmss(lane.entryT - lane.timeToEscalateS)} before entry`
             : `${mmss(lane.timeToEscalateS - lane.entryT)} after entry`
       parts.push(
-        `<circle class="band-${side}" data-id="${esc(threat.id)}" cx="${sX(clamped)}" cy="${by + dy}" r="5" fill="${color}"/>`,
+        `<circle class="band-${side}" data-id="${escAttr(threat.id)}" cx="${sX(clamped)}" cy="${by + dy}" r="5" fill="${color}"/>`,
         // Past the band's last 160 px the label would leave the document: it sits left of
         // its dot there, anchored end (#161 round 1).
         ...(sX(clamped) > BAND_X + BAND_W - 160

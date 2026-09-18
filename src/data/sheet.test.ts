@@ -74,12 +74,33 @@ describe('the sheet in the browser (S6a-ii, #165, ruled B5)', () => {
 })
 
 describe('what Save the runs hands back (S6a-ii, #165, ruled D4)', () => {
-  it('normalises one subject’s runs to the results file the CLI reads', () => {
+  it('normalises one subject’s runs to the results file the CLI reads, in run order', () => {
     const runs = [record(prioritizationRaw), { ...record(prioritizationVigil), run: 2 }]
     const files = filesFor(runs)
     expect(files.map((file) => file.name)).toEqual(['vigil-S05-results.json'])
+    expect(files.map((file) => file.label)).toEqual(['the runs'])
     // Round-trips through the loader: what the page writes is what the tool reads back.
     expect(runsIn(files[0].text, 'vigil-S05-results.json').map((run) => run.run)).toEqual([1, 2])
+    // The files can arrive in any order — the sheet draws either way — but `parseResults` reads
+    // the runs ascending, so the envelope is written in run order whatever order it was given
+    // (round 1, finding 2). Before the fix this wrote [2, 1] and the loader refused it.
+    const reversed = filesFor([...runs].reverse())
+    expect(reversed[0].text).toBe(files[0].text)
+    expect(runsIn(reversed[0].text, 'vigil-S05-results.json').map((run) => run.run)).toEqual([1, 2])
+  })
+
+  it('falls back to a file per run when two runs share a run index', () => {
+    // The S5a fixtures are one subject's two conditions, both run 1: there is no order to write
+    // them in, so an envelope over them would be refused on read. Each run's own file instead,
+    // named for everything that tells one from the other, and labelled by the condition since
+    // that is all that differs (round 1, finding 2; #177's rule for the pair's row title).
+    const files = filesFor([record(prioritizationRaw), record(prioritizationVigil)])
+    expect(files.map((file) => file.name)).toEqual([
+      'vigil-S05-03a-raw-run1.json',
+      'vigil-S05-03a-vigil-run1.json',
+    ])
+    expect(files.map((file) => file.label)).toEqual(['unaided', 'Vigil'])
+    for (const file of files) expect(runsIn(file.text, file.name)).toHaveLength(1)
   })
 
   it('writes each run’s own file when the two runs are two subjects', () => {
@@ -87,7 +108,12 @@ describe('what Save the runs hands back (S6a-ii, #165, ruled D4)', () => {
     // by the tool that has to read it. The page composes a pair from two subjects — the viewer's
     // artifact — so that case hands back the run files instead, and both read back.
     const files = filesFor([record(raw), record(vigil)])
-    expect(files.map((file) => file.name)).toEqual(['vigil-S03-run1.json', 'vigil-S04-run1.json'])
+    expect(files.map((file) => file.name)).toEqual([
+      'vigil-S03-02a-raw-run1.json',
+      'vigil-S04-02b-vigil-run1.json',
+    ])
+    // Labelled by the subject, since that is what tells these two apart.
+    expect(files.map((file) => file.label)).toEqual(['S03', 'S04'])
     for (const file of files) expect(runsIn(file.text, file.name)).toHaveLength(1)
     // What Copy the runs puts on the clipboard is what the paste box reads back.
     expect(splitPasted(files.map((file) => file.text).join('\n'))).toHaveLength(2)
@@ -117,18 +143,35 @@ describe('the paste box reads structure, not line shape (S6a-ii, #165, ruled R2)
     expect(splitPasted(`${hostile}${hostile}`).map((part) => part.text)).toEqual([hostile, hostile])
   })
 
-  it('names one paste `pasted` and each of several by its place, and keeps a tail', () => {
+  it('names one paste `pasted` and each of several by its place', () => {
     expect(splitPasted(raw).map((part) => part.name)).toEqual(['pasted'])
     expect(splitPasted(`${raw}\n${vigil}`).map((part) => part.name)).toEqual([
       'pasted[0]',
       'pasted[1]',
     ])
-    // Text the paste cut short is handed on whole rather than dropped, so the loader names it.
+  })
+
+  it('ignores text outside a top-level object, before, between and after (ruled, round 1)', () => {
+    // The chat client a run arrives through wraps it in a name, a time or a greeting, and the
+    // objects are what the loader validates. Before the ruling only the trailing stray text was
+    // kept and everything ahead of the first brace was dropped without saying so.
+    const wrapped = `Gary 14:03\n${raw}\nthanks!\n${vigil}\nsent from my phone`
+    const parts = splitPasted(wrapped)
+    expect(parts.map((part) => part.text)).toEqual([raw, vigil])
+    expect(parts.map((part) => part.name)).toEqual(['pasted[0]', 'pasted[1]'])
+    // No object at all is nothing to read; the page says so rather than refusing a non-run.
+    expect(splitPasted('not json')).toEqual([])
+    expect(splitPasted('')).toEqual([])
+  })
+
+  it('hands on an object that opens and never closes, so the loader refuses it in words', () => {
+    // Not stray text: a truncated paste is a run the subject meant to give, and saying so is
+    // better than dropping it (ruled, round 1).
     const cut = splitPasted(`${raw}\n{"subject":"S04",`)
     expect(cut).toHaveLength(2)
     expect(cut[1].text).toBe('{"subject":"S04",')
     expect(() => runsIn(cut[1].text, cut[1].name)).toThrow(/^pasted\[1\]: not JSON — /)
-    // Nothing at all is still one input, so the refusal says what it read rather than nothing.
-    expect(splitPasted('not json')).toEqual([{ name: 'pasted', text: 'not json' }])
+    // The chatter around a truncated object still goes; the object itself does not.
+    expect(splitPasted('hi\n{"subject":').map((part) => part.text)).toEqual(['{"subject":'])
   })
 })

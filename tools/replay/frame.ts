@@ -77,8 +77,12 @@ export const mmss = (seconds: number): string => {
 /** Text content: the three characters XML reserves; a quote is plain text there. */
 const esc = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-/** An attribute value: the same, and the quote that would end it. */
-const escAttr = (text: string): string => esc(text).replace(/"/g, '&quot;')
+/**
+ * An attribute value: the same, and the quote that would end it. Exported because `sheet.ts`
+ * and `pair.ts` write attributes too, and a value a file supplied must be escaped for the
+ * context it lands in — the page puts these documents into a live DOM (round 1 on #187).
+ */
+export const escAttr = (text: string): string => esc(text).replace(/"/g, '&quot;')
 
 export interface FrameInput {
   record: RunRecord
