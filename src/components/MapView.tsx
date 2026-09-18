@@ -419,19 +419,17 @@ export function MapView({
 
       // Added empty and fed by the effect below, so track updates never rebuild the layer.
       map.addSource(ADSB_SOURCE, { type: 'geojson', data: trackFeatures([], NO_TERMINAL) })
-      // Invisible hit area, deliberately *below* the visible glyph: a slender silhouette is a
-      // narrow target on a dense frame, so this rounds the click target out to the glyph's box
-      // without changing the picture — and because click dispatch prefers the topmost feature,
-      // a visible parked glyph under the cursor beats an overlapping invisible airborne disc.
+      // The one click target for an aircraft, invisible, under the glyph: a disc the inject
+      // halo's size, which the 22 px glyph's box just covers — so the target is what the operator
+      // sees, on the apron too, where a parked glyph is as visible as an airborne one now (S9).
+      // The glyph layer itself is never in the click dispatch: a symbol is hit-tested by its
+      // collision box, the padded quad of the whole image, axis-aligned around the rotated
+      // glyph — up to twice the glyph's width — not by the silhouette drawn (#186 round 1).
       map.addLayer({
         id: `${ADSB_SOURCE}-hit`,
         type: 'circle',
         source: ADSB_SOURCE,
-        // Airborne only: giving a parked aircraft an invisible 16 px disc would blanket the
-        // apron with overlapping targets. Ground glyphs stay clickable at exactly their visible
-        // shape through the glyph layer above.
-        filter: ['!', ['get', 'onGround']],
-        paint: { 'circle-radius': 8, 'circle-opacity': 0 },
+        paint: { 'circle-radius': 11, 'circle-opacity': 0 },
       })
       // The aircraft glyph (S9), turned to its heading and drawn whatever it overlaps: every
       // track is on the map, and the apron is the apron.
@@ -591,19 +589,14 @@ export function MapView({
       // One registration, one dispatch, one selection: every clickable layer shares a single
       // array-form listener, so an overlap cannot fire two handlers and let the later one
       // overwrite the first — features[0] under a single dispatch is the top-rendered feature,
-      // the one under the cursor visually. The glyph layer is in the array for the ground traffic
-      // the filtered hit layer excludes; for airborne, glyph and hit are the same dispatch. Empty
-      // basemap clicks select nothing.
-      map.on(
-        'click',
-        [`${ADSB_SOURCE}-hit`, `${ADSB_SOURCE}-glyph`, `${INJECT_SOURCE}-halo`],
-        (event) => {
-          // An armed map is placing a site, not selecting a track (08a).
-          if (placingRef.current) return
-          const id = event.features?.[0]?.properties?.id as unknown
-          if (typeof id === 'string') onSelectRef.current?.(id)
-        },
-      )
+      // the one under the cursor visually. Each layer's disc is the whole target; the glyphs
+      // stay out (their collision box is not their shape). Empty basemap clicks select nothing.
+      map.on('click', [`${ADSB_SOURCE}-hit`, `${INJECT_SOURCE}-halo`], (event) => {
+        // An armed map is placing a site, not selecting a track (08a).
+        if (placingRef.current) return
+        const id = event.features?.[0]?.properties?.id as unknown
+        if (typeof id === 'string') onSelectRef.current?.(id)
+      })
       // The placement click (08a): anywhere on the map, dot or not, while the editor has it armed.
       map.on('click', (event) => {
         if (!placingRef.current) return

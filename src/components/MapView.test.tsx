@@ -289,16 +289,15 @@ describe('MapView', () => {
       order.indexOf('inject-tracks-halo'),
     )
     expect(order.at(-1)).toBe('selected-track-ring')
-    // The ADS-B hit layer widens the click target for airborne traffic only, and paints
-    // nothing — a parked glyph must not carry an invisible 16 px blanket over the apron.
+    // The ADS-B hit layer is every aircraft's one click target, invisible, a disc the glyph's
+    // box covers — no larger than what the operator sees, parked or airborne (#186 round 1).
     const hit = mapInstance.addLayer.mock.calls.find(
       ([layer]) => layer.id === 'adsb-tracks-hit',
     )![0]
     expect(hit.paint['circle-opacity']).toBe(0)
-    expect(hit.paint['circle-radius']).toBeGreaterThan(5)
-    expect(hit.filter).toEqual(['!', ['get', 'onGround']])
-    // The hit layer sits below the visible glyph: click dispatch prefers the topmost feature, so
-    // a visible parked glyph under the cursor beats an overlapping invisible airborne disc.
+    expect(hit.paint['circle-radius']).toBe(11)
+    expect(hit.filter).toBeUndefined()
+    // The hit layer sits below the visible glyph, which is drawn and never clicked through.
     expect(order.indexOf('adsb-tracks-hit')).toBeLessThan(order.indexOf('adsb-tracks-glyph'))
   })
 
@@ -312,12 +311,9 @@ describe('MapView', () => {
       ([event, target]) => event === 'click' && Array.isArray(target),
     )
     expect(clickRegistrations).toHaveLength(1)
-    // The glyph layer rides in the array for the ground traffic the filtered hit layer excludes.
-    expect(clickRegistrations[0][1]).toEqual([
-      'adsb-tracks-hit',
-      'adsb-tracks-glyph',
-      'inject-tracks-halo',
-    ])
+    // Two discs, one per layer; no symbol layer is in the dispatch — a symbol is hit-tested by
+    // its collision box, the padded image quad, not by the silhouette drawn (#186 round 1).
+    expect(clickRegistrations[0][1]).toEqual(['adsb-tracks-hit', 'inject-tracks-halo'])
     clickHandlers['adsb-tracks-hit']({ features: [{ properties: { id: 'adsb-a3303d' } }] })
     clickHandlers['inject-tracks-halo']({ features: [{ properties: { id: 'inject-02' } }] })
     expect(onSelect.mock.calls.map(([id]) => id)).toEqual(['adsb-a3303d', 'inject-02'])
@@ -448,8 +444,11 @@ describe('MapView', () => {
     const glyph = layers['inject-tracks-glyph'].paint
     expect(glyph['icon-color']).toEqual(dot['circle-color'])
     expect(glyph['icon-halo-color']).toEqual(dot['circle-stroke-color'])
-    expect(glyph['icon-halo-width']).toEqual(dot['circle-stroke-width'])
     expect(glyph['icon-opacity']).toEqual(dot['circle-opacity'])
+    // The stroke's width is not the dot's: an SDF halo is in image pixels, so 2 at ratio 2 is
+    // one screen pixel, half the dot's 2 px stroke, as D3 rules (#186 round 1).
+    expect(glyph['icon-halo-width']).toBe(2)
+    expect(dot['circle-stroke-width']).toBe(2)
     // The aircraft wears the ADS-B layer's quiet colour and no stroke: the paint as built.
     expect(layers['adsb-tracks-glyph'].paint).toEqual({
       'icon-color': '#8fa3bf',
