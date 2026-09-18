@@ -619,7 +619,11 @@ describe('the headline’s width — round 1 (#174)', () => {
     const lines = textsOf(svg, 'headline-counts')
     expect(lines).toHaveLength(3)
     expect(lines[0] + ' ' + lines[1]).toBe(countsSentence(busy))
-    // Words are kept whole, and no line is estimated past the width the sheet leaves it.
+    // The break falls between two named escalations and never inside one: the parentheses are
+    // what make the list scannable, so the first line ends on a closed one and the second opens
+    // with the last item's *and* (#174 round 1).
+    expect(lines[0].endsWith('(never enters the ring)')).toBe(true)
+    expect(lines[1].startsWith('and TRK-65 at 2:30 (')).toBe(true)
     for (const line of lines) {
       expect(line.startsWith(' ')).toBe(false)
       expect(estimateWidth(line, 13)).toBeLessThanOrEqual(1820 - 48 - 30)

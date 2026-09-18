@@ -1338,15 +1338,23 @@ describe('the whole run on the frame (S5f, #173, ruled R1, R2)', () => {
 })
 
 describe('text to a fixed width — round 1 on #174', () => {
-  it('keeps words whole and never estimates a line past the width', () => {
-    const sentence = 'Besides the threats, S06 escalated TRK-33 at 0:33 and TRK-21 at 1:10.'
-    const lines = wrapText(sentence, 13, 200)
-    expect(lines.join(' ')).toBe(sentence)
-    for (const line of lines) expect(estimateWidth(line, 13)).toBeLessThanOrEqual(200)
-    // A width that fits the whole sentence leaves it alone; one word alone is one line, however
-    // wide, since breaking inside a word would lose the reader the ident.
-    expect(wrapText(sentence, 13, 2000)).toEqual([sentence])
-    expect(wrapText('TRK-33', 13, 1)).toEqual(['TRK-33'])
+  it('fills a line with whole chunks and never estimates one past the width', () => {
+    // The caller decides what may not be broken; the sheet's chunks are one named escalation
+    // each, so a line ends between two of them rather than inside a parenthesis.
+    const chunks = [
+      'Besides the threats, S06 escalated',
+      'TRK-33 at 0:33 (enters the ring at 6:32, after the window closed),',
+      'TRK-21 at 1:10 (never enters the ring).',
+    ]
+    const lines = wrapText(chunks, 13, 500)
+    expect(lines.join(' ')).toBe(chunks.join(' '))
+    expect(lines).toEqual(chunks)
+    for (const line of lines) expect(estimateWidth(line, 13)).toBeLessThanOrEqual(500)
+    // A width that fits them all leaves one line; a chunk too wide for any line stands alone
+    // rather than being broken, since breaking inside one is the thing the chunks prevent.
+    expect(wrapText(chunks, 13, 4000)).toEqual([chunks.join(' ')])
+    expect(wrapText([chunks[1]], 13, 1)).toEqual([chunks[1]])
+    expect(estimateWidth(chunks[1], 13)).toBeGreaterThan(400)
     expect(estimateWidth('abcd', 10)).toBeCloseTo(21.2, 10)
   })
 })

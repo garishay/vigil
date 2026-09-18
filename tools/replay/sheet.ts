@@ -147,7 +147,7 @@ function joinClauses(clauses: readonly (readonly [string, string])[]): string {
  * each dispatch here and in the row below; the classes the CSV counts are the footnote's, under
  * the row that shows them. The order is reported last, never as the headline (#153).
  */
-export function countsSentence(input: FrameInput): string {
+export function countsChunks(input: FrameInput): string[] {
   const { metrics: m, record } = input
   const others = otherEscalations(record, input.study.index, input.plan)
   const named = others.map((other) => {
@@ -160,22 +160,25 @@ export function countsSentence(input: FrameInput): string {
     )
     return `${shown ? trackIdent(shown) : other.id} at ${mmss(other.t)} (${outcomeWords(other)})`
   })
-  const escalations =
-    named.length === 0
-      ? 'Nothing else was escalated'
-      : `Besides the threats, ${record.subject} escalated ${
-          named.length < 2
-            ? named[0]
-            : `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}`
-        }`
   const order =
     m.orderCorrect === null
       ? ''
       : m.orderCorrect
         ? '; the threats were escalated in entry order'
         : `; ${escalationOrderWords(m, record)}`
-  return `${escalations}${order}.`
+  if (named.length === 0) return [`Nothing else was escalated${order}.`]
+  // One chunk per escalation, its comma or its *and* carried with it, so a line ends between two
+  // of them and never inside one: the parentheses are what make the list scannable (#174 round 1).
+  const items = named.map((name, i) =>
+    i === named.length - 1
+      ? `${named.length > 1 ? 'and ' : ''}${name}${order}.`
+      : `${name}${i === named.length - 2 ? '' : ','}`,
+  )
+  return [`Besides the threats, ${record.subject} escalated`, ...items]
 }
+
+/** The same sentence, whole — what a reader hears, and what the sheet writes when it fits one line. */
+export const countsSentence = (input: FrameInput): string => countsChunks(input).join(' ')
 
 /** The roles in the order the record escalated them: *threat 2 was escalated before threat 1*. */
 function escalationOrderWords(m: RunMetrics, record: RunRecord): string {
@@ -294,7 +297,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
   ]
   let hy = HEAD_TOP
   const headRows = said.map(([input]) => {
-    const lines = wrapText(countsSentence(input), 13, width - TEXT_X - PAD)
+    const lines = wrapText(countsChunks(input), 13, width - TEXT_X - PAD)
     const row = { y: hy, lines }
     hy += 22 + (lines.length - 1) * HEAD_LINE + HEAD_GAP
     return row

@@ -380,14 +380,14 @@ export const estimateWidth = (content: string, size: number): number =>
  * the width is the estimate above, which never under-reads: it wraps a line early rather than
  * letting one run long, which is the thing being fixed.
  */
-export function wrapText(content: string, size: number, width: number): string[] {
+export function wrapText(chunks: readonly string[], size: number, width: number): string[] {
   const lines: string[] = []
   let line = ''
-  for (const word of content.split(' ')) {
-    const next = line === '' ? word : `${line} ${word}`
+  for (const chunk of chunks) {
+    const next = line === '' ? chunk : `${line} ${chunk}`
     if (line !== '' && estimateWidth(next, size) > width) {
       lines.push(line)
-      line = word
+      line = chunk
     } else {
       line = next
     }
