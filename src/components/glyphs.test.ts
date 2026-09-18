@@ -6,6 +6,7 @@ import {
   GLYPH_BOX,
   MARKS,
   glyphImage,
+  reachAlong,
   polygonPoints,
   signedDistance,
   type Part,
@@ -149,6 +150,18 @@ describe('the two marks (S10, #182)', () => {
 
   it('states the drone’s extent for the tick’s standoff: 19.44 units at the cut', () => {
     expect(DRONE_EXTENT).toBeCloseTo(19.44, 9)
+  })
+
+  it('measures the drone’s reach along a heading: the body on the axes, a rotor’s far edge on the diagonals (#192, ruled 2)', () => {
+    // Along an axis the ray passes between two rotors and leaves the glyph at the body's edge,
+    // 2.475 units; along a diagonal it leaves at the far edge of a rotor ring — the centre at
+    // 6.12·√2 = 8.65 out, plus the band's outer radius 3.6 — 12.25 units.
+    expect(reachAlong(GLYPHS.drone, 0)).toBeCloseTo(2.475, 1)
+    expect(reachAlong(GLYPHS.drone, 45)).toBeCloseTo(12.25, 1)
+    // Four-fold and mirror symmetric, so every heading reads off 0–45.
+    expect(reachAlong(GLYPHS.drone, 135)).toBeCloseTo(reachAlong(GLYPHS.drone, 45), 6)
+    expect(reachAlong(GLYPHS.drone, 270)).toBeCloseTo(reachAlong(GLYPHS.drone, 0), 6)
+    expect(reachAlong(GLYPHS.drone, 60)).toBeCloseTo(reachAlong(GLYPHS.drone, 30), 6)
   })
 })
 

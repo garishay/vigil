@@ -3,7 +3,7 @@ import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
-import { DRONE_EXTENT, GLYPHS, GLYPH_BOX, MARKS, glyphImage } from './glyphs'
+import { GLYPHS, GLYPH_BOX, MARKS, glyphImage, reachAlong } from './glyphs'
 import { IdentityLegend } from './IdentityDot'
 import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao'
 import { bearingDegrees, circlePolygon } from '../lib/geo'
@@ -35,13 +35,26 @@ const GLYPH_RATIO = 2
 const MARK_PX = 12
 /**
  * Where a tick starts: at the marker's edge, not its centre (#182 item 5). The dot's edge is its
- * radius and stroke; the drone's is half its extent at the glyph box. The tick's centre sits
- * half its length beyond, along the heading — `icon-offset` is read as if the rotated
- * direction were up, so a negative y is forward.
+ * radius and stroke. The drone is drawn nose-up while the tick swings round it, so its edge
+ * along the tick is the glyph's reach along that heading (#192, ruled 2) — the body on an
+ * axis, a rotor's far edge on a diagonal — read from a table over the heading folded to 0–45°
+ * by the glyph's four-fold and mirror symmetry, one entry a degree, to within a pixel. The
+ * tick's centre sits half its length beyond the edge, along the heading — `icon-offset` is
+ * read as if the rotated direction were up, so a negative y is forward.
  */
 const DOT_EDGE_PX = 4.5 + 2
-const DRONE_EDGE_PX = (DRONE_EXTENT / GLYPH_BOX) * GLYPH_PX * 0.5
 const tickOffset = (edgePx: number) => [0, -(edgePx + MARK_PX / 2)]
+const droneEdgePx = (headingDeg: number) =>
+  (reachAlong(GLYPHS.drone, headingDeg) / GLYPH_BOX) * GLYPH_PX
+const DRONE_TICK_OFFSET = [
+  'step',
+  ['min', ['%', ['get', 'heading'], 90], ['-', 90, ['%', ['get', 'heading'], 90]]],
+  ['literal', tickOffset(droneEdgePx(0))],
+  ...Array.from({ length: 45 }, (_, i) => [
+    i + 0.5,
+    ['literal', tickOffset(droneEdgePx(i + 1))],
+  ]).flat(),
+] as ExpressionSpecification
 /**
  * The arrowhead's tip is 0.5 units below the top of its box, and the anchor is the box's centre:
  * pushed back by the tip's distance from the centre, the tip sits on the entry point.
@@ -320,10 +333,14 @@ function injectFeatures(
 function entryFeature(points: readonly [number, number][], entryS: number | null) {
   const last = points[points.length - 1]
   const before = points[points.length - 2]
+  // At the ring itself the estimate clamps the path to nothing and the entry point to the
+  // position: nothing ahead to point at, and the row already says where the track is (#192,
+  // ruled 3) — so two equal points draw neither.
+  const ahead = last && before && (last[0] !== before[0] || last[1] !== before[1])
   return {
     type: 'FeatureCollection' as const,
     features:
-      entryS !== null && last && before
+      entryS !== null && ahead
         ? [
             {
               type: 'Feature' as const,
@@ -614,7 +631,7 @@ export function MapView({
           'icon-offset': [
             'case',
             ['==', ['get', 'shape'], 'drone'],
-            ['literal', tickOffset(DRONE_EDGE_PX)],
+            DRONE_TICK_OFFSET,
             ['literal', tickOffset(DOT_EDGE_PX)],
           ],
           'icon-allow-overlap': true,
@@ -709,7 +726,9 @@ export function MapView({
       // ends beside — by the quadrant the path points into. Both in the bright text tone and
       // above the selection ring (ruled R3 on #182): a track a kilometre out has a 20 px path,
       // and its arrowhead was lost under the ring in the path's muted grey. The reading stands
-      // 1.5 em off the point, past the ring's 13 px radius from any path's near end.
+      // 1.8 em off the point — MapLibre takes a 7/24 em baseline shift off a top or bottom
+      // anchor's radial offset, so that is 16.6 px on those and 19.8 px on left and right,
+      // every one past the ring's 13 px radius from any path's near end (#192, ruled 4).
       map.addSource(ENTRY_SOURCE, { type: 'geojson', data: entryFeature([], null) })
       map.addLayer({
         id: `${ENTRY_SOURCE}-arrow`,
@@ -746,7 +765,7 @@ export function MapView({
             315,
             'bottom',
           ],
-          'text-radial-offset': 1.5,
+          'text-radial-offset': 1.8,
           'text-allow-overlap': true,
           'text-ignore-placement': true,
         },

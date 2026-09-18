@@ -161,9 +161,27 @@ export const MARKS: Record<'tick' | 'arrow', readonly Part[]> = {
   ],
 }
 
-/** The drone's full extent on the box, units — for the tick's standoff from its edge. */
+/** The drone's full extent on the box, units — its width across an axis. */
 export const DRONE_EXTENT =
   2 * (cut(DRONE.rotorAt) + cut(DRONE.rotorRadius) + cut(DRONE.rotorWidth) / 2)
+
+/**
+ * How far a glyph's ink reaches from the box's centre along a heading, units (#192, ruled 2):
+ * the last point on that ray inside the union, to a twentieth of a unit. The drone is drawn
+ * nose-up while raw's tick swings round it, so where the tick starts is this reach along the
+ * tick's own heading — the body's edge on an axis, where the ray passes between two rotors,
+ * and a rotor's far edge on a diagonal.
+ */
+export function reachAlong(parts: readonly Part[], headingDeg: number): number {
+  const rad = (headingDeg * Math.PI) / 180
+  const ux = Math.sin(rad)
+  const uy = -Math.cos(rad)
+  let reach = 0
+  for (let t = 0; t <= C * Math.SQRT2; t += 0.05) {
+    if (signedDistance(parts, [C + ux * t, C + uy * t]) < 0) reach = t
+  }
+  return reach
+}
 
 /** Even-odd ray cast: whether the point is inside the polygon. */
 function contains(polygon: Polygon, [px, py]: readonly [number, number]): boolean {

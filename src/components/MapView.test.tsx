@@ -775,13 +775,13 @@ describe('MapView', () => {
       layout: {
         'text-field': ['get', 'reading'],
         'text-size': 11,
-        'text-radial-offset': 1.5,
+        'text-radial-offset': 1.8,
         'text-allow-overlap': true,
         'text-ignore-placement': true,
       },
       paint: { 'text-color': '#e6edf3' },
     })
-    expect(1.5 * 11).toBeGreaterThan(13)
+    expect(1.8 * 11).toBeGreaterThan(13)
     expect(layers['selected-entry-reading'].layout['text-anchor']).toEqual([
       'step',
       ['get', 'bearing'],
@@ -807,6 +807,42 @@ describe('MapView', () => {
       />,
     )
     expect(dataFor('selected-entry').features).toEqual([])
+  })
+
+  it('draws no arrowhead and no reading for a clamped entry whose path is zero (#192, ruled 3)', () => {
+    // At the ring itself the entry estimate clamps its path to nothing and its point to the
+    // position: two equal points give no bearing to turn an arrowhead to, and the row already
+    // says where the track is.
+    const at: [number, number] = [-75.2, 39.9]
+    render(
+      <MapView
+        ao={AO}
+        injects={INJECTS}
+        selectedId="inject-01"
+        projection={[at, [...at]]}
+        projectionEntryS={0}
+      />,
+    )
+    expect(dataFor('selected-entry').features).toEqual([])
+  })
+
+  it('stands the reading clear of the selection ring on every anchor, as MapLibre lays it out (#192, ruled 4)', () => {
+    render(<MapView ao={AO} />)
+    const layer = mapInstance.addLayer.mock.calls.find(
+      ([layer]) => layer.id === 'selected-entry-reading',
+    )![0]
+    const radial = layer.layout['text-radial-offset'] as number
+    const size = layer.layout['text-size'] as number
+    const anchors = (layer.layout['text-anchor'] as unknown[])
+      .slice(2)
+      .filter((v): v is string => typeof v === 'string')
+    expect(new Set(anchors)).toEqual(new Set(['top', 'right', 'bottom', 'left']))
+    // MapLibre's evaluateVariableOffset, in 24-unit ems: a radial offset stands a left or right
+    // anchor the full radius out, and a top or bottom anchor the radius less a 7-unit baseline
+    // shift. The ring's radius is 13 px; the halo adds one.
+    const standoffPx = (anchor: string) =>
+      ((radial * 24 - (anchor === 'top' || anchor === 'bottom' ? 7 : 0)) / 24) * size
+    for (const anchor of anchors) expect([anchor, standoffPx(anchor) >= 14]).toEqual([anchor, true])
   })
 
   it('fades the trail toward its old end: full strength at the track, nothing at the oldest point (S10, #182)', () => {
@@ -948,13 +984,27 @@ describe('the heading tick (S4a; S10, #182 item 5)', () => {
       paint: { 'icon-color': '#c5cfdc' },
     })
     // The mark is 12 px long; it starts at the marker's edge, so its centre stands the edge
-    // plus half its length forward: 6.5 + 6 for the dot (its radius and stroke), 8.91 + 6 for
-    // the drone (half its 17.8 px extent). Forward is a negative y under the rotation.
+    // plus half its length forward: 6.5 + 6 for the dot (its radius and stroke); for the drone
+    // the glyph's reach along the heading (#192, ruled 2) — the glyph is drawn nose-up while
+    // the tick swings round it, so the edge is the body's 2.27 px on an axis and a rotor's far
+    // edge, 11.23 px, on a diagonal — read off a step table over the heading folded to 0–45°.
+    // Forward is a negative y under the rotation.
     const offset = tick.layout['icon-offset']
     expect(offset.slice(0, 2)).toEqual(['case', ['==', ['get', 'shape'], 'drone']])
-    expect(offset[2][1][0]).toBe(0)
-    expect(offset[2][1][1]).toBeCloseTo(-(8.91 + 6), 2)
     expect(offset[3][1]).toEqual([0, -12.5])
+    const drone = offset[2]
+    expect(drone[0]).toBe('step')
+    expect(drone[1]).toEqual([
+      'min',
+      ['%', ['get', 'heading'], 90],
+      ['-', 90, ['%', ['get', 'heading'], 90]],
+    ])
+    // The table's first entry is the axis; its last the diagonal. To within a pixel.
+    const standoff = (literal: unknown[]) => -(literal[1] as [number, number])[1] - 6
+    expect(standoff(drone[2] as unknown[])).toBeCloseTo(2.27, 0)
+    const last = drone[drone.length - 1] as unknown[]
+    expect(drone[drone.length - 2]).toBeLessThanOrEqual(45)
+    expect(standoff(last)).toBeCloseTo(11.23, 0)
     // The image is the box's height at 12 px, at the same ratio as the glyphs.
     const [, image, options] = mapInstance.addImage.mock.calls.find(([id]) => id === 'tick')!
     expect(options).toEqual({ sdf: true, pixelRatio: 2 })

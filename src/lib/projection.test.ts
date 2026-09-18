@@ -7,7 +7,14 @@ import type { AdsbCapture } from './adsb'
 import { formatEntryTime } from './display'
 import { destinationPoint, distanceMeters } from './geo'
 import { gridTimeline, injectTracksAt, planScenario } from './injects'
-import { projectPosition, timeToEntry, type EntrySite, type Projectable } from './projection'
+import {
+  projectPosition,
+  projectedPath,
+  timeToEntry,
+  type EntryEstimate,
+  type EntrySite,
+  type Projectable,
+} from './projection'
 import { indexCapture, pictureAt } from './replay'
 
 const PHL = AO.protectedSites[0]
@@ -85,9 +92,11 @@ describe('timeToEntry', () => {
     expect(timeToEntry(slow, AO.protectedSites)).toEqual(none)
     expect(PROJECTION.horizonS).toBe(SCORING.closing.entryZeroMin * 60)
     expect(PROJECTION.horizonS).toBe(1200)
-    expect(timeToEntry(slow, AO.protectedSites, { horizonS: 1800 })?.kind).toBe('entry')
+    expect(timeToEntry(slow, AO.protectedSites, { ...PROJECTION, horizonS: 1800 })?.kind).toBe(
+      'entry',
+    )
     // A none carries the horizon it was computed under — the config's, whichever it was (#122).
-    expect(timeToEntry(slow, AO.protectedSites, { horizonS: 300 })).toEqual({
+    expect(timeToEntry(slow, AO.protectedSites, { ...PROJECTION, horizonS: 300 })).toEqual({
       ...none,
       horizonS: 300,
     })
@@ -214,6 +223,67 @@ describe('timeToEntry over the replay — the value is continuous through the fr
     // The walk's number at the start, and roughly a second a second after it.
     expect(formatEntryTime(run[0])).toBe('118 s')
     expect(run[0] - run[30]).toBeGreaterThan(20)
+  })
+})
+
+describe('projectedPath — the line the map draws (S10, #182; #192 round 1)', () => {
+  const none: EntryEstimate = { kind: 'none', horizonS: PROJECTION.horizonS, coastedS: null }
+  const away = (groundSpeedKt: number | null, extra: Partial<Projectable> = {}): Projectable => ({
+    position: [-75.2, 39.9],
+    headingDeg: 90,
+    groundSpeedKt,
+    onGround: false,
+    lastSeenSec: 0,
+    ...extra,
+  })
+  const lengthOf = (path: [number, number][]) =>
+    path.length === 2 ? distanceMeters(path[0], path[1]) : 0
+
+  it('runs a missing course out to the row’s horizon, and draws it no longer than 25 km (ruled 1)', () => {
+    // A 30 kt inject: twenty minutes is 18.5 km, under the cap, the horizon whole.
+    expect(lengthOf(projectedPath(away(30), none))).toBeCloseTo(30 * KT_TO_MS * 1200, -1)
+    // A 450 kt departure: twenty minutes is 278 km, off every viewport — the line stops at 25 km.
+    expect(lengthOf(projectedPath(away(450), none))).toBeCloseTo(25_000, -1)
+    expect(PROJECTION.runOutM).toBe(25_000)
+  })
+
+  it('counts a coasting track’s position age on, so the run-out reaches the horizon from now (#192 round 1, Codex)', () => {
+    // Held 60 s at its last position: the row's twenty minutes count from now, so the course
+    // runs 21 minutes from where the track was last heard.
+    const held = away(30, { coasting: true, lastSeenSec: 60, positionAgeS: 60 })
+    expect(lengthOf(projectedPath(held, none))).toBeCloseTo(30 * KT_TO_MS * 1260, -1)
+  })
+
+  it('draws nothing for a track with no speed to project — 0 kt with a heading included (ruled 5)', () => {
+    expect(projectedPath(away(0), none)).toEqual([])
+    expect(projectedPath(away(null), none)).toEqual([])
+    expect(projectedPath(away(30, { headingDeg: null }), none)).toEqual([])
+    // Inside a ring, or no estimate at all (on the ground): nothing.
+    expect(
+      projectedPath(away(30), {
+        kind: 'inside',
+        siteId: 's',
+        siteName: 'S',
+        tier: 1,
+        coastedS: null,
+      }),
+    ).toEqual([])
+    expect(projectedPath(away(30), null)).toEqual([])
+  })
+
+  it('draws the path to the ring while the estimate is an entry', () => {
+    const point: [number, number] = [-75.1, 39.9]
+    expect(
+      projectedPath(away(30), {
+        kind: 'entry',
+        tSec: 90,
+        point,
+        siteId: 's',
+        siteName: 'S',
+        tier: 1,
+        coastedS: null,
+      }),
+    ).toEqual([[-75.2, 39.9], point])
   })
 })
 
