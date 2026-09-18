@@ -20,6 +20,7 @@ import {
   THEME,
   type FrameInput,
   type FrameOptions,
+  trackNamer,
 } from './frame.ts'
 import type { RunMetrics, ThreatMetrics } from './metrics.ts'
 
@@ -59,7 +60,11 @@ const kmWord = (m: number): string => `${m >= 0 ? '+' : '−'}${(Math.abs(m) / 1
  * The order is the escalations' positions in the record — the verdict's own reading, so two on
  * one second keep the order the record writes (#161 round 1).
  */
-export function orderWords(m: RunMetrics, record: RunRecord): string {
+export function orderWords(input: FrameInput): string {
+  const { metrics: m, record } = input
+  // The threats are named as the frames above the block name them (#177, R1): the run's own
+  // screen name at its freeze, never the study's id, which no screen printed.
+  const { ident } = trackNamer(input)
   if (m.orderCorrect === true) return '✓'
   if (m.orderCorrect === false) {
     const at = (id: string) =>
@@ -67,10 +72,10 @@ export function orderWords(m: RunMetrics, record: RunRecord): string {
     const order = [...m.threats]
       .filter((threat) => at(threat.id) >= 0)
       .sort((a, b) => at(a.id) - at(b.id))
-      .map((threat) => threat.id)
+      .map((threat) => ident(threat.id))
     return `✗ (${order.join(' before ')})`
   }
-  const missed = m.threats.filter((threat) => threat.miss).map((threat) => threat.id)
+  const missed = m.threats.filter((threat) => threat.miss).map((threat) => ident(threat.id))
   return `— (${missed.length > 0 ? `${missed.join(', ')} missed` : 'one threat'})`
 }
 
@@ -80,7 +85,7 @@ export function countsLine(
   b: RunMetrics,
   aWord: string,
   bWord: string,
-  records: [RunRecord, RunRecord],
+  inputs: [FrameInput, FrameInput],
 ): string {
   const item = (label: string, x: string, y: string) => `${label} ${aWord} ${x} · ${bWord} ${y}`
   const items = [
@@ -95,9 +100,7 @@ export function countsLine(
       String(a.escalationsOfLaterEntrants),
       String(b.escalationsOfLaterEntrants),
     ),
-    ...(a.threats.length > 1
-      ? [item('order', orderWords(a, records[0]), orderWords(b, records[1]))]
-      : []),
+    ...(a.threats.length > 1 ? [item('order', orderWords(inputs[0]), orderWords(inputs[1]))] : []),
   ]
   return items.join('     |     ')
 }
@@ -122,6 +125,16 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
   }
   const aWord = conditionWord(left.record)
   const bWord = conditionWord(right.record)
+  // The row names its track the way each run's screen named it, the frame's rule (#177, R1): the
+  // two frames stand on this same document, so an id neither screen printed would be a third
+  // name for one track. A pair reads one scenario, so the two names agree unless the conditions'
+  // screens differed — which is what F2 protects, and what the 02 cast does.
+  const aNames = trackNamer(left)
+  const bNames = trackNamer(right)
+  const rowName = (id: string) =>
+    aNames.ident(id) === bNames.ident(id)
+      ? aNames.ident(id)
+      : `${aNames.ident(id)} ${aWord}, ${bNames.ident(id)} ${bWord}`
   const aColor = CONDITION_COLOR[left.record.mode]
   const bColor = CONDITION_COLOR[right.record.mode]
   const width = l.width + GAP + r.width
@@ -159,7 +172,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
     text(
       BLOCK_PAD,
       y + 50,
-      countsLine(a, b, aWord, bWord, [left.record, right.record]),
+      countsLine(a, b, aWord, bWord, [left, right]),
       `class="counts" font-size="14" fill="${THEME.text}"`,
     ),
   )
@@ -179,7 +192,7 @@ export function pairSvg({ left, right }: PairInput, options: FrameOptions = {}):
       text(
         BLOCK_PAD,
         ry + 26,
-        rows > 1 ? `threat ${i + 1} · ${threat.id}` : `the threat · ${threat.id}`,
+        `${rows > 1 ? `threat ${i + 1}` : 'the threat'} · ${rowName(threat.id)}`,
         `class="row-title" data-id="${esc(threat.id)}" font-size="15" font-weight="600" fill="${THEME.text}"`,
       ),
       text(

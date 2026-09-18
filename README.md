@@ -315,7 +315,11 @@ call one track one thing; where a look's ident differed, the line says what it r
 rule labelled with the freeze's second crosses the log where the run kept working after it, a miss
 is stated once beneath the log, and the overlay's count is the foot's own line. A threat's lines
 and every escalation take the box's weight; the rest are muted. The ids the CSV and the metrics
-carry are untouched.
+carry are untouched. Every artifact the tool renders names a track the same way (S5h): the sheet's
+row subtitle and the idents it resolves, and the pair's row title and order clause, all take that
+run's name at its freeze, so a document and the frames on it never give a reader two names for one
+track — where two conditions' screens genuinely differed, both are shown and said whose each is.
+The study figure names no track at all, only subjects, scenarios and counts.
 
 ## How this repo is built
 

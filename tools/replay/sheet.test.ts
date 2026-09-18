@@ -3,11 +3,13 @@ import { bearingDegrees } from '../../src/lib/geo.ts'
 import { STUDY } from '../../src/config/study.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
-import { estimateWidth, type FrameInput } from './frame.ts'
+import { estimateWidth, mmss, outcomeWords, trackNamer, type FrameInput } from './frame.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
-import { runMetrics } from './metrics.ts'
+import { otherEscalations, runMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 import { countsSentence, openingSentence, ordinalWord, sheetName, sheetSvg } from './sheet.ts'
+import { orderWords, pairSvg } from './pair.ts'
+import { studySvg } from './figure.ts'
 
 const study = loadStudy()
 const fixture = (name: string): FrameInput => {
@@ -136,8 +138,10 @@ describe('the subject sheet — the rows', () => {
       'other escalations',
     ])
     expect(textsOf(svg, 'row-subtitle')).toEqual([
-      'unaided 03a inject-31 · with Vigil 03b inject-29',
-      'unaided 03a inject-57 · with Vigil 03b inject-23',
+      // Each side names its track as its own run's frame does (#177): the screen's name at that
+      // run's freeze, never the study's id, which no screen printed.
+      'unaided 03a TRK-31 · with Vigil 03b TRK-29',
+      'unaided 03a TRK-57 · with Vigil 03b TRK-23',
       'every escalation the run made besides the threats above, and what each track turned out to be',
     ])
   })
@@ -282,7 +286,9 @@ describe('the subject sheet — the rows', () => {
     const svg02 = sheetOf('S03-02a-raw-1', 'S04-02b-vigil-1')
     expect(textsOf(svg02, 'row-title')).toEqual(['the threat'])
     expect(textsOf(svg02, 'row-subtitle')).toEqual([
-      'unaided 02a inject-11 · with Vigil 02b inject-11',
+      // One cast row, two conditions, and the two screens named it differently — which is what
+      // F2 protects and what the id hid (#177).
+      'unaided 02a UAS-8F21 · with Vigil 02b TRK-11',
     ])
   })
 })
@@ -644,5 +650,87 @@ describe('the headline’s width — round 1 (#174)', () => {
       expect(textsOf(svg, 'headline-counts')).toHaveLength(2)
       expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
     }
+  })
+})
+
+describe('one name per track across the document (#177, ruled M1–M4, R1)', () => {
+  const inputs = {
+    'S05-03a-raw-1': fixture('S05-03a-raw-1'),
+    'S06-03b-vigil-1': fixture('S06-03b-vigil-1'),
+    'S06-03b-raw-1': fixture('S06-03b-raw-1'),
+    'S05-03a-vigil-1': fixture('S05-03a-vigil-1'),
+    'S03-02a-raw-1': fixture('S03-02a-raw-1'),
+    'S04-02b-vigil-1': fixture('S04-02b-vigil-1'),
+  }
+
+  it('gives the sheet the frame’s rule wherever it prints an ident (M2)', () => {
+    // The rule, not a difference: on the committed cast the freeze and an escalation's own second
+    // give the same ident everywhere, so this pins what the sheet resolves rather than a change
+    // it shows. It fails on the row subtitle before this PR, which named the study's ids.
+    for (const [u, v] of [
+      ['S05-03a-raw-1', 'S06-03b-vigil-1'],
+      ['S06-03b-raw-1', 'S05-03a-vigil-1'],
+      ['S03-02a-raw-1', 'S04-02b-vigil-1'],
+    ] as const) {
+      const unaided = inputs[u]
+      const vigil = inputs[v]
+      const svg = sheetSvg({ unaided, vigil }, { queueCap: 5 })
+      const names = { unaided: trackNamer(unaided), vigil: trackNamer(vigil) }
+      // The row subtitle: each side its own run's name, in the row's own order. The third row's
+      // subtitle is not a threat's, so only the first rows are read.
+      textsOf(svg, 'row-subtitle')
+        .slice(0, unaided.metrics.threats.length)
+        .forEach((line, i) => {
+          expect(line).toBe(
+            `unaided ${unaided.metrics.scenario} ${names.unaided.ident(unaided.metrics.threats[i].id)} · with Vigil ${vigil.metrics.scenario} ${names.vigil.ident(vigil.metrics.threats[i].id)}`,
+          )
+        })
+      // The third row's words, where it has any: the same rule, that lane's run.
+      for (const side of ['unaided', 'vigil'] as const) {
+        const input = side === 'unaided' ? unaided : vigil
+        for (const other of otherEscalations(input.record, input.study.index, input.plan)) {
+          const ident = names[side].ident(other.id)
+          expect(textsOf(svg, `other-legend-${side}`)).toContain(
+            `${side === 'unaided' ? 'unaided' : 'Vigil'} · ${ident} escalated ${mmss(other.t)} — ${outcomeWords(other)}`,
+          )
+          expect(countsSentence(input)).toContain(`${ident} at ${mmss(other.t)}`)
+        }
+      }
+      // And no word a reader sees carries a study id, on the sheet as on its frames.
+      const words = [...svg.matchAll(/>([^<>]*)</g)].map((match) => match[1])
+      expect(words.some((word) => /\b(inject|adsb)-/.test(word))).toBe(false)
+    }
+  })
+
+  it('shows the two conditions’ own names where their screens differed (M1)', () => {
+    // The 02 cast is the one that flips: 02a's unaided screen read the Remote ID name at its
+    // freeze and 02b's Vigil screen the sensor track, for one cast row.
+    const svg = sheetSvg(
+      { unaided: inputs['S03-02a-raw-1'], vigil: inputs['S04-02b-vigil-1'] },
+      { queueCap: 5 },
+    )
+    expect(textsOf(svg, 'row-subtitle')).toEqual(['unaided 02a UAS-8F21 · with Vigil 02b TRK-11'])
+    // Each side is the name its own frame carries, so the subtitle agrees with the frame above it.
+    expect(trackNamer(inputs['S03-02a-raw-1']).ident('inject-11')).toBe('UAS-8F21')
+    expect(trackNamer(inputs['S04-02b-vigil-1']).ident('inject-11')).toBe('TRK-11')
+  })
+
+  it('records which artifacts carry an ident at all (R1’s sweep)', () => {
+    const words = (svg: string) => [...svg.matchAll(/>([^<>]*)</g)].map((match) => match[1])
+    const ident = /\b(TRK-\d+|UAS-[0-9A-F]+)\b/
+    // The pair prints one: its row title, and the order clause when the threats were inverted or
+    // one was missed. Both take the namer now.
+    const pair = pairSvg(
+      { left: inputs['S05-03a-raw-1'], right: inputs['S05-03a-vigil-1'] },
+      { queueCap: 5 },
+    )
+    expect(textsOf(pair, 'row-title')).toEqual(['threat 1 · TRK-31', 'threat 2 · TRK-57'])
+    expect(orderWords(inputs['S05-03a-raw-1'])).toBe('✗ (TRK-57 before TRK-31)')
+    expect(words(pair).some((word) => /\b(inject|adsb)-/.test(word))).toBe(false)
+    // The study figure prints no track's name at all: subject codes, scenarios and counts only.
+    const figure = studySvg(Object.values(inputs).map((input) => input.metrics))
+    expect(words(figure).some((word) => ident.test(word))).toBe(false)
+    expect(words(figure).some((word) => /\b(inject|adsb)-/.test(word))).toBe(false)
+    expect(words(figure)).toContain('S05')
   })
 })
