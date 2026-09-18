@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { AlertStack } from './components/AlertStack'
 import { useAlertTone } from './components/useAlertTone'
@@ -18,6 +18,7 @@ import { SCORING } from './config/scoring'
 import { QUESTIONS, STUDY, WORKLOAD_SCALE, briefFor, type QuestionId } from './config/study'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useSession } from './data/useSession'
+import { RUNS_PER_SUBJECT, nextRunSearch } from './lib/session'
 import { intervalSchedule, usePlayback, type Schedule } from './data/usePlayback'
 import { clearFor, foldAlerts, type Alert } from './lib/alerts'
 import { formatElapsed, recordingLabel, simClock, trackIdent, type WarmBand } from './lib/display'
@@ -46,7 +47,9 @@ import {
 } from './lib/lifecycle'
 import { rankTracks, type RankedTrack } from './lib/ranking'
 import { historiesAt, lastHeardBefore, memoryAt, originsOf, trailAt } from './lib/replay'
-import { runJson, type RunAnswers, type Selection } from './lib/run'
+import { runJson, runText, type RunAnswers, type RunRecord, type Selection } from './lib/run'
+import { downloadRun } from './lib/download'
+import { firstUnsaved, runsOf, writeRun } from './lib/runs'
 import { clockStartOf, minuteOfDay } from './lib/scoring'
 import {
   addSite,
@@ -124,6 +127,15 @@ const SITE_PLAN_KEY = 'vigil.site-plan'
 const BUILD = import.meta.env.VITE_BUILD ?? 'unknown'
 
 /** The stored plan, or null when none is held or the browser refuses storage — never a throw. */
+/**
+ * Where a study run sends the subject next (S6a-iii): module scope, so the default is one
+ * function rather than a new one each render — an unstable default would re-fire the effect
+ * that depends on it on every render, and doubly under StrictMode (round 1, finding 4).
+ */
+const goTo = (search: string) => {
+  window.location.search = search
+}
+
 const readStoredPlan = (): string | null => {
   try {
     return localStorage.getItem(SITE_PLAN_KEY)
@@ -137,13 +149,20 @@ const readStoredPlan = (): string | null => {
  * tests fix it. `schedule` is the replay clock's seam (06a): the tick is scheduled through it,
  * so a test drives the clock by hand and never waits on real time. `lookupPhoto` is the network
  * seam (03d): the one runtime third-party call, injected the way the capture's fetcher is, so no
- * test reaches the network.
+ * test reaches the network. `navigate` is the session seam (S6a-iii): a study run opens the next
+ * run of its session by the URL, and a test reads where it was sent instead of moving.
  */
 export default function App({
   now = () => new Date().toISOString(),
   schedule = intervalSchedule,
   lookupPhoto = defaultLookupPhoto,
-}: { now?: () => string; schedule?: Schedule; lookupPhoto?: PhotoLookup } = {}) {
+  navigate = goTo,
+}: {
+  now?: () => string
+  schedule?: Schedule
+  lookupPhoto?: PhotoLookup
+  navigate?: (search: string) => void
+} = {}) {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
   const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
   // The session the URL and the build name (#115): its feeds and, when on, its scenario. One
@@ -249,6 +268,13 @@ export default function App({
   // (ruled A5): which track, at which tick. The record holds the actions; this holds the looks.
   const [selections, setSelections] = useState<Selection[]>([])
   const [answers, setAnswers] = useState<Partial<RunAnswers>>({})
+  // A run saves itself once the three questions are answered (S6a-iii, #165, item 2), under the
+  // subject's code and this run's index. Fail-soft: a browser that will not keep it says so on
+  // the end screen, and the run is still there to copy or download.
+  const [savedRuns, setSavedRuns] = useState<readonly RunRecord[]>(() =>
+    study === null ? [] : runsOf(study.subject, RUNS_PER_SUBJECT),
+  )
+  const [saveRefused, setSaveRefused] = useState(false)
 
   /**
    * The picture at the clock, through the seam (#115): the feeds in session order, then the
@@ -776,23 +802,79 @@ export default function App({
   // nor acted on through the overlay; the handlers above refuse anyway.
   // The run's name on the brief and the end screen: the subject and the run only (#36 [37],
   // ruled A) — the scenario and the mode are the researcher's, carried by the JSON.
+  // The run a link opens at (item 8): the first this browser has not saved. A subject who
+  // reloads their link after run 1 lands on run 2 rather than running run 1 again, and with the
+  // session finished there is no run left to open — the results stand in its place.
+  const resume = useMemo(
+    () => (study === null ? null : firstUnsaved(study.subject, RUNS_PER_SUBJECT)),
+    [study],
+  )
   const runName = study ? `subject ${study.subject} · run ${study.run}` : null
-  const overlay = study && beganAt === null
-  const json = useMemo(() => {
-    if (!study || !runEnded || beganAt === null || !ready) return null
-    if (QUESTIONS.some((question) => answers[question.id] === undefined)) return null
-    return runJson({
-      session: ready.session,
-      build: BUILD,
-      beganAt,
-      beginS: runWindow.fromS,
-      endS: runWindow.toS,
-      logs: eventLogs,
-      selections,
-      answers: answers as RunAnswers,
-    })
-  }, [study, runEnded, beganAt, ready, answers, eventLogs, selections, runWindow])
-  const covered = overlay || runEnded
+  /** The run's text under a set of answers, or null while any of the three is unanswered. */
+  const runTextFor = useCallback(
+    (given: Partial<RunAnswers>): string | null => {
+      if (!study || !runEnded || beganAt === null || !ready) return null
+      if (QUESTIONS.some((question) => given[question.id] === undefined)) return null
+      return runJson({
+        session: ready.session,
+        build: BUILD,
+        beganAt,
+        beginS: runWindow.fromS,
+        endS: runWindow.toS,
+        logs: eventLogs,
+        selections,
+        answers: given as RunAnswers,
+      })
+    },
+    [study, runEnded, beganAt, ready, eventLogs, selections, runWindow],
+  )
+  const json = useMemo(() => runTextFor(answers), [runTextFor, answers])
+
+  /**
+   * A run saves itself the moment its last question is answered (S6a-iii, #165, item 2), under
+   * the subject's code and this run's index — in the handler rather than in an effect, so the
+   * write happens once, on the subject's own action, and what is stored is the run's own text:
+   * what a subject hands over is byte for byte what they copied.
+   *
+   * Fail-soft, as the site plan's store is: a browser that will not keep it says so on the end
+   * screen and the run is still there to copy or download.
+   */
+  const answer = useCallback(
+    (id: QuestionId, value: number) => {
+      const given = { ...answers, [id]: value }
+      setAnswers(given)
+      const text = runTextFor(given)
+      if (text === null || study === null) return
+      setSaveRefused(!writeRun(JSON.parse(text) as RunRecord, text))
+      setSavedRuns(runsOf(study.subject, RUNS_PER_SUBJECT))
+    },
+    [answers, runTextFor, study],
+  )
+  const nextSearch = useMemo(
+    () => (resolved === null ? null : nextRunSearch(resolved, window.location.search)),
+    [resolved],
+  )
+  /**
+   * Nothing to run here (item 8): every run of the session is saved, or this link's run is saved
+   * and there is no link to the next one — a scenario with no pair, say. Either way the brief is
+   * withheld, because offering it would re-run a run already given (round 1, finding 3).
+   */
+  const sessionDone =
+    study !== null &&
+    beganAt === null &&
+    (resume === null || (resume > study.run && nextSearch === null))
+  useEffect(() => {
+    // Forward only. A link that asks for a run this browser has not reached yet is run as
+    // asked — its end screen carries the words for the run that is missing (item 4) — and a
+    // link whose run is already saved moves on by the turned-over link, so the scenario and
+    // the mode move with it rather than run 1 being replayed under run 2’s condition.
+    if (study === null || resume === null || resume <= study.run || beganAt !== null) return
+    // No link to the next run — the card stands in its place rather than the brief (finding 3).
+    if (nextSearch !== null && nextSearch !== window.location.search) navigate(nextSearch)
+  }, [study, resume, beganAt, nextSearch, navigate])
+
+  const overlay = study !== null && beganAt === null && !sessionDone
+  const covered = overlay || runEnded || sessionDone
 
   return (
     <div className="shell">
@@ -1040,16 +1122,54 @@ export default function App({
           }}
         />
       )}
+      {/* Both runs saved and the link opened again: there is no run left to do, and offering
+          the brief would re-run one (item 8). The session's own files are the way out. */}
+      {sessionDone && runName !== null && (
+        <div className="run" role="dialog" aria-modal="true" aria-labelledby="run-title">
+          <div className="run__card">
+            <h2 className="run__title" id="run-title">
+              {savedRuns.length === RUNS_PER_SUBJECT ? 'Session complete' : 'Already run'} —{' '}
+              {runName.replace(/ · run \d+$/, '')}
+            </h2>
+            <p className="run__brief">
+              {savedRuns.length === RUNS_PER_SUBJECT
+                ? 'Both of your runs are saved in this browser. There is nothing left to run.'
+                : 'This run is already saved in this browser, and there is no next run to open from here.'}
+            </p>
+            <div className="run__copy">
+              {savedRuns.map((record) => (
+                <button
+                  key={record.run}
+                  type="button"
+                  className="run__quiet"
+                  onClick={() => downloadRun(record.subject, record.run, runText(record))}
+                >
+                  Download run {record.run}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {inStudy && runEnded && runName !== null && (
         <RunEnd
           title={`Run complete — ${runName} · +${formatElapsed(tSec - runWindow.fromS)}`}
+          run={study.run}
           questions={QUESTIONS}
           scale={WORKLOAD_SCALE}
           answers={answers}
-          onAnswer={(id: QuestionId, value: number) =>
-            setAnswers((current) => ({ ...current, [id]: value }))
-          }
+          onAnswer={answer}
           json={json}
+          saved={json !== null && !saveRefused}
+          onDownload={() => json !== null && downloadRun(study.subject, study.run, json)}
+          // The way on reads what this browser holds now, not what it held at mount: a
+          // subject who ran run 2 first and then run 1 has both, and offering Start run 2
+          // there would name a run already given (Codex, round 1).
+          onNext={
+            nextSearch === null || savedRuns.some((saved) => saved.run === study.run + 1)
+              ? undefined
+              : () => navigate(nextSearch)
+          }
         />
       )}
     </div>

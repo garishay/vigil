@@ -1328,3 +1328,49 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* The end screen's quiet way out and its way on (S6a-iii, #165, items 2–4). */
+.run__quiet {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  padding: 0.5rem 1.25rem;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.run__quiet:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.run__saved {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.run__next {
+  margin-top: 1rem;
+}
+
+.run__optional {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.run__optional-label {
+  color: var(--faint);
+}
+
+.run__warn {
+  margin: 0.75rem 0 0;
+  border-left: 2px solid var(--warning);
+  padding-left: 0.75rem;
+  color: var(--text);
+  line-height: 1.5;
+}

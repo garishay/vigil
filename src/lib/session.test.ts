@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   BUILD_DEFAULTS,
   SessionRefusal,
+  RUNS_PER_SUBJECT,
   isSheetPage,
+  nextRunSearch,
   parseFeedRef,
   resolveSession,
 } from './session'
 import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings'
+import { SCENARIOS } from '../config/scenarios'
 import { SCENARIO } from '../config/scenario'
 
 /** `on` is the registry's first — the default deal, named default (S3b, #135; #36 [26] A). */
@@ -364,5 +367,44 @@ describe('isSheetPage (S6a-ii, #165, ruled B1)', () => {
       subject: 'S03',
       run: 1,
     })
+  })
+})
+
+describe('the link run 2 opens at (S6a-iii, #165, ruled C3, E1)', () => {
+  const link = '?recording=vigil-phl-002&scenario=03a&mode=raw&subject=S13&run=1'
+
+  it('turns the link it arrived on over: the pair’s other scenario, the other mode, run + 1', () => {
+    const next = nextRunSearch(resolveSession(link), link)
+    expect(next).not.toBeNull()
+    const params = new URLSearchParams(next as string)
+    expect(params.get('scenario')).toBe('03b')
+    expect(params.get('mode')).toBe('vigil')
+    expect(params.get('subject')).toBe('S13')
+    expect(params.get('run')).toBe('2')
+    // Everything else the link carried rides along — the recording above all.
+    expect(params.get('recording')).toBe('vigil-phl-002')
+    // The corroboration pair turns the same way, and Vigil-first turns to unaided.
+    const other = '?scenario=02b&mode=vigil&subject=S14&run=1'
+    const back = new URLSearchParams(nextRunSearch(resolveSession(other), other) as string)
+    expect(back.get('scenario')).toBe('02a')
+    expect(back.get('mode')).toBe('raw')
+  })
+
+  it('names the pairing from the registry, never from the roles table', () => {
+    // A study scenario knows its pair; the default deal has none, so a run on it has no run 2.
+    expect(SCENARIOS.find((s) => s.name === '03a')?.pairedWith).toBe('03b')
+    expect(SCENARIOS.find((s) => s.name === '03b')?.pairedWith).toBe('03a')
+    expect(SCENARIOS.find((s) => s.name === '02a')?.pairedWith).toBe('02b')
+    expect(SCENARIOS.find((s) => s.name === '02b')?.pairedWith).toBe('02a')
+    expect(SCENARIOS.find((s) => s.name === 'default')?.pairedWith).toBeUndefined()
+    const unpaired = '?scenario=on&subject=S13&run=1'
+    expect(nextRunSearch(resolveSession(unpaired), unpaired)).toBeNull()
+  })
+
+  it('has no next run for a session that is not one, or that is already on its last', () => {
+    expect(nextRunSearch(resolveSession('?scenario=03a'), '?scenario=03a')).toBeNull()
+    const last = '?scenario=03b&mode=vigil&subject=S13&run=2'
+    expect(nextRunSearch(resolveSession(last), last)).toBeNull()
+    expect(RUNS_PER_SUBJECT).toBe(2)
   })
 })

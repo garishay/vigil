@@ -256,3 +256,33 @@ export function resolveSession(
  * resolved: the page takes files, not a feed, and a link to it names neither.
  */
 export const isSheetPage = (search: string): boolean => new URLSearchParams(search).has('sheet')
+
+/** A study session is two runs: one of a matched pair in each condition (#131). */
+export const RUNS_PER_SUBJECT = 2
+
+/**
+ * The link run 2 opens at (S6a-iii, #165, item 3): the same subject, run 2, the other scenario
+ * of this one's pair and the other mode. The subject is sent one link; the second is the first
+ * turned over, so the counterbalancing the protocol asks for follows from the code that was sent
+ * rather than from a second link anyone has to remember to compose.
+ *
+ * Pure — the search is a string, as the resolver takes one — and it reads the registry only
+ * for the pairing, never the roles table (R1). This module is on the replay tool’s own path, so
+ * it touches no DOM.
+ */
+export function nextRunSearch(
+  session: SessionConfig,
+  search: string,
+  registry: readonly NamedScenario[] = SCENARIOS,
+): string | null {
+  const { study, scenario } = session
+  if (!study || !scenario.on || study.run >= RUNS_PER_SUBJECT) return null
+  const paired = registry.find((named) => named.name === scenario.name)?.pairedWith
+  if (paired === undefined) return null
+  const params = new URLSearchParams(search)
+  params.set('scenario', paired)
+  params.set('mode', session.mode === 'raw' ? 'vigil' : 'raw')
+  params.set('subject', study.subject)
+  params.set('run', String(study.run + 1))
+  return `?${params.toString()}`
+}
