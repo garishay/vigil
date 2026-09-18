@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DRONE,
   GLYPHS,
   GLYPH_BOX,
   glyphImage,
@@ -8,6 +9,9 @@ import {
   type Part,
   type Polygon,
 } from './glyphs'
+
+/** A drone measure at the cut, as the geometry applies it. */
+const cut = (units: number) => units * DRONE.scale
 
 /** A part's extent on each axis, for the box check. */
 function extent(part: Part): [number, number, number, number] {
@@ -60,36 +64,55 @@ describe('the two glyphs (S9, #181)', () => {
     expect(signedDistance(GLYPHS.aircraft, [c, c])).toBeLessThan(0)
     // The body's centre is inside; a rotor's band is inside and its hole is not — a ring, not a
     // disc; the top edge's midpoint between two rotors is not; an arm's midpoint is.
+    const at = cut(DRONE.rotorAt)
     expect(signedDistance(GLYPHS.drone, [c, c])).toBeLessThan(0)
-    expect(signedDistance(GLYPHS.drone, [c - 6.8 + 3.2, c - 6.8])).toBeLessThan(0)
-    expect(signedDistance(GLYPHS.drone, [c - 6.8, c - 6.8])).toBeGreaterThan(0)
+    expect(signedDistance(GLYPHS.drone, [c - at + cut(DRONE.rotorRadius), c - at])).toBeLessThan(0)
+    expect(signedDistance(GLYPHS.drone, [c - at, c - at])).toBeGreaterThan(0)
     expect(signedDistance(GLYPHS.drone, [c, 2])).toBeGreaterThan(0)
-    expect(signedDistance(GLYPHS.drone, [c - 3.3, c - 3.3])).toBeLessThan(0)
+    expect(signedDistance(GLYPHS.drone, [c - cut(3.3), c - cut(3.3)])).toBeLessThan(0)
     // The arm reaches from inside the body to inside the ring's band: no gap on the diagonal
-    // out to the band (axis offset 3.97 to 5.10), then the hole.
-    for (let d = 2; d <= 5; d += 0.25)
+    // out to the band (axis offset 3.57 to 4.59 at the cut), then the hole, then the far band.
+    for (let d = 2; d <= 4.5; d += 0.25)
       expect([d, signedDistance(GLYPHS.drone, [c - d, c - d]) < 0]).toEqual([d, true])
-    expect(signedDistance(GLYPHS.drone, [c - 6, c - 6])).toBeGreaterThan(0)
+    expect(signedDistance(GLYPHS.drone, [c - 5.5, c - 5.5])).toBeGreaterThan(0)
+    expect(signedDistance(GLYPHS.drone, [c - 8, c - 8])).toBeLessThan(0)
     // The aircraft's wing tip is inside and the space behind the wing root is not.
     expect(signedDistance(GLYPHS.aircraft, [22, 15])).toBeLessThan(0)
     expect(signedDistance(GLYPHS.aircraft, [18, 20])).toBeGreaterThan(0)
     expect(signedDistance(GLYPHS.aircraft, [0.2, 0.2])).toBeGreaterThan(0)
   })
 
-  it('draws the drone as the owner’s note has it: rings at ±6.8, radius 3.2, width 1.6; a 5.5 body; arms from 2.4 to 4.2', () => {
+  it('draws the drone as the owner’s note has it — rings at ±6.8, radius 3.2, width 1.6; a 5.5 body; arms from 2.4 to 4.2 — cut at 0.9 (#186)', () => {
     const c = GLYPH_BOX / 2
+    expect(DRONE).toMatchObject({
+      scale: 0.9,
+      rotorAt: 6.8,
+      rotorRadius: 3.2,
+      rotorWidth: 1.6,
+      body: 5.5,
+      bodyCorner: 1.2,
+      arm: [2.4, 4.2],
+      armWidth: 1.5,
+    })
     const rings = GLYPHS.drone.filter((part) => part.kind === 'ring')
     expect(rings).toHaveLength(4)
     for (const ring of rings) {
       if (ring.kind !== 'ring') throw new Error('ring')
-      expect(Math.abs(ring.center[0] - c)).toBeCloseTo(6.8, 9)
-      expect(Math.abs(ring.center[1] - c)).toBeCloseTo(6.8, 9)
-      expect([ring.radius, ring.width]).toEqual([3.2, 1.6])
+      expect(Math.abs(ring.center[0] - c)).toBeCloseTo(6.12, 9)
+      expect(Math.abs(ring.center[1] - c)).toBeCloseTo(6.12, 9)
+      expect(ring.radius).toBeCloseTo(2.88, 9)
+      expect(ring.width).toBeCloseTo(1.44, 9)
     }
     const [body] = GLYPHS.drone
-    expect(body).toEqual({ kind: 'rect', center: [c, c], size: 5.5, corner: 1.2 })
+    if (body.kind !== 'rect') throw new Error('body')
+    expect(body.center).toEqual([c, c])
+    expect(body.size).toBeCloseTo(4.95, 9)
+    expect(body.corner).toBeCloseTo(1.08, 9)
     const arms = GLYPHS.drone.filter((part) => part.kind === 'polygon')
     expect(arms).toHaveLength(4)
+    // The full extent at the cut: 2 · (6.12 + 2.88 + 0.72) = 19.44 units, 17.8 px at the 22 px box.
+    const [x0, x1] = extent(rings[0])
+    expect(Math.min(x0, GLYPH_BOX - x1)).toBeCloseTo((GLYPH_BOX - 19.44) / 2, 9)
   })
 })
 
@@ -199,12 +222,33 @@ describe('glyphImage', () => {
     }
   })
 
-  it('keeps a rotor’s hole open in the raster at the map’s own size', () => {
-    // At 22 px and ratio 2 the hole is 4.4 image px across; its centre pixel reads outside.
-    const image = glyphImage(GLYPHS.drone, 22, 2)
-    const scale = 44 / GLYPH_BOX
-    const px = Math.round(7 + (12 - 6.8) * scale)
-    expect(image.data[(px * image.width + px) * 4 + 3]).toBeLessThan(191)
+  it('keeps a rotor’s hole open at device scale 1 and 2 — 3.96 and 7.92 px across, no stroke narrowing it (#186)', () => {
+    // The hole's diameter in units is twice the ring's inner radius: 2 · (2.88 − 0.72) = 4.32,
+    // which the 22 px box draws at 3.96 screen px; at ratio 2 the image holds it at 7.92 px.
+    const hole = 2 * (cut(DRONE.rotorRadius) - cut(DRONE.rotorWidth) / 2)
+    expect(hole).toBeCloseTo(4.32, 9)
+    expect((hole * 22) / GLYPH_BOX).toBeCloseTo(3.96, 9)
+    for (const ratio of [1, 2]) {
+      const image = glyphImage(GLYPHS.drone, 22, ratio)
+      const scale = (22 * ratio) / GLYPH_BOX
+      const alpha = (x: number, y: number) => image.data[(y * image.width + x) * 4 + 3]
+      // The top-left rotor's centre, as a pixel index on both axes (its centre sits on the
+      // diagonal); the hole's centre pixel and its four neighbours read outside the edge, so
+      // the hole is at least three pixels across as drawn, and the band beside it reads inside.
+      const centre = Math.round(7 + (GLYPH_BOX / 2 - cut(DRONE.rotorAt)) * scale - 0.5)
+      const around = [
+        [0, 0],
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]
+      expect(around.map(([dx, dy]) => alpha(centre + dx, centre + dy) < 191)).toEqual(
+        around.map(() => true),
+      )
+      const band = Math.round(centre + cut(DRONE.rotorRadius) * scale)
+      expect(alpha(band, centre)).toBeGreaterThanOrEqual(191)
+    }
   })
 
   it('prints a polygon as SVG points', () => {

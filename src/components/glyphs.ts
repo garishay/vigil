@@ -50,18 +50,26 @@ function bar(from: readonly [number, number], to: readonly [number, number], w: 
 }
 
 /**
- * The drone's geometry, in units from the box's centre (the owner's note on #181, R1): four open
- * rings at the corners, a small solid body, and arms no longer than the gap between the two —
- * the rotors carry the shape. `ROTOR_AT` is a rotor's centre on each axis, `ARM` the arm's run
- * along each axis. What moved from the note, and why, is in the PR.
+ * The drone's geometry, in units from the box's centre, as the owner's note on #181 (R1) has it:
+ * four open rings at the corners, a small solid body, and arms no longer than the gap between
+ * the two — the rotors carry the shape. `rotorAt` is a rotor's centre on each axis, `arm` the
+ * arm's run along each axis. `scale` cuts the whole at 0.9 of the note (ruled on #186): at the
+ * note's size the heard drones out-inked the dots they sit among, and the hole stays open
+ * without a stroke to narrow it.
  */
-const ROTOR_AT = 6.8
-const ROTOR_RADIUS = 3.2
-const ROTOR_WIDTH = 1.6
-const BODY = 5.5
-const BODY_CORNER = 1.2
-const ARM = [2.4, 4.2] as const
-const ARM_WIDTH = 1.5
+export const DRONE = {
+  scale: 0.9,
+  rotorAt: 6.8,
+  rotorRadius: 3.2,
+  rotorWidth: 1.6,
+  body: 5.5,
+  bodyCorner: 1.2,
+  arm: [2.4, 4.2] as const,
+  armWidth: 1.5,
+} as const
+
+/** A drone measure at the cut. */
+const cut = (units: number) => units * DRONE.scale
 
 /** The four corners' signs, for the rotors and the arms. */
 const CORNERS: readonly (readonly [number, number])[] = [
@@ -105,15 +113,19 @@ export const GLYPHS: Record<'aircraft' | 'drone', readonly Part[]> = {
     },
   ],
   drone: [
-    { kind: 'rect', center: [C, C], size: BODY, corner: BODY_CORNER },
+    { kind: 'rect', center: [C, C], size: cut(DRONE.body), corner: cut(DRONE.bodyCorner) },
     ...CORNERS.map(([sx, sy]) =>
-      bar([C + sx * ARM[0], C + sy * ARM[0]], [C + sx * ARM[1], C + sy * ARM[1]], ARM_WIDTH),
+      bar(
+        [C + sx * cut(DRONE.arm[0]), C + sy * cut(DRONE.arm[0])],
+        [C + sx * cut(DRONE.arm[1]), C + sy * cut(DRONE.arm[1])],
+        cut(DRONE.armWidth),
+      ),
     ),
     ...CORNERS.map(([sx, sy]): Part => ({
       kind: 'ring',
-      center: [C + sx * ROTOR_AT, C + sy * ROTOR_AT],
-      radius: ROTOR_RADIUS,
-      width: ROTOR_WIDTH,
+      center: [C + sx * cut(DRONE.rotorAt), C + sy * cut(DRONE.rotorAt)],
+      radius: cut(DRONE.rotorRadius),
+      width: cut(DRONE.rotorWidth),
     })),
   ],
 }

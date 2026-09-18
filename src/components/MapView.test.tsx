@@ -435,19 +435,29 @@ describe('MapView', () => {
     )
   })
 
-  it('paints the drone glyph as it paints the dot: the band on the fill, the identity on the stroke (S9)', () => {
+  it('paints the drone glyph with no outline: the band fill for caution and warning, the cooperative tone otherwise, the dot’s dim (#186, ruled on R2)', () => {
     render(<MapView ao={AO} />)
     const layers = Object.fromEntries(
       mapInstance.addLayer.mock.calls.map(([layer]) => [layer.id, layer]),
     )
     const dot = layers['inject-tracks-dot'].paint
     const glyph = layers['inject-tracks-glyph'].paint
-    expect(glyph['icon-color']).toEqual(dot['circle-color'])
-    expect(glyph['icon-halo-color']).toEqual(dot['circle-stroke-color'])
+    // Calm and terminal alike take the ADS-B layer's tone: a heard, calm drone is cooperative
+    // traffic; the warm bands read the same tokens the dot's fill does.
+    expect(glyph['icon-color']).toEqual([
+      'match',
+      ['get', 'band'],
+      'caution',
+      BAND_COLOR.caution,
+      'warning',
+      BAND_COLOR.warning,
+      '#8fa3bf',
+    ])
     expect(glyph['icon-opacity']).toEqual(dot['circle-opacity'])
-    // The stroke's width is not the dot's: an SDF halo is in image pixels, so 2 at ratio 2 is
-    // one screen pixel, half the dot's 2 px stroke, as D3 rules (#186 round 1).
-    expect(glyph['icon-halo-width']).toBe(2)
+    // No identity stroke in either mode: the shape already says heard and associated.
+    expect(glyph['icon-halo-width']).toBe(0)
+    expect(glyph).not.toHaveProperty('icon-halo-color')
+    // The dot keeps its own stroke: identity is read there.
     expect(dot['circle-stroke-width']).toBe(2)
     // The aircraft wears the ADS-B layer's quiet colour and no stroke: the paint as built.
     expect(layers['adsb-tracks-glyph'].paint).toEqual({
@@ -739,10 +749,15 @@ describe('raw mode (S4a, #136, ruled A4)', () => {
       ['inject-tracks-dot', 'circle-color'],
       ['inject-tracks-dot', 'circle-stroke-color'],
       ['inject-tracks-glyph', 'icon-color'],
-      ['inject-tracks-glyph', 'icon-halo-color'],
     ]) {
       expect(mapInstance.setPaintProperty).toHaveBeenCalledWith(layer, prop, neutral)
     }
+    // The drone's halo is never repainted: it has none in either mode (#186, ruled on R2).
+    expect(
+      mapInstance.setPaintProperty.mock.calls.some((call) =>
+        String(call[1]).startsWith('icon-halo'),
+      ),
+    ).toBe(false)
     // The ident rides every feature, for the label layers to print.
     expect(dataFor('adsb-tracks').features.map((f) => f.properties.ident)).toEqual([
       'AAL423',

@@ -30,13 +30,6 @@ const HEADING_TICK_M = 300
 const GLYPH_PX = 22
 const GLYPH_RATIO = 2
 /**
- * The drone's identity stroke: an SDF halo grows the shape outward by this many image pixels —
- * one on screen at the ratio, narrower than the dot's 2 px, since it wraps four rotors and four
- * arms and would otherwise outweigh the dot it sits beside. A drone glyph already says heard
- * and associated, so its stroke carries less than the dot's does.
- */
-const GLYPH_STROKE_PX = 2
-/**
  * Raw mode's one colour (S4a, #136, ruled A4; #131's fairness spec): every dot, every tick, every
  * label the same neutral — no band fill, no identity colour. Identity is read off the label.
  */
@@ -181,6 +174,24 @@ const BAND_FILL: ExpressionSpecification = [
     BAND_COLOR.warning,
     INJECT_FILL,
   ],
+]
+
+/**
+ * The drone glyph's fill (#186, ruled on R2): the band for caution and warning, off the same
+ * score the dot's fill reads, and the cooperative layer's tone otherwise — calm or terminal —
+ * since a heard, calm drone is cooperative traffic, the background a threat stands out against.
+ * It wears no identity stroke in either mode: a drone glyph already says heard and associated,
+ * so a stroke would carry nothing the shape has not said, and wrapped eight ring edges it
+ * outweighed the dot beside it.
+ */
+const DRONE_FILL: ExpressionSpecification = [
+  'match',
+  ['get', 'band'],
+  'caution',
+  BAND_COLOR.caution,
+  'warning',
+  BAND_COLOR.warning,
+  ADSB_COLOR,
 ]
 
 function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
@@ -531,8 +542,8 @@ export function MapView({
           'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.5, 1],
         },
       })
-      // The drone glyph (S9): a heard, associated Remote ID, in the dot's own paint — the band
-      // on the fill, the identity on the stroke, drawn whatever it overlaps.
+      // The drone glyph (S9): a heard, associated Remote ID, drawn whatever it overlaps — the
+      // fill by the rule above, the dot's dim, and no outline in either mode.
       map.addLayer({
         id: `${INJECT_SOURCE}-glyph`,
         type: 'symbol',
@@ -544,10 +555,9 @@ export function MapView({
           'icon-ignore-placement': true,
         },
         paint: {
-          'icon-color': BAND_FILL,
+          'icon-color': DRONE_FILL,
           'icon-opacity': ['case', ['get', 'terminal'], 0.5, 0.95],
-          'icon-halo-color': IDENTITY_STROKE,
-          'icon-halo-width': GLYPH_STROKE_PX,
+          'icon-halo-width': 0,
         },
       })
 
@@ -659,12 +669,7 @@ export function MapView({
       'circle-stroke-color',
       raw ? RAW_COLOR : IDENTITY_STROKE,
     )
-    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', raw ? RAW_COLOR : BAND_FILL)
-    map.setPaintProperty(
-      `${INJECT_SOURCE}-glyph`,
-      'icon-halo-color',
-      raw ? RAW_COLOR : IDENTITY_STROKE,
-    )
+    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', raw ? RAW_COLOR : DRONE_FILL)
   }, [mode, styleReady])
 
   // Whether the tick source holds anything: in Vigil it is left empty — created so — and never

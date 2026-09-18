@@ -94,10 +94,12 @@ describe('ShapeGlyph (S9)', () => {
     expect(svg().querySelectorAll('polygon')).toHaveLength(4)
     const rings = [...svg().querySelectorAll('circle')]
     expect(rings).toHaveLength(4)
+    const rotor = GLYPHS.drone.find((part) => part.kind === 'ring')
+    if (rotor?.kind !== 'ring') throw new Error('rotor')
     for (const ring of rings) {
       expect(ring.getAttribute('fill')).toBe('none')
-      expect(ring.getAttribute('stroke-width')).toBe('1.6')
-      expect(ring.getAttribute('r')).toBe('3.2')
+      expect(Number(ring.getAttribute('stroke-width'))).toBeCloseTo(rotor.width, 9)
+      expect(Number(ring.getAttribute('r'))).toBeCloseTo(rotor.radius, 9)
     }
     rerender(<ShapeGlyph shape="dot" />)
     expect(svg().querySelectorAll('polygon')).toHaveLength(0)
