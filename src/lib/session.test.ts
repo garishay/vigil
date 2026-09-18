@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { BUILD_DEFAULTS, SessionRefusal, parseFeedRef, resolveSession } from './session'
+import {
+  BUILD_DEFAULTS,
+  SessionRefusal,
+  isSheetPage,
+  parseFeedRef,
+  resolveSession,
+} from './session'
 import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings'
 import { SCENARIO } from '../config/scenario'
 
@@ -337,5 +343,26 @@ describe('?subject= and ?run= — a study run (S4b, #137, ruled A1; #131)', () =
       run: 1,
     })
     expect(resolveSession('?scenario=off').study).toBeNull()
+  })
+})
+
+describe('isSheetPage (S6a-ii, #165, ruled B1)', () => {
+  it('reads ?sheet as a presence, and everything else as the app', () => {
+    expect(isSheetPage('?sheet')).toBe(true)
+    expect(isSheetPage('?sheet=')).toBe(true)
+    expect(isSheetPage('?sheet=1')).toBe(true)
+    // A presence, not a value: there is nothing to disagree about, so the duplicate rule the
+    // other parameters keep (#115; #36 [24]) has nothing to refuse here.
+    expect(isSheetPage('?sheet&sheet')).toBe(true)
+    expect(isSheetPage('?feed=recording:vigil-phl-002&sheet')).toBe(true)
+    expect(isSheetPage('')).toBe(false)
+    expect(isSheetPage('?scenario=02a&mode=raw&subject=S03&run=1')).toBe(false)
+    expect(isSheetPage('?sheets')).toBe(false)
+    // The page takes files, not a feed, so a link to it is never resolved as a session — and a
+    // run link is never read as the page.
+    expect(resolveSession('?scenario=02a&mode=raw&subject=S03&run=1').study).toEqual({
+      subject: 'S03',
+      run: 1,
+    })
   })
 })
