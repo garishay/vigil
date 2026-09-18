@@ -32,7 +32,7 @@ describe('compose — the one branch the CLI and the browser take (S6a-i, #165, 
     const one = [input('S03-02a-raw-1.json')]
     expect(() => compose(one)).toThrow(RunRefusal)
     expect(() => compose(one)).toThrow(
-      'a document reads two runs, not 1 — one scenario is the pair, two of one family the sheet',
+      'a document reads two runs, not 1 — a results file, or both run files',
     )
     expect(() => compose([])).toThrow('a document reads two runs, not 0 —')
     expect(() => compose([...one, ...one, ...one])).toThrow('a document reads two runs, not 3 —')

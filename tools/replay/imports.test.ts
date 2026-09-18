@@ -150,6 +150,22 @@ describe('the sheet renders in a browser (S6a-i, #165, ruled A7, R1)', () => {
     // so a `node:` import anywhere in that subtree passed both pins (round 1, finding 1).
     expect(graph.has('src/lib/maplibreWorker.ts')).toBe(true)
     expect(notBrowserSafe(graph)).toEqual([])
+    // `main.tsx` names the sheet page, but only through a dynamic `import()` — a chunk of its
+    // own, which the app never fetches unless `?sheet` is opened (S6a-ii, ruled B2, R1).
+    expect(readFileSync('src/main.tsx', 'utf8')).toContain("import('./components/SheetPage.tsx')")
+    expect(graph.has('src/components/SheetPage.tsx')).toBe(false)
+  })
+
+  it('carries the roles table on the sheet page’s own graph, so R1 is not a vacuous pin', () => {
+    // Said from the other end too: the page really does reach the answer key — it cannot draw a
+    // sheet without it — so the test above is a statement about a separation rather than about a
+    // module nothing imports. And the page's own graph is browser-safe, which is what S6a-i's
+    // move was for.
+    const page = graphFrom('src/components/SheetPage.tsx')
+    expect(page.has('scripts/study-spec.ts')).toBe(true)
+    expect(page.has('tools/replay/sheet.ts')).toBe(true)
+    expect(page.has('tools/replay/files.ts')).toBe(false)
+    expect(notBrowserSafe(page)).toEqual([])
   })
 
   it('follows a value import through a type-modified binding, and drops an import type line', () => {
@@ -163,6 +179,12 @@ describe('the sheet renders in a browser (S6a-i, #165, ruled A7, R1)', () => {
     expect(valueSpecifiers("import type {\n  Family,\n} from './spec.ts'")).toEqual([])
     expect(valueSpecifiers("export * from './spec.ts'")).toEqual(['./spec.ts'])
     expect(valueSpecifiers("export { STUDY_CAST } from './spec.ts'")).toEqual(['./spec.ts'])
+    // A dynamic `import()` is deliberately not an edge: it is the seam a chunk is split on, and
+    // R1's whole point is that what it reaches is not on the graph that reaches it.
+    expect(valueSpecifiers("void import('./SheetPage.tsx').then((m) => m.SheetPage)")).toEqual([])
+    expect(
+      valueSpecifiers("import { a } from './a.ts'\nconst b = () => import('./b.tsx')\n"),
+    ).toEqual(['./a.ts'])
   })
 
   it('records a bare import and a namespace re-export, and reads each statement in its own slice', () => {

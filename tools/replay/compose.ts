@@ -20,10 +20,12 @@ export function compose(
 ): { name: string; svg: string } {
   // The count is checked here rather than at the call site, so the guard travels with the
   // function: `parseResults` stays permissive about how many runs a file holds, and two is
-  // required where two are actually read (round 1). A refusal, not a TypeError on `second`.
+  // required where two are actually read (round 1 on #185). A refusal, not a TypeError on
+  // `second`. The sentence says what to give rather than why two, because the sheet page shows
+  // it to a subject (S6a-ii, the approved mockup) and the CLI takes the same two things.
   if (runs.length !== 2) {
     throw new RunRefusal(
-      `a document reads two runs, not ${runs.length} — one scenario is the pair, two of one family the sheet`,
+      `a document reads two runs, not ${runs.length} — a results file, or both run files`,
     )
   }
   const [first, second] = runs

@@ -1,0 +1,133 @@
+/* The sheet page (S6a, #165, A4). Its own stylesheet, so it rides the page's own chunk and the
+   app's shell CSS is not downloaded to read a sheet. */
+
+.sheet {
+  min-height: 100%;
+  padding: 1.5rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.sheet__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.sheet__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sheet__lead {
+  margin: 0;
+  max-width: 44rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sheet__button {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  padding: 0.5rem 1.25rem;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sheet__button:disabled {
+  border-color: var(--line);
+  background: none;
+  color: var(--faint);
+  cursor: default;
+}
+
+.sheet__refusal {
+  margin: 0 0 1.25rem;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--warning-soft);
+  padding: 0.75rem 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.sheet__intake {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  max-width: 44rem;
+}
+
+.sheet__drop {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 8rem;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
+.sheet__drop--over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.sheet__paste {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.75rem;
+  color: var(--text);
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  resize: vertical;
+}
+
+.sheet__document {
+  overflow-x: auto;
+}
+
+.sheet__document svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.sheet__copy {
+  margin-top: 1.25rem;
+}
+
+/*
+ * One clean page (S6a, #165, A9): printing the results view prints the sheet and nothing else —
+ * the controls, the intake and the page's dark ground are the screen's. The sheet is an SVG on a
+ * dark ground of its own, so the page prints it as it renders.
+ */
+@media print {
+  .sheet {
+    padding: 0;
+  }
+
+  .sheet__head,
+  .sheet__intake,
+  .sheet__copy,
+  .sheet__refusal {
+    display: none;
+  }
+
+  .sheet__document {
+    overflow: visible;
+  }
+}
