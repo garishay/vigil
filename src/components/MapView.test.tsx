@@ -80,6 +80,23 @@ const INJECTS: GeneratedInjectTrack[] = [
     verticalRateFpm: 87,
     lastSeenSec: 0,
   },
+  {
+    id: 'inject-03',
+    source: 'inject',
+    behavior: 'transit',
+    remoteId: 'broadcasting',
+    uaType: 'multirotor',
+    broadcast: { label: 'UAS-8E8F', position: [-75.25, 39.92] },
+    identity: 'cooperative',
+    callsign: 'UAS-8E8F',
+    position: [-75.25, 39.92],
+    altitudeFt: 150,
+    onGround: false,
+    groundSpeedKt: 12,
+    headingDeg: 90,
+    verticalRateFpm: 0,
+    lastSeenSec: 0,
+  },
 ]
 
 // jsdom has no WebGL, so MapLibre is mocked. These tests guard the config wiring — that the map
@@ -92,6 +109,8 @@ const { mapInstance, setData, clickHandlers, MapConstructor, NavigationControl }
     const canvas = { style: { cursor: '' } }
     const instance = {
       addControl: vi.fn(),
+      // The two glyphs (S9) are added as SDF images on load.
+      addImage: vi.fn(),
       addSource: vi.fn(),
       addLayer: vi.fn(),
       easeTo: vi.fn(),
@@ -255,8 +274,9 @@ describe('MapView', () => {
     expect(selectId).toBe('selected-track')
     expect(selectSource.data.features).toEqual([])
     // 08b adds the friendly ring layer beside the protected line; #102 the projected path;
-    // S4a the heading ticks and the two label layers, hidden until raw.
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(13)
+    // S4a the heading ticks and the two label layers, hidden until raw; S9 the drone glyph
+    // beside the dot, the aircraft glyph in the ADS-B dot's place.
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(14)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.indexOf('selected-trail-line')).toBeLessThan(order.indexOf('inject-tracks-halo'))
     expect(order.indexOf('selected-projection-line')).toBeGreaterThan(
@@ -267,16 +287,16 @@ describe('MapView', () => {
     )
     expect(order.at(-1)).toBe('selected-track-ring')
     // The ADS-B hit layer widens the click target for airborne traffic only, and paints
-    // nothing — a parked 1.8 px dot must not carry an invisible 16 px blanket over the apron.
+    // nothing — a parked glyph must not carry an invisible 16 px blanket over the apron.
     const hit = mapInstance.addLayer.mock.calls.find(
       ([layer]) => layer.id === 'adsb-tracks-hit',
     )![0]
     expect(hit.paint['circle-opacity']).toBe(0)
     expect(hit.paint['circle-radius']).toBeGreaterThan(5)
     expect(hit.filter).toEqual(['!', ['get', 'onGround']])
-    // The hit layer sits below the visible dot: click dispatch prefers the topmost feature, so
-    // a visible parked dot under the cursor beats an overlapping invisible airborne ring.
-    expect(order.indexOf('adsb-tracks-hit')).toBeLessThan(order.indexOf('adsb-tracks-dot'))
+    // The hit layer sits below the visible glyph: click dispatch prefers the topmost feature, so
+    // a visible parked glyph under the cursor beats an overlapping invisible airborne disc.
+    expect(order.indexOf('adsb-tracks-hit')).toBeLessThan(order.indexOf('adsb-tracks-glyph'))
   })
 
   it('selects through one registration and one dispatch: hit area and halo together (03a)', () => {
@@ -289,10 +309,10 @@ describe('MapView', () => {
       ([event, target]) => event === 'click' && Array.isArray(target),
     )
     expect(clickRegistrations).toHaveLength(1)
-    // The dot layer rides in the array for the ground traffic the filtered hit layer excludes.
+    // The glyph layer rides in the array for the ground traffic the filtered hit layer excludes.
     expect(clickRegistrations[0][1]).toEqual([
       'adsb-tracks-hit',
-      'adsb-tracks-dot',
+      'adsb-tracks-glyph',
       'inject-tracks-halo',
     ])
     clickHandlers['adsb-tracks-hit']({ features: [{ properties: { id: 'adsb-a3303d' } }] })
@@ -359,22 +379,79 @@ describe('MapView', () => {
   it('draws injects above cooperative traffic rather than under it', () => {
     render(<MapView ao={AO} />)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
-    expect(order.indexOf('inject-tracks-dot')).toBeGreaterThan(order.indexOf('adsb-tracks-dot'))
+    expect(order.indexOf('inject-tracks-dot')).toBeGreaterThan(order.indexOf('adsb-tracks-glyph'))
     expect(order.indexOf('inject-tracks-halo')).toBeLessThan(order.indexOf('inject-tracks-dot'))
+    expect(order.indexOf('inject-tracks-glyph')).toBeGreaterThan(order.indexOf('inject-tracks-dot'))
   })
 
-  it('renders injects larger than cooperative traffic, stroked by identity, under a halo', () => {
-    // Principle 3: alarm color is earned by a score, and PR 04 has not computed one yet. Injects
-    // stand out by size and a halo; their stroke carries the observed identity.
+  it('draws the three shapes from one rule, keyed on the shape property and the source (S9, #181)', () => {
+    // Shape is what the track said about itself; paint is what Vigil made of it. The aircraft
+    // glyph is the ADS-B layer's only visible marker, turned to its heading; an inject is the
+    // drone glyph or the dot by its shape property, under one halo; injects keep their stroke.
     render(<MapView ao={AO} />)
     const layers = Object.fromEntries(
       mapInstance.addLayer.mock.calls.map(([layer]) => [layer.id, layer]),
     )
-    const injectRadius = layers['inject-tracks-dot'].paint['circle-radius']
-    const adsbRadius = layers['adsb-tracks-dot'].paint['circle-radius']
-    expect(injectRadius).toBeGreaterThan(Math.max(adsbRadius[2], adsbRadius[3]))
+    expect(layers['adsb-tracks-dot']).toBeUndefined()
+    expect(layers['adsb-tracks-glyph']).toMatchObject({
+      type: 'symbol',
+      layout: {
+        'icon-image': 'aircraft',
+        'icon-rotate': ['get', 'heading'],
+        'icon-rotation-alignment': 'map',
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+      },
+    })
+    expect(layers['inject-tracks-dot'].filter).toEqual(['==', ['get', 'shape'], 'dot'])
+    expect(layers['inject-tracks-glyph']).toMatchObject({
+      type: 'symbol',
+      filter: ['==', ['get', 'shape'], 'drone'],
+      layout: { 'icon-image': 'drone', 'icon-allow-overlap': true, 'icon-ignore-placement': true },
+    })
+    // The drone is not turned: a quadcopter has no nose, and the tick carries its heading in raw.
+    expect(layers['inject-tracks-glyph'].layout).not.toHaveProperty('icon-rotate')
     expect(layers['inject-tracks-dot'].paint['circle-stroke-color'][1]).toEqual(['get', 'identity'])
-    expect(layers['inject-tracks-halo'].paint['circle-radius']).toBeGreaterThan(injectRadius)
+    expect(layers['inject-tracks-halo'].paint['circle-radius']).toBeGreaterThan(
+      layers['inject-tracks-dot'].paint['circle-radius'],
+    )
+  })
+
+  it('adds the two glyphs as SDF images at the ratio they were drawn at, so paint can colour them (S9)', () => {
+    render(<MapView ao={AO} />)
+    const images = mapInstance.addImage.mock.calls as [
+      string,
+      { width: number; height: number; data: Uint8ClampedArray },
+      Record<string, unknown>,
+    ][]
+    expect(images.map(([id]) => id)).toEqual(['aircraft', 'drone'])
+    for (const [, image, options] of images) {
+      expect(options).toEqual({ sdf: true, pixelRatio: 2 })
+      expect(image.width).toBe(image.height)
+      expect(image.data).toHaveLength(image.width * image.height * 4)
+    }
+    // The images are added before any layer names them.
+    expect(mapInstance.addImage.mock.invocationCallOrder[0]).toBeLessThan(
+      mapInstance.addLayer.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('paints the drone glyph as it paints the dot: the band on the fill, the identity on the stroke (S9)', () => {
+    render(<MapView ao={AO} />)
+    const layers = Object.fromEntries(
+      mapInstance.addLayer.mock.calls.map(([layer]) => [layer.id, layer]),
+    )
+    const dot = layers['inject-tracks-dot'].paint
+    const glyph = layers['inject-tracks-glyph'].paint
+    expect(glyph['icon-color']).toEqual(dot['circle-color'])
+    expect(glyph['icon-halo-color']).toEqual(dot['circle-stroke-color'])
+    expect(glyph['icon-halo-width']).toEqual(dot['circle-stroke-width'])
+    expect(glyph['icon-opacity']).toEqual(dot['circle-opacity'])
+    // The aircraft wears the ADS-B layer's quiet colour and no stroke: the paint as built.
+    expect(layers['adsb-tracks-glyph'].paint).toEqual({
+      'icon-color': '#8fa3bf',
+      'icon-opacity': ['case', ['any', ['get', 'terminal'], ['get', 'onGround']], 0.4, 0.8],
+    })
   })
 
   it('strokes identity from the same palette the Queue and the legend use', () => {
@@ -414,14 +491,21 @@ describe('MapView', () => {
   it('feeds injects to their own layer, carrying observed identity and nothing assigned', () => {
     render(<MapView ao={AO} injects={INJECTS} />)
     const collection = dataFor('inject-tracks')
-    expect(collection.features).toHaveLength(2)
+    expect(collection.features).toHaveLength(3)
     expect(collection.features[0]).toMatchObject({
       geometry: { type: 'Point', coordinates: INJECTS[0].position },
-      properties: { id: 'inject-01', identity: 'non-cooperative' },
+      properties: { id: 'inject-01', identity: 'non-cooperative', shape: 'dot' },
     })
     expect(collection.features[1].properties).toMatchObject({
       identity: 'unknown',
       callsign: '',
+      shape: 'dot',
+    })
+    // The shape reads the callsign the association rule left (S9): heard and associated, a
+    // drone; the generator's own word never reaches it.
+    expect(collection.features[2].properties).toMatchObject({
+      callsign: 'UAS-8E8F',
+      shape: 'drone',
     })
     // The answer key does not travel with the feature. A live map source in the running app is
     // neither a fixture nor a test, which is where §2 keeps `behavior` and `remoteId` — and the
@@ -449,7 +533,11 @@ describe('MapView', () => {
       Object.fromEntries(
         dataFor(sourceId).features.map((f) => [f.properties.id, f.properties.band]),
       )
-    expect(bandOf('inject-tracks')).toEqual({ 'inject-01': 'calm', 'inject-02': 'warning' })
+    expect(bandOf('inject-tracks')).toEqual({
+      'inject-01': 'calm',
+      'inject-02': 'warning',
+      'inject-03': 'calm',
+    })
     // A real aircraft has no fill channel to spend and both caps hold it below caution: the ADS-B
     // layer carries no band at all, rather than a band that is always calm.
     for (const feature of dataFor('adsb-tracks').features) {
@@ -515,7 +603,11 @@ describe('MapView', () => {
         dataFor(sourceId).features.map((f) => [f.properties.id, f.properties.terminal]),
       )
     expect(flag('adsb-tracks')).toEqual({ 'adsb-a06461': false, 'adsb-a3303d': true })
-    expect(flag('inject-tracks')).toEqual({ 'inject-01': false, 'inject-02': true })
+    expect(flag('inject-tracks')).toEqual({
+      'inject-01': false,
+      'inject-02': true,
+      'inject-03': false,
+    })
   })
 
   it('dims a terminal track to the ruled table, and never twice (#61)', () => {
@@ -524,18 +616,15 @@ describe('MapView', () => {
       mapInstance.addLayer.mock.calls.find(([layer]) => layer.id === id)![0].paint
 
     // ADS-B: one expression, two conditions, one value — the Queue's rule, so a handled ground
-    // track does not dim twice. Composing would put a terminal ground dot at 0.22.
-    const adsb = paintOf('adsb-tracks-dot')
-    expect(adsb['circle-opacity']).toEqual([
+    // track does not dim twice. Composing would put a terminal ground glyph at 0.22. One size
+    // for every aircraft (S9): dim means nothing here needs you, not a lifecycle (#36 [9]).
+    const adsb = paintOf('adsb-tracks-glyph')
+    expect(adsb['icon-opacity']).toEqual([
       'case',
       ['any', ['get', 'terminal'], ['get', 'onGround']],
       0.4,
       0.8,
     ])
-    expect(adsb['circle-stroke-opacity']).toEqual(['case', ['get', 'terminal'], 0.18, 0.35])
-    // The radius is untouched, so a terminal airborne dot still reads larger than an active
-    // ground one at the shared 0.4 — which is what keeps the two distinguishable.
-    expect(adsb['circle-radius']).toEqual(['case', ['get', 'onGround'], 1.8, 2.8])
 
     expect(paintOf('inject-tracks-dot')['circle-opacity']).toEqual([
       'case',
@@ -612,9 +701,14 @@ describe('MapView', () => {
     expect(collection.features).toHaveLength(2)
     expect(collection.features[0]).toMatchObject({
       geometry: { type: 'Point', coordinates: TRACKS[0].position },
-      properties: { id: 'adsb-a06461', callsign: 'AAL423', onGround: false },
+      properties: { id: 'adsb-a06461', callsign: 'AAL423', onGround: false, heading: 45.9 },
     })
-    expect(collection.features[1].properties).toMatchObject({ callsign: '', onGround: true })
+    // The glyph turns to the heading (S9); a track reporting none points north.
+    expect(collection.features[1].properties).toMatchObject({
+      callsign: '',
+      onGround: true,
+      heading: 0,
+    })
   })
 
   it('renders no tracks before the recording has loaded', () => {
@@ -631,18 +725,19 @@ describe('MapView', () => {
 })
 
 describe('raw mode (S4a, #136, ruled A4)', () => {
-  it('paints every dot one neutral, shows a label and a heading tick per track, and draws no legend', () => {
+  it('paints every shape one neutral, shows a label per track and a heading tick per drone or dot, and draws no legend (S9)', () => {
     render(<MapView ao={AO} mode="raw" tracks={TRACKS} injects={INJECTS} />)
     for (const id of ['heading-ticks-line', 'adsb-tracks-label', 'inject-tracks-label']) {
       expect(mapInstance.setLayoutProperty).toHaveBeenCalledWith(id, 'visibility', 'visible')
     }
     const neutral = '#c5cfdc'
     for (const [layer, prop] of [
-      ['adsb-tracks-dot', 'circle-color'],
-      ['adsb-tracks-dot', 'circle-stroke-color'],
+      ['adsb-tracks-glyph', 'icon-color'],
       ['inject-tracks-halo', 'circle-color'],
       ['inject-tracks-dot', 'circle-color'],
       ['inject-tracks-dot', 'circle-stroke-color'],
+      ['inject-tracks-glyph', 'icon-color'],
+      ['inject-tracks-glyph', 'icon-halo-color'],
     ]) {
       expect(mapInstance.setPaintProperty).toHaveBeenCalledWith(layer, prop, neutral)
     }
@@ -654,10 +749,12 @@ describe('raw mode (S4a, #136, ruled A4)', () => {
     expect(dataFor('inject-tracks').features.map((f) => f.properties.ident)).toEqual([
       'TRK-01',
       'TRK-02',
+      'UAS-8E8F',
     ])
-    // A tick for each moving, airborne track with a heading: the parked aircraft gets none.
+    // A tick for each moving, airborne inject with a heading — a drone or a dot; an aircraft
+    // gets none, its glyph is turned to its heading (S9).
     const ticks = dataFor('heading-ticks').features
-    expect(ticks.map((f) => f.properties.id)).toEqual(['adsb-a06461', 'inject-01', 'inject-02'])
+    expect(ticks.map((f) => f.properties.id)).toEqual(['inject-01', 'inject-02', 'inject-03'])
     expect(ticks[0].geometry).toMatchObject({ type: 'LineString' })
     expect(screen.queryByRole('group', { name: 'Map legend' })).toBeNull()
   })
@@ -691,9 +788,11 @@ describe('the heading-tick source in Vigil (#148 review)', () => {
     render(<MapView ao={AO} />)
     const labels = mapInstance.addLayer.mock.calls
       .map(([layer]) => layer)
-      .filter((layer) => layer.type === 'symbol')
+      .filter((layer) => layer.type === 'symbol' && layer.layout['text-field'])
     expect(labels).toHaveLength(2)
     for (const layer of labels) {
+      // Clear of a 22 px glyph at any heading (S9): 1.2 em of an 11 px face is 13 px.
+      expect(layer.layout['text-offset']).toEqual([1.2, 0])
       expect(layer.layout['text-font']).toEqual([
         'Montserrat Regular',
         'Open Sans Regular',

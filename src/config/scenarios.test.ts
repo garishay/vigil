@@ -19,7 +19,7 @@ import {
 import { SCORING } from './scoring'
 import { STUDY as STUDY_CONFIG } from './study'
 import type { AdsbCapture } from '../lib/adsb'
-import { trackIdent } from '../lib/display'
+import { trackIdent, trackShape } from '../lib/display'
 import { associate, scenarioFeed } from '../lib/feeds'
 import { KT_TO_MS, bearingDegrees, destinationPoint, distanceMeters } from '../lib/geo'
 import { gridTimeline, injectTracksAt, planScenario, timelineOf } from '../lib/injects'
@@ -678,5 +678,44 @@ describe('the prioritization pair’s ids and idents (S7d, #167, ruled M1, M2; R
         (spec) => spec.id,
       ),
     ).toEqual(['inject-100', 'inject-101', 'inject-148'])
+  })
+})
+
+describe('the map’s shapes on the study casts (S9, #181)', () => {
+  /** Every track’s shape on every tick of the window, in both conditions, by id and tick. */
+  function shapesByMode(name: string) {
+    const entry = scenarioNamed(name)
+    const plan = planScenario(timelineOf(CAPTURE), entry.config)
+    const runS = entry.runS ?? STUDY_CONFIG.runS
+    const differing = new Map<string, number[]>()
+    let ticks = 0
+    for (let tSec = T0; tSec <= T0 + runS; tSec++) {
+      for (const track of injectTracksAt(plan, tSec)) {
+        ticks++
+        const raw = trackShape(associate(track, STUDY_CONFIG.rawAssociationM))
+        const vigil = trackShape(associate(track, SCORING.cooperativity.mismatchM))
+        if (raw !== vigil) differing.set(track.id, [...(differing.get(track.id) ?? []), tSec])
+      }
+    }
+    return { differing, ticks }
+  }
+
+  it('draws the prioritization pair shape-identical in both modes on every tick: nothing on 03 is mismatched', () => {
+    for (const name of ['03a', '03b']) {
+      const { differing, ticks } = shapesByMode(name)
+      expect(ticks).toBeGreaterThan(9000)
+      expect([...differing.keys()]).toEqual([])
+    }
+  })
+
+  it('draws the corroboration pair’s threat as a drone unaided and a dot in Vigil, and nothing else differently', () => {
+    // 02a lies from its first frame (481 s); 02b from 510 s. Every other row reads one shape.
+    const a = shapesByMode('02a')
+    expect([...a.differing.keys()]).toEqual(['inject-11'])
+    expect(a.differing.get('inject-11')?.[0]).toBe(481)
+    expect(a.differing.get('inject-11')).toHaveLength(T0 + RUN - 481 + 1)
+    const b = shapesByMode('02b')
+    expect([...b.differing.keys()]).toEqual(['inject-11'])
+    expect(b.differing.get('inject-11')?.[0]).toBe(510)
   })
 })

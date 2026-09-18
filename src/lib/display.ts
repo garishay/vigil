@@ -63,8 +63,37 @@ export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} 
  * from a broadcast, *sensor* for one it did not. Observed, never derived: the label is the
  * rule's, and the rule is the one thing raw computes.
  */
-export const sourceWord = (track: Track): string =>
+export type SourceWord = 'ADS-B' | 'Remote ID' | 'sensor'
+
+export const sourceWord = (track: Track): SourceWord =>
   track.source === 'adsb' ? 'ADS-B' : track.callsign !== null ? 'Remote ID' : 'sensor'
+
+/**
+ * The map's three shapes (S9, #181): shape is what the track has told us, paint is what Vigil
+ * makes of it. Keyed on the broadcast `associate` attached to the track and on nothing else —
+ * the Source row's own three cases, so the drawer's word and the map's shape cannot disagree: an
+ * ADS-B aircraft, a drone whose Remote ID was heard and associated, and the plain dot for a
+ * track with no associated broadcast, whatever the generator knows about it.
+ */
+export type TrackShape = 'aircraft' | 'drone' | 'dot'
+
+/** The shapes in the legend's order: the Issue's — an aircraft, a drone, the plain dot. */
+export const SHAPES = ['aircraft', 'drone', 'dot'] as const satisfies readonly TrackShape[]
+
+const SHAPE_OF_SOURCE: Record<SourceWord, TrackShape> = {
+  'ADS-B': 'aircraft',
+  'Remote ID': 'drone',
+  sensor: 'dot',
+}
+
+export const trackShape = (track: Track): TrackShape => SHAPE_OF_SOURCE[sourceWord(track)]
+
+/** The legend's row for each shape: what the track said about itself, in plain words. */
+export const SHAPE_LABEL: Record<TrackShape, string> = {
+  aircraft: 'Aircraft',
+  drone: 'Drone',
+  dot: 'No broadcast',
+}
 
 /** The raw drawer's Position row: latitude, longitude to four decimals — the observed field itself. */
 export const formatPosition = ([lon, lat]: readonly [number, number]) =>

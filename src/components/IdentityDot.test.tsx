@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { BandDot, IdentityDot, IdentityLegend } from './IdentityDot'
-import { BAND_COLOR } from '../lib/display'
+import { BandDot, IdentityDot, IdentityLegend, ShapeGlyph } from './IdentityDot'
+import { GLYPHS } from './glyphs'
+import { BAND_COLOR, SHAPES, SHAPE_LABEL } from '../lib/display'
 import { IDENTITIES, IDENTITY_COLOR, IDENTITY_LABEL } from '../lib/identity'
 
 describe('IdentityDot', () => {
@@ -50,15 +51,45 @@ describe('IdentityLegend', () => {
     const group = screen.getByRole('group', { name: 'Map legend' })
     const lists = within(group).getAllByRole('list')
     expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual([
+      'Shape legend',
       'Identity legend',
       'Band legend',
     ])
-    const items = within(lists[1]).getAllByRole('listitem')
+    const items = within(lists[2]).getAllByRole('listitem')
     expect(items.map((item) => item.textContent)).toEqual(['Caution', 'Warning'])
     expect(items.map((item) => item.querySelector('.band-dot')?.getAttribute('data-band'))).toEqual(
       ['caution', 'warning'],
     )
     expect(within(group).queryByText('Calm')).toBeNull()
+  })
+
+  it('leads with the three shapes — what a track said about itself — drawn as the map draws them (S9, #181)', () => {
+    render(<IdentityLegend />)
+    const group = screen.getByRole('group', { name: 'Map legend' })
+    const shapes = within(group).getByRole('list', { name: 'Shape legend' })
+    const items = within(shapes).getAllByRole('listitem')
+    expect(items.map((item) => item.textContent)).toEqual(SHAPES.map((shape) => SHAPE_LABEL[shape]))
+    expect(
+      items.map((item) => item.querySelector('.shape-glyph')?.getAttribute('data-shape')),
+    ).toEqual([...SHAPES])
+  })
+})
+
+describe('ShapeGlyph (S9)', () => {
+  it('draws the map’s own polygons for the two glyphs and a circle for the dot, decoratively', () => {
+    const { rerender } = render(<ShapeGlyph shape="aircraft" />)
+    const svg = () => document.querySelector('.shape-glyph') as SVGElement
+    expect(svg()).toHaveAttribute('aria-hidden', 'true')
+    expect(svg().querySelectorAll('polygon')).toHaveLength(GLYPHS.aircraft.length)
+    rerender(<ShapeGlyph shape="drone" />)
+    expect(svg().querySelectorAll('polygon')).toHaveLength(GLYPHS.drone.length)
+    // The first polygon's points are the glyph's first polygon, verbatim.
+    expect(svg().querySelector('polygon')?.getAttribute('points')).toBe(
+      GLYPHS.drone[0].map(([x, y]) => `${x},${y}`).join(' '),
+    )
+    rerender(<ShapeGlyph shape="dot" />)
+    expect(svg().querySelectorAll('polygon')).toHaveLength(0)
+    expect(svg().querySelector('circle')).not.toBeNull()
   })
 })
 
