@@ -4,7 +4,8 @@ import { STUDY } from '../../src/config/study.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
 import { estimateWidth, mmss, outcomeWords, trackNamer, type FrameInput } from './frame.ts'
-import { loadStudy, planFor, readRun } from './load.ts'
+import { planFor } from './load.ts'
+import { loadStudy, readRuns } from './files.ts'
 import { otherEscalations, runMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 import { countsSentence, openingSentence, ordinalWord, sheetName, sheetSvg } from './sheet.ts'
@@ -13,7 +14,7 @@ import { studySvg } from './figure.ts'
 
 const study = loadStudy()
 const fixture = (name: string): FrameInput => {
-  const record = readRun(`tools/replay/__fixtures__/${name}.json`)
+  const record = readRuns(`tools/replay/__fixtures__/${name}.json`)[0]
   const plan = planFor(record.scenario, study.timeline)
   return { record, plan, study, metrics: runMetrics(record, study.index, plan) }
 }

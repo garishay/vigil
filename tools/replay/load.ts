@@ -6,13 +6,7 @@
  * app ran it. Nothing here is a position or a score: the file is read, checked, and handed on.
  */
 
-import { readFileSync } from 'node:fs'
-import {
-  BENCH_SCENARIOS,
-  STUDY_RECORDING,
-  loadRecording,
-  type Recording,
-} from '../../scripts/study.ts'
+import { BENCH_SCENARIOS, type Recording } from '../../scripts/study-spec.ts'
 import { scenarioNamed } from '../../src/config/scenarios.ts'
 import { QUESTIONS, STUDY, WORKLOAD_SCALE } from '../../src/config/study.ts'
 import { planScenario, timelineOf, type InjectPlan, type Timeline } from '../../src/lib/injects.ts'
@@ -20,7 +14,10 @@ import { indexCapture, type ReplayIndex } from '../../src/lib/replay.ts'
 import type { RunAnswers, RunEvent, RunEventType, RunRecord } from '../../src/lib/run.ts'
 import { MODES, type Mode } from '../../src/lib/session.ts'
 
-/** A run file that cannot be read as a run, with the reason — the tool's one refusal shape. */
+/**
+ * A run file that cannot be read as a run, with the reason — the tool's one refusal shape, and
+ * `compose`'s too for a set of runs no document can be made from (round 1 on #185).
+ */
 export class RunRefusal extends Error {
   override readonly name = 'RunRefusal'
 }
@@ -168,8 +165,73 @@ export function parseRun(text: string, path: string): RunRecord {
   }
 }
 
-/** The run a file holds, read from disk. */
-export const readRun = (path: string): RunRecord => parseRun(readFileSync(path, 'utf8'), path)
+/**
+ * The results file a subject downloads (S6a, #165): one subject's two runs under one envelope,
+ * in the order they were run. Written by the results view, read by the sheet page and by the
+ * CLI wherever it reads a run file — one file to hand over instead of two.
+ */
+export interface ResultsRecord {
+  subject: string
+  /**
+   * The build that wrote the envelope. Each run keeps the build it was made on, and the two may
+   * differ: a deploy can land between a subject's run 1 and run 2, and refusing that file would
+   * lose the session (ruled, round 1 on #185). The pilot's separator reads the runs' builds.
+   */
+  build: string
+  runs: RunRecord[]
+}
+
+const RESULTS_KEYS = ['subject', 'build', 'runs'] as const
+
+/**
+ * A results file, or a refusal naming the path and the field: the subject a code, every run the
+ * loader's own, every run that subject's, the runs in run order. The subject is the one thing
+ * the envelope and its runs must agree on — a run of someone else's is refused rather than
+ * resolved by precedence. The build is not: it names what wrote the envelope, and a run made on
+ * an earlier build is a session that spanned a deploy, not a bad file (ruled, round 1 on #185).
+ */
+export function parseResults(text: string, path: string): ResultsRecord {
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch (error) {
+    return refuse(path, `not JSON — ${(error as Error).message}`)
+  }
+  if (!isObject(value)) return refuse(path, 'a results file is one JSON object')
+  for (const key of RESULTS_KEYS) if (!(key in value)) return refuse(path, `"${key}" is missing`)
+  const { subject, build, runs } = value
+  if (typeof subject !== 'string' || !SUBJECT_CODE.test(subject)) {
+    return refuse(path, `subject is a subject code, not ${JSON.stringify(subject)}`)
+  }
+  if (typeof build !== 'string' || build === '') {
+    return refuse(path, `build is the build string, not ${JSON.stringify(build)}`)
+  }
+  if (!Array.isArray(runs) || runs.length === 0) return refuse(path, 'runs is a list of runs')
+  const parsed = runs.map((run, i) => parseRun(JSON.stringify(run), `${path} runs[${i}]`))
+  for (const [i, run] of parsed.entries()) {
+    if (run.subject !== subject) {
+      return refuse(path, `runs[${i}] is subject ${run.subject}, not ${subject}`)
+    }
+    if (i > 0 && run.run <= parsed[i - 1].run) {
+      return refuse(path, `runs[${i}] is run ${run.run}, not after run ${parsed[i - 1].run}`)
+    }
+  }
+  return { subject, build, runs: parsed }
+}
+
+/**
+ * The runs a file's text holds, whichever file it is (S6a, #165, A7): a run file is its one run,
+ * a results file is the subject's two, told apart by the envelope's own key.
+ */
+export function runsIn(text: string, path: string): RunRecord[] {
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch (error) {
+    return refuse(path, `not JSON — ${(error as Error).message}`)
+  }
+  return isObject(value) && 'runs' in value ? parseResults(text, path).runs : [parseRun(text, path)]
+}
 
 /** The study's recording, indexed, with its frame grid — loaded once and shared by every run. */
 export interface Study {
@@ -178,14 +240,12 @@ export interface Study {
   timeline: Timeline
 }
 
-export function loadStudy(id: string = STUDY_RECORDING): Study {
-  const recording = loadRecording(id)
-  return {
-    recording,
-    index: indexCapture(recording.capture),
-    timeline: timelineOf(recording.capture),
-  }
-}
+/** A recording already in hand as the study the tool replays against — the browser's way in. */
+export const studyOf = (recording: Recording): Study => ({
+  recording,
+  index: indexCapture(recording.capture),
+  timeline: timelineOf(recording.capture),
+})
 
 /** The scenario's plan on the recording's own frame grid — the seed exactly as the app dealt it. */
 export const planFor = (scenario: string, timeline: Timeline): InjectPlan =>
