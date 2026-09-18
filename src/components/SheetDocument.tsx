@@ -16,7 +16,8 @@ import type { SaveFile } from '../data/sheet'
  * over, so the controls stay level as that page has always had them; in a session there is one
  * thing the runner needs — the results file — so that save keeps `sheet__button` and everything
  * else drops to `sheet__quiet`, the same pair the end screen draws its primary and its backups
- * with.
+ * with. The label is one file's: only the first save wears it, and any further file stays quiet
+ * under its own run's name (ruled, round 1).
  */
 export function SheetDocument({
   document_,
@@ -44,14 +45,17 @@ export function SheetDocument({
         {/* One click, one file: a document of one subject's two runs saves their results file,
             and any other pair saves each run's own, named for what tells it from the other
             (round 1 on #187, ruled 5). */}
-        {files.map((file) => (
+        {files.map((file, index) => (
           <button
             key={file.name}
             type="button"
-            className="sheet__button"
+            // One primary, ever (ruled, round 1): the label names one file. A second file is a
+            // second thing to save, not a second copy of the first, so it goes quiet under its
+            // own run's name — two buttons reading *Download results* would name neither.
+            className={primarySave === undefined || index === 0 ? 'sheet__button' : 'sheet__quiet'}
             onClick={() => download(file.name, 'application/json', file.text)}
           >
-            {primarySave ?? `Save ${file.label}`}
+            {primarySave !== undefined && index === 0 ? primarySave : `Save ${file.label}`}
           </button>
         ))}
         <button

@@ -52,7 +52,14 @@ function isRunRecord(value: unknown): value is RunRecord {
   )
 }
 
-/** The run saved under a subject and index, or null — anything that is not a run is null. */
+/**
+ * The run saved under a subject and index, or null — anything that is not a run is null.
+ *
+ * And nothing is trusted that the key cannot confirm (ruled, round 1): a record whose `subject`
+ * or `run` disagrees with the key it came out from reads as not saved. The key is the only claim
+ * this store makes; a value that contradicts it would otherwise travel into a results file under
+ * a run index it does not hold, and `firstUnsaved` would count a run the subject never gave.
+ */
 export function readRun(
   subject: string,
   run: number,
@@ -62,7 +69,8 @@ export function readRun(
     const text = store?.getItem(runKey(subject, run)) ?? null
     if (text === null) return null
     const value: unknown = JSON.parse(text)
-    return isRunRecord(value) ? value : null
+    if (!isRunRecord(value)) return null
+    return value.subject === subject && value.run === run ? value : null
   } catch {
     return null
   }

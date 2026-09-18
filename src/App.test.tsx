@@ -2528,6 +2528,20 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     render(<App schedule={replay.schedule} now={() => NOW} navigate={navigate} />)
     return { replay, navigate }
   }
+  /** The same, with the results view's door handed in — a chunk that arrives, or one that does not. */
+  const openWith = (session: SessionState, loadResults: () => Promise<never>) => {
+    useSession.mockReturnValue(session)
+    const replay = manualClock()
+    render(
+      <App
+        schedule={replay.schedule}
+        now={() => NOW}
+        navigate={vi.fn()}
+        loadResults={loadResults}
+      />,
+    )
+    return { replay }
+  }
   const dialog = () => screen.getByRole('dialog')
   const answer = (group: string, value: string) =>
     fireEvent.click(
@@ -2737,9 +2751,46 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     answerAll()
     expect(within(dialog()).queryByRole('button', { name: 'See your results' })).toBeNull()
     expect(within(dialog()).getByRole('alert')).toHaveTextContent(
-      'Your first run is not saved in this browser, so your results cannot be drawn here.',
+      'Your other run is not saved in this browser, so your results cannot be drawn here.',
     )
     expect(dialog().querySelector('.run__next')).toHaveTextContent('Download a copy')
+  }, 30_000)
+
+  it('offers the results on the run that completes the session, whichever it is (ruled)', () => {
+    // Run 2 taken first on its own link, then run 1. The way on follows what is saved, not the
+    // run number: with both in this browser run 1's end screen is where the session ends, so it
+    // carries *See your results*. Reading `study.run` left this screen with no way on at all.
+    localStorage.setItem('vigil.run.S03.2', JSON.stringify(savedRun(2)))
+    const { replay } = open(paired('raw', 1))
+    toTheEnd(replay)
+    answerAll()
+    const card = dialog().querySelector('.run__card') as HTMLElement
+    expect(card.querySelector('.run__next')).toHaveTextContent('See your results')
+    expect(card.querySelectorAll('.run__button')).toHaveLength(1)
+    expect(within(dialog()).getByText(/is saved in this browser/)).toHaveTextContent(
+      'Run 1 is saved in this browser. Your results are ready.',
+    )
+    // And no words about a missing run, because none is missing.
+    expect(within(dialog()).queryByRole('alert')).toBeNull()
+  }, 30_000)
+
+  it('says so on the screen when the results chunk will not load', async () => {
+    localStorage.setItem('vigil.run.S03.1', JSON.stringify(savedRun(1)))
+    // The door is the one place that chunk is fetched, so a fetch that fails is the only way it
+    // can fail. Unhandled, the button did nothing at all and said nothing either.
+    const { replay } = openWith(paired('vigil', 2, '03b'), () =>
+      Promise.reject(new Error('Failed to fetch dynamically imported module')),
+    )
+    toTheEnd(replay)
+    answerAll()
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'See your results' }))
+    await waitFor(() =>
+      expect(within(dialog()).getByRole('alert')).toHaveTextContent(
+        'Your results did not load — Failed to fetch dynamically imported module. Reload the page and press it again.',
+      ),
+    )
+    // The way on stays, because pressing it again retries.
+    expect(within(dialog()).getByRole('button', { name: 'See your results' })).toBeInTheDocument()
   }, 30_000)
 
   it('shows the session as complete rather than the brief when both runs are saved', () => {

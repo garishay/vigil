@@ -166,6 +166,26 @@ describe('the run a link opens at (S6a-iii, #165, item 8)', () => {
 })
 
 describe('Clear saved runs (S6a-iii-b, #165, item 8, ruled E4)', () => {
+  it('refuses a record the key it came from does not confirm (round 1, finding 4)', () => {
+    const store = memory()
+    // A `vigil.run.*` key on a shared origin — github.io is one — can hold anything, and a run
+    // written under one key can be copied under another. The key is the only claim this store
+    // makes, so a record that contradicts it reads as not saved: otherwise run 1's key would
+    // hand back a record saying `run: 2`, which then travels into a results file under the
+    // wrong index and makes `firstUnsaved` count a run the subject never gave.
+    store.setItem('vigil.run.S13.1', JSON.stringify(record('S13', 2)))
+    expect(readRun('S13', 1, store)).toBeNull()
+    expect(firstUnsaved('S13', 2, store)).toBe(1)
+    expect(runsOf('S13', 2, store)).toEqual([])
+
+    store.setItem('vigil.run.S13.1', JSON.stringify(record('S14', 1)))
+    expect(readRun('S13', 1, store)).toBeNull()
+
+    // And the record the key does confirm still reads back whole.
+    store.setItem('vigil.run.S13.1', JSON.stringify(record('S13', 1)))
+    expect(readRun('S13', 1, store)).toMatchObject({ subject: 'S13', run: 1 })
+  })
+
   it('clears every saved run in this browser, and says how many', () => {
     const store = memory()
     writeRun(record('S13', 1), JSON.stringify(record('S13', 1)), store)

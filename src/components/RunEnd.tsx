@@ -9,12 +9,15 @@ import type { RunAnswers } from '../lib/run'
  *
  * Once all three are answered the run is saved in this browser and the card reads in the order
  * the subject moves through it (ruled R1): **the saved line**, which says what to do and not
- * only what happened; then **the way on** as the card's one primary button — *Start run 2* after
- * run 1, *See your results* after run 2, or, when the earlier run is not in this browser, the
- * words for that with *Download a copy* as the primary instead; then the backups as a quiet row
- * that says it is optional; then the JSON behind its disclosure. A subject should never have to
- * wonder whether Copy run must be pressed before Start run 2 — the hierarchy answers it without
- * a word.
+ * only what happened; then **the way on** as the card's one primary button; then the backups as
+ * a quiet row that says it is optional; then the JSON behind its disclosure. A subject should
+ * never have to wonder whether Copy run must be pressed before Start run 2 — the hierarchy
+ * answers it without a word.
+ *
+ * **The way on follows what is saved, not this run's number** (ruled, round 1): every run of the
+ * session in this browser means *See your results*, whatever order they were run in; a run left
+ * to offer means *Start run N*; and neither means the words for what is missing with *Download a
+ * copy* as the primary instead. No end screen is left with neither a primary nor words.
  *
  * When the browser refuses to keep the run the order flips: the warning first, and *Download a
  * copy* as the primary, because the file is then the only way the run survives the tab.
@@ -38,6 +41,7 @@ export function RunEnd({
   onNext,
   onResults,
   resultsMissing,
+  resultsRefusal = null,
 }: {
   title: string
   /** This run's index, for the saved line's own words. */
@@ -56,8 +60,14 @@ export function RunEnd({
   onNext?: () => void
   /** Draws this subject's results; absent until every run of the session is in this browser. */
   onResults?: () => void
-  /** On the last run, whether an earlier run is missing from this browser — the words for it. */
+  /**
+   * Whether the session's other run is missing from this browser with no run left to offer — the
+   * words for it, and the file as the way out. Follows what is saved, not this run's number
+   * (ruled, round 1).
+   */
   resultsMissing?: boolean
+  /** What the browser said when the results chunk would not load; null when it did. */
+  resultsRefusal?: string | null
 }) {
   const textRef = useRef<HTMLTextAreaElement>(null)
   const { copy, copied } = useCopy(textRef)
@@ -134,8 +144,15 @@ export function RunEnd({
                 (ruled R1). */}
             {resultsMissing === true && (
               <p className="run__warn" role="alert">
-                Your first run is not saved in this browser, so your results cannot be drawn here.
+                Your other run is not saved in this browser, so your results cannot be drawn here.
                 Download this run and hand both runs over.
+              </p>
+            )}
+            {/* The chunk did not arrive. The button stays — pressing it retries — and the words
+                carry the one thing to do, as the sheet page's door does (round 1, finding 2). */}
+            {resultsRefusal !== null && (
+              <p className="run__warn" role="alert">
+                Your results did not load — {resultsRefusal}. Reload the page and press it again.
               </p>
             )}
             {onNext !== undefined && (

@@ -136,7 +136,7 @@ describe('the last run’s end screen (S6a-iii-b, #165, item 4, ruled R1)', () =
       'details',
     ])
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Your first run is not saved in this browser, so your results cannot be drawn here. Download this run and hand both runs over.',
+      'Your other run is not saved in this browser, so your results cannot be drawn here. Download this run and hand both runs over.',
     )
     expect(screen.queryByRole('button', { name: 'See your results' })).toBeNull()
     // One Download a copy, not two: the primary is the one the words name.

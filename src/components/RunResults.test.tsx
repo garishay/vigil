@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { RunResults } from './RunResults'
-import { documentOf, fetchStudy } from '../data/sheet'
+import { documentOf, fetchStudy, filesFor } from '../data/sheet'
+import { SheetDocument } from './SheetDocument'
 import rawRun from '../../tools/replay/__fixtures__/S05-03a-raw-1.json?raw'
 import vigilRun from '../../tools/replay/__fixtures__/S06-03b-vigil-1.json?raw'
 import captureRaw from '../../public/adsb-phl-002.json?raw'
@@ -78,4 +79,32 @@ describe('the results view (S6a-iii-b, #165, items 4 and 5, ruled R2)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to fetch')
     expect(document.querySelector('.sheet__document')).toBeNull()
   }, 30_000)
+})
+
+describe('one primary save, ever (round 1, finding 4)', () => {
+  it('gives the label to one file and leaves any other quiet under its own run', async () => {
+    // Two subjects' runs make a pair, not a session, so `filesFor` hands back a file each. The
+    // primary label names one file; a second button reading *Download results* too would name
+    // neither, which is the opposite of what R2 asks.
+    const other = { ...(JSON.parse(vigilRun) as RunRecord), subject: 'S07', run: 1 }
+    const study = await fetchStudy(fetcher)
+    const files = filesFor([one, other])
+    expect(files).toHaveLength(2)
+    render(
+      <SheetDocument
+        document_={documentOf([one, other], study)}
+        files={files}
+        primarySave="Download results"
+      />,
+    )
+    const view = document.querySelector('.sheet__actions') as HTMLElement
+    expect(within(view).getByRole('button', { name: 'Download results' })).toHaveClass(
+      'sheet__button',
+    )
+    expect(view.querySelectorAll('.sheet__button')).toHaveLength(1)
+    // The second is quiet and named for its own run, so the two are told apart.
+    const second = within(view).getByRole('button', { name: `Save ${files[1].label}` })
+    expect(second).toHaveClass('sheet__quiet')
+    expect(second).not.toHaveTextContent('Download results')
+  }, 60_000)
 })

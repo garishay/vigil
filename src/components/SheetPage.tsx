@@ -99,9 +99,13 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
 
   return (
     <div className="sheet">
+      {/* The chrome, which print hides: the title and, before a document is drawn, the lead.
+          The document itself is a sibling, never a child — `@media print` sets `display: none`
+          on this header, and an ancestor hidden that way takes the sheet down with it whatever
+          the sheet's own rules say, so the leave-behind printed blank (round 1, finding 1). */}
       <header className="sheet__head">
         <h1 className="sheet__title">Vigil — subject sheet</h1>
-        {document_ === null ? (
+        {document_ === null && (
           <p className="sheet__lead">
             Drop a results file, or both run files, below — or paste their JSON. The sheet is drawn
             in this tab and nothing is sent anywhere.{' '}
@@ -109,22 +113,23 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
               ? 'No runs are kept in this browser.'
               : `${saved} run${saved === 1 ? '' : 's'} ${saved === 1 ? 'is' : 'are'} kept in this browser, under the subject's own code, so a study session can be finished and handed over; Clear saved runs below removes ${saved === 1 ? 'it' : 'them'}.`}
           </p>
-        ) : (
-          <SheetDocument document_={document_} files={source ?? []}>
-            <button
-              type="button"
-              className="sheet__button"
-              onClick={() => {
-                setDocument(null)
-                setSource(null)
-                setPasted('')
-              }}
-            >
-              Start over
-            </button>
-          </SheetDocument>
         )}
       </header>
+      {document_ !== null && (
+        <SheetDocument document_={document_} files={source ?? []}>
+          <button
+            type="button"
+            className="sheet__button"
+            onClick={() => {
+              setDocument(null)
+              setSource(null)
+              setPasted('')
+            }}
+          >
+            Start over
+          </button>
+        </SheetDocument>
+      )}
       {refusal !== null && (
         <p className="sheet__refusal" role="alert">
           {refusal}

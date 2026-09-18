@@ -7,6 +7,7 @@ import vigilRun from '../../tools/replay/__fixtures__/S04-02b-vigil-1.json?raw'
 import prioritizationRaw from '../../tools/replay/__fixtures__/S05-03a-raw-1.json?raw'
 import prioritizationVigil from '../../tools/replay/__fixtures__/S05-03a-vigil-1.json?raw'
 import captureRaw from '../../public/adsb-phl-002.json?raw'
+import sheetCss from './SheetPage.css?raw'
 
 // The fixtures as text, imported as every other src test imports one: no disk, no network.
 const FIXTURE: Record<string, string> = {
@@ -264,5 +265,41 @@ describe('what this browser keeps (S6a-iii-b, #165, item 8, ruled R3)', () => {
     await waitFor(() => expect(screen.getByText('Drop the files here')).toBeInTheDocument())
     expect(screen.getByText(/No runs are kept in this browser/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clear saved runs' })).toBeNull()
+  }, 30_000)
+})
+
+describe('the leave-behind (round 1, finding 1)', () => {
+  it('keeps the drawn sheet out of every element the print rule hides', async () => {
+    await paste(`${fixture('S03-02a-raw-1.json')}\n${fixture('S04-02b-vigil-1.json')}`)
+    const drawn = document.querySelector('.sheet__document')
+    expect(drawn).not.toBeNull()
+    // Read the print rule rather than restate it: whatever `@media print` sets to `display: none`
+    // must not be an ancestor of the sheet, because an ancestor hidden that way takes its
+    // children down with it whatever their own rules say — which is how Print came to print a
+    // blank page. Pre-fix the document sat inside `.sheet__head`, and this fails on the first.
+    const print = /@media print \{([\s\S]*?)\n\}/.exec(sheetCss.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(print).not.toBeNull()
+    const hidden = [...print![1].matchAll(/([^{}]+)\{[^{}]*display:\s*none/g)].flatMap((rule) =>
+      rule[1]
+        .split(',')
+        .map((selector) => selector.trim())
+        .filter((selector) => selector !== ''),
+    )
+    // The chrome, all of it: the title and lead, the controls, the intake, the copy box.
+    expect(hidden).toEqual(
+      expect.arrayContaining([
+        '.sheet__head',
+        '.sheet__actions',
+        '.sheet__intake',
+        '.sheet__copy',
+        '.sheet__refusal',
+      ]),
+    )
+    for (const selector of hidden) {
+      for (const node of document.querySelectorAll(selector)) {
+        expect(node.contains(drawn)).toBe(false)
+      }
+    }
+    expect(hidden).not.toContain('.sheet__document')
   }, 30_000)
 })

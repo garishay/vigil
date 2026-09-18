@@ -125,7 +125,11 @@
     padding: 0;
   }
 
+  /* The chrome, all of it. The controls are named here rather than left to sit inside a hidden
+     header: the document is the header's sibling now, so nesting hides nothing for it, and a
+     leave-behind with a row of buttons across the top is not the leave-behind. */
   .sheet__head,
+  .sheet__actions,
   .sheet__intake,
   .sheet__copy,
   .sheet__refusal {

@@ -137,6 +137,15 @@ const goTo = (search: string) => {
   window.location.search = search
 }
 
+/**
+ * The results view's chunk, fetched here and nowhere else (ruled R1): a subject who never presses
+ * *See your results* never downloads the replay tool, nor the roles table it reads.
+ * `tools/replay/imports.test.ts` pins that this is a dynamic `import()` and not a static edge.
+ * Module scope for the same reason `goTo` is.
+ */
+const fetchResultsView = () =>
+  import('./components/RunResults.tsx').then((module) => module.RunResults)
+
 const readStoredPlan = (): string | null => {
   try {
     return localStorage.getItem(SITE_PLAN_KEY)
@@ -152,17 +161,21 @@ const readStoredPlan = (): string | null => {
  * seam (03d): the one runtime third-party call, injected the way the capture's fetcher is, so no
  * test reaches the network. `navigate` is the session seam (S6a-iii): a study run opens the next
  * run of its session by the URL, and a test reads where it was sent instead of moving.
+ * `loadResults` is the results view's door — the one place its chunk is fetched (ruled R1) — so a
+ * test can hand back a chunk that never arrives and read what the screen says (round 1).
  */
 export default function App({
   now = () => new Date().toISOString(),
   schedule = intervalSchedule,
   lookupPhoto = defaultLookupPhoto,
   navigate = goTo,
+  loadResults = fetchResultsView,
 }: {
   now?: () => string
   schedule?: Schedule
   lookupPhoto?: PhotoLookup
   navigate?: (search: string) => void
+  loadResults?: () => Promise<typeof RunResultsView>
 } = {}) {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
   const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
@@ -279,6 +292,8 @@ export default function App({
   // The results view is a chunk of its own, fetched on the See your results click and nowhere
   // else (S6a-ii, ruled R1): never at load, never at Begin, never on run 1’s end screen.
   const [Results, setResults] = useState<typeof RunResultsView | null>(null)
+  // What the browser said when that chunk did not arrive, so the screen can say it too.
+  const [resultsRefusal, setResultsRefusal] = useState<string | null>(null)
 
   /**
    * The picture at the clock, through the seam (#115): the feeds in session order, then the
@@ -877,9 +892,21 @@ export default function App({
     if (nextSearch !== null && nextSearch !== window.location.search) navigate(nextSearch)
   }, [study, resume, beganAt, nextSearch, navigate])
 
+  /**
+   * The results view's door (ruled R1): its chunk is fetched here and nowhere else, so a subject
+   * who never presses the button never downloads the replay tool, nor the roles table.
+   *
+   * A chunk that does not arrive — a stale deploy, a network that dropped — says so on the screen
+   * with the one thing to do, as `main.tsx` does for the sheet page's door, rather than leaving
+   * the button doing nothing at all (round 1, finding 2). Pressing again retries.
+   */
   const showResults = useCallback(() => {
-    void import('./components/RunResults.tsx').then((module) => setResults(() => module.RunResults))
-  }, [])
+    setResultsRefusal(null)
+    void loadResults().then(
+      (view) => setResults(() => view),
+      (error: Error) => setResultsRefusal(error.message),
+    )
+  }, [loadResults])
 
   const overlay = study !== null && beganAt === null && !sessionDone
   const covered = overlay || runEnded || sessionDone
@@ -1152,6 +1179,11 @@ export default function App({
             </p>
             {/* The same order the end screen reads in (ruled R1): the way on first, as the card's
                 one primary, then the files as a quiet row that says it is optional. */}
+            {resultsRefusal !== null && (
+              <p className="run__warn" role="alert">
+                Your results did not load — {resultsRefusal}. Reload the page and press it again.
+              </p>
+            )}
             {savedRuns.length === RUNS_PER_SUBJECT && (
               <button type="button" className="run__button run__next" onClick={showResults}>
                 See your results
@@ -1194,14 +1226,19 @@ export default function App({
               ? undefined
               : () => navigate(nextSearch)
           }
-          // The results are offered on the session’s last run, once every run is in this
-          // browser; short of that the screen says which one is missing (ruled R1).
-          onResults={
-            study.run < RUNS_PER_SUBJECT || savedRuns.length < RUNS_PER_SUBJECT
-              ? undefined
-              : showResults
+          // The way on follows what is saved, not the run number (ruled, round 1): every run
+          // of this session in this browser means the results, whatever order they were run in —
+          // a subject who took run 2 first and then run 1 finishes on *See your results*, where
+          // reading `study.run` left run 1's screen with no way on at all.
+          onResults={savedRuns.length === RUNS_PER_SUBJECT ? showResults : undefined}
+          // This run saved and no run left to offer, short of the whole session: the screen takes
+          // the session-complete card's treatment — the words for what is missing, and the file
+          // as the way out. No end screen is ever left with neither a primary nor words.
+          resultsMissing={
+            savedRuns.length < RUNS_PER_SUBJECT &&
+            (nextSearch === null || savedRuns.some((saved) => saved.run === study.run + 1))
           }
-          resultsMissing={study.run >= RUNS_PER_SUBJECT && savedRuns.length < RUNS_PER_SUBJECT}
+          resultsRefusal={resultsRefusal}
         />
       )}
     </div>
