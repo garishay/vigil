@@ -164,6 +164,9 @@ describe('MapView', () => {
       style: AO.basemapStyleUrl,
       center: AO.center,
       zoom: AO.zoom,
+      // No symbol fade (S9): a glyph that moves between ticks is placed afresh each tick, and
+      // MapLibre's default fades a fresh symbol in over 300 ms — a flicker once a second.
+      fadeDuration: 0,
     })
   })
 
