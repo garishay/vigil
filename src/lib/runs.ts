@@ -29,7 +29,30 @@ const browserStore = (): RunStore | null => {
   }
 }
 
-/** The run saved under a subject and index, or null — an unreadable or unparsable one is null. */
+/**
+ * Whether a parsed value is a run this browser wrote. A `vigil.run.*` key on a shared origin
+ * — github.io is one — can hold anything at all, so what comes back is checked rather than
+ * cast (round 1, finding 5). The check is the contract’s own shape and nothing more: the
+ * replay loader's refusals are the tool's, and bringing them here would put them on the app's
+ * graph, which R1 keeps clear.
+ */
+function isRunRecord(value: unknown): value is RunRecord {
+  if (typeof value !== 'object' || value === null) return false
+  const run = value as Record<string, unknown>
+  return (
+    typeof run.subject === 'string' &&
+    typeof run.scenario === 'string' &&
+    typeof run.mode === 'string' &&
+    typeof run.run === 'number' &&
+    typeof run.build === 'string' &&
+    typeof run.began_at === 'string' &&
+    Array.isArray(run.events) &&
+    typeof run.answers === 'object' &&
+    run.answers !== null
+  )
+}
+
+/** The run saved under a subject and index, or null — anything that is not a run is null. */
 export function readRun(
   subject: string,
   run: number,
@@ -37,24 +60,40 @@ export function readRun(
 ): RunRecord | null {
   try {
     const text = store?.getItem(runKey(subject, run)) ?? null
-    return text === null ? null : (JSON.parse(text) as RunRecord)
+    if (text === null) return null
+    const value: unknown = JSON.parse(text)
+    return isRunRecord(value) ? value : null
   } catch {
     return null
   }
 }
 
-/** Writes a run under its subject and index. False when the browser refused to keep it. */
+/**
+ * Writes a run under its subject and index, and says whether the browser kept it.
+ *
+ * True only when what comes back is **the text that went in** (round 1, finding 2): a store
+ * that takes a write and holds an earlier value would otherwise report success while a stale
+ * run sat under the key. On any failure the key is removed, so what the store holds, what
+ * `firstUnsaved` reads, and the warning on the subject's screen can never disagree.
+ */
 export function writeRun(
   record: RunRecord,
   text: string,
   store: RunStore | null = browserStore(),
 ): boolean {
+  const key = runKey(record.subject, record.run)
   try {
-    store?.setItem(runKey(record.subject, record.run), text)
+    store?.setItem(key, text)
+    if (store?.getItem(key) === text) return true
   } catch {
-    return false
+    // Fall through: a refused write leaves whatever was there, and that is what is removed.
   }
-  return readRun(record.subject, record.run, store) !== null
+  try {
+    store?.removeItem(key)
+  } catch {
+    // A store that will not even remove holds nothing this browser can be trusted about.
+  }
+  return false
 }
 
 /** Every run this browser holds for a subject, in run order. */
@@ -86,30 +125,4 @@ export function firstUnsaved(
     if (readRun(subject, run, store) === null) return run
   }
   return null
-}
-
-/** Every run key this browser holds, whatever subject wrote it — what *Clear saved runs* clears. */
-export function savedKeys(store: RunStore | null = browserStore()): string[] {
-  const keys: string[] = []
-  try {
-    if (store === null) return keys
-    for (let i = 0; i < store.length; i++) {
-      const key = store.key(i)
-      if (key !== null && key.startsWith('vigil.run.')) keys.push(key)
-    }
-  } catch {
-    return keys
-  }
-  return keys
-}
-
-/** Clears every saved run in this browser, and says how many it cleared. */
-export function clearRuns(store: RunStore | null = browserStore()): number {
-  const keys = savedKeys(store)
-  try {
-    for (const key of keys) store?.removeItem(key)
-  } catch {
-    return 0
-  }
-  return keys.length
 }

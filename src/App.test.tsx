@@ -2393,19 +2393,18 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(screen.getByRole('main')).toHaveAttribute('inert')
     fireEvent.click(screen.getByTestId('map-select'))
     // Copy run waits for all three answers; the JSON is printed only then.
-    const copyRun = within(dialog()).getByRole('button', { name: 'Copy run' })
-    expect(copyRun).toBeDisabled()
-    expect(within(dialog()).getByText('Enabled once all three are answered')).toBeInTheDocument()
+    // Before the answers the card is the questions and one hint: no backups, no way on, so the
+    // backups never look like the goal (ruled, round 1).
+    expect(within(dialog()).queryByRole('button')).toBeNull()
+    expect(within(dialog()).getByText('Answer all three to continue.')).toBeInTheDocument()
     expect(within(dialog()).queryByLabelText('Run JSON')).toBeNull()
     answer('Mental demand', '6')
     answer('Time pressure', '7')
-    expect(copyRun).toBeDisabled()
+    expect(within(dialog()).queryByRole('button', { name: 'Copy run' })).toBeNull()
     answer('Confidence in your decisions', '5')
-    // Re-queried, not the held reference: once the three are answered the card re-orders —
-    // the saved line, the way on, then the backups as their own row — so Copy run mounts
-    // where it belongs in that order rather than staying where it waited (ruled R1).
+    // The backups appear with the rest, in their own row under the way on (ruled R1).
     expect(within(dialog()).getByRole('button', { name: 'Copy run' })).toBeEnabled()
-    expect(within(dialog()).queryByText('Enabled once all three are answered')).toBeNull()
+    expect(within(dialog()).queryByText('Answer all three to continue.')).toBeNull()
     // The JSON behind a Show JSON disclosure, closed by default, the textarea inside it for the
     // copy fallback (#36 [39], ruled A).
     const details = within(dialog()).getByText('Show JSON').closest('details') as HTMLElement
@@ -2633,6 +2632,69 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     const { navigate } = open(paired('vigil', 2, '03b'))
     expect(navigate).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Begin' })).toBeInTheDocument()
+  })
+
+  it('makes the shell inert behind the session-complete card, as every other overlay does', () => {
+    localStorage.setItem('vigil.run.S03.1', JSON.stringify(savedRun(1)))
+    localStorage.setItem('vigil.run.S03.2', JSON.stringify(savedRun(2)))
+    open(paired('vigil', 2, '03b'))
+    // A card with aria-modal over a shell a subject can still tab into is not a modal at all
+    // (round 1, finding 1).
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    expect(screen.getByRole('banner')).toHaveAttribute('inert')
+  })
+
+  it('withholds the brief when the run is saved and there is no next link, on any scenario', () => {
+    // A scenario with no pair — the default deal — has no run 2 to send anyone to, so forward
+    // only would have fallen through to the brief and re-run a saved run (round 1, finding 3).
+    localStorage.setItem(
+      'vigil.run.S03.1',
+      JSON.stringify({ ...savedRun(1), scenario: 'default', mode: 'raw' }),
+    )
+    if (LONG.status !== 'ready') throw new Error('LONG is a ready session')
+    const { navigate } = open({
+      ...LONG,
+      session: { ...LONG.session, mode: 'raw', study: { subject: 'S03', run: 1 } },
+    })
+    expect(navigate).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Begin' })).toBeNull()
+    expect(screen.getByText('Already run — subject S03')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Download run 1' })).toBeInTheDocument()
+    // And the saved run is still the saved run: nothing re-ran and nothing was overwritten.
+    expect(JSON.parse(localStorage.getItem('vigil.run.S03.1') as string)).toMatchObject({
+      scenario: 'default',
+      run: 1,
+    })
+  })
+
+  it('sends a resumed link once, not once per render (round 1, finding 4)', () => {
+    // Rendered without injecting `navigate`, so the default's identity is what decides: an
+    // inline arrow rebuilt each render re-fires the effect it is a dependency of.
+    localStorage.setItem('vigil.run.S03.1', JSON.stringify(savedRun(1)))
+    const sent: string[] = []
+    const real = Object.getOwnPropertyDescriptor(window, 'location')
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...window.location,
+        get search() {
+          return '?scenario=03a&mode=raw&subject=S03&run=1'
+        },
+        set search(next: string) {
+          sent.push(next)
+        },
+      },
+    })
+    useSession.mockReturnValue(paired('raw', 1))
+    const replay = manualClock()
+    const { rerender } = render(<App schedule={replay.schedule} now={() => NOW} />)
+    // A render that changes nothing must send nothing more. With an inline-arrow default the
+    // effect's dependency is a new function here and the subject is sent again.
+    rerender(<App schedule={replay.schedule} now={() => NOW} />)
+    rerender(<App schedule={replay.schedule} now={() => NOW} />)
+    expect(sent).toHaveLength(1)
+    expect(new URLSearchParams(sent[0]).get('run')).toBe('2')
+    if (real) Object.defineProperty(window, 'location', real)
   })
 
   it('shows the session as complete rather than the brief when both runs are saved', () => {

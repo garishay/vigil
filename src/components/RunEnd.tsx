@@ -17,6 +17,9 @@ import type { RunAnswers } from '../lib/run'
  * When the browser refuses to keep the run the order flips: the warning first, and *Download a
  * copy* as the primary, because the file is then the only way the run survives the tab.
  *
+ * Before the three answers there is nothing to save, copy or go on to, so the card is the
+ * questions and one hint and nothing else.
+ *
  * Nothing of the run just finished is shown either way: no frame, no counts, no answer read
  * back (item 3). Nothing is transmitted; the subject hands it over themselves.
  */
@@ -56,16 +59,15 @@ export function RunEnd({
     <button
       type="button"
       className="run__quiet"
-      disabled={!answered}
       onClick={() => {
         if (json !== null) void copy(json)
       }}
     >
-      {answered && copied(json) ? 'Copied' : 'Copy run'}
+      {copied(json ?? '') ? 'Copied' : 'Copy run'}
     </button>
   )
   const downloadQuiet = (
-    <button type="button" className="run__quiet" disabled={!answered} onClick={onDownload}>
+    <button type="button" className="run__quiet" onClick={onDownload}>
       Download a copy
     </button>
   )
@@ -94,13 +96,10 @@ export function RunEnd({
             </div>
           </fieldset>
         ))}
-        {!answered && (
-          <div className="run__copy">
-            {copyRun}
-            {downloadQuiet}
-            <span className="run__hint">Enabled once all three are answered</span>
-          </div>
-        )}
+        {/* Before the answers the card is the questions and one hint. The backups appear
+            with the rest once the third answer lands: two disabled buttons under a hint made
+            the backups look like the goal (ruled, round 1). */}
+        {!answered && <p className="run__hint">Answer all three to continue.</p>}
         {answered && !saved && (
           <>
             <p className="run__warn" role="alert">

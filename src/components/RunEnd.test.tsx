@@ -63,13 +63,15 @@ describe('the end screen’s hierarchy (S6a-iii, #165, ruled R1)', () => {
     expect(card.textContent).not.toMatch(/escalat|threat|look|km|missed/i)
   })
 
-  it('withholds the way on until all three are answered', () => {
+  it('is the questions and one hint before the answers — no backups, no way on', () => {
+    // Two disabled backups under a hint made the backups look like the goal, so they appear with
+    // the rest once the third answer lands (ruled, round 1).
     render(<RunEnd {...props({ json: null, saved: false, answers: { demand: 6 } })} />)
-    expect(screen.queryByRole('button', { name: 'Start run 2' })).toBeNull()
+    expect(order()).toEqual(['h2', 'p'])
+    expect(screen.getByText('Answer all three to continue.')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).toBeNull()
     expect(screen.queryByText(/is saved in this browser/)).toBeNull()
-    expect(screen.getByRole('button', { name: 'Copy run' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Download a copy' })).toBeDisabled()
-    expect(screen.getByText('Enabled once all three are answered')).toBeInTheDocument()
+    expect(document.querySelector('.run__optional')).toBeNull()
     expect(screen.queryByLabelText('Run JSON')).toBeNull()
   })
 

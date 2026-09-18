@@ -127,6 +127,15 @@ const SITE_PLAN_KEY = 'vigil.site-plan'
 const BUILD = import.meta.env.VITE_BUILD ?? 'unknown'
 
 /** The stored plan, or null when none is held or the browser refuses storage — never a throw. */
+/**
+ * Where a study run sends the subject next (S6a-iii): module scope, so the default is one
+ * function rather than a new one each render — an unstable default would re-fire the effect
+ * that depends on it on every render, and doubly under StrictMode (round 1, finding 4).
+ */
+const goTo = (search: string) => {
+  window.location.search = search
+}
+
 const readStoredPlan = (): string | null => {
   try {
     return localStorage.getItem(SITE_PLAN_KEY)
@@ -147,9 +156,7 @@ export default function App({
   now = () => new Date().toISOString(),
   schedule = intervalSchedule,
   lookupPhoto = defaultLookupPhoto,
-  navigate = (search: string) => {
-    window.location.search = search
-  },
+  navigate = goTo,
 }: {
   now?: () => string
   schedule?: Schedule
@@ -803,7 +810,6 @@ export default function App({
     [study],
   )
   const runName = study ? `subject ${study.subject} · run ${study.run}` : null
-  const overlay = study && beganAt === null && resume !== null
   /** The run's text under a set of answers, or null while any of the three is unanswered. */
   const runTextFor = useCallback(
     (given: Partial<RunAnswers>): string | null => {
@@ -848,16 +854,27 @@ export default function App({
     () => (resolved === null ? null : nextRunSearch(resolved, window.location.search)),
     [resolved],
   )
+  /**
+   * Nothing to run here (item 8): every run of the session is saved, or this link's run is saved
+   * and there is no link to the next one — a scenario with no pair, say. Either way the brief is
+   * withheld, because offering it would re-run a run already given (round 1, finding 3).
+   */
+  const sessionDone =
+    study !== null &&
+    beganAt === null &&
+    (resume === null || (resume > study.run && nextSearch === null))
   useEffect(() => {
     // Forward only. A link that asks for a run this browser has not reached yet is run as
     // asked — its end screen carries the words for the run that is missing (item 4) — and a
     // link whose run is already saved moves on by the turned-over link, so the scenario and
     // the mode move with it rather than run 1 being replayed under run 2’s condition.
     if (study === null || resume === null || resume <= study.run || beganAt !== null) return
+    // No link to the next run — the card stands in its place rather than the brief (finding 3).
     if (nextSearch !== null && nextSearch !== window.location.search) navigate(nextSearch)
   }, [study, resume, beganAt, nextSearch, navigate])
 
-  const covered = overlay || runEnded
+  const overlay = study !== null && beganAt === null && !sessionDone
+  const covered = overlay || runEnded || sessionDone
 
   return (
     <div className="shell">
@@ -1107,14 +1124,17 @@ export default function App({
       )}
       {/* Both runs saved and the link opened again: there is no run left to do, and offering
           the brief would re-run one (item 8). The session's own files are the way out. */}
-      {inStudy && resume === null && beganAt === null && runName !== null && (
+      {sessionDone && runName !== null && (
         <div className="run" role="dialog" aria-modal="true" aria-labelledby="run-title">
           <div className="run__card">
             <h2 className="run__title" id="run-title">
-              Session complete — {runName.replace(/ · run \d+$/, '')}
+              {savedRuns.length === RUNS_PER_SUBJECT ? 'Session complete' : 'Already run'} —{' '}
+              {runName.replace(/ · run \d+$/, '')}
             </h2>
             <p className="run__brief">
-              Both of your runs are saved in this browser. There is nothing left to run.
+              {savedRuns.length === RUNS_PER_SUBJECT
+                ? 'Both of your runs are saved in this browser. There is nothing left to run.'
+                : 'This run is already saved in this browser, and there is no next run to open from here.'}
             </p>
             <div className="run__copy">
               {savedRuns.map((record) => (
