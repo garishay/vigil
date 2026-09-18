@@ -52,6 +52,25 @@ const ARROW_TIP_OFFSET_PX = ((GLYPH_BOX / 2 - 0.5) / GLYPH_BOX) * MARK_PX
  * label the same neutral — no band fill, no identity colour. Identity is read off the label.
  */
 const RAW_COLOR = '#c5cfdc'
+/** `--text` mirrored (R3 on #182): the path's arrowhead and its entry reading, to be seen. */
+const TEXT_COLOR = '#e6edf3'
+/**
+ * The slowest track that carries a heading tick, knots (ruled R2 on #182): a tick asserts a
+ * course, and a hover's drift under this is noise that would read as an inbound's. The
+ * drawer's Heading row is untouched; this narrows S4a's predicate for the tick alone.
+ */
+const TICK_MIN_KT = 2
+/**
+ * Raw's label takes the side the tick is not on (ruled R1 on #182): a tick never runs under
+ * its own track's label, so a track heading into the right-hand half — 20° to 160° — carries
+ * its label on the left, and any other, or one with no tick, on the right.
+ */
+const LABEL_LEFT: ExpressionSpecification = [
+  'all',
+  ['get', 'tick'],
+  ['>=', ['get', 'heading'], 20],
+  ['<', ['get', 'heading'], 160],
+]
 /**
  * The font stack the map's text is set in — raw's labels, the path's entry reading — the one the
  * basemap's own symbol layers declare, so the glyph fetch that a `glyphs` root makes is one the
@@ -280,9 +299,11 @@ function injectFeatures(
         // The shape (S9): a drone glyph for a heard, associated Remote ID, the dot otherwise —
         // read off the callsign the association rule left, never off the generator.
         shape: trackShape(track),
-        // Raw's heading tick (S10): a moving, airborne inject with a heading gets one, drawn by
-        // the tick layer along `heading`; the aircraft glyph turns instead and takes none (S9).
-        tick: !track.onGround && track.headingDeg !== null && (track.groundSpeedKt ?? 0) > 0,
+        // Raw's heading tick (S10): an airborne inject with a heading, moving at TICK_MIN_KT or
+        // more, gets one, drawn by the tick layer along `heading`; the aircraft glyph turns
+        // instead and takes none (S9).
+        tick:
+          !track.onGround && track.headingDeg !== null && (track.groundSpeedKt ?? 0) >= TICK_MIN_KT,
         heading: track.headingDeg ?? 0,
         terminal: terminalIds.includes(track.id),
         band: bands.get(track.id) ?? 'calm',
@@ -293,7 +314,8 @@ function injectFeatures(
 
 /**
  * Zero or one point: where the projected path meets the ring (S10), carrying the path's bearing
- * into it, for the arrowhead, and the entry reading in m:ss; empty for a course that misses.
+ * into it, for the arrowhead, and the entry reading — `enters m:ss`, saying what it is (R3);
+ * empty for a course that misses.
  */
 function entryFeature(points: readonly [number, number][], entryS: number | null) {
   const last = points[points.length - 1]
@@ -308,7 +330,7 @@ function entryFeature(points: readonly [number, number][], entryS: number | null
               geometry: { type: 'Point' as const, coordinates: [...last] },
               properties: {
                 bearing: bearingDegrees([...before], [...last]),
-                reading: formatEntryClock(entryS),
+                reading: `enters ${formatEntryClock(entryS)}`,
               },
             },
           ]
@@ -550,56 +572,6 @@ export function MapView({
           'line-dasharray': [2, 2],
         },
       })
-      // Where the path meets the ring (S10): the arrowhead, its tip on the entry point, turned
-      // to the path's bearing; and the entry reading beside it, set ahead of the arrowhead —
-      // just inside the ring, clear of the track's own marker, which a close track's short path
-      // ends beside — by the quadrant the path points into.
-      map.addSource(ENTRY_SOURCE, { type: 'geojson', data: entryFeature([], null) })
-      map.addLayer({
-        id: `${ENTRY_SOURCE}-arrow`,
-        type: 'symbol',
-        source: ENTRY_SOURCE,
-        layout: {
-          'icon-image': 'arrow',
-          'icon-rotate': ['get', 'bearing'],
-          'icon-rotation-alignment': 'map',
-          'icon-offset': [0, ARROW_TIP_OFFSET_PX],
-          'icon-allow-overlap': true,
-          'icon-ignore-placement': true,
-        },
-        paint: { 'icon-color': PROJECTION_COLOR, 'icon-opacity': 0.9 },
-      })
-      map.addLayer({
-        id: `${ENTRY_SOURCE}-reading`,
-        type: 'symbol',
-        source: ENTRY_SOURCE,
-        layout: {
-          'text-field': ['get', 'reading'],
-          'text-font': LABEL_FONT,
-          'text-size': 11,
-          'text-anchor': [
-            'step',
-            ['get', 'bearing'],
-            'bottom',
-            45,
-            'left',
-            135,
-            'top',
-            225,
-            'right',
-            315,
-            'bottom',
-          ],
-          'text-radial-offset': 1,
-          'text-allow-overlap': true,
-          'text-ignore-placement': true,
-        },
-        paint: {
-          'text-color': PROJECTION_COLOR,
-          'text-halo-color': '#0b1220',
-          'text-halo-width': 1,
-        },
-      })
       // Raw mode's labels (S4a): the ident beside each aircraft's dot, hidden until raw.
       map.addLayer({
         id: `${ADSB_SOURCE}-label`,
@@ -708,8 +680,10 @@ export function MapView({
              nothing — silently (#148 review). */
           'text-font': LABEL_FONT,
           'text-size': 11,
-          'text-anchor': 'left',
-          'text-offset': [1.2, 0],
+          // The side the tick is not on (R1): anchored right, so it hangs to the left, for a
+          // track heading into the right-hand half; anchored left, hanging right, otherwise.
+          'text-anchor': ['case', LABEL_LEFT, 'right', 'left'],
+          'text-offset': ['case', LABEL_LEFT, ['literal', [-1.2, 0]], ['literal', [1.2, 0]]],
           'text-allow-overlap': true,
         },
         paint: { 'text-color': RAW_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
@@ -729,6 +703,55 @@ export function MapView({
         },
       })
 
+      // Where the path meets the ring (S10): the arrowhead, its tip on the entry point, turned
+      // to the path's bearing; and the entry reading beside it, set ahead of the arrowhead —
+      // just inside the ring, clear of the track's own marker, which a close track's short path
+      // ends beside — by the quadrant the path points into. Both in the bright text tone and
+      // above the selection ring (ruled R3 on #182): a track a kilometre out has a 20 px path,
+      // and its arrowhead was lost under the ring in the path's muted grey. The reading stands
+      // 1.5 em off the point, past the ring's 13 px radius from any path's near end.
+      map.addSource(ENTRY_SOURCE, { type: 'geojson', data: entryFeature([], null) })
+      map.addLayer({
+        id: `${ENTRY_SOURCE}-arrow`,
+        type: 'symbol',
+        source: ENTRY_SOURCE,
+        layout: {
+          'icon-image': 'arrow',
+          'icon-rotate': ['get', 'bearing'],
+          'icon-rotation-alignment': 'map',
+          'icon-offset': [0, ARROW_TIP_OFFSET_PX],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: { 'icon-color': TEXT_COLOR, 'icon-opacity': 0.95 },
+      })
+      map.addLayer({
+        id: `${ENTRY_SOURCE}-reading`,
+        type: 'symbol',
+        source: ENTRY_SOURCE,
+        layout: {
+          'text-field': ['get', 'reading'],
+          'text-font': LABEL_FONT,
+          'text-size': 11,
+          'text-anchor': [
+            'step',
+            ['get', 'bearing'],
+            'bottom',
+            45,
+            'left',
+            135,
+            'top',
+            225,
+            'right',
+            315,
+            'bottom',
+          ],
+          'text-radial-offset': 1.5,
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+        },
+        paint: { 'text-color': TEXT_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
+      })
       // Selection flows both ways (§7): a click selects the track, exactly as a row click does.
       // One registration, one dispatch, one selection: every clickable layer shares a single
       // array-form listener, so an overlap cannot fire two handlers and let the later one
