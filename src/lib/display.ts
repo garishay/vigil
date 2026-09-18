@@ -142,6 +142,16 @@ export const formatEntryTime = (tSec: number) => {
 }
 
 /**
+ * The entry reading the map carries at the projected path's arrowhead (S10, #182): the same
+ * seconds the Entry row prints, in m:ss — `1:48`, `20:00` — the form the Issue names for a
+ * number that sits on the map beside no clock stamp. Rounded first, as the row's is.
+ */
+export const formatEntryClock = (tSec: number) => {
+  const whole = Math.round(tSec)
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+}
+
+/**
  * The value under the drawer's Entry term — one format wherever the number appears (#102,
  * routing 3): `108 s to PHL Airfield · tier 1`, `Inside — PHL Airfield · tier 1`, and for no
  * entry inside the horizon `— none within 20 min`, the horizon the estimate was computed under

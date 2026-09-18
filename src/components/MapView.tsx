@@ -3,14 +3,14 @@ import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
-import { GLYPHS, glyphImage } from './glyphs'
+import { GLYPHS, GLYPH_BOX, MARKS, glyphImage, reachAlong } from './glyphs'
 import { IdentityLegend } from './IdentityDot'
 import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao'
-import { circlePolygon, destinationPoint } from '../lib/geo'
-import { BAND_COLOR, trackIdent, trackShape, type WarmBand } from '../lib/display'
+import { bearingDegrees, circlePolygon } from '../lib/geo'
+import { BAND_COLOR, formatEntryClock, trackIdent, trackShape, type WarmBand } from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { Mode } from '../lib/session'
-import type { AdsbTrack, InjectTrack, Track } from '../lib/tracks'
+import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const SITES_SOURCE = 'protected-sites'
 const ADSB_SOURCE = 'adsb-tracks'
@@ -18,10 +18,8 @@ const INJECT_SOURCE = 'inject-tracks'
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
 const PROJECTION_SOURCE = 'selected-projection'
-/** Raw mode's heading ticks (S4a): one short line per moving track, along its observed heading. */
-const HEADING_SOURCE = 'heading-ticks'
-/** The tick's length on the ground, metres — the mockup's stub, readable at the AO's zoom. */
-const HEADING_TICK_M = 300
+/** Where the projected path meets the ring (S10): the arrowhead and the entry reading. */
+const ENTRY_SOURCE = 'selected-entry'
 /**
  * The glyphs' box on screen, pixels (S9, #181): one visual weight across the three shapes — the
  * plain dot is 13 px across with its stroke, and a silhouette needs a wider box to carry the
@@ -30,15 +28,68 @@ const HEADING_TICK_M = 300
 const GLYPH_PX = 22
 const GLYPH_RATIO = 2
 /**
+ * The two marks' box on screen, pixels (S10, #182): the heading tick is the box's height — one
+ * fixed on-screen length for every track, whatever the zoom, since a symbol is placed in screen
+ * pixels — and the arrowhead the box's height too.
+ */
+const MARK_PX = 12
+/**
+ * Where a tick starts: at the marker's edge, not its centre (#182 item 5). The dot's edge is its
+ * radius and stroke. The drone is drawn nose-up while the tick swings round it, so its edge
+ * along the tick is the glyph's reach along that heading (#192, ruled 2) — the body on an
+ * axis, a rotor's far edge on a diagonal — read from a table over the heading folded to 0–45°
+ * by the glyph's four-fold and mirror symmetry, one entry a degree, to within a pixel. The
+ * tick's centre sits half its length beyond the edge, along the heading — `icon-offset` is
+ * read as if the rotated direction were up, so a negative y is forward.
+ */
+const DOT_EDGE_PX = 4.5 + 2
+const tickOffset = (edgePx: number) => [0, -(edgePx + MARK_PX / 2)]
+const droneEdgePx = (headingDeg: number) =>
+  (reachAlong(GLYPHS.drone, headingDeg) / GLYPH_BOX) * GLYPH_PX
+const DRONE_TICK_OFFSET = [
+  'step',
+  ['min', ['%', ['get', 'heading'], 90], ['-', 90, ['%', ['get', 'heading'], 90]]],
+  ['literal', tickOffset(droneEdgePx(0))],
+  ...Array.from({ length: 45 }, (_, i) => [
+    i + 0.5,
+    ['literal', tickOffset(droneEdgePx(i + 1))],
+  ]).flat(),
+] as ExpressionSpecification
+/**
+ * The arrowhead's tip is 0.5 units below the top of its box, and the anchor is the box's centre:
+ * pushed back by the tip's distance from the centre, the tip sits on the entry point.
+ */
+const ARROW_TIP_OFFSET_PX = ((GLYPH_BOX / 2 - 0.5) / GLYPH_BOX) * MARK_PX
+/**
  * Raw mode's one colour (S4a, #136, ruled A4; #131's fairness spec): every dot, every tick, every
  * label the same neutral — no band fill, no identity colour. Identity is read off the label.
  */
 const RAW_COLOR = '#c5cfdc'
+/** `--text` mirrored (R3 on #182): the path's arrowhead and its entry reading, to be seen. */
+const TEXT_COLOR = '#e6edf3'
 /**
- * The font stack raw's labels are set in — the one the basemap's own symbol layers declare, so
- * the glyph fetch that a `glyphs` root makes is one the tile server serves (#148 review).
+ * The slowest track that carries a heading tick, knots (ruled R2 on #182): a tick asserts a
+ * course, and a hover's drift under this is noise that would read as an inbound's. The
+ * drawer's Heading row is untouched; this narrows S4a's predicate for the tick alone.
  */
-const RAW_LABEL_FONT = [
+const TICK_MIN_KT = 2
+/**
+ * Raw's label takes the side the tick is not on (ruled R1 on #182): a tick never runs under
+ * its own track's label, so a track heading into the right-hand half — 20° to 160° — carries
+ * its label on the left, and any other, or one with no tick, on the right.
+ */
+const LABEL_LEFT: ExpressionSpecification = [
+  'all',
+  ['get', 'tick'],
+  ['>=', ['get', 'heading'], 20],
+  ['<', ['get', 'heading'], 160],
+]
+/**
+ * The font stack the map's text is set in — raw's labels, the path's entry reading — the one the
+ * basemap's own symbol layers declare, so the glyph fetch that a `glyphs` root makes is one the
+ * tile server serves (#148 review).
+ */
+const LABEL_FONT = [
   'Montserrat Regular',
   'Open Sans Regular',
   'Noto Sans Regular',
@@ -125,9 +176,34 @@ const RING_COLOR = '#4c9aff'
 /**
  * The projected path's colour (#102, ruled A7): `--muted`, mirrored as `RING_COLOR` mirrors its
  * token. Neutral on purpose — no marker wears it, so it spends neither the identity stroke nor
- * the band fill (#96), and it is not the trail's blue, which is the past.
+ * the band fill (#96), and it is not the trail's blue, which is the past. Since S10 (#182)
+ * neither line leans on its hue: the trail fades to nothing at its old end and the path is
+ * dashed with an arrowhead where it meets the ring.
  */
 const PROJECTION_COLOR = '#8b98a9'
+/**
+ * The trail's fade (S10, #182 item 1): full strength at the track, nothing at the oldest point,
+ * over the line's own progress. The curve is concave — the middle of the wake at three
+ * quarters, the last tenth at a third — because a slow track's newest minute lies under its
+ * marker and the selection ring (25 kt covers 13 px in a minute at the working zoom, the ring's
+ * radius), so the part of the wake an operator can see is the older half; a straight fade
+ * would leave it at half strength or less, which on this basemap is gone.
+ */
+const TRAIL_FADE: ExpressionSpecification = [
+  'interpolate',
+  ['linear'],
+  ['line-progress'],
+  0,
+  'rgba(76, 154, 255, 0)',
+  0.1,
+  'rgba(76, 154, 255, 0.32)',
+  0.3,
+  'rgba(76, 154, 255, 0.55)',
+  0.6,
+  'rgba(76, 154, 255, 0.77)',
+  1,
+  RING_COLOR,
+]
 
 /**
  * Cooperative traffic is drawn small, cool, and quiet on purpose (§3): it is the calm background
@@ -236,6 +312,12 @@ function injectFeatures(
         // The shape (S9): a drone glyph for a heard, associated Remote ID, the dot otherwise —
         // read off the callsign the association rule left, never off the generator.
         shape: trackShape(track),
+        // Raw's heading tick (S10): an airborne inject with a heading, moving at TICK_MIN_KT or
+        // more, gets one, drawn by the tick layer along `heading`; the aircraft glyph turns
+        // instead and takes none (S9).
+        tick:
+          !track.onGround && track.headingDeg !== null && (track.groundSpeedKt ?? 0) >= TICK_MIN_KT,
+        heading: track.headingDeg ?? 0,
         terminal: terminalIds.includes(track.id),
         band: bands.get(track.id) ?? 'calm',
       },
@@ -244,27 +326,32 @@ function injectFeatures(
 }
 
 /**
- * Raw mode's heading ticks: a moving, airborne inject with a heading gets a stub along it. An
- * aircraft gets none — its glyph is turned to its heading (S9).
+ * Zero or one point: where the projected path meets the ring (S10), carrying the path's bearing
+ * into it, for the arrowhead, and the entry reading — `enters m:ss`, saying what it is (R3);
+ * empty for a course that misses.
  */
-function headingFeatures(tracks: readonly Track[]) {
+function entryFeature(points: readonly [number, number][], entryS: number | null) {
+  const last = points[points.length - 1]
+  const before = points[points.length - 2]
+  // At the ring itself the estimate clamps the path to nothing and the entry point to the
+  // position: nothing ahead to point at, and the row already says where the track is (#192,
+  // ruled 3) — so two equal points draw neither.
+  const ahead = last && before && (last[0] !== before[0] || last[1] !== before[1])
   return {
     type: 'FeatureCollection' as const,
-    features: tracks
-      .filter(
-        (track) => !track.onGround && track.headingDeg !== null && (track.groundSpeedKt ?? 0) > 0,
-      )
-      .map((track) => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: [
-            track.position,
-            destinationPoint(track.position, track.headingDeg as number, HEADING_TICK_M),
-          ],
-        },
-        properties: { id: track.id },
-      })),
+    features:
+      entryS !== null && ahead
+        ? [
+            {
+              type: 'Feature' as const,
+              geometry: { type: 'Point' as const, coordinates: [...last] },
+              properties: {
+                bearing: bearingDegrees([...before], [...last]),
+                reading: `enters ${formatEntryClock(entryS)}`,
+              },
+            },
+          ]
+        : [],
   }
 }
 
@@ -285,6 +372,7 @@ export function MapView({
   selectionShown = true,
   trail = [],
   projection = NO_LINE,
+  projectionEntryS = null,
   terminalIds = NO_TERMINAL,
   bands = NO_BANDS,
   mode = 'vigil',
@@ -332,11 +420,15 @@ export function MapView({
   /** The selected track's history trail (06b), oldest first; drawn only with the ring. */
   trail?: readonly [number, number][]
   /**
-   * The selected track's projected path (#102): its position and the point where dead reckoning
-   * meets a protected ring, or empty when there is no entry inside the horizon. Drawn only with
-   * the ring, like the trail; faded and neutral, with no marker at either end (ruled A7).
+   * The selected track's projected path (#102, S10): its position and the point where dead
+   * reckoning meets a protected ring, or the course run out to the horizon when it meets none;
+   * empty inside a ring or with nothing observed to project. Drawn only with the ring, like the
+   * trail; dashed and neutral, ending in an arrowhead and the entry reading where it meets the
+   * ring, in nothing where it does not.
    */
   projection?: readonly [number, number][]
+  /** Seconds to that entry, the drawer's own number, or null for a course that misses. */
+  projectionEntryS?: number | null
   /**
    * The study's condition (S4a, #136, ruled A4): in `raw` every shape wears one neutral colour,
    * a label prints each track's ident and a tick the heading of a drone or a dot, and the legend
@@ -379,8 +471,21 @@ export function MapView({
       // A symbol that moves between two ticks is placed afresh each time, and a fresh symbol
       // fades in: with the default 300 ms every airborne glyph would flicker once a second (S9).
       fadeDuration: 0,
+      // North-up, everywhere (#192, ruled; #36 [41]): the map neither rotates nor pitches — by
+      // drag, touch or keyboard — and its bearing is held at 0. Rotation serves nothing here,
+      // every frame and sheet is drawn north-up, one accidental right-drag in a run would turn
+      // the picture with no obvious way back, and raw's label rule (R1 on #182) reads the true
+      // heading, which is the screen's only while north is up.
+      bearing: 0,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      maxPitch: 0,
     })
+    map.touchZoomRotate.disableRotation()
+    map.keyboard.disableRotation()
     mapRef.current = map
+    // Zoom only: a compass would offer a turn the map refuses.
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
 
     map.on('load', () => {
@@ -388,6 +493,13 @@ export function MapView({
       // on the fill, the identity on the halo, raw's neutral on both, the dim on the opacity.
       for (const shape of ['aircraft', 'drone'] as const) {
         map.addImage(shape, glyphImage(GLYPHS[shape], GLYPH_PX, GLYPH_RATIO), {
+          sdf: true,
+          pixelRatio: GLYPH_RATIO,
+        })
+      }
+      // The two marks (S10) the same way: the heading tick and the path's arrowhead.
+      for (const mark of ['tick', 'arrow'] as const) {
+        map.addImage(mark, glyphImage(MARKS[mark], MARK_PX, GLYPH_RATIO), {
           sdf: true,
           pixelRatio: GLYPH_RATIO,
         })
@@ -465,31 +577,30 @@ export function MapView({
         },
       })
       // The breadcrumb trail (06b) sits under the injects and the ring: where the selected
-      // track has been must never cover where it is.
-      map.addSource(TRAIL_SOURCE, { type: 'geojson', data: lineFeature([]) })
+      // track has been must never cover where it is. It fades toward its old end (S10, #182):
+      // full strength at the track, nothing at the oldest point — the line's own progress, which
+      // the source measures, so the fade is the trail's form and not its hue.
+      map.addSource(TRAIL_SOURCE, { type: 'geojson', lineMetrics: true, data: lineFeature([]) })
       map.addLayer({
         id: `${TRAIL_SOURCE}-line`,
         type: 'line',
         source: TRAIL_SOURCE,
-        paint: { 'line-color': RING_COLOR, 'line-width': 1.5, 'line-opacity': 0.55 },
+        paint: { 'line-gradient': TRAIL_FADE, 'line-width': 1.5, 'line-opacity': 0.55 },
       })
       // The projected path (#102) sits with the trail, under the injects: where the selected
-      // track is going, from the dot to the ring, and the dot covers where it starts.
+      // track is going, from the dot to the ring — dashed (S10), so it is told from the trail
+      // by form; the dot covers where it starts.
       map.addSource(PROJECTION_SOURCE, { type: 'geojson', data: lineFeature([]) })
       map.addLayer({
         id: `${PROJECTION_SOURCE}-line`,
         type: 'line',
         source: PROJECTION_SOURCE,
-        paint: { 'line-color': PROJECTION_COLOR, 'line-width': 1.5, 'line-opacity': 0.6 },
-      })
-      // Raw mode's heading ticks (S4a), under every dot and hidden until the mode says raw.
-      map.addSource(HEADING_SOURCE, { type: 'geojson', data: headingFeatures([]) })
-      map.addLayer({
-        id: `${HEADING_SOURCE}-line`,
-        type: 'line',
-        source: HEADING_SOURCE,
-        layout: { visibility: 'none' },
-        paint: { 'line-color': RAW_COLOR, 'line-width': 1.5, 'line-opacity': 0.9 },
+        paint: {
+          'line-color': PROJECTION_COLOR,
+          'line-width': 1.5,
+          'line-opacity': 0.6,
+          'line-dasharray': [2, 2],
+        },
       })
       // Raw mode's labels (S4a): the ident beside each aircraft's dot, hidden until raw.
       map.addLayer({
@@ -502,7 +613,7 @@ export function MapView({
           /* The stack the basemap's own symbol layers declare (CARTO Dark Matter): with a
              `glyphs` root, MapLibre requests the stack by name, and an undeclared one paints
              nothing — silently (#148 review). */
-          'text-font': RAW_LABEL_FONT,
+          'text-font': LABEL_FONT,
           'text-size': 11,
           'text-anchor': 'left',
           // Clear of the glyph's box at any heading (S9); the dot's label sat at 0.6.
@@ -515,6 +626,31 @@ export function MapView({
       map.addSource(INJECT_SOURCE, {
         type: 'geojson',
         data: injectFeatures([], NO_TERMINAL, NO_BANDS),
+      })
+      // Raw mode's heading tick (S4a; S10, #182 item 5): one mark per moving inject, from the
+      // marker's edge along the observed heading, one screen length at any zoom — it carries
+      // heading, never speed. Under the markers, hidden until the mode says raw; Vigil draws
+      // none. An aircraft takes none: its glyph is turned to its heading.
+      map.addLayer({
+        id: `${INJECT_SOURCE}-tick`,
+        type: 'symbol',
+        source: INJECT_SOURCE,
+        filter: ['get', 'tick'],
+        layout: {
+          visibility: 'none',
+          'icon-image': 'tick',
+          'icon-rotate': ['get', 'heading'],
+          'icon-rotation-alignment': 'map',
+          'icon-offset': [
+            'case',
+            ['==', ['get', 'shape'], 'drone'],
+            DRONE_TICK_OFFSET,
+            ['literal', tickOffset(DOT_EDGE_PX)],
+          ],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: { 'icon-color': RAW_COLOR, 'icon-opacity': 0.9 },
       })
       map.addLayer({
         id: `${INJECT_SOURCE}-halo`,
@@ -572,10 +708,12 @@ export function MapView({
           /* The stack the basemap's own symbol layers declare (CARTO Dark Matter): with a
              `glyphs` root, MapLibre requests the stack by name, and an undeclared one paints
              nothing — silently (#148 review). */
-          'text-font': RAW_LABEL_FONT,
+          'text-font': LABEL_FONT,
           'text-size': 11,
-          'text-anchor': 'left',
-          'text-offset': [1.2, 0],
+          // The side the tick is not on (R1): anchored right, so it hangs to the left, for a
+          // track heading into the right-hand half; anchored left, hanging right, otherwise.
+          'text-anchor': ['case', LABEL_LEFT, 'right', 'left'],
+          'text-offset': ['case', LABEL_LEFT, ['literal', [-1.2, 0]], ['literal', [1.2, 0]]],
           'text-allow-overlap': true,
         },
         paint: { 'text-color': RAW_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
@@ -595,6 +733,57 @@ export function MapView({
         },
       })
 
+      // Where the path meets the ring (S10): the arrowhead, its tip on the entry point, turned
+      // to the path's bearing; and the entry reading beside it, set ahead of the arrowhead —
+      // just inside the ring, clear of the track's own marker, which a close track's short path
+      // ends beside — by the quadrant the path points into. Both in the bright text tone and
+      // above the selection ring (ruled R3 on #182): a track a kilometre out has a 20 px path,
+      // and its arrowhead was lost under the ring in the path's muted grey. The reading stands
+      // 1.8 em off the point — MapLibre takes a 7/24 em baseline shift off a top or bottom
+      // anchor's radial offset, so that is 16.6 px on those and 19.8 px on left and right,
+      // every one past the ring's 13 px radius from any path's near end (#192, ruled 4).
+      map.addSource(ENTRY_SOURCE, { type: 'geojson', data: entryFeature([], null) })
+      map.addLayer({
+        id: `${ENTRY_SOURCE}-arrow`,
+        type: 'symbol',
+        source: ENTRY_SOURCE,
+        layout: {
+          'icon-image': 'arrow',
+          'icon-rotate': ['get', 'bearing'],
+          'icon-rotation-alignment': 'map',
+          'icon-offset': [0, ARROW_TIP_OFFSET_PX],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: { 'icon-color': TEXT_COLOR, 'icon-opacity': 0.95 },
+      })
+      map.addLayer({
+        id: `${ENTRY_SOURCE}-reading`,
+        type: 'symbol',
+        source: ENTRY_SOURCE,
+        layout: {
+          'text-field': ['get', 'reading'],
+          'text-font': LABEL_FONT,
+          'text-size': 11,
+          'text-anchor': [
+            'step',
+            ['get', 'bearing'],
+            'bottom',
+            45,
+            'left',
+            135,
+            'top',
+            225,
+            'right',
+            315,
+            'bottom',
+          ],
+          'text-radial-offset': 1.8,
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+        },
+        paint: { 'text-color': TEXT_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
+      })
       // Selection flows both ways (§7): a click selects the track, exactly as a row click does.
       // One registration, one dispatch, one selection: every clickable layer shares a single
       // array-form listener, so an overlap cannot fire two handlers and let the later one
@@ -658,7 +847,7 @@ export function MapView({
     if (!map || !styleReady) return
     const raw = mode === 'raw'
     const visibility = raw ? 'visible' : 'none'
-    for (const id of [`${HEADING_SOURCE}-line`, `${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
+    for (const id of [`${INJECT_SOURCE}-tick`, `${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
       map.setLayoutProperty(id, 'visibility', visibility)
     }
     map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-color', raw ? RAW_COLOR : ADSB_COLOR)
@@ -672,22 +861,6 @@ export function MapView({
     map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', raw ? RAW_COLOR : DRONE_FILL)
   }, [mode, styleReady])
 
-  // Whether the tick source holds anything: in Vigil it is left empty — created so — and never
-  // re-pushed per tick for a layer nothing shows (#148 review); cleared once if raw is left.
-  const ticksShownRef = useRef(false)
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !styleReady) return
-    const source = map.getSource<GeoJSONSource>(HEADING_SOURCE)
-    if (mode !== 'raw') {
-      if (ticksShownRef.current) source?.setData(headingFeatures([]))
-      ticksShownRef.current = false
-      return
-    }
-    ticksShownRef.current = true
-    source?.setData(headingFeatures(injects))
-  }, [injects, mode, styleReady])
-
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
@@ -697,10 +870,12 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
+    const shown = selectionShown ? projection : []
+    map.getSource<GeoJSONSource>(PROJECTION_SOURCE)?.setData(lineFeature(shown))
     map
-      .getSource<GeoJSONSource>(PROJECTION_SOURCE)
-      ?.setData(lineFeature(selectionShown ? projection : []))
-  }, [projection, selectionShown, styleReady])
+      .getSource<GeoJSONSource>(ENTRY_SOURCE)
+      ?.setData(entryFeature(shown, selectionShown ? projectionEntryS : null))
+  }, [projection, projectionEntryS, selectionShown, styleReady])
 
   useEffect(() => {
     const map = mapRef.current

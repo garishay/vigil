@@ -160,3 +160,27 @@ export function timeToEntry(
   }
   return inside ? { kind: 'inside', ...named(inside.site), coastedS } : best
 }
+
+/**
+ * The path the map draws for the selected track (S10, #182): its position to the point where
+ * the course meets the ring while the estimate is an entry, or the course run out to the row's
+ * horizon when it meets none — from now, so a held track's position age is counted on, as the
+ * entry point's own seconds are (#192 round 1) — and drawn no longer than `runOutM` (ruled 1);
+ * nothing inside a ring, nothing with no speed or heading to project — a still track with a
+ * heading included, read off the observed fields and not off what `projectPosition` returns
+ * (ruled 5). Two points or none.
+ */
+export function projectedPath(
+  track: Projectable,
+  estimate: EntryEstimate | null,
+  config: ProjectionConfig = PROJECTION,
+): [number, number][] {
+  if (!estimate) return []
+  if (estimate.kind === 'entry') return [track.position, estimate.point]
+  if (estimate.kind !== 'none') return []
+  if (track.groundSpeedKt === null || track.groundSpeedKt <= 0 || track.headingDeg === null)
+    return []
+  const speedMs = track.groundSpeedKt * KT_TO_MS
+  const runS = Math.min(estimate.horizonS + (track.positionAgeS ?? 0), config.runOutM / speedMs)
+  return [track.position, projectPosition(track, runS)]
+}

@@ -51,6 +51,7 @@ vi.mock('./components/MapView', () => ({
     selectionShown = true,
     trail = [],
     projection = [],
+    projectionEntryS = null,
     terminalIds = [],
     bands = new Map<string, string>(),
     mode = 'vigil',
@@ -67,6 +68,7 @@ vi.mock('./components/MapView', () => ({
     selectionShown?: boolean
     trail?: unknown[]
     projection?: readonly unknown[]
+    projectionEntryS?: number | null
     terminalIds?: readonly string[]
     bands?: ReadonlyMap<string, string>
     mode?: string
@@ -84,6 +86,7 @@ vi.mock('./components/MapView', () => ({
         data-selection-shown={String(selectionShown)}
         data-trail={trail.length}
         data-projection={projection.length}
+        data-entry={projectionEntryS ?? ''}
         data-terminal={[...terminalIds].join(',')}
         data-bands={[...bands].map(([id, band]) => `${id}:${band}`).join(',')}
         data-sites={sites.map((site) => site.id).join(',')}
@@ -923,10 +926,13 @@ describe('App replay clock (06a)', () => {
     const value = () => within(drawer).getByText('Entry').nextElementSibling
     expect(value()).toHaveTextContent('108 s to PHL Airfield · tier 1')
     expect(screen.getByTestId('map')).toHaveAttribute('data-projection', '2')
+    // The map's reading at the path's end is the row's own seconds (S10, #182): one function.
+    expect(Number(screen.getByTestId('map').getAttribute('data-entry'))).toBeCloseTo(108, 0)
     // 02:39:00: inside the ring — the value follows the clock and the path is gone.
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '540' } })
     expect(value()).toHaveTextContent('Inside — PHL Airfield · tier 1')
     expect(screen.getByTestId('map')).toHaveAttribute('data-projection', '0')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-entry', '')
     // Scrubbed back, the same instant reads the same number: derived from the picture, no state.
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '420' } })
     expect(value()).toHaveTextContent('108 s to PHL Airfield · tier 1')
@@ -2118,7 +2124,9 @@ describe('raw mode (S4a, #136, ruled) — the fairness spec, line by line', () =
     expect(within(drawer).queryByText('Entry')).toBeNull()
     expect(within(drawer).queryByLabelText('Event log')).toBeNull()
     expect(Number(map().getAttribute('data-trail'))).toBeGreaterThan(0)
+    // No projected path and no entry reading on the map unaided (S10 item 4).
     expect(map()).toHaveAttribute('data-projection', '0')
+    expect(map()).toHaveAttribute('data-entry', '')
     expect(
       within(drawer)
         .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
