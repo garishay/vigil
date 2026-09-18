@@ -199,6 +199,23 @@ describe('parseResults and runsIn — the results file (S6a-i, #165, ruled A5)',
     )
   })
 
+  it('lets a run carry a build the envelope does not: a session can span a deploy', () => {
+    // Ruled, round 1: the envelope's build is what wrote the envelope; each run keeps the build
+    // it was made on. A deploy between a subject's two runs is a real session, and the pilot's
+    // separator reads the runs' builds, not the envelope's.
+    const spanned = parseResults(
+      JSON.stringify(
+        envelope({
+          build: '2.61.0+deadbee',
+          runs: [GOOD, { ...VIGIL, run: 2, build: '2.62.0+f00dfee' }],
+        }),
+      ),
+      'results.json',
+    )
+    expect(spanned.build).toBe('2.61.0+deadbee')
+    expect(spanned.runs.map((run) => run.build)).toEqual([GOOD.build, '2.62.0+f00dfee'])
+  })
+
   it('tells the two files apart by the envelope’s own key', () => {
     expect(runsIn(JSON.stringify(envelope()), 'results.json')).toHaveLength(2)
     expect(runsIn(fixture('S03-02a-raw-1.json'), 'run.json')).toHaveLength(1)

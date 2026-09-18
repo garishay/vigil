@@ -16,16 +16,41 @@ import { describe, expect, it } from 'vitest'
 const ROOT = process.cwd()
 const EXTENSIONS = ['', '.ts', '.tsx', '/index.ts', '/index.tsx']
 
+/** A bare `import '…'`: no bindings, loaded for its side effects, and an edge like any other. */
+const BARE = /^[ \t]*import\s+['"]([^'"]+)['"]/
+/** `import … from '…'`, with the `type` modifier captured so the erased form can be dropped. */
+const FROM = /^[ \t]*import\s+(type\s+)?[\s\S]*?\bfrom\s+['"]([^'"]+)['"]/
+/** `export * from '…'`, `export * as ns from '…'`, `export { … } from '…'`. */
+const EXPORT_FROM =
+  /^[ \t]*export\s+(?:\*(?:\s+as\s+[A-Za-z_$][\w$]*)?|\{[\s\S]*?\})\s*from\s+['"]([^'"]+)['"]/
+
+/**
+ * Each `import`/`export` statement as its own text, from the line that opens it to the line that
+ * opens the next. A statement is read inside its own slice and never across one: a pattern that
+ * searched the whole file for the next `from` would let a bare `import '…'` be swallowed by the
+ * named import below it, and take everything that module reaches off the graph with it.
+ */
+const statements = (source: string): string[] => {
+  const starts = [...source.matchAll(/^[ \t]*(?:import|export)\b/gm)].map((match) => match.index)
+  return starts.map((start, i) => source.slice(start, starts[i + 1] ?? source.length))
+}
+
 /** `import … from '…'` and `export … from '…'`, less the ones the emit drops whole. */
 function valueSpecifiers(source: string): string[] {
   const out: string[] = []
-  for (const match of source.matchAll(/^\s*import\s+(type\s+)?[\s\S]*?from\s+['"]([^'"]+)['"]/gm)) {
-    if (match[1] === undefined) out.push(match[2])
-  }
-  for (const match of source.matchAll(
-    /^\s*export\s+(?:\*|\{[\s\S]*?\})\s+from\s+['"]([^'"]+)['"]/gm,
-  )) {
-    out.push(match[1])
+  for (const statement of statements(source)) {
+    const bare = BARE.exec(statement)
+    if (bare !== null) {
+      out.push(bare[1])
+      continue
+    }
+    const reexport = EXPORT_FROM.exec(statement)
+    if (reexport !== null) {
+      out.push(reexport[1])
+      continue
+    }
+    const from = FROM.exec(statement)
+    if (from !== null && from[1] === undefined) out.push(from[2])
   }
   return out
 }
@@ -120,6 +145,10 @@ describe('the sheet renders in a browser (S6a-i, #165, ruled A7, R1)', () => {
     // chunk of its own and is not a static edge, so this stays true when the page lands.
     expect(graph.has('scripts/study-spec.ts')).toBe(false)
     expect([...graph.keys()].filter((path) => path.startsWith('tools/'))).toEqual([])
+    // A module reached only by a bare `import '…'` is on the graph — `MapView.tsx` loads the
+    // worker shim that way, and before round 1's fix the walk lost it and everything under it,
+    // so a `node:` import anywhere in that subtree passed both pins (round 1, finding 1).
+    expect(graph.has('src/lib/maplibreWorker.ts')).toBe(true)
     expect(notBrowserSafe(graph)).toEqual([])
   })
 
@@ -134,5 +163,28 @@ describe('the sheet renders in a browser (S6a-i, #165, ruled A7, R1)', () => {
     expect(valueSpecifiers("import type {\n  Family,\n} from './spec.ts'")).toEqual([])
     expect(valueSpecifiers("export * from './spec.ts'")).toEqual(['./spec.ts'])
     expect(valueSpecifiers("export { STUDY_CAST } from './spec.ts'")).toEqual(['./spec.ts'])
+  })
+
+  it('records a bare import and a namespace re-export, and reads each statement in its own slice', () => {
+    // `MapView.tsx`'s own shape, the case round 1 named: two bare imports above a named one.
+    // Before the fix the first pattern's lazy clause ran from line 1 through line 2 to line 3's
+    // `from`, so it returned ['./IdentityDot'] alone and both bare edges were lost.
+    expect(
+      valueSpecifiers(
+        "import 'maplibre-gl/dist/maplibre-gl.css'\n" +
+          "import '../lib/maplibreWorker'\n" +
+          "import { IdentityLegend } from './IdentityDot'\n",
+      ),
+    ).toEqual(['maplibre-gl/dist/maplibre-gl.css', '../lib/maplibreWorker', './IdentityDot'])
+    expect(valueSpecifiers("export * as spec from './spec.ts'")).toEqual(['./spec.ts'])
+    // A multi-line clause still reads as one statement, and an export with no `from` is no edge.
+    expect(valueSpecifiers("import {\n  A,\n  B,\n} from './a.ts'\nexport { A }\n")).toEqual([
+      './a.ts',
+    ])
+    // A slice never reaches past the statement that opens the next one: a bare import followed
+    // by a type-only import yields the bare edge and nothing else.
+    expect(valueSpecifiers("import './side.ts'\nimport type { X } from './types.ts'\n")).toEqual([
+      './side.ts',
+    ])
   })
 })

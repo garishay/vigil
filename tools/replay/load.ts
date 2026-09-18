@@ -14,7 +14,10 @@ import { indexCapture, type ReplayIndex } from '../../src/lib/replay.ts'
 import type { RunAnswers, RunEvent, RunEventType, RunRecord } from '../../src/lib/run.ts'
 import { MODES, type Mode } from '../../src/lib/session.ts'
 
-/** A run file that cannot be read as a run, with the reason — the tool's one refusal shape. */
+/**
+ * A run file that cannot be read as a run, with the reason — the tool's one refusal shape, and
+ * `compose`'s too for a set of runs no document can be made from (round 1 on #185).
+ */
 export class RunRefusal extends Error {
   override readonly name = 'RunRefusal'
 }
@@ -169,6 +172,11 @@ export function parseRun(text: string, path: string): RunRecord {
  */
 export interface ResultsRecord {
   subject: string
+  /**
+   * The build that wrote the envelope. Each run keeps the build it was made on, and the two may
+   * differ: a deploy can land between a subject's run 1 and run 2, and refusing that file would
+   * lose the session (ruled, round 1 on #185). The pilot's separator reads the runs' builds.
+   */
   build: string
   runs: RunRecord[]
 }
@@ -177,8 +185,10 @@ const RESULTS_KEYS = ['subject', 'build', 'runs'] as const
 
 /**
  * A results file, or a refusal naming the path and the field: the subject a code, every run the
- * loader's own, every run that subject's, the runs in run order. The envelope carries nothing
- * the runs do not — a disagreement is refused rather than resolved by precedence.
+ * loader's own, every run that subject's, the runs in run order. The subject is the one thing
+ * the envelope and its runs must agree on — a run of someone else's is refused rather than
+ * resolved by precedence. The build is not: it names what wrote the envelope, and a run made on
+ * an earlier build is a session that spanned a deploy, not a bad file (ruled, round 1 on #185).
  */
 export function parseResults(text: string, path: string): ResultsRecord {
   let value: unknown

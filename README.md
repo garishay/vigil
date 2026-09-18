@@ -143,6 +143,7 @@ flowchart LR
   replay -- pictureAt --> replaytool
   studycfg -- Begin · the run · raw's distance --> replaytool
   spec -- the roles table: each cast's threats --> replaytool
+  study -- loadRecording: the study's recording, read from disk by replay/files.ts --> replaytool
   score -- scoreTrack · bandOf --> study
   rank -- queueOrder --> study
   proj -- entryAt --> study
