@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { frameSvg, type FrameInput } from './frame.ts'
+import { frameSvg, trackNamer, type FrameInput } from './frame.ts'
+import type { RunRecord } from '../../src/lib/run.ts'
 import { loadStudy, planFor, readRun } from './load.ts'
 import { runMetrics } from './metrics.ts'
 import { conditionWord, countsLine, orderWords, pairName, pairSvg } from './pair.ts'
@@ -98,12 +99,9 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
     expect(orderWords(v)).toBe('✓')
     const r = fixture('S03-02a-raw-1')
     expect(orderWords(r)).toBe('— (one threat)')
-    expect(
-      countsLine(r.metrics, fixture('S03-02a-vigil-1').metrics, 'a', 'b', [
-        r,
-        fixture('S03-02a-vigil-1'),
-      ]),
-    ).toContain('opened before the first threat a 0 · b 0')
+    expect(countsLine([r, fixture('S03-02a-vigil-1')], 'a', 'b')).toContain(
+      'opened before the first threat a 0 · b 0',
+    )
   })
 
   it('draws one row per threat: the entry tick, each condition’s open and escalation on the shared time axis, at the pixels the axis gives', () => {
@@ -301,5 +299,59 @@ describe('the pair — round 1 (#161)', () => {
     expect(() => pairSvg({ left, right: swapped }, { queueCap: 5 })).toThrow(
       "a pair reads one roles table — S05's threat 1 is inject-31, S05's inject-57",
     )
+  })
+})
+
+describe('the pair’s row title — round 1 (#178)', () => {
+  /** 02b under Vigil is the one cast row whose ident flips: UAS-8F21 until +0:30, TRK-11 after. */
+  const of = (subject: string, run: number, escalateAt: number) => {
+    const base = fixture('S04-02b-vigil-1')
+    const record: RunRecord = {
+      ...base.record,
+      subject,
+      run,
+      events: [
+        { t: escalateAt - 8, type: 'select', track: 'inject-11' },
+        { t: escalateAt, type: 'escalate', track: 'inject-11' },
+      ],
+    }
+    return { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+  }
+
+  it('says which name is whose by whatever tells the two runs apart', () => {
+    // The two frames' own names, on the two sides of the flip.
+    const early = of('S04', 1, 20)
+    const late = of('S08', 1, 58)
+    expect(trackNamer(early).ident('inject-11')).toBe('UAS-8F21')
+    expect(trackNamer(late).ident('inject-11')).toBe('TRK-11')
+    // Two Vigil runs: the condition word labels both sides the same, so the subject does it.
+    expect(textsOf(pairSvg({ left: early, right: late }, { queueCap: 5 }), 'row-title')).toEqual([
+      'the threat · UAS-8F21 S04, TRK-11 S08',
+    ])
+    // One subject, one condition, two runs: the run index is what is left.
+    const again = of('S04', 2, 58)
+    expect(textsOf(pairSvg({ left: early, right: again }, { queueCap: 5 }), 'row-title')).toEqual([
+      'the threat · UAS-8F21 run 1, TRK-11 run 2',
+    ])
+    // Where the modes differ it is the condition word, as the committed pair shows.
+    expect(
+      textsOf(
+        pairSvg(
+          { left: fixture('S03-02a-raw-1'), right: fixture('S03-02a-vigil-1') },
+          { queueCap: 5 },
+        ),
+        'row-title',
+      ),
+    ).toEqual(['the threat · UAS-8F21 unaided, TRK-11 Vigil'])
+    // And where the two screens agree, one name and no label at all.
+    expect(
+      textsOf(
+        pairSvg(
+          { left: fixture('S05-03a-raw-1'), right: fixture('S05-03a-vigil-1') },
+          { queueCap: 5 },
+        ),
+        'row-title',
+      ),
+    ).toEqual(['threat 1 · TRK-31', 'threat 2 · TRK-57'])
   })
 })

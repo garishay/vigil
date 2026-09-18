@@ -581,7 +581,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         )
         return
       }
-      const { ident } = trackNamer(input)
+      const { ident } = side === 'unaided' ? unaidedNames : vigilNames
       for (const other of made) {
         parts.push(
           `<circle class="other-mark-${side}" data-id="${esc(other.id)}" data-t="${other.t}" cx="${tX(other.t)}" cy="${ly}" r="4.5" fill="${color}"/>`,

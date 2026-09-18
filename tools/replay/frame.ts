@@ -205,11 +205,16 @@ export function trackNamer({ record, metrics, study, plan }: FrameInput): TrackN
         .map((event) => event.t)
         .reverse(),
     ]
-    const found =
-      seconds
-        .map((t) => trackAtSecond(study.index, plan, id, beginS + t, record.mode))
-        .find((track) => track !== null) ?? null
-    const name = found === null ? id : trackIdent(found)
+    // Stops at the first second that answers: each lookup regenerates that second's whole picture,
+    // and the freeze answers for all but a track the picture no longer holds (#178 round 1).
+    let name = id
+    for (const t of seconds) {
+      const track = trackAtSecond(study.index, plan, id, beginS + t, record.mode)
+      if (track) {
+        name = trackIdent(track)
+        break
+      }
+    }
     idents.set(id, name)
     return name
   }
