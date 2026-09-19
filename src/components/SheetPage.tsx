@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
 import './SheetPage.css'
 import { SheetDocument } from './SheetDocument'
-import { documentOf, fetchStudy, filesFor, runsIn, splitPasted, type SaveFile } from '../data/sheet'
+import {
+  documentOf,
+  fetchStudy,
+  filesFor,
+  runsIn,
+  splitPasted,
+  type Composed,
+  type SaveFile,
+} from '../data/sheet'
 import { clearRuns, savedKeys } from '../lib/runs'
 import type { Study } from '../../tools/replay/load'
 
@@ -29,7 +37,7 @@ export function SheetPage({ fetcher = fetch }: { fetcher?: typeof fetch } = {}) 
   const [study, setStudy] = useState<Study | null>(null)
   const [pasted, setPasted] = useState('')
   const [source, setSource] = useState<SaveFile[] | null>(null)
-  const [document_, setDocument] = useState<{ name: string; svg: string } | null>(null)
+  const [document_, setDocument] = useState<Composed | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [over, setOver] = useState(false)
   // What this browser is holding, so the page can say it and offer to clear it (item 8).

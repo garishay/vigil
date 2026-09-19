@@ -440,6 +440,57 @@ export interface FrameDocument {
   lines: string[]
 }
 
+/** A piece of a frame: its height and its lines, drawn from the y it was asked for. */
+export interface FramePiece {
+  height: number
+  lines: string[]
+}
+
+/**
+ * A frame in two pieces (S5g, #194): the header, the map and its footnotes, which are the
+ * picture; and the log — the Queue box and the decision log — drawn from whatever y it is asked
+ * for. The frame's own file draws the log under the picture, as it always has; the sheet draws
+ * the picture among the comparison and the log in its own blocks below it, and both read the
+ * same lines.
+ */
+export interface FrameParts {
+  width: number
+  top: FramePiece
+  /** The Queue box from a y — nothing on an unaided frame, whose box has no height. */
+  queue: (y: number) => FramePiece
+  /** The log's lines, which the sheet draws one block each through `captionText`. */
+  lines: CaptionLine[]
+  /** The Queue box, its gap, and the caption box from a y: the frame's log as one piece. */
+  log: (y: number) => FramePiece
+}
+
+/** The caption box's paddings above its first line and under its last, and its line pitch. */
+export const CAPTION = { top: 16, line: LINE_H, bottom: 12 } as const
+
+/**
+ * A line of the log at a baseline y, in the box's own 900-wide coordinates — the frame's
+ * caption box and the sheet's log blocks draw every line through this (S5g, #194), so a line
+ * reads the same on both. A rule line sits on the line's own middle, its label to the left
+ * of it (R2 on #175).
+ */
+export function captionText(line: CaptionLine, y: number): string[] {
+  if (line.rule !== true) {
+    return [
+      text(
+        46,
+        y,
+        line.text,
+        `class="caption" font-size="13" ${line.bold ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
+      ),
+    ]
+  }
+  const from = round1(46 + estimateWidth(line.text, 11) + 8)
+  return [
+    text(46, y - 3, line.text, `class="caption-rule-label" font-size="11" fill="${COLOR.faint}"`),
+    `<line class="caption-rule" x1="${from}" y1="${y - 7}" x2="${PANEL.width - 46}" y2="${y - 7}" stroke="${COLOR.line}"/>`,
+  ]
+}
+
 const text = (x: number, y: number, content: string, attrs: string): string =>
   `<text x="${x}" y="${y}" font-family="${FONT}" ${attrs}>${esc(content)}</text>`
 
@@ -648,8 +699,24 @@ export function frameSvg(input: FrameInput): string {
   ].join('\n')
 }
 
-/** The frame's document body: everything between the wrapper's tags, in order. */
+/** The frame's document body: everything between the wrapper's tags, in order — the picture, then the log under it. */
 export function frameDocument(input: FrameInput, options: FrameOptions = {}): FrameDocument {
+  const { width, top, log } = frameParts(input, options)
+  const under = log(top.height)
+  const height = top.height + under.height
+  return {
+    width,
+    height,
+    lines: [
+      `<rect width="${PANEL.width}" height="${height}" fill="${COLOR.bg}"/>`,
+      ...top.lines,
+      ...under.lines,
+    ],
+  }
+}
+
+/** The frame's two pieces: the picture with its header and footnotes, and the log from any y. */
+export function frameParts(input: FrameInput, options: FrameOptions = {}): FrameParts {
   const { record, metrics, study, plan } = input
   const clipId = options.clipId ?? 'panel'
   const { beginS } = STUDY
@@ -657,7 +724,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const lines = captionLines(input)
   // One name per track, the log’s (S5g, #175): the ident without the role, for the map.
   const { ident } = trackNamer(input)
-  const captionH = 16 + lines.length * LINE_H + 12
+  const captionH = CAPTION.top + lines.length * CAPTION.line + CAPTION.bottom
   const parts: string[] = []
   // What the map has already drawn, for the one label whose place is computed (#170): a threat's
   // own label is held back to the end and put where it clears these.
@@ -1002,12 +1069,22 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   // frame without one keeps its height to the byte (S5f, #173).
   const footnotes = afterFreeze ? [...FOOTNOTE_LINES, ...LATE_FOOTNOTE_LINES] : [...FOOTNOTE_LINES]
   const footH = FOOT_H + (afterFreeze ? 28 : 0)
-  // The Queue box on a Vigil frame (C2), under the map between the footnote and the caption:
-  // every above-calm inject at the freeze in rank order, the rank in the band's colour, the
-  // composite, and the Queue's own reason tag. On the map it would cover a threat when the
-  // cast puts fourteen above calm (S5c-ii's gate).
-  const queueY = HEADER_H + PANEL.height + footH
-  // On the pair the box shows its top rows and counts the rest (S5d); the frame every row.
+  const top: FramePiece = {
+    height: HEADER_H + PANEL.height + footH,
+    lines: [
+      ...header,
+      `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${PANEL.width}" height="${PANEL.height}"/></clipPath></defs>`,
+      `<g class="map" transform="translate(0 ${HEADER_H})" clip-path="url(#${clipId})">`,
+      `<rect width="${PANEL.width}" height="${PANEL.height}" fill="${COLOR.panel}"/>`,
+      ...parts,
+      '</g>',
+      ...footnotes.map((line, i) =>
+        text(30, footY + i * 14, line, `class="footnote" font-size="11" fill="${COLOR.faint}"`),
+      ),
+    ],
+  }
+  // On the pair and the sheet the Queue box shows its top rows and counts the rest (S5d); the
+  // frame every row.
   const shown =
     options.queueCap !== undefined && candidates.length > options.queueCap
       ? candidates.slice(0, options.queueCap)
@@ -1015,77 +1092,53 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
   const more = candidates.length - shown.length
   const queueRows = shown.length + (more > 0 ? 1 : 0)
   const queueH = record.mode === 'vigil' ? 30 + queueRows * 18 + 6 : 0
-  const queue =
-    record.mode === 'vigil'
-      ? [
-          `<rect class="vigil-queue" x="30" y="${queueY}" width="${PANEL.width - 60}" height="${queueH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
-          text(
-            46,
-            queueY + 20,
-            `Queue at ${mmss(metrics.freezeT)} · ${candidates.length} above calm`,
-            `class="vigil-queue-title" font-size="12" font-weight="700" fill="${COLOR.text}"`,
-          ),
-          ...shown.map(
-            (candidate, i) =>
-              `<text x="46" y="${queueY + 38 + i * 18}" font-family="${FONT}" class="vigil-queue-line" data-id="${escAttr(candidate.track.id)}" font-size="11" fill="${COLOR.muted}"><tspan font-weight="700" fill="${bandFill(candidate.band)}">${candidate.rank}</tspan> ${esc(`${trackIdent(candidate.track)} ${candidate.composite} · ${reasonTag(candidate, AO.protectedSites)}`)}</text>`,
-          ),
-          ...(more > 0
-            ? [
-                text(
-                  46,
-                  queueY + 38 + shown.length * 18,
-                  `… ${more} more above calm, on the run's own frame`,
-                  `class="vigil-queue-more" font-size="11" font-style="italic" fill="${COLOR.faint}"`,
-                ),
-              ]
-            : []),
-        ]
-      : []
-  const captionY = queueY + (record.mode === 'vigil' ? queueH + 12 : 0)
-  const height = captionY + captionH
-  const caption = [
-    `<rect x="30" y="${captionY}" width="${PANEL.width - 60}" height="${captionH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
-    ...lines.flatMap((line, i) => {
-      const y = captionY + 16 + (i + 1) * LINE_H - 6
-      if (line.rule !== true) {
-        return [
-          text(
-            46,
-            y,
-            line.text,
-            `class="caption" font-size="13" ${line.bold ? `font-weight="600" fill="${COLOR.text}"` : `fill="${COLOR.muted}"`}`,
-          ),
-        ]
-      }
-      // The rule sits on the line's own middle, its label to the left of it (R2).
-      const from = round1(46 + estimateWidth(line.text, 11) + 8)
-      return [
-        text(
-          46,
-          y - 3,
-          line.text,
-          `class="caption-rule-label" font-size="11" fill="${COLOR.faint}"`,
-        ),
-        `<line class="caption-rule" x1="${from}" y1="${y - 7}" x2="${PANEL.width - 46}" y2="${y - 7}" stroke="${COLOR.line}"/>`,
-      ]
-    }),
-  ]
-
-  const lines_ = [
-    `<rect width="${PANEL.width}" height="${height}" fill="${COLOR.bg}"/>`,
-    ...header,
-    `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${PANEL.width}" height="${PANEL.height}"/></clipPath></defs>`,
-    `<g class="map" transform="translate(0 ${HEADER_H})" clip-path="url(#${clipId})">`,
-    `<rect width="${PANEL.width}" height="${PANEL.height}" fill="${COLOR.panel}"/>`,
-    ...parts,
-    '</g>',
-    ...footnotes.map((line, i) =>
-      text(30, footY + i * 14, line, `class="footnote" font-size="11" fill="${COLOR.faint}"`),
-    ),
-    ...queue,
-    ...caption,
-  ]
-  return { width: PANEL.width, height, lines: lines_ }
+  // The Queue box (C2), from the y it is asked for: on the frame under the map between the
+  // footnote and the caption — on the map it would cover a threat when the cast puts fourteen
+  // above calm (S5c-ii's gate) — every above-calm inject at the freeze in rank order, the rank
+  // in the band's colour, the composite, and the Queue's own reason tag. On the sheet it stands
+  // in its own block under the logs (S5g, #194), the same lines from another y.
+  const queue = (queueY: number): FramePiece => ({
+    height: queueH,
+    lines:
+      record.mode === 'vigil'
+        ? [
+            `<rect class="vigil-queue" x="30" y="${queueY}" width="${PANEL.width - 60}" height="${queueH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
+            text(
+              46,
+              queueY + 20,
+              `Queue at ${mmss(metrics.freezeT)} · ${candidates.length} above calm`,
+              `class="vigil-queue-title" font-size="12" font-weight="700" fill="${COLOR.text}"`,
+            ),
+            ...shown.map(
+              (candidate, i) =>
+                `<text x="46" y="${queueY + 38 + i * 18}" font-family="${FONT}" class="vigil-queue-line" data-id="${escAttr(candidate.track.id)}" font-size="11" fill="${COLOR.muted}"><tspan font-weight="700" fill="${bandFill(candidate.band)}">${candidate.rank}</tspan> ${esc(`${trackIdent(candidate.track)} ${candidate.composite} · ${reasonTag(candidate, AO.protectedSites)}`)}</text>`,
+            ),
+            ...(more > 0
+              ? [
+                  text(
+                    46,
+                    queueY + 38 + shown.length * 18,
+                    `… ${more} more above calm, on the run's own frame`,
+                    `class="vigil-queue-more" font-size="11" font-style="italic" fill="${COLOR.faint}"`,
+                  ),
+                ]
+              : []),
+          ]
+        : [],
+  })
+  // The frame's log: the Queue box, a gap, and the caption box with every line at its pitch.
+  const log = (queueY: number): FramePiece => {
+    const box = queue(queueY)
+    const captionY = queueY + (record.mode === 'vigil' ? box.height + 12 : 0)
+    const caption = [
+      `<rect x="30" y="${captionY}" width="${PANEL.width - 60}" height="${captionH}" rx="6" fill="${COLOR.panel}" stroke="${COLOR.line}"/>`,
+      ...lines.flatMap((line, i) =>
+        captionText(line, captionY + CAPTION.top + (i + 1) * CAPTION.line - 6),
+      ),
+    ]
+    return { height: captionY + captionH - queueY, lines: [...box.lines, ...caption] }
+  }
+  return { width: PANEL.width, top, queue, lines, log }
 }
 
 /** The file a run's frame is written to: `<subject>-<scenario>-<mode>-<run>.svg`. */

@@ -302,4 +302,58 @@ describe('the leave-behind (round 1, finding 1)', () => {
     }
     expect(hidden).not.toContain('.sheet__document')
   }, 30_000)
+
+  it('prints the sheet block by block, with no line cut and no header or footer (S5g, #194, item 2)', async () => {
+    await paste(`${fixture('S03-02a-raw-1.json')}\n${fixture('S04-02b-vigil-1.json')}`)
+    // One element per block the tool drew — the 02 sheet's twelve — each holding one `<svg>`
+    // of its own, so a page can break between any two and inside none.
+    const blocks = [...document.querySelectorAll('.sheet__document .sheet__block')]
+    expect(blocks).toHaveLength(12)
+    expect(blocks.map((block) => block.querySelectorAll(':scope > svg').length)).toEqual(
+      Array(12).fill(1),
+    )
+    expect(blocks.map((block) => block.querySelector('svg')?.dataset.block)).toEqual([
+      'headline',
+      'threat-1',
+      'logs',
+      'log-1',
+      'log-2',
+      'log-3',
+      'log-4',
+      'log-5',
+      'log-6',
+      'log-7',
+      'queue',
+      'footnotes',
+    ])
+    // The print rule, read rather than restated: a block never breaks inside, and the page's
+    // margin is 6 mm above and below (ruled R4 on #194) — Chrome hides each of its four header
+    // and footer texts when it would cross the content box, and its template stands them 15 pt
+    // in, so 17 pt holds none of them (measured: 8 mm hides all four, 9 mm draws them) — and
+    // 12 mm at the sides (ruled R5), where the fixtures' sheet fits one page.
+    const css = sheetCss.replace(/\/\*[\s\S]*?\*\//g, '')
+    const print = /@media print \{([\s\S]*?)\n\}/.exec(css)![1]
+    expect(print).toMatch(/\.sheet__block \{[^}]*break-inside:\s*avoid/)
+    expect(css).toMatch(/@page \{\s*margin:\s*6mm 12mm;\s*\}/)
+    // The ties (round 1 on #195): a heading never stands alone at a page's foot and the Queue
+    // box never begins a page away from its log — the logs' row never breaks after, its first
+    // line and the Queue box never break before. Each rule names its block by the name the
+    // block carries.
+    const rules = print.split('}').map((chunk) => {
+      const [selectors, declarations = ''] = chunk.split('{')
+      return { selectors: selectors.split(',').map((selector) => selector.trim()), declarations }
+    })
+    const declaring = (selector: string) =>
+      rules
+        .filter((rule) => rule.selectors.includes(selector))
+        .map((rule) => rule.declarations)
+        .join(' ')
+    expect(declaring(".sheet__block:has(> svg[data-block='logs'])")).toMatch(/break-after:\s*avoid/)
+    expect(declaring(".sheet__block:has(> svg[data-block='log-1'])")).toMatch(
+      /break-before:\s*avoid/,
+    )
+    expect(declaring(".sheet__block:has(> svg[data-block='queue'])")).toMatch(
+      /break-before:\s*avoid/,
+    )
+  }, 30_000)
 })

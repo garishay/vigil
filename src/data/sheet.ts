@@ -13,7 +13,7 @@
 
 import { loadCapture, captureUrl } from './capture.ts'
 import { recordingNamed } from '../config/recordings.ts'
-import { compose } from '../../tools/replay/compose.ts'
+import { compose, type Composed } from '../../tools/replay/compose.ts'
 import { STUDY_RECORDING } from '../../scripts/study-spec.ts'
 import { planFor, studyOf, type Study } from '../../tools/replay/load.ts'
 import { runMetrics } from '../../tools/replay/metrics.ts'
@@ -22,6 +22,7 @@ import { resultsJson } from '../lib/run.ts'
 import type { RunRecord } from '../lib/run.ts'
 
 export { runsIn } from '../../tools/replay/load.ts'
+export type { Composed } from '../../tools/replay/compose.ts'
 
 /** The study's recording, fetched and indexed — the CLI's `loadStudy`, over the network. */
 export async function fetchStudy(fetcher: typeof fetch = fetch): Promise<Study> {
@@ -92,10 +93,7 @@ export function filesFor(records: readonly RunRecord[]): SaveFile[] {
  * one scenario — and the file name the CLI would have written it under. `compose` is the CLI's
  * own branch, so this is the only code between the page and the renderer.
  */
-export function documentOf(
-  records: readonly RunRecord[],
-  study: Study,
-): { name: string; svg: string } {
+export function documentOf(records: readonly RunRecord[], study: Study): Composed {
   return compose(
     records.map((record) => {
       const plan = planFor(record.scenario, study.timeline)

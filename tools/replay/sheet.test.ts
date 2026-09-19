@@ -3,12 +3,28 @@ import { bearingDegrees } from '../../src/lib/geo.ts'
 import { STUDY } from '../../src/config/study.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
-import { estimateWidth, mmss, outcomeWords, trackNamer, type FrameInput } from './frame.ts'
+import {
+  CAPTION,
+  captionText,
+  estimateWidth,
+  frameParts,
+  mmss,
+  outcomeWords,
+  trackNamer,
+  type FrameInput,
+} from './frame.ts'
 import { planFor } from './load.ts'
 import { loadStudy, readRuns } from './files.ts'
 import { otherEscalations, runMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
-import { countsSentence, openingSentence, ordinalWord, sheetName, sheetSvg } from './sheet.ts'
+import {
+  countsSentence,
+  openingSentence,
+  ordinalWord,
+  sheetBlocks,
+  sheetName,
+  sheetSvg,
+} from './sheet.ts'
 import { orderWords, pairSvg } from './pair.ts'
 import { studySvg } from './figure.ts'
 
@@ -60,7 +76,7 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
   it('writes two sentences per condition on the prioritization sheet, every threat named (R1)', () => {
     const svg = sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1')
     expect(textsOf(svg, 'headline')).toEqual([
-      'Unaided on 03a, S05 opened two non-threats first, escalated threat 1 with 0.1 km to spare and threat 2 with 0.8 km, in 6 looks over the whole run.',
+      'Unaided on 03a, S05 opened two non-threats first, escalated threat 1 with 0.1 km to spare and threat 2 with 0.8 km, in 5 looks (6 over the whole run).',
       'With Vigil on 03b, S06 opened a threat first, escalated threat 1 with 0.9 km to spare and threat 2 with 0.6 km, in 3 looks over the whole run.',
     ])
     // The second sentence names every escalation the run made besides the threats, with what
@@ -80,8 +96,8 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     // never on a constructed record.
     const svg = sheetOf('S06-03b-raw-1', 'S05-03a-vigil-1')
     expect(textsOf(svg, 'headline')).toEqual([
-      'Unaided on 03b, S06 opened two non-threats first, escalated threat 1 inside the ring and missed threat 2, in 4 looks over the whole run.',
-      'With Vigil on 03a, S05 opened a threat first, escalated threat 1 with 0.8 km to spare and threat 2 with 0.7 km, in 3 looks over the whole run.',
+      'Unaided on 03b, S06 opened two non-threats first, escalated threat 1 inside the ring and missed threat 2, in 3 looks (4 over the whole run).',
+      'With Vigil on 03a, S05 opened a threat first, escalated threat 1 with 0.8 km to spare and threat 2 with 0.7 km, in 2 looks (3 over the whole run).',
     ])
     // The two escalations named in the record's order, and no order clause: the order is null
     // while a threat is missed (#153, ruled K3).
@@ -97,7 +113,7 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     const svg = sheetOf('S03-02a-raw-1', 'S04-02b-vigil-1')
     expect(textsOf(svg, 'headline')).toEqual([
       'Unaided on 02a, S03 opened a threat first, escalated the threat with 1.2 km to spare, in 1 look over the whole run.',
-      'With Vigil on 02b, S04 opened a threat first, escalated the threat with 1.2 km to spare, in 2 looks over the whole run.',
+      'With Vigil on 02b, S04 opened a threat first, escalated the threat with 1.2 km to spare, in 1 look (2 over the whole run).',
     ])
     // One threat, so no order clause at all (K3); neither run escalated anything else.
     expect(textsOf(svg, 'headline-counts')).toEqual([
@@ -106,12 +122,31 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     ])
   })
 
-  it('names the span the look count means — the frame beside it counts to its own freeze (K4)', () => {
+  it('leads with the looks to the last threat escalation and carries the whole run’s count after it (S5g, #194, item 3)', () => {
     const unaided = fixture('S05-03a-raw-1')
     expect(unaided.metrics.looks).toBe(6)
-    // The frame freezes at the last escalation, 1:37, and shows the five looks up to it; the
-    // sixth is at 2:10. The sentence says which of the two numbers it is.
-    expect(openingSentence(unaided.metrics)).toContain('in 6 looks over the whole run.')
+    // The last threat escalation is at 1:37, with five looks up to it; the sixth is at 2:10. The
+    // looks to the escalation lead, and the CSV's column follows in parentheses — the frame's
+    // subtitle counts the same five to its freeze.
+    expect(openingSentence(unaided)).toContain('in 5 looks (6 over the whole run).')
+    // A miss holds the frame at the window's end, but the sentence still counts to the last
+    // escalation there was: S06's 03b escalated threat 1 at 1:58 after three looks, and looked
+    // once more.
+    expect(openingSentence(fixture('S06-03b-raw-1'))).toContain(
+      'in 3 looks (4 over the whole run).',
+    )
+    // Nothing looked at after the last escalation: the two counts are one, said once.
+    expect(openingSentence(fixture('S06-03b-vigil-1'))).toContain('in 3 looks over the whole run.')
+    // No threat escalated at all: the whole-run count stands alone, as it did.
+    const base = fixture('S05-03a-raw-1')
+    const record = {
+      ...base.record,
+      events: base.record.events.filter((e) => e.type !== 'escalate'),
+    }
+    const none = { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+    expect(openingSentence(none)).toBe(
+      'Unaided on 03a, S05 opened two non-threats first, missed threat 1 and threat 2, in 6 looks over the whole run.',
+    )
   })
 
   it('writes the order clause both ways, and leaves it out when a threat is missed (K3, #153)', () => {
@@ -133,10 +168,13 @@ describe('the subject sheet — the rows', () => {
 
   it('titles each row by its role and names the two tracks it compares', () => {
     // The two threat rows, and beneath them the row S5f adds for what else was escalated (#173).
+    // The two threat rows, the row S5f adds for what else was escalated (#173), and the logs'
+    // row under them (S5g, #194).
     expect(textsOf(svg, 'row-title')).toEqual([
       "threat 1 · each scenario's first entrant",
       "threat 2 · each scenario's second entrant",
       'other escalations',
+      'the look logs',
     ])
     expect(textsOf(svg, 'row-subtitle')).toEqual([
       // Each side names its track as its own run's frame does (#177): the screen's name at that
@@ -144,6 +182,8 @@ describe('the subject sheet — the rows', () => {
       'unaided 03a TRK-31 · with Vigil 03b TRK-29',
       'unaided 03a TRK-57 · with Vigil 03b TRK-23',
       'every escalation the run made besides the threats above, and what each track turned out to be',
+      // The words are the ruling's (R1 on #194).
+      "Every look and action in each run, in time order — unaided left, Vigil right. Under Vigil's log, the list as Vigil showed it at the freeze.",
     ])
   })
 
@@ -183,9 +223,9 @@ describe('the subject sheet — the rows', () => {
   })
 
   it('plots each escalation on the ring at its true bearing and range, hollow inside it (K6)', () => {
-    // The rows stand under the taller frame — the Vigil frame's 1 254 px since the log (#175) —
-    // and the headline's 150.
-    const cy = [150 + 1254 + 146, 150 + 1254 + 320 + 146]
+    // A row is a block of its own (S5g, #194), so the ring's centre is 146 into either block;
+    // where the blocks stand is the order test's.
+    const cy = [146, 146]
     for (const [side, input] of [
       ['unaided', unaided],
       ['vigil', vigil],
@@ -232,7 +272,7 @@ describe('the subject sheet — the rows', () => {
         (track) => track.id === threat.id,
       )!
       const bearing = bearingDegrees(SITE.center, atEntry.position)
-      const [x, y] = ringPoint(150 + 1254 + 146, bearing, SITE.radiusM)
+      const [x, y] = ringPoint(146, bearing, SITE.radiusM)
       expect(Math.hypot(Number(ticks[0].x1) - x, Number(ticks[0].y1) - y)).toBeLessThan(11)
     }
   })
@@ -285,24 +325,28 @@ describe('the subject sheet — the rows', () => {
 
   it('reads one row on the corroboration family, titled as the frame names its threat', () => {
     const svg02 = sheetOf('S03-02a-raw-1', 'S04-02b-vigil-1')
-    expect(textsOf(svg02, 'row-title')).toEqual(['the threat'])
-    expect(textsOf(svg02, 'row-subtitle')).toEqual([
+    expect(textsOf(svg02, 'row-title')).toEqual(['the threat', 'the look logs'])
+    expect(textsOf(svg02, 'row-subtitle')[0]).toBe(
       // One cast row, two conditions, and the two screens named it differently — which is what
       // F2 protects and what the id hid (#177).
       'unaided 02a UAS-8F21 · with Vigil 02b TRK-11',
-    ])
+    )
   })
 })
 
 describe('the subject sheet — the document', () => {
-  it('composes the two frames unchanged, the unaided one left, with the Queue box capped (K2)', () => {
+  it('composes the two frames’ pictures unchanged, the unaided one left, with the Queue box capped (K2)', () => {
     const svg = sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1')
-    expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
-    expect(svg).toContain('<svg class="frame-vigil" x="920" y="150"')
-    // The sheet stands 150 for the headline, the taller frame (1 254 since the log, #175), a row
-    // row's own 238 for its one escalation, and a foot of 98 — the fourth footnote's line (#173).
-    expect(svg).toContain('width="1820" height="2380"')
-    expect(150 + 1254 + 2 * 320 + 238 + 98).toBe(2380)
+    // Each frame's picture — its header, its map, its footnotes — under the headline's 150, the
+    // unaided one 856 tall for its key line and the Vigil one 828; the logs stand in their own
+    // blocks below the comparison (S5g, #194).
+    expect(svg).toContain('<svg class="frame-unaided" x="0" y="150" width="900" height="856"')
+    expect(svg).toContain('<svg class="frame-vigil" x="920" y="150" width="900" height="828"')
+    // The sheet stands its blocks' sum: 150 and the taller picture, a row per threat, the third
+    // row's own 238 for its one escalation, the logs' head, thirteen lines — the longer log's —
+    // the Queue box under its 12 px gap, and a foot of 98 for the fourth footnote's line (#173).
+    expect(svg).toContain('width="1820" height="2506"')
+    expect(150 + 856 + 2 * 320 + 238 + 82 + 13 * 22 + (12 + 144) + 98).toBe(2506)
     expect(textsOf(svg, 'vigil-queue-more')).toEqual([
       "… 21 more above calm, on the run's own frame",
     ])
@@ -471,7 +515,7 @@ describe('the headline and the lane on a run that opened nothing — round 1 (#1
     const input = noOpens()
     expect(input.metrics.looks).toBe(0)
     expect(input.metrics.openedBeforeFirstThreat).toBe(0)
-    expect(openingSentence(input.metrics)).toBe(
+    expect(openingSentence(input)).toBe(
       'Unaided on 03a, S05 opened nothing, escalated threat 1 with 0.5 km to spare and missed threat 2, in 0 looks over the whole run.',
     )
   })
@@ -573,25 +617,29 @@ describe('the sheet’s other escalations (S5f, #173)', () => {
     expect(tagsOf(two, 'other-mark-vigil')).toHaveLength(0)
     // Neither 02 run escalated anything besides its threat, so there is no row at all.
     const none = sheetOf('S03-02a-raw-1', 'S04-02b-vigil-1')
-    expect(textsOf(none, 'row-title')).toEqual(['the threat'])
+    expect(textsOf(none, 'row-title')).toEqual(['the threat', 'the look logs'])
     expect(none).not.toContain('other-mark-')
     expect(none).not.toContain('nothing else escalated')
   })
 
   it('takes its own height — 200 above its words, 18 a line, 20 under them', () => {
-    // The sheet stands 150 for the headline, the taller frame, a row per threat, the row's own
-    // height, and a foot of 98 for the fourth footnote line.
+    // The row is a block of its own (S5g, #194): its height is the block's, and the sheet's is
+    // the blocks' sum — the headline and the taller picture, a row per threat, this row, the
+    // logs' head and their lines, the Queue box, and a foot of 98 for the fourth footnote line.
+    const height = (svg: string) =>
+      [...svg.matchAll(/data-block="other" width="1820" height="(\d+)"/g)].map((m) => Number(m[1]))
+    expect(height(two)).toEqual([200 + 2 * 18 + 20])
+    expect(height(one)).toEqual([200 + 1 * 18 + 20])
     expect(two).toContain(
-      `width="1820" height="${150 + 1282 + 2 * 320 + (200 + 2 * 18 + 20) + 98}"`,
+      `width="1820" height="${150 + 856 + 2 * 320 + 256 + 82 + 11 * 22 + (12 + 144) + 98}"`,
     )
     expect(one).toContain(
-      `width="1820" height="${150 + 1254 + 2 * 320 + (200 + 1 * 18 + 20) + 98}"`,
+      `width="1820" height="${150 + 856 + 2 * 320 + 238 + 82 + 13 * 22 + (12 + 144) + 98}"`,
     )
-    // The row's rule sits under the threats' rows, and its axis runs the same scale as theirs.
-    const rules = [...two.matchAll(/<line x1="30" y1="([0-9.]+)" x2="1790"/g)].map((m) =>
-      Number(m[1]),
-    )
-    expect(rules).toEqual([150 + 1282, 150 + 1282 + 320, 150 + 1282 + 640, 150 + 1282 + 640 + 256])
+    // Every row's rule opens its own block — the two threats', this one's, the logs' and the
+    // footnotes' — and the third row's axis runs the same scale as the threats' rows.
+    expect(tagsOf(two, 'time-axis')).toHaveLength(3)
+    expect([...two.matchAll(/<line x1="30" y1="0" x2="1790"/g)]).toHaveLength(5)
   })
 })
 
@@ -636,8 +684,9 @@ describe('the headline’s width — round 1 (#174)', () => {
       expect(line.startsWith(' ')).toBe(false)
       expect(estimateWidth(line, 13)).toBeLessThanOrEqual(1820 - 48 - 30)
     }
-    // The block grows by that one line, and the frames and everything under them move with it.
+    // The block grows by that one line, and the frames move with it inside it.
     expect(svg).toContain('<svg class="frame-unaided" x="0" y="168"')
+    expect(svg).toContain('data-block="headline" width="1820" height="1024"')
     // The sheet renders two whole frames; the runner is slower than this machine (#166 round 1).
   }, 30_000)
 
@@ -710,7 +759,7 @@ describe('one name per track across the document (#177, ruled M1–M4, R1)', () 
       { unaided: inputs['S03-02a-raw-1'], vigil: inputs['S04-02b-vigil-1'] },
       { queueCap: 5 },
     )
-    expect(textsOf(svg, 'row-subtitle')).toEqual(['unaided 02a UAS-8F21 · with Vigil 02b TRK-11'])
+    expect(textsOf(svg, 'row-subtitle')[0]).toBe('unaided 02a UAS-8F21 · with Vigil 02b TRK-11')
     // Each side is the name its own frame carries, so the subtitle agrees with the frame above it.
     expect(trackNamer(inputs['S03-02a-raw-1']).ident('inject-11')).toBe('UAS-8F21')
     expect(trackNamer(inputs['S04-02b-vigil-1']).ident('inject-11')).toBe('TRK-11')
@@ -733,5 +782,200 @@ describe('one name per track across the document (#177, ruled M1–M4, R1)', () 
     expect(words(figure).some((word) => ident.test(word))).toBe(false)
     expect(words(figure).some((word) => /\b(inject|adsb)-/.test(word))).toBe(false)
     expect(words(figure)).toContain('S05')
+  })
+})
+
+describe('the sheet in blocks (S5g, #194)', () => {
+  const unaided = fixture('S05-03a-raw-1')
+  const vigil = fixture('S06-03b-vigil-1')
+  const input = { unaided, vigil }
+  const blocks = sheetBlocks(input, { queueCap: 5 })
+  const svg = sheetSvg(input, { queueCap: 5 })
+  const named = (block: string) => /data-block="([^"]+)" width="1820" height="(\d+)"/.exec(block)!
+  const names = blocks.map((block) => named(block)[1])
+  const heights = blocks.map((block) => Number(named(block)[2]))
+
+  it('lays the sheet out in the order a reader meets it, a block each (item 1)', () => {
+    // The headline with the two pictures; a threat a row; the other escalations; the logs' head;
+    // one block per line of the longer log — thirteen, the unaided run's; the Queue box; the
+    // footnotes. Nothing removed: every class the one-SVG sheet drew is still drawn.
+    expect(names).toEqual([
+      'headline',
+      'threat-1',
+      'threat-2',
+      'other',
+      'logs',
+      ...Array.from({ length: 13 }, (_, i) => `log-${i + 1}`),
+      'queue',
+      'footnotes',
+    ])
+    expect(heights).toEqual([1006, 320, 320, 238, 82, ...Array(13).fill(22), 156, 98])
+    // The 02 sheet has no third row and no ordinal, and its longer log is the Vigil run's eight.
+    const none = sheetBlocks(
+      { unaided: fixture('S03-02a-raw-1'), vigil: fixture('S04-02b-vigil-1') },
+      { queueCap: 5 },
+    ).map((block) => named(block)[1])
+    expect(none).toEqual([
+      'headline',
+      'threat-1',
+      'logs',
+      ...Array.from({ length: 7 }, (_, i) => `log-${i + 1}`),
+      'queue',
+      'footnotes',
+    ])
+    for (const cls of [
+      'sheet-title',
+      'headline',
+      'headline-counts',
+      'frame-unaided',
+      'frame-vigil',
+      'row-title',
+      'lane-unaided-escalate',
+      'ring-mark-vigil',
+      'ring-legend-unaided',
+      'other-mark-unaided',
+      'other-legend-unaided',
+      'caption',
+      'caption-rule',
+      'vigil-queue',
+      'vigil-queue-more',
+      'sheet-footnote',
+    ]) {
+      expect(svg).toContain(`class="${cls}"`)
+    }
+  })
+
+  it('keeps every block one set of bytes between the browser’s blocks and the CLI’s file (item 2)', () => {
+    // The file is the blocks stacked: each block's `<svg>` verbatim inside a `<g>` at the running
+    // y, and the file's height their sum — the wrapper is the only line the file adds, so what
+    // the browser mounts and what the CLI writes are the same bytes block for block.
+    let y = 0
+    for (const block of blocks) {
+      expect(svg).toContain(`<g transform="translate(0 ${y})">\n${block}\n</g>`)
+      y += Number(named(block)[2])
+    }
+    expect(svg).toContain(`width="1820" height="${y}" viewBox="0 0 1820 ${y}"`)
+    expect(y).toBe(2506)
+    expect(svg.split('<g transform="translate(0 ')).toHaveLength(blocks.length + 1)
+    // Each block is a document of its own: a viewBox, its ground, its name; the blocks are the
+    // file's only content besides its wrapper.
+    for (const block of blocks) {
+      expect(block.startsWith('<svg class="block" data-block=')).toBe(true)
+      expect(block.endsWith('</svg>')).toBe(true)
+    }
+    // The same bytes twice (K10).
+    expect(sheetBlocks(input, { queueCap: 5 })).toEqual(blocks)
+  })
+
+  it('draws each frame’s picture unchanged and its log line for line through the frame’s own lines', () => {
+    // The picture: the frame's own top — header, map, footnotes — nested as it was, and the
+    // eight expected frames hold byte for byte (the K2 pin above). The log: the frame's caption
+    // lines, each drawn by the line function the frame's own caption box uses, at the pitch and
+    // baseline the box gives it, the Vigil column moved by the frame's width and the gap.
+    const l = frameParts(unaided, { queueCap: 5, clipId: 'sheet-unaided' })
+    const r = frameParts(vigil, { queueCap: 5, clipId: 'sheet-vigil' })
+    expect(svg).toContain(
+      `<svg class="frame-unaided" x="0" y="150" width="900" height="${l.top.height}" viewBox="0 0 900 ${l.top.height}">\n${l.top.lines.join('\n')}\n</svg>`,
+    )
+    expect(svg).toContain(
+      `<svg class="frame-vigil" x="920" y="150" width="900" height="${r.top.height}" viewBox="0 0 900 ${r.top.height}">\n${r.top.lines.join('\n')}\n</svg>`,
+    )
+    expect([l.lines.length, r.lines.length]).toEqual([13, 11])
+    l.lines.forEach((line, i) => {
+      const block = blocks[names.indexOf(`log-${i + 1}`)]
+      expect(block).toContain(captionText(line, CAPTION.line - 6).join('\n'))
+    })
+    r.lines.forEach((line, i) => {
+      const block = blocks[names.indexOf(`log-${i + 1}`)]
+      expect(block).toContain(
+        `<g transform="translate(920 0)">\n<rect x="30" y="0" width="840" height="${22 + 8}" fill="#121821"/>\n${captionText(line, CAPTION.line - 6).join('\n')}\n</g>`,
+      )
+    })
+    // The Queue box is the frame's, capped, from 12 into its block, under the Vigil column.
+    expect(blocks[names.indexOf('queue')]).toContain(
+      `<g transform="translate(920 0)">\n${r.queue(12).lines.join('\n')}\n</g>`,
+    )
+    expect(r.queue(12).height).toBe(144)
+  })
+
+  it('closes each log’s panel a column at a time: its top in the logs’ block, a slice under every line, its bottom under the last', () => {
+    const slice = (h: number, y = 0) =>
+      `<rect x="30" y="${y}" width="840" height="${h + 8}" fill="#121821"/>`
+    const head = blocks[names.indexOf('logs')]
+    // Both panels open in the head block, 16 above the first line, at y 66 — under the row's
+    // title and subtitle.
+    expect(head.split(slice(CAPTION.top, 66))).toHaveLength(3)
+    // The Vigil log is eleven lines: its twelfth block carries its bottom, and the thirteenth
+    // nothing of it; the unaided log runs to the last line, so its bottom is the queue block's
+    // first 12, under the box's gap.
+    expect(blocks[names.indexOf('log-11')]).toContain(
+      `<g transform="translate(920 0)">\n${slice(22)}`,
+    )
+    expect(blocks[names.indexOf('log-12')]).toContain(
+      `<g transform="translate(920 0)">\n${slice(CAPTION.bottom)}\n</g>`,
+    )
+    expect(blocks[names.indexOf('log-13')]).not.toContain('translate(920 0)')
+    const queue = blocks[names.indexOf('queue')]
+    expect(queue.startsWith(`<svg class="block" data-block="queue"`)).toBe(true)
+    expect(queue.split('\n')[2]).toBe(slice(CAPTION.bottom))
+    expect(queue).not.toContain(`<g transform="translate(920 0)">\n${slice(CAPTION.bottom)}`)
+    // Nothing of a panel where a column has no line: the unaided panel is whole on the 03 sheet,
+    // the count of slices its lines, its top and its bottom.
+    expect(svg.split('<rect x="30" y="0" width="840"')).toHaveLength(13 + 11 + 2 + 1)
+  })
+
+  it('runs each block’s ground eight units under the block below, so a print at a fractional scale shows no hairline', () => {
+    // A page lays the blocks out at a fractional scale, and two rects that merely meet leave a
+    // hairline of the paper between their antialiased edges — measured at the gate on a 1.5×
+    // raster of the PDF: a light line at every join with no overrun, none at eight units. The
+    // block below paints over the overrun.
+    blocks.forEach((block, i) => {
+      expect(block.split('\n')[0]).toBe(
+        `<svg class="block" data-block="${names[i]}" width="1820" height="${heights[i]}" viewBox="0 0 1820 ${heights[i]}" overflow="visible">`,
+      )
+      expect(block.split('\n')[1]).toBe(
+        `<rect width="1820" height="${heights[i] + 8}" fill="#0b0f14"/>`,
+      )
+    })
+  })
+
+  it('carries a long session — 43 looks — as one block a line, the headline reading the looks to the last escalation first', () => {
+    // The session the rehearsal printed (#194): both threats escalated by 0:30 in six looks and
+    // thirty-seven more after, on the committed fixtures' fields. Every look names a track the
+    // picture holds at its second.
+    const base = fixture('S06-03b-vigil-1')
+    const present = (t: number) =>
+      [...pictureAtSecond(study.index, base.plan, STUDY.beginS + t, 'vigil')]
+        .map((track) => track.id)
+        .filter((id) => id.startsWith('inject-') && id !== 'inject-29' && id !== 'inject-23')
+        .sort()
+    const events: RunEvent[] = [
+      { t: 3, type: 'select', track: 'inject-21' },
+      { t: 7, type: 'select', track: 'inject-79' },
+      { t: 11, type: 'select', track: 'inject-29' },
+      { t: 16, type: 'escalate', track: 'inject-29' },
+      { t: 19, type: 'select', track: 'inject-19' },
+      { t: 22, type: 'select', track: 'inject-23' },
+      { t: 28, type: 'select', track: 'inject-73' },
+      { t: 30, type: 'escalate', track: 'inject-23' },
+      ...Array.from({ length: 37 }, (_, i): RunEvent => ({
+        t: 34 + i * 5,
+        type: 'select',
+        track: present(34 + i * 5)[(i * 7) % present(34 + i * 5).length],
+      })),
+    ]
+    const record: RunRecord = { ...base.record, events }
+    const long = { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+    expect(long.metrics.looks).toBe(43)
+    expect(openingSentence(long)).toContain('in 6 looks (43 over the whole run).')
+    const longBlocks = sheetBlocks({ unaided, vigil: long }, { queueCap: 5 })
+    const lines = frameParts(long).lines.length
+    expect(lines).toBeGreaterThan(43)
+    expect(longBlocks.filter((block) => named(block)[1].startsWith('log-'))).toHaveLength(lines)
+    // No block holds two lines of one log: a page can break between any two.
+    for (const block of longBlocks.filter((block) => named(block)[1].startsWith('log-'))) {
+      expect(block.split('class="caption"').length - 1).toBeLessThanOrEqual(2)
+      expect(Number(named(block)[2])).toBe(22)
+    }
   })
 })
