@@ -11,7 +11,7 @@ import {
   trackIdent,
 } from '../lib/display'
 import { IDENTITY_LABEL } from '../lib/identity'
-import { STATUS_LABEL, isTerminal, mark, type Status } from '../lib/lifecycle'
+import { isTerminal, mark, statusLabel, type Status } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
 
 /**
@@ -161,7 +161,7 @@ export function Queue({
                 )}
                 {status !== 'new' && (
                   <span className="queue__badge queue__badge--state">
-                    {surfaced ? 'Re-surfaced' : STATUS_LABEL[status]}
+                    {surfaced ? 'Re-surfaced' : statusLabel(status, run)}
                   </span>
                 )}
                 <span className="queue__ident">{trackIdent(track)}</span>

@@ -16,7 +16,15 @@ import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { DEFAULT_RECORDING } from './config/recordings'
 import { REPLAY } from './config/replay'
 import { SCORING } from './config/scoring'
-import { QUESTIONS, STUDY, WORKLOAD_SCALE, briefFor, type QuestionId } from './config/study'
+import {
+  BRIEF_GOAL,
+  QUESTIONS,
+  STUDY,
+  WORKLOAD_SCALE,
+  briefBlocks,
+  runOfSession,
+  type QuestionId,
+} from './config/study'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useSession } from './data/useSession'
 import { RUNS_PER_SUBJECT, nextRunSearch } from './lib/session'
@@ -664,18 +672,41 @@ export default function App({
     const at = now()
     const entry = ranked.find((candidate) => candidate.track.id === trackId)
     const observed = entry ? observedSnapshot(entry) : log[log.length - 1].observed
+    // Through the study run's table where this is a run (S8-ii): a card answered from the stack
+    // carries a New track rather than claiming it, so the ring stays the open's alone.
     setEventLogs((logs) => ({
       ...logs,
-      [trackId]: appendEvent(logs[trackId] ?? log, 'acknowledge', { at, tSec, observed }),
+      [trackId]: appendEvent(logs[trackId] ?? log, 'acknowledge', {
+        at,
+        tSec,
+        observed,
+        run: inStudy,
+      }),
     }))
   }
   // A selection — a Queue row, a map dot, an alert card's open — is logged in a study run at the
   // clock it was made (ruled A5); the same track opened again is a new line, since the replay
   // draws the hops. Before Begin the overlay takes every click; after the end the shell is inert
   // and the selection refused anyway, so a click selects nothing new (ruled A4).
+  //
+  // Opening a track marks it (S8-ii, #180, the owner's amendment of 2026-09-19, item 1): the
+  // first open of an untouched track moves it to Assessing at the click, so the faint ring, the
+  // Status row and the list row all read the one status off the log; a re-open changes nothing.
+  // The select is the record (item 4): `runEvents` maps no `open`, so the run JSON carries the
+  // selection and nothing else. The demo's select marks nothing (item 8).
   const select = (id: string) => {
     if (inStudy && !runActive) return
-    if (inStudy) setSelections((current) => [...current, { tSec, trackId: id }])
+    if (inStudy) {
+      setSelections((current) => [...current, { tSec, trackId: id }])
+      const at = now()
+      setEventLogs((logs) => {
+        const entry = ranked.find((candidate) => candidate.track.id === id)
+        const log = logs[id] ?? (entry && firstSeen(id, observedSnapshot(entry), at, tSec))
+        if (!log || statusOf(log) !== 'new') return logs
+        const observed = entry ? observedSnapshot(entry) : log[log.length - 1].observed
+        return { ...logs, [id]: appendEvent(log, 'open', { at, tSec, observed, run: true }) }
+      })
+    }
     setSelectedId(id)
   }
   // A selection is an intent to review (A2 on #3): one made on Home — a map dot, an alert card —
@@ -1071,21 +1102,25 @@ export default function App({
                     ))}
                   </div>
                 )}
-                {/* Resolved is withheld in a study run (ruled): Resolve is not offered there,
-                  so a chip filtering for a state the subject cannot reach names nothing. */}
-                <div className="chips" role="group" aria-label="Filter by state">
-                  {STATE_FILTERS.filter((f) => !inStudy || f.id !== 'resolved').map((filter) => (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      className="chip"
-                      aria-pressed={stateFilter === filter.id}
-                      onClick={() => setStateFilter(filter.id)}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
+                {/* The state chips are withheld in a study run too (S8-ii, #198 round 1): the
+                  brief says the list ranks every track, and a held chip makes that false — with
+                  opening moving a track to Opened, a subject holding New watched rows leave the
+                  list under the cursor. The demo keeps them. */}
+                {!inStudy && (
+                  <div className="chips" role="group" aria-label="Filter by state">
+                    {STATE_FILTERS.map((filter) => (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        className="chip"
+                        aria-pressed={stateFilter === filter.id}
+                        onClick={() => setStateFilter(filter.id)}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <Queue
                   ranked={visible}
                   selectedId={selectedId}
@@ -1221,7 +1256,10 @@ export default function App({
       {overlay && runName !== null && (
         <RunBrief
           title={`Vigil · study run — ${runName}`}
-          brief={briefFor(runS)}
+          place={runOfSession(study.run, RUNS_PER_SUBJECT)}
+          goal={BRIEF_GOAL}
+          blocks={briefBlocks(runS)}
+          raw={raw}
           ready={canBegin}
           onBegin={() => {
             setBeganAt(now())

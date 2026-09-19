@@ -74,12 +74,14 @@ const opened = () => firstSeen('inject-05', OBSERVED, '2026-09-01T12:04:31.000Z'
  * nothing from a terminal status — so the terminal set below is unchanged by it.
  */
 const TABLE: Record<Status, Record<LifecycleAction, Status | null>> = {
+  // `open` is a study run's own (S8-ii): the demo's table has no cell for it anywhere.
   new: {
     assess: 'assessing',
     escalate: null,
     dismiss: 'dismissed',
     resolve: null,
     acknowledge: 'assessing',
+    open: null,
   },
   assessing: {
     assess: null,
@@ -87,6 +89,7 @@ const TABLE: Record<Status, Record<LifecycleAction, Status | null>> = {
     dismiss: 'dismissed',
     resolve: null,
     acknowledge: 'assessing',
+    open: null,
   },
   escalated: {
     assess: null,
@@ -94,9 +97,24 @@ const TABLE: Record<Status, Record<LifecycleAction, Status | null>> = {
     dismiss: null,
     resolve: 'resolved',
     acknowledge: 'escalated',
+    open: null,
   },
-  resolved: { assess: null, escalate: null, dismiss: null, resolve: null, acknowledge: null },
-  dismissed: { assess: null, escalate: null, dismiss: null, resolve: null, acknowledge: null },
+  resolved: {
+    assess: null,
+    escalate: null,
+    dismiss: null,
+    resolve: null,
+    acknowledge: null,
+    open: null,
+  },
+  dismissed: {
+    assess: null,
+    escalate: null,
+    dismiss: null,
+    resolve: null,
+    acknowledge: null,
+    open: null,
+  },
 }
 
 describe('transition table', () => {
@@ -834,13 +852,45 @@ describe('the study run’s table (S8, #180 item 2, ruled)', () => {
     expect(() => transition('new', 'escalate')).toThrow(/illegal lifecycle transition/)
   })
 
-  it('moves nothing else', () => {
-    // Only that one cell differs, so the run and the demo read the same everywhere else — the
-    // terminal pair, Resolve, the acknowledge self-transitions.
+  it('opens an untouched track into Assessing in a run, and nowhere else (S8-ii, amendment item 1)', () => {
+    // The first open of an untouched track marks it at the click; the demo's select marks
+    // nothing, and its table has no cell for `open` (item 8).
+    expect(canAct('new', 'open', true)).toBe(true)
+    expect(transition('new', 'open', true)).toBe('assessing')
     for (const status of STATUSES) {
-      for (const action of ['assess', 'escalate', 'dismiss', 'resolve', 'acknowledge'] as const) {
-        if (status === 'new' && action === 'escalate') continue
+      if (status !== 'new') expect(canAct(status, 'open', true)).toBe(false)
+      expect(canAct(status, 'open')).toBe(false)
+    }
+    expect(() => transition('new', 'open')).toThrow(/illegal lifecycle transition/)
+  })
+
+  it('carries an acknowledged New track in a run, so the mark stays the open’s alone (item 5)', () => {
+    // The brief's legend says the ring means a track the subject has opened; a card answered
+    // from the stack is not a look, so it writes its line with the status carried. The demo
+    // keeps #101's claim.
+    expect(transition('new', 'acknowledge', true)).toBe('new')
+    expect(transition('new', 'acknowledge')).toBe('assessing')
+    expect(mark(transition('new', 'acknowledge', true))).toBeNull()
+  })
+
+  it('moves nothing else', () => {
+    // Only those three cells of the New row differ, so the run and the demo read the same
+    // everywhere else — the terminal pair, Resolve, the acknowledge self-transitions.
+    for (const status of STATUSES) {
+      for (const action of [
+        'assess',
+        'escalate',
+        'dismiss',
+        'resolve',
+        'acknowledge',
+        'open',
+      ] as const) {
+        if (status === 'new' && (action === 'escalate' || action === 'open')) continue
         expect(canAct(status, action, true)).toBe(canAct(status, action))
+        if (status === 'new' && action === 'acknowledge') continue
+        if (canAct(status, action)) {
+          expect(transition(status, action, true)).toBe(transition(status, action))
+        }
       }
     }
   })

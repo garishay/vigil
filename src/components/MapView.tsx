@@ -3,11 +3,18 @@ import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
-import { GLYPHS, GLYPH_BOX, MARKS, glyphImage, reachAlong } from './glyphs'
+import { GLYPHS, GLYPH_BOX, GLYPH_PX, MARKS, glyphImage, reachAlong } from './glyphs'
 import { IdentityLegend } from './IdentityDot'
 import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao'
 import { bearingDegrees, circlePolygon } from '../lib/geo'
-import { BAND_COLOR, formatEntryClock, trackIdent, trackShape, type WarmBand } from '../lib/display'
+import {
+  MARK_RING,
+  BAND_COLOR,
+  formatEntryClock,
+  trackIdent,
+  trackShape,
+  type WarmBand,
+} from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
 import type { Mark } from '../lib/lifecycle'
 import type { Mode } from '../lib/session'
@@ -33,8 +40,6 @@ const INJECT_SOURCE = 'inject-tracks'
  * other track's halo is zero — so #186's R2 still governs how a drone is drawn.
  */
 
-/** The assessed ring's ink — the muted text tone, in both conditions. */
-const MARK_COLOR = '#94a3b8'
 /** What a hollowed marker's fill becomes: the map's own ground, so the shape reads as an outline. */
 const HOLLOW_FILL = '#0b1220'
 /** True where a track is handled, for the paint expressions that hollow it. */
@@ -50,12 +55,7 @@ const TRAIL_SOURCE = 'selected-trail'
 const PROJECTION_SOURCE = 'selected-projection'
 /** Where the projected path meets the ring (S10): the arrowhead and the entry reading. */
 const ENTRY_SOURCE = 'selected-entry'
-/**
- * The glyphs' box on screen, pixels (S9, #181): one visual weight across the three shapes — the
- * plain dot is 13 px across with its stroke, and a silhouette needs a wider box to carry the
- * same ink — rasterised at twice the ratio so the edge stays crisp on a dense display.
- */
-const GLYPH_PX = 22
+/** The glyphs rasterised at twice the ratio, so the edge stays crisp on a dense display (S9). */
 const GLYPH_RATIO = 2
 /**
  * The two marks' box on screen, pixels (S10, #182): the heading tick is the box's height — one
@@ -634,11 +634,11 @@ export function MapView({
         // Assessed alone: the faint ring the ruling kept. Handled is never a ring (R1).
         filter: ['==', ['get', 'mark'], 'assessed'],
         paint: {
-          'circle-radius': 9,
+          'circle-radius': MARK_RING.radiusPx,
           'circle-opacity': 0,
-          'circle-stroke-width': 1.25,
-          'circle-stroke-color': MARK_COLOR,
-          'circle-stroke-opacity': 0.42,
+          'circle-stroke-width': MARK_RING.widthPx,
+          'circle-stroke-color': MARK_RING.color,
+          'circle-stroke-opacity': MARK_RING.opacity,
         },
       })
       // The breadcrumb trail (06b) sits under the injects and the ring: where the selected
@@ -777,11 +777,11 @@ export function MapView({
         // Assessed alone: the faint ring the ruling kept. Handled is never a ring (R1).
         filter: ['==', ['get', 'mark'], 'assessed'],
         paint: {
-          'circle-radius': 9,
+          'circle-radius': MARK_RING.radiusPx,
           'circle-opacity': 0,
-          'circle-stroke-width': 1.25,
-          'circle-stroke-color': MARK_COLOR,
-          'circle-stroke-opacity': 0.42,
+          'circle-stroke-width': MARK_RING.widthPx,
+          'circle-stroke-color': MARK_RING.color,
+          'circle-stroke-opacity': MARK_RING.opacity,
         },
       })
       // Raw mode's labels for the injects (S4a), above their dots, hidden until raw.

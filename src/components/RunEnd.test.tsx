@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { RunEnd } from './RunEnd'
+import css from '../App.css?raw'
 import { QUESTIONS, WORKLOAD_SCALE } from '../config/study'
 import type { RunAnswers } from '../lib/run'
 
@@ -38,6 +39,48 @@ const order = () =>
     )
     .filter((what) => what !== 'question')
 
+describe('the three questions (S8, #180 item 5; ruled R3)', () => {
+  it('asks each as a full question with its ends said in the scale’s own numbers, the ids and the 1–10 scale unchanged', () => {
+    render(<RunEnd {...props({ json: null, saved: false, answers: {} })} />)
+    // The question is the group's own name: a subject hears the question, not a heading.
+    expect(screen.getByRole('group', { name: 'How mentally demanding was the task?' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'How hurried or rushed was the pace?' })).toBeTruthy()
+    const confidence = screen.getByRole('group', {
+      name: 'How confident are you that you escalated the right tracks?',
+    })
+    // The ends, in the scale's own numbers — what 1 means and what 10 means.
+    expect([...document.querySelectorAll('.run__end')].map((end) => end.textContent)).toEqual([
+      '1 = very low',
+      '10 = very high',
+      '1 = very low',
+      '10 = very high',
+      '1 = not at all',
+      '10 = extremely',
+    ])
+    // Ten choices a question, named by their number, under the question's own id.
+    const radios = within(confidence).getAllByRole('radio')
+    expect(radios.map((radio) => radio.getAttribute('value'))).toEqual(
+      Array.from({ length: 10 }, (_, i) => String(i + 1)),
+    )
+    expect(radios.every((radio) => radio.getAttribute('name') === 'run-confidence')).toBe(true)
+    expect(QUESTIONS.map((question) => question.id)).toEqual(['demand', 'pressure', 'confidence'])
+    expect(WORKLOAD_SCALE).toEqual({ min: 1, max: 10 })
+  })
+
+  it('draws each answer row as one line by construction (ruled R3) — the shape, since the stylesheet is not applied here', () => {
+    // A jsdom test cannot measure a wrap, so this pins the rules that make wrapping impossible;
+    // the row's fit at the card's width is measured headless in the PR. Disclosed as pinning
+    // the shape, not the fit.
+    const rule = (selector: string) => {
+      const start = css.indexOf(`${selector} {`)
+      return start === -1 ? '' : css.slice(start, css.indexOf('}', start))
+    }
+    expect(rule('.run__answer')).toMatch(/white-space:\s*nowrap/)
+    expect(rule('.run__scale')).toMatch(/flex-wrap:\s*nowrap/)
+    expect(rule('.run__card')).toMatch(/width:\s*min\(52rem, 100%\)/)
+  })
+})
+
 describe('the end screen’s hierarchy (S6a-iii, #165, ruled R1)', () => {
   it('reads saved line, then the one way on, then the backups as an optional row', () => {
     render(<RunEnd {...props()} />)
@@ -60,7 +103,13 @@ describe('the end screen’s hierarchy (S6a-iii, #165, ruled R1)', () => {
     render(<RunEnd {...props()} />)
     const card = document.querySelector('.run__card') as HTMLElement
     expect(card.querySelector('svg')).toBeNull()
-    expect(card.textContent).not.toMatch(/escalat|threat|look|km|missed/i)
+    // Read around the questions: the confidence question names escalating in its ruled wording
+    // (S8, item 5), which is a question about the run, not a read-back of it.
+    const outsideTheQuestions = [...card.children]
+      .filter((node) => !node.classList.contains('run__question'))
+      .map((node) => node.textContent)
+      .join('')
+    expect(outsideTheQuestions).not.toMatch(/escalat|threat|look|km|missed/i)
   })
 
   it('is the questions and one hint before the answers — no backups, no way on', () => {

@@ -33,6 +33,13 @@ export type Part =
 export const GLYPH_BOX = 24
 const C = GLYPH_BOX / 2
 
+/**
+ * The glyphs' box on screen, pixels (S9, #181): one visual weight across the three shapes — the
+ * plain dot is 13 px across with its stroke, and a silhouette needs a wider box to carry the
+ * same ink. The map rasterises at it; the legend scales a mark drawn in map pixels by it.
+ */
+export const GLYPH_PX = 22
+
 /** A bar between two points, `w` wide — a quadcopter's arm, bridging the body to a rotor. */
 function bar(from: readonly [number, number], to: readonly [number, number], w: number): Part {
   const len = Math.hypot(to[0] - from[0], to[1] - from[1])

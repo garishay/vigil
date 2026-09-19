@@ -54,6 +54,13 @@ export type WarmBand = Exclude<Band, 'calm'>
  */
 export const BAND_COLOR: Record<WarmBand, string> = { caution: '#f5b942', warning: '#ff6b57' }
 
+/**
+ * The assessed ring (S8, #180 item 3, ruled R1): the faint ring about a track the subject has
+ * opened — the muted tone, in both conditions — in the pixels the map draws it at. One literal,
+ * so the map's layer and the brief's legend (S8-ii) draw the same ring and cannot drift.
+ */
+export const MARK_RING = { color: '#94a3b8', radiusPx: 9, widthPx: 1.25, opacity: 0.42 } as const
+
 /** Range to the protected site's center, km to one decimal (§7). */
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
 
@@ -346,6 +353,8 @@ export function describeEvent(
     }
     case 'assess':
       return 'Assessing — claimed'
+    case 'open':
+      return 'Opened'
     case 'acknowledge':
       return 'Acknowledged'
     case 'escalate':

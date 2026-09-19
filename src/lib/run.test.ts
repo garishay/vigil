@@ -42,7 +42,7 @@ const at = '2026-09-16T01:12:04.000Z'
 const opened = (id: string, tSec: number) => firstSeen(id, OBSERVED, at, tSec)
 const acted = (
   log: TrackEvent[],
-  action: 'assess' | 'escalate' | 'dismiss' | 'acknowledge' | 'resolve',
+  action: 'assess' | 'escalate' | 'dismiss' | 'acknowledge' | 'resolve' | 'open',
   tSec: number,
 ) =>
   appendEvent(log, action, {
@@ -51,6 +51,8 @@ const acted = (
     observed: OBSERVED,
     recipient: 'phl-tower',
     disposition: 'benign',
+    // `open` is a study run's own action; the rest read the same off either table.
+    run: action === 'open',
   })
 
 const session = (mode: 'raw' | 'vigil'): SessionConfig => ({
@@ -110,6 +112,16 @@ describe('runEvents (S4b, #137, ruled A5, A6)', () => {
       END,
     )
     expect(events.map((event) => event.type)).toEqual(['select', 'assess'])
+  })
+
+  it('writes a first open as its select and nothing else — the select is the record (S8-ii, amendment item 4)', () => {
+    // Opening an untouched track moves it to Assessing on the record, and the run JSON's shape
+    // does not move for it: no `open` type, no `assess` written on its behalf.
+    const log = acted(opened('inject-11', BEGIN), 'open', BEGIN + 14)
+    expect(log.at(-1)).toMatchObject({ action: 'open', from: 'new', to: 'assessing' })
+    expect(
+      runEvents({ 'inject-11': log }, [{ tSec: BEGIN + 14, trackId: 'inject-11' }], BEGIN, END),
+    ).toEqual([{ t: 14, type: 'select', track: 'inject-11' }])
   })
 
   it('leaves out what is not the run’s: observations, a Resolve, and anything outside the window', () => {
