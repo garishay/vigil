@@ -62,19 +62,26 @@ export function AlertStack({
   // The shared line names the earliest record any disabled card is behind — the first moment
   // one of them becomes actionable — and each disabled button is described by its own.
   const frontier = rewound ? Math.min(...behind.map((alert) => frontierOf(alert.trackId))) : tSec
-  // A cleared card leaves under the finger: a keyboard operator lands on the card that took its
-  // place — the one below, or the last — never on body, the drawer's own rule for its buttons.
-  // A pointer clear leaves focus where the pointer put it (#54's gate), and a clear that empties
-  // the stack is the shell's to land, on the list.
+  // A cleared card leaves under the finger: a keyboard operator lands on the nearest face still
+  // enabled — the one that took its place first, then below, then above — never on a disabled
+  // one, whose focus() is a no-op, and never on body, the drawer's own rule for its buttons. A
+  // pointer clear leaves focus where the pointer put it (#54's gate), and a clear that leaves no
+  // face enabled is the shell's to land, on the list. The × was pressed here, so the stack owns
+  // this landing: the drawer's rescue for its own buttons runs first by tree order when the ×
+  // moved the open track's status, and this effect lands over it rather than yielding to it
+  // (#204 round 1).
   const listRef = useRef<HTMLOListElement>(null)
   const landRef = useRef<number | null>(null)
   useEffect(() => {
     const index = landRef.current
     if (index === null) return
     landRef.current = null
-    if (document.activeElement !== document.body) return
-    const opens = listRef.current?.querySelectorAll<HTMLButtonElement>('.alert__open') ?? []
-    opens[Math.min(index, opens.length - 1)]?.focus?.()
+    const faces = [...(listRef.current?.querySelectorAll<HTMLButtonElement>('.alert__open') ?? [])]
+    const nearest = faces
+      .map((face, at) => ({ face, at }))
+      .filter(({ face }) => !face.disabled)
+      .sort((a, b) => Math.abs(a.at - index) - Math.abs(b.at - index) || b.at - a.at)[0]
+    nearest?.face.focus?.()
   }, [alerts])
   return (
     <section className="alerts" aria-label="Alerts">

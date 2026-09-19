@@ -669,7 +669,9 @@ export default function App({
   // pair and in a run the open marks the track as any open does; the demo's lifecycle reads the
   // line as #101 ruled. Focus lands where a selection from the list lands it — the row under
   // the keyboard, the list under a pointer (#54). The quiet clear writes the line alone and
-  // moves nothing; the one that empties the stack lands focus on the list rather than body.
+  // moves nothing; one that leaves no card the stack can land on — none, or none enabled at
+  // this clock — lands focus on the list rather than body (#204 round 1).
+  const frontierOf = (trackId: string) => eventLogs[trackId]?.at(-1)?.tSec ?? tSec
   const openCard = (trackId: string, keyboard: boolean) => {
     if (!acknowledge(trackId)) return
     select(trackId)
@@ -677,7 +679,8 @@ export default function App({
   }
   const clearCard = (trackId: string) => {
     if (!acknowledge(trackId)) return
-    if (clearFor(alerts, trackId).length === 0) {
+    const left = clearFor(alerts, trackId)
+    if (!left.some((card) => tSec >= frontierOf(card.trackId))) {
       setLanding((current) => ({ n: current.n + 1, row: false }))
     }
   }
@@ -1209,7 +1212,7 @@ export default function App({
               }}
               clock={clock}
               tSec={tSec}
-              frontierOf={(id) => eventLogs[id]?.at(-1)?.tSec ?? tSec}
+              frontierOf={frontierOf}
               onOpen={openCard}
               onClear={clearCard}
             />

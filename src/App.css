@@ -98,8 +98,7 @@
   align-items: center;
 }
 
-.playback__toggle,
-.alert__ack {
+.playback__toggle {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);

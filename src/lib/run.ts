@@ -59,23 +59,17 @@ const EVENT_TYPE: Partial<Record<TrackEvent['action'], RunEventType>> = {
 }
 
 /**
- * At a tie on `t`: an answered card precedes the selection its Open made — the card was
- * answered, then the track opened (S8b, #202, item 2) — a selection precedes an action a
- * subject took on the track just opened, and the rest keep the record's order.
- */
-const TIE: Record<RunEventType, number> = {
-  alert_ack: 0,
-  select: 1,
-  assess: 2,
-  escalate: 2,
-  dismiss: 2,
-}
-
-/**
  * The run's events, from the record and the selections: each selection as `select`, each
- * lifecycle action under the contract's name, `t` counted from Begin, sorted by `t` and then
- * by `TIE`, stably. An entry outside the window is not the run's: a first-seen stamped at
- * Begin before the overlay lifted, an action the shell refused after the end.
+ * lifecycle action under the contract's name, `t` counted from Begin, sorted by `t` — a stable
+ * sort with the selections listed first, so at a tie the opening precedes the action a subject
+ * took on the track just opened, and the rest keep the record's order. One pair is then set
+ * right: an alert card's Open writes the acknowledge line and then the select, on one track at
+ * one second (S8b, #202, item 2), and the line moves ahead of that select — the nearest
+ * selection of the same track at the same second — so the JSON reads the pair as it happened.
+ * Nothing else moves: a card answered at the second another row was opened keeps its place
+ * behind that row's select (#204 round 1). An entry outside the window is not the run's: a
+ * first-seen stamped at Begin before the overlay lifted, an action the shell refused after the
+ * end.
  */
 export function runEvents(
   logs: Readonly<Record<string, readonly TrackEvent[]>>,
@@ -95,7 +89,21 @@ export function runEvents(
       }
     }
   }
-  return events.sort((a, b) => a.t - b.t || TIE[a.type] - TIE[b.type])
+  const ordered = events.sort((a, b) => a.t - b.t)
+  for (let i = 0; i < ordered.length; i++) {
+    const line = ordered[i]
+    if (line.type !== 'alert_ack') continue
+    let j = i - 1
+    while (j >= 0 && ordered[j].t === line.t) {
+      if (ordered[j].type === 'select' && ordered[j].track === line.track) {
+        ordered.splice(i, 1)
+        ordered.splice(j, 0, line)
+        break
+      }
+      j--
+    }
+  }
+  return ordered
 }
 
 export interface RunInput {

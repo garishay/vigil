@@ -252,7 +252,16 @@ describe('Queue', () => {
   })
 
   it('lands a request from the shell on the selected row under the keyboard, on the list under a pointer, once per request (S8b, #202)', () => {
+    // Mounted with the shell's counter at rest; the request arrives while the list is up.
     const { rerender } = render(
+      <Queue
+        ranked={RANKED}
+        selectedId="inject-01"
+        landing={{ n: 0, row: false }}
+        onSelect={vi.fn()}
+      />,
+    )
+    rerender(
       <Queue
         ranked={RANKED}
         selectedId="inject-01"

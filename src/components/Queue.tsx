@@ -64,8 +64,10 @@ export function Queue({
   /**
    * A landing request from the shell (S8b, #202): an alert card's Open lands focus where a
    * selection from the list lands it — the selected row under the keyboard, the list under a
-   * pointer (#54) — and a clear that empties the stack lands on the list. Counted, so each
-   * request lands once and a later selection moves nothing.
+   * pointer (#54) — and a clear that leaves no card to land on lands on the list. Counted, so
+   * each request lands once and a later selection moves nothing; a request made while the list
+   * was not mounted — the demo's Sites surface — is dropped, not kept for the next mount, which
+   * would steal focus from the tab that brought the list back (#204 round 1).
    */
   landing?: { n: number; row: boolean }
   /**
@@ -130,7 +132,7 @@ export function Queue({
     ;(row ?? listRef.current)?.focus?.()
   }, [selectedId, restoreFocus])
 
-  const landedRef = useRef(0)
+  const landedRef = useRef(landing?.n ?? 0)
   useEffect(() => {
     if (!landing || landing.n === landedRef.current) return
     landedRef.current = landing.n
