@@ -2,7 +2,8 @@ import { BANDS, BAND_LABEL } from '../config/scoring'
 import { GLYPHS, GLYPH_BOX, GLYPH_PX, polygonPoints, type Part } from './glyphs'
 import {
   BAND_COLOR,
-  MARK_RING,
+  NEUTRAL_INK,
+  OPENED_GREY,
   SHAPES,
   SHAPE_LABEL,
   type TrackShape,
@@ -82,19 +83,47 @@ const DOT_STROKE = 2 * UNITS_PER_PX
 /**
  * The map's shape as inline SVG (S9, #181): the same parts the map rasterises, so the key and
  * the marker cannot drift; the dot is the circle the map draws. Decorative, as the dots are, and
- * the brief's legend draws with it too (S8), with the subject's own mark on the dot (S8-ii,
- * ruled R1): **assessed** is the faint ring about it, in the map's own pixels scaled to the
- * box; **handled** is the dot drawn hollow at its own size — the fill gone, the stroke kept.
+ * the brief's legend draws with it too (S8), with the subject's own mark on the dot as a study
+ * run paints it (S8-ii, R1; S9b, ruled A): **opened** is the dot in the run's grey — the marker
+ * itself, not a ring — and **handled** the dot drawn hollow at its own size, the fill gone, the
+ * stroke kept; **warning** is Vigil's one colour on it.
  */
-export function ShapeGlyph({ shape, mark }: { shape: TrackShape; mark?: Mark }) {
+export function ShapeGlyph({
+  shape,
+  mark,
+  warning = false,
+  run = false,
+}: {
+  shape: TrackShape
+  mark?: Mark
+  /** Vigil's one colour in a run (S9b): the marker at warning, drawn in the warning colour. */
+  warning?: boolean
+  /**
+   * The brief's legend (S9b): every glyph takes the run's own ink — the neutral the map paints
+   * an untouched or handled marker in, so the step to the opened grey is the map's (#201 round
+   * 1). The map's own legend, the demo's, keeps the muted tone of its text.
+   */
+  run?: boolean
+}) {
   const c = GLYPH_BOX / 2
+  // The marker as the run paints it (S9b, ruled A): red at warning, the grey once opened, the
+  // neutral otherwise.
+  const ink = warning
+    ? BAND_COLOR.warning
+    : mark === 'assessed'
+      ? OPENED_GREY
+      : run
+        ? NEUTRAL_INK
+        : undefined
   return (
     <svg
       className="shape-glyph"
       viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`}
       data-shape={shape}
       data-mark={mark}
+      data-warning={warning || undefined}
       aria-hidden="true"
+      style={ink ? { color: ink } : undefined}
     >
       {shape !== 'dot' ? (
         GLYPHS[shape].map((part, i) => <GlyphPart key={i} part={part} />)
@@ -109,21 +138,6 @@ export function ShapeGlyph({ shape, mark }: { shape: TrackShape; mark?: Mark }) 
         />
       ) : (
         <circle cx={c} cy={c} r={DOT_R} />
-      )}
-      {mark === 'assessed' && (
-        <circle
-          cx={c}
-          cy={c}
-          // The map paints `circle-stroke-width` outside `circle-radius`, so the ring's
-          // mid-stroke sits half a stroke out from `radiusPx`; an SVG stroke straddles its
-          // path, so the radius carries that half here — the dot's own hollowing does the
-          // same, and the legend keeps the marker's outer edge.
-          r={(MARK_RING.radiusPx + MARK_RING.widthPx / 2) * UNITS_PER_PX}
-          fill="none"
-          stroke={MARK_RING.color}
-          strokeWidth={MARK_RING.widthPx * UNITS_PER_PX}
-          strokeOpacity={MARK_RING.opacity}
-        />
       )}
     </svg>
   )

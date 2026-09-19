@@ -313,6 +313,30 @@ describe('the folds say what they mean (#147 round 2)', () => {
     )
   })
 
+  it('holds a track already at warning on its first scored tick in the red set — a planted copy of 02a’s threat appearing at Begin + 5 (S9b R1; #201 round 1)', () => {
+    // The fold read a crossing against the previous tick's band, so a track whose first scored
+    // tick inside the window is warning — appearing after Begin, or returning to the picture —
+    // was in neither the set at Begin nor the crossings, and the R1 pin never saw it. 02a's own
+    // threat is that case unplanted: it appears at Begin + 1 already at warning.
+    const planted = {
+      name: 'planted',
+      config: { ...base, cast: [...rows, { ...rows[0], startS: STUDY.beginS + 5 }] },
+    }
+    const { warning } = runStudy(planted, empty)
+    const plantedId = `inject-${11 + rows.length}`
+    const red = new Set([...warning.atBegin, ...warning.crossings.map((c) => c.id)])
+    expect(red.has(plantedId)).toBe(true)
+    expect(warning.crossings.find((c) => c.id === plantedId)).toMatchObject({
+      tSec: STUDY.beginS + 5,
+      into: true,
+    })
+    expect(red.has('inject-11')).toBe(true)
+    expect(warning.crossings.find((c) => c.id === 'inject-11')).toMatchObject({
+      tSec: STUDY.beginS + 1,
+      into: true,
+    })
+  })
+
   it('prints the seconds to entry rounded and judges the rounded number — the page never contradicts itself', () => {
     const at = (toEntryS: number) =>
       renderStudy({ ...results['02a'], threat: { ...results['02a'].threat, toEntryS } })
@@ -403,6 +427,28 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
       expect(tangential.ticks.misses + tangential.ticks.away).toBe(results[name].runS + 1)
       expect(tangential.minMissM!).toBeGreaterThanOrEqual(c.baitMissM)
       expect(Math.round(tangential.minMissM!)).toBe(1052)
+    }
+  })
+
+  it('what goes red and when (S9b, #199, ruled R1): the two threats at Begin, only threats and band rows ever at warning inside the window, nothing crossing out, and the real layer never', () => {
+    // The read-out the S9b gate made from the same seams, held so a scenario or scoring edit that
+    // paints anything else red fails the build: 03a's band rows cross at Begin + 128, 130, 157
+    // and 189; 03b's at 129, 129, 157 and 190; the real layer's highest composite is 30.
+    for (const name of pair) {
+      const { warning, config } = results[name]
+      const roles = STUDY_CAST[name]
+      expect([...warning.atBegin].sort()).toEqual([...roles.threats].sort())
+      const red = new Set([...roles.threats, ...(roles.band ?? [])])
+      for (const crossing of warning.crossings) {
+        expect(red.has(crossing.id), `${name}: ${crossing.id} at ${crossing.tSec}`).toBe(true)
+        expect(crossing.into, `${name}: ${crossing.id} left warning at ${crossing.tSec}`).toBe(true)
+      }
+      expect(warning.crossings.map((c) => c.id).sort()).toEqual([...(roles.band ?? [])].sort())
+      expect(warning.crossings.map((c) => c.tSec - config.beginS)).toEqual(
+        name === '03a' ? [128, 130, 157, 189] : [129, 129, 157, 190],
+      )
+      expect(warning.realLayerMax).toBeLessThan(SCORING.bands.warning)
+      expect(Math.round(warning.realLayerMax)).toBe(30)
     }
   })
 
