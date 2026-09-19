@@ -22,7 +22,7 @@ import { SCENARIOS, scenarioNamed } from '../src/config/scenarios.ts'
 import { SCENARIO_03A } from '../src/config/scenarios/03a.ts'
 import { at, shuttle, silentAt } from '../src/config/scenarios/cast.ts'
 import { SCORING } from '../src/config/scoring.ts'
-import { BRIEF, STUDY, briefFor, runLengthWords } from '../src/config/study.ts'
+import { STUDY, briefBlocks, runLengthWords } from '../src/config/study.ts'
 import { indexCapture } from '../src/lib/replay.ts'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -92,17 +92,16 @@ describe('the study config (A8)', () => {
   })
 
   it('writes the brief’s last sentence from the run’s length, to the half minute in words — 02’s byte for byte (S7, #152, ruled D4)', () => {
-    expect(BRIEF).toBe(briefFor(STUDY.runS))
-    expect(BRIEF).toBe(
-      'You are the airspace security operator for PHL. The ring is the protected boundary. Escalate any track you believe needs a response before it reaches the ring. Escalating dispatches a response team - do not escalate tracks you do not believe are a threat. You can open any track. The run lasts six minutes.',
+    // The brief's clock line (S8-ii): the run's length first, then the same words whatever it is.
+    const clockLine = (runS: number) => briefBlocks(runS)[0].lines[0].text
+    expect(clockLine(STUDY.runS)).toBe(
+      'Six minutes. The clock starts when you press Begin and cannot be paused.',
     )
-    expect(briefFor(218)).toMatch(/ The run lasts about three and a half minutes\.$/)
-    expect(briefFor(179)).toMatch(/ The run lasts about three minutes\.$/)
-    // The lead is the parent's text whatever the length; only the last sentence moves.
-    const lead = BRIEF.replace(/ The run lasts six minutes\.$/, '')
-    expect(lead.endsWith('You can open any track.')).toBe(true)
-    expect(briefFor(218).startsWith(lead)).toBe(true)
-    expect(briefFor(179).startsWith(lead)).toBe(true)
+    expect(clockLine(218)).toMatch(/^About three and a half minutes\. /)
+    expect(clockLine(179)).toMatch(/^About three minutes\. /)
+    const rest = (line: string) => line.slice(line.indexOf('. '))
+    expect(rest(clockLine(218))).toBe(rest(clockLine(STUDY.runS)))
+    expect(rest(clockLine(179))).toBe(rest(clockLine(STUDY.runS)))
     expect(runLengthWords(360)).toBe('six minutes')
     expect(runLengthWords(180)).toBe('three minutes')
     expect(runLengthWords(179)).toBe('about three minutes')

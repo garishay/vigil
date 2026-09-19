@@ -38,7 +38,13 @@ export default defineConfig({
     // hold a MapLibre literal to its CSS token (#96), and the sheet page's so a test can read
     // its print rule rather than restate it (round 1 on #193, finding 1).
     css: {
-      include: [/\/src\/index\.css(\?|$)/, /\/src\/components\/SheetPage\.css(\?|$)/],
+      include: [
+        /\/src\/index\.css(\?|$)/,
+        /\/src\/components\/SheetPage\.css(\?|$)/,
+        // App.css as raw text only, so the end screen's no-wrap rule can be read rather than
+        // restated (S8-ii, ruled R3); the shell's own stylesheet import stays stubbed.
+        /\/src\/App\.css\?raw$/,
+      ],
     },
   },
 })

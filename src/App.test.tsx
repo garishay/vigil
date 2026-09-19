@@ -4,7 +4,7 @@ import App from './App'
 import { AO } from './config/ao'
 import { DEFAULT_RECORDING, recordingNamed, type RecordingEntry } from './config/recordings'
 import { SCENARIO } from './config/scenario'
-import { BRIEF, briefFor } from './config/study'
+import { BRIEF_GOAL, briefBlocks } from './config/study'
 import { SCENARIO_02A } from './config/scenarios/02a'
 import type { SessionState } from './data/useSession'
 import type { StudyRun } from './lib/session'
@@ -53,6 +53,7 @@ vi.mock('./components/MapView', () => ({
     projection = [],
     projectionEntryS = null,
     terminalIds = [],
+    marks = new Map<string, string>(),
     bands = new Map<string, string>(),
     mode = 'vigil',
     onSelect,
@@ -70,6 +71,7 @@ vi.mock('./components/MapView', () => ({
     projection?: readonly unknown[]
     projectionEntryS?: number | null
     terminalIds?: readonly string[]
+    marks?: ReadonlyMap<string, string>
     bands?: ReadonlyMap<string, string>
     mode?: string
     onSelect?: (id: string) => void
@@ -88,6 +90,7 @@ vi.mock('./components/MapView', () => ({
         data-projection={projection.length}
         data-entry={projectionEntryS ?? ''}
         data-terminal={[...terminalIds].join(',')}
+        data-marks={[...marks].map(([id, mark]) => `${id}:${mark}`).join(',')}
         data-bands={[...bands].map(([id, band]) => `${id}:${band}`).join(',')}
         data-sites={sites.map((site) => site.id).join(',')}
         data-selected-site={selectedSiteId ?? ''}
@@ -2244,9 +2247,9 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       }),
     )
   const answerAll = () => {
-    answer('Mental demand', '6')
-    answer('Time pressure', '7')
-    answer('Confidence in your decisions', '5')
+    answer('How mentally demanding was the task?', '6')
+    answer('How hurried or rushed was the pace?', '7')
+    answer('How confident are you that you escalated the right tracks?', '5')
   }
   const runJsonText = () =>
     (within(dialog()).getByLabelText('Run JSON') as HTMLTextAreaElement).value
@@ -2263,7 +2266,13 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
   it('opens on the brief — the run named, the text word for word, one button — with the clock held at Begin, one track count, and the shell inert', () => {
     const replay = start('raw')
     expect(dialog()).toHaveAccessibleName('Vigil · study run — subject S03 · run 1')
-    expect(within(dialog()).getByText(BRIEF)).toBeInTheDocument()
+    // The brief rebuilt for reading (S8-ii): the run's place, the goal, the clock line at the
+    // run's own length, and no Assess line; unaided, the Vigil-only block is withheld.
+    expect(within(dialog()).getByText('Run 1 of 2')).toBeInTheDocument()
+    expect(within(dialog()).getByText(BRIEF_GOAL)).toBeInTheDocument()
+    expect(within(dialog()).getByText(briefBlocks(360)[0].lines[0].text)).toBeInTheDocument()
+    expect(within(dialog()).queryByText('The priority list')).toBeNull()
+    expect(within(dialog()).queryByText(/Assess/)).toBeNull()
     expect(within(dialog()).getByRole('button', { name: 'Begin' })).toBeEnabled()
     // Held at Begin's tick: 001's 02:30:00 + 480 s, the elapsed time +00:00, no tick scheduled.
     expect(field('Sim clock')).toHaveTextContent('02:38:00')
@@ -2298,10 +2307,10 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     })
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => NOW} />)
-    expect(within(dialog()).getByText(briefFor(218))).toBeInTheDocument()
+    expect(within(dialog()).getByText(briefBlocks(218)[0].lines[0].text)).toBeInTheDocument()
     expect(
       within(dialog()).getByText(
-        /You can open any track. The run lasts about three and a half minutes.$/,
+        /^About three and a half minutes\. The clock starts when you press Begin/,
       ),
     ).toBeInTheDocument()
     begin()
@@ -2389,15 +2398,21 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     const id = screen.getByTestId('map').getAttribute('data-selected')
     expect(id).not.toBe('')
     const detail = () => screen.getByRole('complementary', { name: /Track review/ })
+    // The open marked the track (S8-ii, the amendment's item 1): the Status row reads Opened —
+    // the run's own word (#198 round 1) — and the drawer offers two actions, no Assess, no Resolve.
+    expect(within(detail()).getByText('Status').nextElementSibling).toHaveTextContent('Opened')
+    expect(
+      within(detail())
+        .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
+        .map((button) => button.textContent),
+    ).toEqual(['Escalate', 'Dismiss'])
     replay.tick(35)
-    // The detail closes on each action now (S8 item 3, ruled), so re-opening the track is a
-    // second look and the JSON records it as one — which is what a re-open is.
-    fireEvent.click(within(detail()).getByRole('button', { name: 'Assess' }))
+    fireEvent.click(within(detail()).getByRole('button', { name: 'Close review' }))
     expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
     replay.tick(9)
+    // A re-open is a second look, and the JSON records it as one; the record does not move.
     fireEvent.click(screen.getByTestId('map-select'))
-    expect(within(detail()).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
-    expect(within(detail()).queryByRole('button', { name: 'Resolve' })).toBeNull()
+    expect(within(detail()).getByText('Status').nextElementSibling).toHaveTextContent('Opened')
     // Escalate takes no picker and no confirm (item 2, ruled), and closes the detail with it.
     fireEvent.click(within(detail()).getByRole('button', { name: 'Escalate' }))
     expect(screen.queryByRole('button', { name: 'Confirm escalation' })).toBeNull()
@@ -2420,10 +2435,10 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(within(dialog()).queryByRole('button')).toBeNull()
     expect(within(dialog()).getByText('Answer all three to continue.')).toBeInTheDocument()
     expect(within(dialog()).queryByLabelText('Run JSON')).toBeNull()
-    answer('Mental demand', '6')
-    answer('Time pressure', '7')
+    answer('How mentally demanding was the task?', '6')
+    answer('How hurried or rushed was the pace?', '7')
     expect(within(dialog()).queryByRole('button', { name: 'Copy run' })).toBeNull()
-    answer('Confidence in your decisions', '5')
+    answer('How confident are you that you escalated the right tracks?', '5')
     // The backups appear with the rest, in their own row under the way on (ruled R1).
     expect(within(dialog()).getByRole('button', { name: 'Copy run' })).toBeEnabled()
     expect(within(dialog()).queryByText('Answer all three to continue.')).toBeNull()
@@ -2441,8 +2456,8 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       build: import.meta.env.VITE_BUILD,
       began_at: NOW,
       events: [
+        // The first open writes its select and nothing else (S8-ii, item 4).
         { t: 14, type: 'select', track: id },
-        { t: 49, type: 'assess', track: id },
         // The re-open after the detail closed is a second look, and the record says so (S8).
         { t: 58, type: 'select', track: id },
         { t: 58, type: 'escalate', track: id },
@@ -2469,10 +2484,10 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     begin()
     // The run opens on the list already (S8 item 1, ruled) — there is no tab to press.
     replay.tick(20)
-    // No layer chips in a run, the state chips kept; every badge a source word, never INJECT
-    // (#36 [38], ruled A).
+    // No chips in a run — the layer chips (#36 [38], ruled A) and the state chips (#198 round
+    // 1) — and every badge a source word, never INJECT.
     expect(screen.queryByRole('group', { name: 'Filter by layer' })).toBeNull()
-    expect(screen.getByRole('group', { name: 'Filter by state' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Filter by state' })).toBeNull()
     const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
     expect(screen.queryByText('INJECT')).toBeNull()
     for (const row of rows) {
@@ -2488,12 +2503,15 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       within(drawer)
         .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
         .map((button) => button.textContent),
-    ).toEqual(['Assess', 'Escalate', 'Dismiss'])
-    replay.tick(10)
-    // The detail closes on the action (S8 item 3, ruled) and the row wears the mark instead.
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Assess' }))
-    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
+    ).toEqual(['Escalate', 'Dismiss'])
+    // The open marked the row (S8-ii): the list row and the map agree with the Status row.
     expect(document.querySelector('.queue__row--assessed')).not.toBeNull()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-marks', `${id}:assessed`)
+    replay.tick(10)
+    // The detail closes on the action (S8 item 3, ruled) and the row wears the handled mark.
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
+    expect(document.querySelector('.queue__row--handled')).not.toBeNull()
     replay.tick(330)
     expect(dialog()).toHaveAccessibleName('Run complete — subject S03 · run 1 · +06:00')
     // Refused after the end: a click on the row logs nothing and opens nothing.
@@ -2506,10 +2524,52 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       mode: 'vigil',
       events: [
         { t: 20, type: 'select', track: id },
-        { t: 30, type: 'assess', track: id },
+        { t: 30, type: 'dismiss', track: id },
       ],
     })
     expect(localStorage.getItem(STORE_KEY)).not.toBeNull()
+  })
+
+  it('in Vigil: acknowledging a card marks nothing — the ring is the open’s alone (S8-ii, item 5)', () => {
+    // A card answered from the stack is not a look: the track stays New with no mark, the
+    // card clears, and the JSON carries the alert_ack as before. Opening it afterwards marks it.
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockImplementation(() => Promise.resolve())
+    const replay = start('vigil')
+    begin()
+    const cards = () =>
+      within(screen.getByRole('region', { name: 'Alerts' })).queryAllByRole('listitem')
+    // UAS-CD84 crosses into warning at 02:38:58 — Begin + 58 on this recording — and raises.
+    let t = 0
+    while (cards().length === 0 && t < 120) {
+      replay.tick()
+      t += 1
+    }
+    const card = cards()[0]
+    const ident = card.querySelector('.alert__ident')?.textContent as string
+    fireEvent.click(within(card).getByRole('button', { name: 'Acknowledge' }))
+    expect(cards()).toHaveLength(0)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-marks', '')
+    const row = [...document.querySelectorAll('.queue__row')].find((node) =>
+      node.textContent?.includes(ident),
+    ) as HTMLElement
+    expect(row).not.toHaveClass('queue__row--assessed')
+    expect(within(row).queryByText('Opened')).toBeNull()
+    const id = row.getAttribute('data-id') as string
+    // Opening it afterwards is the look that marks it.
+    replay.tick(5)
+    fireEvent.click(within(row).getByRole('button'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-marks', `${id}:assessed`)
+    replay.tick(360 - t - 5)
+    answerAll()
+    expect(JSON.parse(runJsonText())).toMatchObject({
+      events: [
+        { t, type: 'alert_ack', track: id },
+        { t: t + 5, type: 'select', track: id },
+      ],
+    })
+    play.mockRestore()
   })
 
   it('mounts none of it in the demo, in either mode (ruled A8)', () => {
@@ -2578,9 +2638,9 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
       }),
     )
   const answerAll = () => {
-    answer('Mental demand', '6')
-    answer('Time pressure', '7')
-    answer('Confidence in your decisions', '5')
+    answer('How mentally demanding was the task?', '6')
+    answer('How hurried or rushed was the pace?', '7')
+    answer('How confident are you that you escalated the right tracks?', '5')
   }
   /** A run as the store holds one — the fields the shell reads back. */
   const savedRun = (index: number) => ({
@@ -2609,11 +2669,11 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     const { replay } = open(paired('raw', 1))
     toTheEnd(replay)
     // Nothing is stored until the run is a run: two answers is not three.
-    answer('Mental demand', '6')
-    answer('Time pressure', '7')
+    answer('How mentally demanding was the task?', '6')
+    answer('How hurried or rushed was the pace?', '7')
     expect(localStorage.getItem('vigil.run.S03.1')).toBeNull()
     expect(within(dialog()).queryByText(/is saved in this browser/)).toBeNull()
-    answer('Confidence in your decisions', '5')
+    answer('How confident are you that you escalated the right tracks?', '5')
     // What is stored is the run's own text — byte for byte what Copy run puts on the clipboard.
     const stored = localStorage.getItem('vigil.run.S03.1')
     expect(stored).toBe((within(dialog()).getByLabelText('Run JSON') as HTMLTextAreaElement).value)
@@ -2749,10 +2809,11 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
       screen.getByRole('heading', { name: 'Priority list — highest first' }),
     ).toBeInTheDocument()
     expect(document.querySelector('.queue__row')).not.toBeNull()
-    // Resolve is withheld here, so a chip filtering for Resolved names a state no one can reach.
-    const states = screen.getByRole('group', { name: 'Filter by state' })
-    expect(within(states).queryByRole('button', { name: 'Resolved' })).toBeNull()
-    expect(within(states).getByRole('button', { name: 'Dismissed' })).toBeInTheDocument()
+    // The state chips are withheld in a run (#198 round 1): the brief says the list ranks every
+    // track, and a held chip made that false — rows left the list under the cursor as opening
+    // moved them. The demo keeps them (pinned below).
+    expect(screen.queryByRole('group', { name: 'Filter by state' })).toBeNull()
+    expect(document.querySelectorAll('.chip')).toHaveLength(0)
     // The detail opens in place on selection, from the list.
     fireEvent.click(
       within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
@@ -2793,17 +2854,43 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     expect(document.querySelector('.queue__row--assessed')).toBeNull()
   })
 
-  it('wears the assessed mark where the subject only looked (item 3)', () => {
+  it('marks a track at its first open — the ring, the Status row and the list row agree — withholds Assess, and a re-open changes nothing (S8-ii, amendment items 1, 2 and 4)', () => {
     const { replay } = open(paired('vigil', 1))
     fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
     replay.tick(1)
-    fireEvent.click(
-      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
-    expect(document.querySelector('.queue__row--assessed')).not.toBeNull()
-    expect(document.querySelector('.queue__row--handled')).toBeNull()
-    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
+    const row = document.querySelector('.queue__row') as HTMLElement
+    const id = row.getAttribute('data-id') as string
+    fireEvent.click(within(row).getByRole('button'))
+    // At the click: no dwell, nothing appearing later. The map's mark, the row's class and the
+    // drawer's Status row all read the one status.
+    expect(screen.getByTestId('map')).toHaveAttribute('data-marks', `${id}:assessed`)
+    expect(row).toHaveClass('queue__row--assessed')
+    // The run's own word, Opened, on the row's tag and the Status row (#198 round 1).
+    expect(within(row).getByText('Opened')).toBeInTheDocument()
+    expect(within(row).queryByText('Assessing')).toBeNull()
+    const detail = screen.getByRole('complementary', { name: /Track review/ })
+    expect(within(detail).getByText('Status').nextElementSibling).toHaveTextContent('Opened')
+    // The Assess button is withheld (item 2); the two that stay are live in one click.
+    expect(within(detail).queryByRole('button', { name: 'Assess' })).toBeNull()
+    expect(within(detail).getByRole('button', { name: 'Escalate' })).toBeEnabled()
+    expect(within(detail).getByRole('button', { name: 'Dismiss' })).toBeEnabled()
+    // A re-open is a second look on the record, and nothing else moves.
+    fireEvent.click(within(detail).getByRole('button', { name: 'Close review' }))
+    replay.tick(4)
+    fireEvent.click(within(row).getByRole('button'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-marks', `${id}:assessed`)
+    expect(document.querySelectorAll('.queue__row--assessed')).toHaveLength(1)
+    // The run JSON's shape does not move (item 4): a first open writes its select and nothing
+    // else, and the re-open is one more select.
+    replay.tick(213)
+    answerAll()
+    const json = (within(dialog()).getByLabelText('Run JSON') as HTMLTextAreaElement).value
+    expect(JSON.parse(json)).toMatchObject({
+      events: [
+        { t: 1, type: 'select', track: id },
+        { t: 5, type: 'select', track: id },
+      ],
+    })
   })
 
   it('says Escalated and nothing after it when there is no recipient (round 1, 3)', () => {
@@ -2853,6 +2940,14 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
       within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
     )
     expect(screen.getByRole('button', { name: 'Escalate' })).toBeDisabled()
+    // A click marks nothing in the demo, where Assess is still a pressed button (S8-ii, item 8),
+    // and the word it enters is still Assessing (#198 round 1).
+    expect(screen.getByRole('button', { name: 'Assess' })).toBeEnabled()
+    expect(document.querySelector('.queue__row--assessed')).toBeNull()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-marks', '')
+    expect(document.querySelectorAll('.chip').length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
   })
 
   it('does not offer a run this browser already holds, however the session was run', () => {
