@@ -550,6 +550,100 @@
   line-height: 1.6;
 }
 
+/* The brief, rebuilt for reading (S8, #180 item 6): the run's place and the goal in large type,
+   then the blocks in two columns, so the whole fits one screen at 1280×720 with nothing
+   scrolling — at one column the last block and Begin fell below the fold. Wider than the other
+   overlays for the two columns. */
+.run__card--brief {
+  width: min(58rem, 100%);
+}
+
+.brief__place {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brief__goal {
+  margin: 0 0 1.25rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.brief {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 2.5rem;
+  margin: 0 0 1.5rem;
+}
+
+.brief__heading {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brief__lines {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.brief__line {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+/* The symbol column, one line tall so it sits on the text's first line: the map's own shape or
+   mark, the ring, or the action as its button. A line with none keeps the column, so its text
+   lines up with the legend's. */
+.brief__symbol {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  align-items: center;
+  min-width: 2rem;
+  height: 1.45rem;
+}
+
+.brief__symbol .shape-glyph {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--text);
+}
+
+/* The ring as the map draws it: the accent its RING_COLOR mirrors, 1.5 px at 0.7. */
+.brief__ring {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+/* An action drawn as its button, by the drawer's own rule, so the word on the brief is the word
+   on the screen; decorative, so never a button element. */
+.brief__button {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.15rem 0.6rem;
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .run__button {
   border: 1px solid var(--accent);
   border-radius: var(--radius);

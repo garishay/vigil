@@ -1,7 +1,15 @@
 import { BANDS, BAND_LABEL } from '../config/scoring'
-import { GLYPHS, GLYPH_BOX, polygonPoints, type Part } from './glyphs'
-import { BAND_COLOR, SHAPES, SHAPE_LABEL, type TrackShape, type WarmBand } from '../lib/display'
+import { GLYPHS, GLYPH_BOX, GLYPH_PX, polygonPoints, type Part } from './glyphs'
+import {
+  BAND_COLOR,
+  MARK_RING,
+  SHAPES,
+  SHAPE_LABEL,
+  type TrackShape,
+  type WarmBand,
+} from '../lib/display'
 import { IDENTITIES, IDENTITY_COLOR, IDENTITY_LABEL } from '../lib/identity'
+import type { Mark } from '../lib/lifecycle'
 import type { Identity } from '../lib/tracks'
 
 /**
@@ -64,24 +72,54 @@ function GlyphPart({ part }: { part: Part }) {
   }
 }
 
+/** Glyph units per map pixel: the 24-unit box is drawn at `GLYPH_PX` on the map. */
+const UNITS_PER_PX = GLYPH_BOX / GLYPH_PX
+/** The dot's outer radius in glyph units — the 13 px circle the map draws, stroke included. */
+const DOT_R = 6.5 * UNITS_PER_PX
+/** The dot's stroke, which a hollowed dot keeps: the map's 2 px. */
+const DOT_STROKE = 2 * UNITS_PER_PX
+
 /**
  * The map's shape as inline SVG (S9, #181): the same parts the map rasterises, so the key and
  * the marker cannot drift; the dot is the circle the map draws. Decorative, as the dots are, and
- * the brief's legend draws with it too (S8).
+ * the brief's legend draws with it too (S8), with the subject's own mark on the dot (S8-ii,
+ * ruled R1): **assessed** is the faint ring about it, in the map's own pixels scaled to the
+ * box; **handled** is the dot drawn hollow at its own size — the fill gone, the stroke kept.
  */
-export function ShapeGlyph({ shape }: { shape: TrackShape }) {
+export function ShapeGlyph({ shape, mark }: { shape: TrackShape; mark?: Mark }) {
   const c = GLYPH_BOX / 2
   return (
     <svg
       className="shape-glyph"
       viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`}
       data-shape={shape}
+      data-mark={mark}
       aria-hidden="true"
     >
-      {shape === 'dot' ? (
-        <circle cx={c} cy={c} r={7} />
-      ) : (
+      {shape !== 'dot' ? (
         GLYPHS[shape].map((part, i) => <GlyphPart key={i} part={part} />)
+      ) : mark === 'handled' ? (
+        <circle
+          cx={c}
+          cy={c}
+          r={DOT_R - DOT_STROKE / 2}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={DOT_STROKE}
+        />
+      ) : (
+        <circle cx={c} cy={c} r={DOT_R} />
+      )}
+      {mark === 'assessed' && (
+        <circle
+          cx={c}
+          cy={c}
+          r={MARK_RING.radiusPx * UNITS_PER_PX}
+          fill="none"
+          stroke={MARK_RING.color}
+          strokeWidth={MARK_RING.widthPx * UNITS_PER_PX}
+          strokeOpacity={MARK_RING.opacity}
+        />
       )}
     </svg>
   )

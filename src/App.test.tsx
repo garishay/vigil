@@ -4,7 +4,7 @@ import App from './App'
 import { AO } from './config/ao'
 import { DEFAULT_RECORDING, recordingNamed, type RecordingEntry } from './config/recordings'
 import { SCENARIO } from './config/scenario'
-import { BRIEF, briefFor } from './config/study'
+import { BRIEF_GOAL, briefBlocks } from './config/study'
 import { SCENARIO_02A } from './config/scenarios/02a'
 import type { SessionState } from './data/useSession'
 import type { StudyRun } from './lib/session'
@@ -2266,7 +2266,13 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
   it('opens on the brief — the run named, the text word for word, one button — with the clock held at Begin, one track count, and the shell inert', () => {
     const replay = start('raw')
     expect(dialog()).toHaveAccessibleName('Vigil · study run — subject S03 · run 1')
-    expect(within(dialog()).getByText(BRIEF)).toBeInTheDocument()
+    // The brief rebuilt for reading (S8-ii): the run's place, the goal, the clock line at the
+    // run's own length, and no Assess line; unaided, the Vigil-only block is withheld.
+    expect(within(dialog()).getByText('Run 1 of 2')).toBeInTheDocument()
+    expect(within(dialog()).getByText(BRIEF_GOAL)).toBeInTheDocument()
+    expect(within(dialog()).getByText(briefBlocks(360)[0].lines[0].text)).toBeInTheDocument()
+    expect(within(dialog()).queryByText('The priority list')).toBeNull()
+    expect(within(dialog()).queryByText(/Assess/)).toBeNull()
     expect(within(dialog()).getByRole('button', { name: 'Begin' })).toBeEnabled()
     // Held at Begin's tick: 001's 02:30:00 + 480 s, the elapsed time +00:00, no tick scheduled.
     expect(field('Sim clock')).toHaveTextContent('02:38:00')
@@ -2301,10 +2307,10 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     })
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => NOW} />)
-    expect(within(dialog()).getByText(briefFor(218))).toBeInTheDocument()
+    expect(within(dialog()).getByText(briefBlocks(218)[0].lines[0].text)).toBeInTheDocument()
     expect(
       within(dialog()).getByText(
-        /You can open any track. The run lasts about three and a half minutes.$/,
+        /^About three and a half minutes\. The clock starts when you press Begin/,
       ),
     ).toBeInTheDocument()
     begin()

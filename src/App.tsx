@@ -16,7 +16,15 @@ import { DISPOSITIONS, type DispositionId } from './config/dispositions'
 import { DEFAULT_RECORDING } from './config/recordings'
 import { REPLAY } from './config/replay'
 import { SCORING } from './config/scoring'
-import { QUESTIONS, STUDY, WORKLOAD_SCALE, briefFor, type QuestionId } from './config/study'
+import {
+  BRIEF_GOAL,
+  QUESTIONS,
+  STUDY,
+  WORKLOAD_SCALE,
+  briefBlocks,
+  runOfSession,
+  type QuestionId,
+} from './config/study'
 import { lookupPhoto as defaultLookupPhoto, type PhotoLookup } from './data/photos'
 import { useSession } from './data/useSession'
 import { RUNS_PER_SUBJECT, nextRunSearch } from './lib/session'
@@ -1244,7 +1252,10 @@ export default function App({
       {overlay && runName !== null && (
         <RunBrief
           title={`Vigil · study run — ${runName}`}
-          brief={briefFor(runS)}
+          place={runOfSession(study.run, RUNS_PER_SUBJECT)}
+          goal={BRIEF_GOAL}
+          blocks={briefBlocks(runS)}
+          raw={raw}
           ready={canBegin}
           onBegin={() => {
             setBeganAt(now())

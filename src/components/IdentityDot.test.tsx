@@ -1,8 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { BandDot, IdentityDot, IdentityLegend, ShapeGlyph } from './IdentityDot'
-import { GLYPHS } from './glyphs'
-import { BAND_COLOR, SHAPES, SHAPE_LABEL } from '../lib/display'
+import { GLYPHS, GLYPH_BOX, GLYPH_PX } from './glyphs'
+import { BAND_COLOR, MARK_RING, SHAPES, SHAPE_LABEL } from '../lib/display'
 import { IDENTITIES, IDENTITY_COLOR, IDENTITY_LABEL } from '../lib/identity'
 
 describe('IdentityDot', () => {
@@ -104,6 +104,34 @@ describe('ShapeGlyph (S9)', () => {
     rerender(<ShapeGlyph shape="dot" />)
     expect(svg().querySelectorAll('polygon')).toHaveLength(0)
     expect(svg().querySelector('circle')?.getAttribute('fill')).toBeNull()
+  })
+
+  it('draws the subject’s mark on the dot (S8-ii): the assessed ring in the map’s own pixels, the handled dot hollow at its own size', () => {
+    const { rerender } = render(<ShapeGlyph shape="dot" mark="assessed" />)
+    const circles = () => [...document.querySelectorAll('.shape-glyph circle')]
+    const units = GLYPH_BOX / GLYPH_PX
+    expect(circles()).toHaveLength(2)
+    const [dot, ring] = circles()
+    expect(dot.getAttribute('fill')).toBeNull()
+    // The ring the map's layer paints — 9 px at 1.25 px and 0.42 on a 22 px box — in units.
+    expect(ring.getAttribute('fill')).toBe('none')
+    expect(ring.getAttribute('stroke')).toBe(MARK_RING.color)
+    expect(Number(ring.getAttribute('r'))).toBeCloseTo(MARK_RING.radiusPx * units, 9)
+    expect(Number(ring.getAttribute('stroke-width'))).toBeCloseTo(MARK_RING.widthPx * units, 9)
+    expect(Number(ring.getAttribute('stroke-opacity'))).toBe(MARK_RING.opacity)
+    rerender(<ShapeGlyph shape="dot" mark="handled" />)
+    expect(circles()).toHaveLength(1)
+    const [hollow] = circles()
+    expect(hollow.getAttribute('fill')).toBe('none')
+    expect(hollow.getAttribute('stroke')).toBe('currentColor')
+    // The outer edge stays where the filled dot's was: the map's 13 px circle, 6.5 px out.
+    const outer = Number(hollow.getAttribute('r')) + Number(hollow.getAttribute('stroke-width')) / 2
+    expect(outer).toBeCloseTo(6.5 * units, 9)
+    expect(Number(hollow.getAttribute('stroke-width'))).toBeCloseTo(2 * units, 9)
+    // Untouched: the filled dot, and no ring.
+    rerender(<ShapeGlyph shape="dot" />)
+    expect(circles()).toHaveLength(1)
+    expect(Number(circles()[0].getAttribute('r'))).toBeCloseTo(6.5 * units, 9)
   })
 })
 

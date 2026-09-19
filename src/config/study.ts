@@ -4,8 +4,11 @@
  * (D2, A9), created here and read by the study bench, raw mode (S4a), and run capture (S4b).
  * Configuration, not code (§4.4): the acceptance thresholds the study bench asserts and the cue
  * audit's definitions sit beside them, so the baselines say what they count in the config's own
- * numbers.
+ * numbers. The brief's blocks and the three questions sit here too, as the words a run shows.
  */
+
+import type { TrackShape } from '../lib/display.ts'
+import type { Mark } from '../lib/lifecycle.ts'
 
 export interface StudyConfig {
   /** Scenario seconds at Begin — T0, "recording + 08:00" on 002. */
@@ -50,16 +53,6 @@ export const STUDY: StudyConfig = {
   audit: { closingAtLeast: 50, insideM: 6500, hoveringUnderKt: 2 },
 }
 
-/**
- * The on-screen brief a study run opens on (S4b, #137, ruled A2, A9; #131), identical in both
- * conditions — the parent's text word for word, its last sentence reading the run's own length
- * (S7, #152, ruled D4): a run is as long as its scenario says (`runS` on the registry entry),
- * rounded to the half minute in words, so 02's sentence is the parent's byte for byte and 03's
- * says *about three and a half minutes*.
- */
-const BRIEF_LEAD =
-  'You are the airspace security operator for PHL. The ring is the protected boundary. Escalate any track you believe needs a response before it reaches the ring. Escalating dispatches a response team - do not escalate tracks you do not believe are a threat. You can open any track.'
-
 const MINUTE_WORDS = [
   '',
   'one',
@@ -90,11 +83,101 @@ export function runLengthWords(runS: number): string {
   return `${about}${word} minute${minutes === 1 ? '' : 's'}`
 }
 
-/** The brief for a run of `runS` seconds — the lead word for word, the last sentence its length. */
-export const briefFor = (runS: number) => `${BRIEF_LEAD} The run lasts ${runLengthWords(runS)}.`
+/** One line of the brief: a symbol before it — a shape, a mark, the ring, a button — or none. */
+export interface BriefLine {
+  /** The map's own shape, drawn with `ShapeGlyph` so the key cannot drift from the marker. */
+  shape?: TrackShape
+  /** The subject's own mark on that shape (S8-i): the faint ring, or the marker drawn hollow. */
+  mark?: Mark
+  /** The protected ring, drawn in the ring's own stroke. */
+  ring?: true
+  /** An action drawn as the button it is, so the word on the brief is the word on the screen. */
+  button?: string
+  text: string
+}
 
-/** The brief at the default length — 02's, the parent's text word for word. */
-export const BRIEF = briefFor(STUDY.runS)
+export interface BriefBlock {
+  heading: string
+  lines: readonly BriefLine[]
+  /** Vigil only: the one block that is not identical across the two conditions. */
+  vigilOnly?: true
+}
+
+/** The goal, in the largest type on the brief — one line, the same in both conditions. */
+export const BRIEF_GOAL = 'Stop drones before they reach the ring'
+
+/** *Run 1 of 2* — where this run sits in the subject's session, above the goal. */
+export const runOfSession = (run: number, runs: number) => `Run ${run} of ${runs}`
+
+const sentenceCase = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/**
+ * The brief a study run opens on, rebuilt for reading (S8, #180 item 6, ruled at its gate; S4b,
+ * #137, ruled A2, A9; #131): one screen at 1280×720 with no scrolling, the run's place in the
+ * session and the goal in large type, then labelled blocks. The clock line reads the run's own
+ * length (S7, #152, ruled D4) to the half minute in words. Every block but the last is identical
+ * across the conditions. The legend is the map's own three shapes (S9), the protected ring, and
+ * the subject's two marks (S8-i, R1): the faint ring means a track they have opened — opening is
+ * what marks it (the owner's amendment of 2026-09-19) — and the hollow marker one they have
+ * escalated or dismissed. The actions are the two the run offers, drawn as their buttons; there
+ * is no Assess line, since there is no Assess button. The restraint sentence stays (the owner's
+ * note of 09-18), the brief never says who an escalation goes to (ruled R4), and it never says
+ * how many tracks will enter the ring. 158 words in Vigil and 140 unaided, the title and Begin
+ * included, under the accepted 159 and 141 and pinned — the brief does not grow.
+ */
+export function briefBlocks(runS: number): readonly BriefBlock[] {
+  return [
+    {
+      heading: 'The clock',
+      lines: [
+        {
+          text: `${sentenceCase(runLengthWords(runS))}. The clock starts when you press Begin and cannot be paused.`,
+        },
+      ],
+    },
+    {
+      heading: 'On the map',
+      lines: [
+        {
+          shape: 'aircraft',
+          text: 'Aircraft, broadcasting who they are. Escalating one is an error.',
+        },
+        { shape: 'drone', text: 'Drone, broadcasting its ID.' },
+        { shape: 'dot', text: 'Unidentified track, broadcasting nothing.' },
+        { ring: true, text: 'The ring around the protected site.' },
+        { shape: 'dot', mark: 'assessed', text: 'A track you have opened.' },
+        { shape: 'dot', mark: 'handled', text: 'A track you escalated or dismissed.' },
+      ],
+    },
+    {
+      heading: 'What you do',
+      lines: [
+        { text: 'Click a track to read it.' },
+        {
+          button: 'Escalate',
+          text: 'if you think it will enter the ring. One click, and you are done with that track.',
+        },
+        { button: 'Dismiss', text: 'if it is not a concern.' },
+      ],
+    },
+    {
+      heading: 'What counts',
+      lines: [
+        { text: 'Earlier is better. Escalate a track before it reaches the ring.' },
+        {
+          text: 'Escalating sends a response team. Do not escalate a track you do not believe is a threat.',
+        },
+      ],
+    },
+    {
+      heading: 'The priority list',
+      vigilOnly: true,
+      lines: [
+        { text: 'The priority list on the left ranks every track. The top row needs you first.' },
+      ],
+    },
+  ]
+}
 
 export type QuestionId = 'demand' | 'pressure' | 'confidence'
 
