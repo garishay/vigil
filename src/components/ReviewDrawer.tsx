@@ -332,9 +332,16 @@ export function ReviewDrawer({
           <IdentityDot identity={track.identity} />
           {IDENTITY_LABEL[track.identity]}
         </span>
-        <span className="queue__badge" data-layer={track.source}>
-          {LAYER_BADGE[track.source]}
-        </span>
+        {/* In a study run the header's badge reads the source word, as the Queue row's does
+            (#36 [38], ruled A; #188): a badge reading INJECT is a generator's label on a
+            subject's screen, and the observed-only rule holds in both modes. The demo keeps it. */}
+        {run ? (
+          <span className="queue__badge queue__badge--source">{sourceWord(track)}</span>
+        ) : (
+          <span className="queue__badge" data-layer={track.source}>
+            {LAYER_BADGE[track.source]}
+          </span>
+        )}
         {track.onGround && <span className="queue__ground">on ground</span>}
         <button type="button" className="drawer__close" onClick={onClose} aria-label="Close review">
           ×
@@ -357,7 +364,7 @@ export function ReviewDrawer({
         </p>
       )}
 
-      {!raw && <TrackVisuals track={track} lookupPhoto={lookupPhoto} />}
+      {!raw && <TrackVisuals track={track} lookupPhoto={lookupPhoto} run={run} />}
 
       <dl className="drawer__kinematics">
         {rows.map((row) => (
@@ -397,9 +404,13 @@ export function ReviewDrawer({
             key={action}
             type="button"
             className="drawer__action"
-            disabled={rewound || !canAct(status, action)}
+            disabled={rewound || !canAct(status, action, run)}
             onClick={() => {
-              if (action === 'escalate' || action === 'resolve') setPending(action)
+              // One click in a study run (S8, #180 item 2): no recipient picker, no confirm
+              // step, logged at the click. Who the team is measures nothing here, and the
+              // second click cost a second of the thing the run measures. The demo keeps the
+              // picker, and the run JSON never carried the recipient either way.
+              if (!run && (action === 'escalate' || action === 'resolve')) setPending(action)
               else {
                 onAction(action)
                 setPending(null)

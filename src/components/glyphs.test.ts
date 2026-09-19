@@ -138,14 +138,21 @@ describe('the two marks (S10, #182)', () => {
     if (head.kind !== 'polygon') throw new Error('head')
     expect(head.points[0]).toEqual([GLYPH_BOX / 2, 0.5])
     expect(head.points.every(([, y]) => y >= 0.5)).toBe(true)
-    // Both mirrored about the axis, as the glyphs are.
-    for (const mark of Object.values(MARKS))
+    // Both mirrored about the axis, as the glyphs are — these two are drawn along a bearing, so
+    // an asymmetry would read as a turn. The check (S8) is a badge and carries no bearing, so
+    // the axis does not apply to it; it is held to the box instead.
+    for (const mark of [MARKS.tick, MARKS.arrow])
       for (let y = 0.5; y < GLYPH_BOX; y += 1)
         for (let x = 0.5; x < GLYPH_BOX / 2; x += 1)
           expect(signedDistance(mark, [x, y])).toBeCloseTo(
             signedDistance(mark, [GLYPH_BOX - x, y]),
             6,
           )
+    const [check] = MARKS.check
+    if (check.kind !== 'polygon') throw new Error('check')
+    expect(
+      check.points.every(([x, y]) => x >= 0 && x <= GLYPH_BOX && y >= 0 && y <= GLYPH_BOX),
+    ).toBe(true)
   })
 
   it('states the drone’s extent for the tick’s standoff: 19.44 units at the cut', () => {

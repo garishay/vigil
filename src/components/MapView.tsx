@@ -9,12 +9,47 @@ import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao
 import { bearingDegrees, circlePolygon } from '../lib/geo'
 import { BAND_COLOR, formatEntryClock, trackIdent, trackShape, type WarmBand } from '../lib/display'
 import { IDENTITY_COLOR } from '../lib/identity'
+import type { Mark } from '../lib/lifecycle'
 import type { Mode } from '../lib/session'
 import type { AdsbTrack, InjectTrack } from '../lib/tracks'
 
 const SITES_SOURCE = 'protected-sites'
 const ADSB_SOURCE = 'adsb-tracks'
 const INJECT_SOURCE = 'inject-tracks'
+/**
+ * The subject's own bookkeeping (S8, #180 item 3; ruled R1): **assessed** is the faint ring that
+ * stood, and **handled** is quieter than it and is never a ring — a ring reads as a highlight and
+ * resembles the selection ring, and a track the subject is done with should not be the loudest
+ * thing on the map.
+ *
+ * Two shapes for handled, one constant apart (ruled R1's addendum), so the owner picks from the
+ * pictures rather than from words:
+ *
+ * - `check` — a small check badge on the marker's upper right, all three shapes, in the muted
+ *   tone. Ink added, but the smallest that was findable among 115 tracks.
+ * - `hollow` — the marker itself drawn empty at its own size: the dot's fill gone and its stroke
+ *   kept, the glyphs' fill swapped for a halo of the same ink. Findable by construction, and it
+ *   adds no ink at all.
+ *
+ * Neither is a dim: the terminal-or-ground dim stays Vigil's and is read from `terminal`, which
+ * raw never receives.
+ */
+const HANDLED_MARK = 'hollow' as 'check' | 'hollow'
+
+/** The assessed ring, and the check badge's ink — the muted text tone, in both conditions. */
+const MARK_COLOR = '#94a3b8'
+/** What a hollowed marker's fill becomes: the map's own ground, so the shape reads as an outline. */
+const HOLLOW_FILL = '#0b1220'
+/** True where a track is handled, for the paint expressions that hollow it. */
+const IS_HANDLED = ['==', ['get', 'mark'], 'handled'] as ExpressionSpecification
+/** A fill that empties when the track is handled and `hollow` is the shape in force. */
+const hollowed = (fill: ExpressionSpecification | string): ExpressionSpecification | string =>
+  HANDLED_MARK === 'hollow'
+    ? (['case', IS_HANDLED, HOLLOW_FILL, fill] as ExpressionSpecification)
+    : fill
+/** The halo that draws a hollowed glyph's outline; zero everywhere else. */
+const hollowHalo = (width: number) =>
+  HANDLED_MARK === 'hollow' ? (['case', IS_HANDLED, 1.1, width] as ExpressionSpecification) : width
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
 const PROJECTION_SOURCE = 'selected-projection'
@@ -33,6 +68,12 @@ const GLYPH_RATIO = 2
  * pixels — and the arrowhead the box's height too.
  */
 const MARK_PX = 12
+/**
+ * The handled badge's drawn size, screen px (R1 (a)). The 3.5 px disc the draft first tried was
+ * unfindable among 115 tracks; 11 px is the smallest that carries a check's two bars — about
+ * 3 px of ink on the long one — and reads at device scale 1.
+ */
+const HANDLED_PX = 11
 /**
  * Where a tick starts: at the marker's edge, not its centre (#182 item 5). The dot's edge is its
  * radius and stroke. The drone is drawn nose-up while the tick swings round it, so its edge
@@ -99,6 +140,7 @@ const LABEL_FONT = [
 
 /** One frozen empty array, so the default prop is not a new identity every render. */
 const NO_TERMINAL: readonly string[] = []
+const NO_MARKS: ReadonlyMap<string, Mark> = new Map()
 /** Likewise for a line with no points. */
 const NO_LINE: readonly [number, number][] = []
 /** Likewise for the band map: no warm bands, one identity. */
@@ -270,7 +312,11 @@ const DRONE_FILL: ExpressionSpecification = [
   ADSB_COLOR,
 ]
 
-function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
+function trackFeatures(
+  tracks: AdsbTrack[],
+  terminalIds: readonly string[],
+  marks: ReadonlyMap<string, Mark>,
+) {
   return {
     type: 'FeatureCollection' as const,
     features: tracks.map((track) => ({
@@ -285,6 +331,9 @@ function trackFeatures(tracks: AdsbTrack[], terminalIds: readonly string[]) {
         heading: track.headingDeg ?? 0,
         onGround: track.onGround,
         terminal: terminalIds.includes(track.id),
+        // The subject's own bookkeeping (S8, item 3), identical in both conditions: '' for a
+        // track they have not touched, so one filter reads it.
+        mark: marks.get(track.id) ?? '',
       },
     })),
   }
@@ -294,6 +343,7 @@ function injectFeatures(
   tracks: InjectTrack[],
   terminalIds: readonly string[],
   bands: ReadonlyMap<string, WarmBand>,
+  marks: ReadonlyMap<string, Mark>,
 ) {
   return {
     type: 'FeatureCollection' as const,
@@ -319,6 +369,7 @@ function injectFeatures(
           !track.onGround && track.headingDeg !== null && (track.groundSpeedKt ?? 0) >= TICK_MIN_KT,
         heading: track.headingDeg ?? 0,
         terminal: terminalIds.includes(track.id),
+        mark: marks.get(track.id) ?? '',
         band: bands.get(track.id) ?? 'calm',
       },
     })),
@@ -374,6 +425,7 @@ export function MapView({
   projection = NO_LINE,
   projectionEntryS = null,
   terminalIds = NO_TERMINAL,
+  marks = NO_MARKS,
   bands = NO_BANDS,
   mode = 'vigil',
   onSelect,
@@ -404,6 +456,11 @@ export function MapView({
    * identity while the set is unchanged — see App.
    */
   terminalIds?: readonly string[]
+  /**
+   * What the subject has done with each track (S8, #180 item 3): the mark the map wears beside
+   * the marker, identical in both conditions. Absent for an untouched track.
+   */
+  marks?: ReadonlyMap<string, Mark>
   /**
    * Each inject's band by id, warm entries only — an absent id is calm (#96). A map rather than
    * a lookup function for the reason `terminalIds` is an array: it sits in the inject effect's
@@ -498,7 +555,7 @@ export function MapView({
         })
       }
       // The two marks (S10) the same way: the heading tick and the path's arrowhead.
-      for (const mark of ['tick', 'arrow'] as const) {
+      for (const mark of ['tick', 'arrow', 'check'] as const) {
         map.addImage(mark, glyphImage(MARKS[mark], MARK_PX, GLYPH_RATIO), {
           sdf: true,
           pixelRatio: GLYPH_RATIO,
@@ -541,7 +598,10 @@ export function MapView({
       })
 
       // Added empty and fed by the effect below, so track updates never rebuild the layer.
-      map.addSource(ADSB_SOURCE, { type: 'geojson', data: trackFeatures([], NO_TERMINAL) })
+      map.addSource(ADSB_SOURCE, {
+        type: 'geojson',
+        data: trackFeatures([], NO_TERMINAL, NO_MARKS),
+      })
       // The one click target for an aircraft, invisible, under the glyph: a disc the inject
       // halo's size, which the 22 px glyph's box just covers — so the target is what the operator
       // sees, on the apron too, where a parked glyph is as visible as an airborne one now (S9).
@@ -568,13 +628,49 @@ export function MapView({
           'icon-ignore-placement': true,
         },
         paint: {
-          'icon-color': ADSB_COLOR,
+          'icon-color': hollowed(ADSB_COLOR),
+          'icon-halo-color': ADSB_COLOR,
+          'icon-halo-width': hollowHalo(0),
           // One expression, two conditions, one value — the Queue's own rule transplanted
           // (`.queue__row--ground, .queue__row--terminal { opacity: 0.55 }`), so a handled
           // ground track does not dim twice. Composing the two instead would put a terminal
           // ground glyph at 0.22, which on this background is gone (ruled on #61).
           'icon-opacity': ['case', ['any', ['get', 'terminal'], ['get', 'onGround']], 0.4, 0.8],
         },
+      })
+      map.addLayer({
+        id: `${ADSB_SOURCE}-mark`,
+        type: 'circle',
+        source: ADSB_SOURCE,
+        // Assessed alone: the faint ring the ruling kept. Handled is never a ring (R1).
+        filter: ['==', ['get', 'mark'], 'assessed'],
+        paint: {
+          'circle-radius': 9,
+          'circle-opacity': 0,
+          'circle-stroke-width': 1.25,
+          'circle-stroke-color': MARK_COLOR,
+          'circle-stroke-opacity': 0.42,
+        },
+      })
+      // (a) the handled badge (R1): the check on the marker's upper right, all three shapes,
+      // in the muted tone. Present only when `check` is the shape in force; `hollow` draws
+      // nothing here and empties the marker instead.
+      map.addLayer({
+        id: `${ADSB_SOURCE}-handled`,
+        type: 'symbol',
+        source: ADSB_SOURCE,
+        filter:
+          HANDLED_MARK === 'check'
+            ? (IS_HANDLED as ExpressionSpecification)
+            : (['==', ['get', 'mark'], 'never'] as ExpressionSpecification),
+        layout: {
+          'icon-image': 'check',
+          'icon-size': HANDLED_PX / MARK_PX,
+          'icon-offset': [HANDLED_PX * 0.55, -HANDLED_PX * 0.55],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: { 'icon-color': MARK_COLOR, 'icon-opacity': 0.75 },
       })
       // The breadcrumb trail (06b) sits under the injects and the ring: where the selected
       // track has been must never cover where it is. It fades toward its old end (S10, #182):
@@ -625,7 +721,7 @@ export function MapView({
       // Added last, so injects draw above cooperative traffic rather than under it.
       map.addSource(INJECT_SOURCE, {
         type: 'geojson',
-        data: injectFeatures([], NO_TERMINAL, NO_BANDS),
+        data: injectFeatures([], NO_TERMINAL, NO_BANDS, NO_MARKS),
       })
       // Raw mode's heading tick (S4a; S10, #182 item 5): one mark per moving inject, from the
       // marker's edge along the observed heading, one screen length at any zoom — it carries
@@ -672,7 +768,15 @@ export function MapView({
         paint: {
           'circle-radius': 4.5,
           'circle-color': BAND_FILL,
-          'circle-opacity': ['case', ['get', 'terminal'], 0.5, 0.95],
+          'circle-opacity':
+            HANDLED_MARK === 'hollow'
+              ? ([
+                  'case',
+                  IS_HANDLED,
+                  0,
+                  ['case', ['get', 'terminal'], 0.5, 0.95],
+                ] as ExpressionSpecification)
+              : (['case', ['get', 'terminal'], 0.5, 0.95] as ExpressionSpecification),
           'circle-stroke-width': 2,
           'circle-stroke-color': IDENTITY_STROKE,
           'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.5, 1],
@@ -691,12 +795,47 @@ export function MapView({
           'icon-ignore-placement': true,
         },
         paint: {
-          'icon-color': DRONE_FILL,
+          'icon-color': hollowed(DRONE_FILL),
           'icon-opacity': ['case', ['get', 'terminal'], 0.5, 0.95],
-          'icon-halo-width': 0,
+          'icon-halo-color': DRONE_FILL,
+          'icon-halo-width': hollowHalo(0),
         },
       })
 
+      map.addLayer({
+        id: `${INJECT_SOURCE}-mark`,
+        type: 'circle',
+        source: INJECT_SOURCE,
+        // Assessed alone: the faint ring the ruling kept. Handled is never a ring (R1).
+        filter: ['==', ['get', 'mark'], 'assessed'],
+        paint: {
+          'circle-radius': 9,
+          'circle-opacity': 0,
+          'circle-stroke-width': 1.25,
+          'circle-stroke-color': MARK_COLOR,
+          'circle-stroke-opacity': 0.42,
+        },
+      })
+      // (a) the handled badge (R1): the check on the marker's upper right, all three shapes,
+      // in the muted tone. Present only when `check` is the shape in force; `hollow` draws
+      // nothing here and empties the marker instead.
+      map.addLayer({
+        id: `${INJECT_SOURCE}-handled`,
+        type: 'symbol',
+        source: INJECT_SOURCE,
+        filter:
+          HANDLED_MARK === 'check'
+            ? (IS_HANDLED as ExpressionSpecification)
+            : (['==', ['get', 'mark'], 'never'] as ExpressionSpecification),
+        layout: {
+          'icon-image': 'check',
+          'icon-size': HANDLED_PX / MARK_PX,
+          'icon-offset': [HANDLED_PX * 0.55, -HANDLED_PX * 0.55],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: { 'icon-color': MARK_COLOR, 'icon-opacity': 0.75 },
+      })
       // Raw mode's labels for the injects (S4a), above their dots, hidden until raw.
       map.addLayer({
         id: `${INJECT_SOURCE}-label`,
@@ -829,16 +968,16 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    map.getSource<GeoJSONSource>(ADSB_SOURCE)?.setData(trackFeatures(tracks, terminalIds))
-  }, [tracks, terminalIds, styleReady])
+    map.getSource<GeoJSONSource>(ADSB_SOURCE)?.setData(trackFeatures(tracks, terminalIds, marks))
+  }, [tracks, terminalIds, marks, styleReady])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
     map
       .getSource<GeoJSONSource>(INJECT_SOURCE)
-      ?.setData(injectFeatures(injects, terminalIds, bands))
-  }, [injects, terminalIds, bands, styleReady])
+      ?.setData(injectFeatures(injects, terminalIds, bands, marks))
+  }, [injects, terminalIds, bands, marks, styleReady])
 
   // Raw mode (S4a): the neutral paint on every dot, the labels and the ticks shown; Vigil's
   // paint and hidden layers otherwise. From an effect, since the mode resolves with the session.
@@ -850,7 +989,12 @@ export function MapView({
     for (const id of [`${INJECT_SOURCE}-tick`, `${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
       map.setLayoutProperty(id, 'visibility', visibility)
     }
-    map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-color', raw ? RAW_COLOR : ADSB_COLOR)
+    // Each fill is re-set through `hollowed`, so a handled marker stays empty when the mode
+    // resolves; without it the condition's own paint filled it back in (S8, ruled R1).
+    const adsbInk = raw ? RAW_COLOR : ADSB_COLOR
+    const droneInk = raw ? RAW_COLOR : DRONE_FILL
+    map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-color', hollowed(adsbInk))
+    map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-halo-color', adsbInk)
     map.setPaintProperty(`${INJECT_SOURCE}-halo`, 'circle-color', raw ? RAW_COLOR : IDENTITY_STROKE)
     map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-color', raw ? RAW_COLOR : BAND_FILL)
     map.setPaintProperty(
@@ -858,7 +1002,8 @@ export function MapView({
       'circle-stroke-color',
       raw ? RAW_COLOR : IDENTITY_STROKE,
     )
-    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', raw ? RAW_COLOR : DRONE_FILL)
+    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', hollowed(droneInk))
+    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-halo-color', droneInk)
   }, [mode, styleReady])
 
   useEffect(() => {

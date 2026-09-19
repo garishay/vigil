@@ -136,7 +136,7 @@ export const GLYPHS: Record<'aircraft' | 'drone', readonly Part[]> = {
  * the observed heading; the arrowhead the projected path ends in where it meets the ring, its
  * tip at the top of the box so the anchor is the tip.
  */
-export const MARKS: Record<'tick' | 'arrow', readonly Part[]> = {
+export const MARKS: Record<'tick' | 'arrow' | 'check', readonly Part[]> = {
   tick: [
     {
       kind: 'polygon',
@@ -156,6 +156,25 @@ export const MARKS: Record<'tick' | 'arrow', readonly Part[]> = {
         [21, 20],
         [12, 15],
         [3, 20],
+      ],
+    },
+  ],
+  /**
+   * The handled badge (S8, #180, ruled R1 (a)): a check, drawn on the box so its stroke is
+   * about a fifth of the box wide — 3 px of ink in an 11 px image at device scale 1, which is
+   * the smallest that was findable among 115 tracks when the 3.5 px disc was not. Two bars,
+   * mitred at the elbow, so it reads as a check and not as a corner.
+   */
+  check: [
+    {
+      kind: 'polygon',
+      points: [
+        [3.5, 12.5],
+        [7, 9],
+        [9.5, 15],
+        [17, 3],
+        [20.5, 5.5],
+        [10, 21],
       ],
     },
   ],

@@ -637,3 +637,26 @@ describe('every escalation besides the threats, as one list (S5f, #173)', () => 
     })
   })
 })
+
+describe('an escalation with no assess before it (S8, #180 item 2, ruled)', () => {
+  it('reads the same numbers as one that was assessed first', () => {
+    // In a study run Escalate is live on an untouched track, so a run arrives whose escalate is
+    // the first thing that ever happened to the track. Nothing in the tool's read depends on an
+    // assess preceding it — `runMetrics` finds the escalate itself — and this holds that.
+    const events: RunEvent[] = [
+      { t: 12, type: 'select', track: THREAT_ID },
+      { t: 58, type: 'escalate', track: THREAT_ID },
+    ]
+    const direct = runMetrics(record(events), study.index, plans['02a'])
+    const assessedFirst = runMetrics(
+      record([events[0], { t: 30, type: 'assess', track: THREAT_ID }, events[1]]),
+      study.index,
+      plans['02a'],
+    )
+    expect(direct.threats).toEqual(assessedFirst.threats)
+    expect(direct.openedBeforeFirstThreat).toBe(assessedFirst.openedBeforeFirstThreat)
+    expect(direct.threats[0]).toMatchObject({ timeToEscalateS: 58, miss: false })
+    // And the escalation stands on its own: no assess in the record at all.
+    expect(record(events).events.some((event) => event.type === 'assess')).toBe(false)
+  })
+})

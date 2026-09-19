@@ -812,3 +812,55 @@ describe('the fairness audit (S7, #152, ruled A10; #131’s fairness test)', () 
     expect(within(parked).getByText(shown.onGround)).toBeInTheDocument()
   })
 })
+
+describe('the study run’s drawer (S8, #180, ruled; #188)', () => {
+  it('escalates on one click, with no picker and no recipient', () => {
+    // The picker measured nothing — who the team is was never in the run JSON — and cost a
+    // second of the thing the run measures. Escalate is live from New here (ruled), so this is
+    // one click from an untouched track.
+    const onAction = vi.fn()
+    renderDrawer(entry(SILENT, 1, 7200), { run: true, onAction })
+    const escalate = screen.getByRole('button', { name: 'Escalate' })
+    expect(escalate).toBeEnabled()
+    fireEvent.click(escalate)
+    expect(onAction).toHaveBeenCalledTimes(1)
+    expect(onAction).toHaveBeenCalledWith('escalate')
+    expect(screen.queryByRole('group', { name: /Escalate to/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Confirm escalation' })).toBeNull()
+  })
+
+  it('keeps the picker in the demo, where Escalate still follows an Assess', () => {
+    const onAction = vi.fn()
+    renderDrawer(entry(SILENT, 1, 7200), { onAction })
+    // From New the demo's table offers no Escalate at all, which is what a study run fixed.
+    expect(screen.getByRole('button', { name: 'Escalate' })).toBeDisabled()
+    expect(onAction).not.toHaveBeenCalled()
+  })
+
+  it('reads the source word on the header badge, never INJECT, in either mode (#188)', () => {
+    // #36 [38] ruled the Queue row's badge; the drawer's header carried the same one and still
+    // said INJECT, which is a generator's label on a subject's screen.
+    for (const mode of ['vigil', 'raw'] as const) {
+      const { unmount } = renderDrawer(entry(SILENT, 1, 7200), { run: true, mode })
+      const header = document.querySelector('.drawer__header') as HTMLElement
+      expect(header).toHaveTextContent('sensor')
+      expect(header.textContent).not.toContain('INJECT')
+      unmount()
+    }
+    // The demo keeps the layer badge.
+    renderDrawer(entry(SILENT, 1, 7200))
+    expect(document.querySelector('.drawer__header')).toHaveTextContent('INJECT')
+  })
+
+  it('drops the empty image area in a run, and keeps the class line (ruled R2)', () => {
+    // An inject never has a photo, so a subject's drawer opened on a grey "?" box that said
+    // nothing. The class line and the basis line underneath it stay.
+    renderDrawer(entry(SILENT, 1, 7200), { run: true })
+    expect(document.querySelector('.visuals__image')).toBeNull()
+    expect(document.querySelector('.visuals__class')).not.toBeNull()
+    expect(document.querySelector('.visuals__basis')).not.toBeNull()
+    // The demo is unchanged: the silhouette is the class tier's own reading there.
+    renderDrawer(entry(SILENT, 1, 7200))
+    expect(document.querySelector('.visuals__image')).not.toBeNull()
+  })
+})

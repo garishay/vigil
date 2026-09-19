@@ -655,6 +655,7 @@
 
 /* The whole visual row is the button: the padding lives here, so no dead strip is unclickable. */
 .queue__rowbutton {
+  position: relative;
   display: grid;
   grid-template-columns: 1.5rem 1fr auto;
   column-gap: 0.5rem;
@@ -1366,4 +1367,28 @@
   padding-left: 0.75rem;
   color: var(--text);
   line-height: 1.5;
+}
+
+/* The subject's own bookkeeping on the list row (S8, #180 item 3), the map's mark in the list's
+   own idiom: a dot in the gutter. Not the dim — that stays Vigil's — and ranking never reads it. */
+.queue__row--assessed .queue__rowbutton::before,
+.queue__row--handled .queue__rowbutton::before {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.25rem;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--text);
+  content: '';
+}
+
+/* Handled is quieter than assessed on the row too, as it is on the map (ruled R1): the
+   subject is done with the track, so its mark recedes rather than shouts. */
+.queue__row--assessed .queue__rowbutton::before {
+  opacity: 0.55;
+}
+
+.queue__row--handled .queue__rowbutton::before {
+  opacity: 0.28;
 }
