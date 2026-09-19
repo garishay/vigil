@@ -113,10 +113,15 @@ describe('ShapeGlyph (S9)', () => {
     expect(circles()).toHaveLength(2)
     const [dot, ring] = circles()
     expect(dot.getAttribute('fill')).toBeNull()
-    // The ring the map's layer paints — 9 px at 1.25 px and 0.42 on a 22 px box — in units.
+    // The ring the map's layer paints — 9 px at 1.25 px and 0.42 on a 22 px box — in units. The
+    // map's stroke sits outside its radius, so the ring spans 9 → 10.25 px there; an SVG stroke
+    // straddles its path, so the mid-stroke radius carries the half (#198 round 1).
     expect(ring.getAttribute('fill')).toBe('none')
     expect(ring.getAttribute('stroke')).toBe(MARK_RING.color)
-    expect(Number(ring.getAttribute('r'))).toBeCloseTo(MARK_RING.radiusPx * units, 9)
+    const mid = Number(ring.getAttribute('r'))
+    const half = Number(ring.getAttribute('stroke-width')) / 2
+    expect(mid - half).toBeCloseTo(MARK_RING.radiusPx * units, 9)
+    expect(mid + half).toBeCloseTo((MARK_RING.radiusPx + MARK_RING.widthPx) * units, 9)
     expect(Number(ring.getAttribute('stroke-width'))).toBeCloseTo(MARK_RING.widthPx * units, 9)
     expect(Number(ring.getAttribute('stroke-opacity'))).toBe(MARK_RING.opacity)
     rerender(<ShapeGlyph shape="dot" mark="handled" />)

@@ -354,7 +354,7 @@ export function describeEvent(
     case 'assess':
       return 'Assessing — claimed'
     case 'open':
-      return 'Assessing — opened'
+      return 'Opened'
     case 'acknowledge':
       return 'Acknowledged'
     case 'escalate':

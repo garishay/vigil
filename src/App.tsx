@@ -1102,21 +1102,25 @@ export default function App({
                     ))}
                   </div>
                 )}
-                {/* Resolved is withheld in a study run (ruled): Resolve is not offered there,
-                  so a chip filtering for a state the subject cannot reach names nothing. */}
-                <div className="chips" role="group" aria-label="Filter by state">
-                  {STATE_FILTERS.filter((f) => !inStudy || f.id !== 'resolved').map((filter) => (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      className="chip"
-                      aria-pressed={stateFilter === filter.id}
-                      onClick={() => setStateFilter(filter.id)}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
+                {/* The state chips are withheld in a study run too (S8-ii, #198 round 1): the
+                  brief says the list ranks every track, and a held chip makes that false — with
+                  opening moving a track to Opened, a subject holding New watched rows leave the
+                  list under the cursor. The demo keeps them. */}
+                {!inStudy && (
+                  <div className="chips" role="group" aria-label="Filter by state">
+                    {STATE_FILTERS.map((filter) => (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        className="chip"
+                        aria-pressed={stateFilter === filter.id}
+                        onClick={() => setStateFilter(filter.id)}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <Queue
                   ranked={visible}
                   selectedId={selectedId}

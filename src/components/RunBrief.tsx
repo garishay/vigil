@@ -12,9 +12,9 @@ import type { BriefBlock, BriefLine } from '../config/study'
  *
  * The legend is drawn with the map's own parts — `ShapeGlyph` for the shapes and the marks, the
  * ring in the ring's own stroke — so the key cannot drift from the marker, and the actions are
- * drawn as the buttons they are, so the word on the brief is the word on the screen. Both are
- * decorative and out of the tab order: the brief takes no action. One block is Vigil's alone and
- * is withheld unaided; everything else is identical across the conditions.
+ * drawn as the buttons they are, so the word on the brief is the word on the screen. None of it
+ * is a control and nothing here takes an action but Begin. One block is Vigil's alone and is
+ * withheld unaided; everything else is identical across the conditions.
  */
 export function RunBrief({
   title,
@@ -70,15 +70,16 @@ export function RunBrief({
   )
 }
 
-/** What stands before a line: the map's shape with its mark, the ring, the action's button, or nothing. */
+/**
+ * What stands before a line: the map's shape with its mark, the ring, the action's button, or
+ * nothing. The shape and the ring are decorative; the button is the line's own first word —
+ * *Escalate if you think it will enter the ring* — drawn as the button it names, and read as
+ * the word, so a subject who cannot see the brief is still told which button to press (#198
+ * round 1). It is a span, never a control.
+ */
 function Symbol({ line }: { line: BriefLine }) {
   if (line.shape !== undefined) return <ShapeGlyph shape={line.shape} mark={line.mark} />
   if (line.ring === true) return <span className="brief__ring" aria-hidden="true" />
-  if (line.button !== undefined)
-    return (
-      <span className="brief__button" aria-hidden="true">
-        {line.button}
-      </span>
-    )
+  if (line.button !== undefined) return <span className="brief__button">{line.button}</span>
   return null
 }

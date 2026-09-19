@@ -24,8 +24,8 @@ import {
 import { handoffText } from '../lib/handoff'
 import { IDENTITY_LABEL } from '../lib/identity'
 import {
-  STATUS_LABEL,
   canAct,
+  statusLabel,
   statusOf,
   type LifecycleAction,
   type TrackEvent,
@@ -245,7 +245,7 @@ export function ReviewDrawer({
       : []
   const raw = mode === 'raw'
   const rawRows: { label: string; value: string; className?: string; note?: string | null }[] = [
-    { label: 'Status', value: STATUS_LABEL[status], className: 'drawer__status' },
+    { label: 'Status', value: statusLabel(status, run), className: 'drawer__status' },
     { label: 'Range', value: `${formatRangeKm(rangeM)} to ${siteName}` },
     { label: 'Identity', value: IDENTITY_LABEL[track.identity] },
     { label: 'Source', value: sourceWord(track) },
@@ -266,7 +266,7 @@ export function ReviewDrawer({
     { label: 'First seen', value: clock(log[0]?.tSec ?? tSec) },
   ]
   const vigilRows: { label: string; value: string; className?: string; note?: string | null }[] = [
-    { label: 'Status', value: STATUS_LABEL[status], className: 'drawer__status' },
+    { label: 'Status', value: statusLabel(status, run), className: 'drawer__status' },
     { label: 'Rank', value: `${rank}` },
     { label: 'Range', value: `${formatRangeKm(rangeM)} to ${siteName}` },
     // Time to entry (#102): the decision number behind the geometry factors, under the range it

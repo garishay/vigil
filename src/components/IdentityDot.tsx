@@ -114,7 +114,11 @@ export function ShapeGlyph({ shape, mark }: { shape: TrackShape; mark?: Mark }) 
         <circle
           cx={c}
           cy={c}
-          r={MARK_RING.radiusPx * UNITS_PER_PX}
+          // The map paints `circle-stroke-width` outside `circle-radius`, so the ring's
+          // mid-stroke sits half a stroke out from `radiusPx`; an SVG stroke straddles its
+          // path, so the radius carries that half here — the dot's own hollowing does the
+          // same, and the legend keeps the marker's outer edge.
+          r={(MARK_RING.radiusPx + MARK_RING.widthPx / 2) * UNITS_PER_PX}
           fill="none"
           stroke={MARK_RING.color}
           strokeWidth={MARK_RING.widthPx * UNITS_PER_PX}

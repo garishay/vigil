@@ -669,11 +669,11 @@ describe('describeEvent — Acknowledged (#101, 101a)', () => {
     expect(describeEvent({ ...base, from: 'escalated', to: 'escalated' }, [], [], clock)).toBe(
       'Acknowledged',
     )
-    // A study run's first open (S8-ii): the status word, then how the track got there, as the
-    // demo's Assess line reads *Assessing — claimed*.
+    // A study run's first open (S8-ii): the run's own word for the status it enters, the one
+    // the Status row and the list row's tag read there (#198 round 1).
     expect(
       describeEvent({ ...base, action: 'open', from: 'new', to: 'assessing' }, [], [], clock),
-    ).toBe('Assessing — opened')
+    ).toBe('Opened')
   })
 })
 

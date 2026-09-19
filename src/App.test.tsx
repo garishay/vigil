@@ -2398,9 +2398,9 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     const id = screen.getByTestId('map').getAttribute('data-selected')
     expect(id).not.toBe('')
     const detail = () => screen.getByRole('complementary', { name: /Track review/ })
-    // The open marked the track (S8-ii, the amendment's item 1): the Status row reads Assessing
-    // off the click, and the drawer offers two actions — no Assess, no Resolve.
-    expect(within(detail()).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    // The open marked the track (S8-ii, the amendment's item 1): the Status row reads Opened —
+    // the run's own word (#198 round 1) — and the drawer offers two actions, no Assess, no Resolve.
+    expect(within(detail()).getByText('Status').nextElementSibling).toHaveTextContent('Opened')
     expect(
       within(detail())
         .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
@@ -2412,7 +2412,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     replay.tick(9)
     // A re-open is a second look, and the JSON records it as one; the record does not move.
     fireEvent.click(screen.getByTestId('map-select'))
-    expect(within(detail()).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    expect(within(detail()).getByText('Status').nextElementSibling).toHaveTextContent('Opened')
     // Escalate takes no picker and no confirm (item 2, ruled), and closes the detail with it.
     fireEvent.click(within(detail()).getByRole('button', { name: 'Escalate' }))
     expect(screen.queryByRole('button', { name: 'Confirm escalation' })).toBeNull()
@@ -2484,10 +2484,10 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     begin()
     // The run opens on the list already (S8 item 1, ruled) — there is no tab to press.
     replay.tick(20)
-    // No layer chips in a run, the state chips kept; every badge a source word, never INJECT
-    // (#36 [38], ruled A).
+    // No chips in a run — the layer chips (#36 [38], ruled A) and the state chips (#198 round
+    // 1) — and every badge a source word, never INJECT.
     expect(screen.queryByRole('group', { name: 'Filter by layer' })).toBeNull()
-    expect(screen.getByRole('group', { name: 'Filter by state' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Filter by state' })).toBeNull()
     const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
     expect(screen.queryByText('INJECT')).toBeNull()
     for (const row of rows) {
@@ -2555,7 +2555,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       node.textContent?.includes(ident),
     ) as HTMLElement
     expect(row).not.toHaveClass('queue__row--assessed')
-    expect(within(row).queryByText('Assessing')).toBeNull()
+    expect(within(row).queryByText('Opened')).toBeNull()
     const id = row.getAttribute('data-id') as string
     // Opening it afterwards is the look that marks it.
     replay.tick(5)
@@ -2809,10 +2809,11 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
       screen.getByRole('heading', { name: 'Priority list — highest first' }),
     ).toBeInTheDocument()
     expect(document.querySelector('.queue__row')).not.toBeNull()
-    // Resolve is withheld here, so a chip filtering for Resolved names a state no one can reach.
-    const states = screen.getByRole('group', { name: 'Filter by state' })
-    expect(within(states).queryByRole('button', { name: 'Resolved' })).toBeNull()
-    expect(within(states).getByRole('button', { name: 'Dismissed' })).toBeInTheDocument()
+    // The state chips are withheld in a run (#198 round 1): the brief says the list ranks every
+    // track, and a held chip made that false — rows left the list under the cursor as opening
+    // moved them. The demo keeps them (pinned below).
+    expect(screen.queryByRole('group', { name: 'Filter by state' })).toBeNull()
+    expect(document.querySelectorAll('.chip')).toHaveLength(0)
     // The detail opens in place on selection, from the list.
     fireEvent.click(
       within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
@@ -2864,9 +2865,11 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     // drawer's Status row all read the one status.
     expect(screen.getByTestId('map')).toHaveAttribute('data-marks', `${id}:assessed`)
     expect(row).toHaveClass('queue__row--assessed')
-    expect(within(row).getByText('Assessing')).toBeInTheDocument()
+    // The run's own word, Opened, on the row's tag and the Status row (#198 round 1).
+    expect(within(row).getByText('Opened')).toBeInTheDocument()
+    expect(within(row).queryByText('Assessing')).toBeNull()
     const detail = screen.getByRole('complementary', { name: /Track review/ })
-    expect(within(detail).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    expect(within(detail).getByText('Status').nextElementSibling).toHaveTextContent('Opened')
     // The Assess button is withheld (item 2); the two that stay are live in one click.
     expect(within(detail).queryByRole('button', { name: 'Assess' })).toBeNull()
     expect(within(detail).getByRole('button', { name: 'Escalate' })).toBeEnabled()
@@ -2937,10 +2940,14 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
       within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
     )
     expect(screen.getByRole('button', { name: 'Escalate' })).toBeDisabled()
-    // A click marks nothing in the demo, where Assess is still a pressed button (S8-ii, item 8).
+    // A click marks nothing in the demo, where Assess is still a pressed button (S8-ii, item 8),
+    // and the word it enters is still Assessing (#198 round 1).
     expect(screen.getByRole('button', { name: 'Assess' })).toBeEnabled()
     expect(document.querySelector('.queue__row--assessed')).toBeNull()
     expect(screen.getByTestId('map')).toHaveAttribute('data-marks', '')
+    expect(document.querySelectorAll('.chip').length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
   })
 
   it('does not offer a run this browser already holds, however the session was run', () => {

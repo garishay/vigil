@@ -93,10 +93,20 @@ describe('the brief, rebuilt for reading (S8, #180 item 6, ruled; the amendmentâ
     expect(document.querySelector('.brief__ring')).toHaveAttribute('aria-hidden', 'true')
     const buttons = [...document.querySelectorAll('.brief__button')]
     expect(buttons.map((button) => button.textContent)).toEqual(['Escalate', 'Dismiss'])
+    // Drawn as buttons but never controls â€” and never hidden from a reader either: the word is
+    // the line's own verb, so a subject who cannot see the brief still hears which button to
+    // press (#198 round 1).
     for (const button of buttons) {
       expect(button.tagName).toBe('SPAN')
-      expect(button).toHaveAttribute('aria-hidden', 'true')
+      expect(button).not.toHaveAttribute('aria-hidden')
     }
+    const lines = [...document.querySelectorAll('.brief__line')].map((line) =>
+      spoken(line).replace(/\s+/g, ' ').trim(),
+    )
+    expect(lines).toContain(
+      'Escalate if you think it will enter the ring. One click, and you are done with that track.',
+    )
+    expect(lines).toContain('Dismiss if it is not a concern.')
     // Begin is the brief's one control.
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Begin'])
   })

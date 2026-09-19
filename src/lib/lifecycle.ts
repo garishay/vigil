@@ -77,6 +77,15 @@ export const STATUS_LABEL: Record<Status, string> = {
 }
 
 /**
+ * The status word a screen shows (S8-ii, #198 round 1): in a study run an opened track reads
+ * **Opened** on the Status row and the list row's tag — the brief teaches "opened", and the
+ * screen says the same word — where the demo's pressed button reads Assessing. Rendered text
+ * only; the status, the table and the record keep `assessing`.
+ */
+export const statusLabel = (status: Status, run = false): string =>
+  run && status === 'assessing' ? 'Opened' : STATUS_LABEL[status]
+
+/**
  * The table as ruled on #3: Assess claims a New track; Escalate only from Assessing — a track is
  * claimed before it is handed off; Resolve only from Escalated, with a disposition; Dismiss from
  * New or Assessing. Resolved and Dismissed are terminal for MVP — no reopen. Acknowledge (#101)
