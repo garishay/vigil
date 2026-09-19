@@ -130,11 +130,12 @@ describe('SitesPanel (08a)', () => {
     expect(document.querySelector('.sites__hint')).toHaveTextContent('')
     fireEvent.click(screen.getByRole('button', { name: '+ Protected site' }))
     expect(props.onPlacing).toHaveBeenCalledWith({ kind: 'add', site: 'protected' })
-    // Armed: the button reads Cancel and the hint says what the click does.
+    // Armed: the button reads Cancel and the hint says what the click does. The label alone
+    // carries the state — no aria-pressed, which would announce it inverted (#36 [18]; #205).
     const placing: Placing = { kind: 'add', site: 'protected' }
     vi.mocked(props.onPlacing).mockClear()
     render(<SitesPanel {...props} placing={placing} />)
-    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Cancel' })).not.toHaveAttribute('aria-pressed')
     expect(screen.getByText('Click the map to place the centre')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(props.onPlacing).toHaveBeenLastCalledWith(null)

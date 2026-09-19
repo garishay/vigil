@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import App from './App'
+import css from './App.css?raw'
 import { AO } from './config/ao'
 import { DEFAULT_RECORDING, recordingNamed, type RecordingEntry } from './config/recordings'
 import { SCENARIO } from './config/scenario'
@@ -229,6 +230,17 @@ describe('App shell', () => {
     expect(screen.getByText('Injects').nextSibling).toHaveTextContent(
       map.getAttribute('data-injects') as string,
     )
+  })
+
+  it('wraps the strip as a row and never inside a value (#205) — the shape, since the stylesheet is not applied here', () => {
+    // A jsdom test cannot measure a wrap, so this pins the rules that keep every field on one
+    // line at 1280; the fit is measured headless in the PR. Disclosed as pinning the shape.
+    const rule = (selector: string) => {
+      const start = css.indexOf(`${selector} {`)
+      return start === -1 ? '' : css.slice(start, css.indexOf('}', start))
+    }
+    expect(rule('.strip')).toMatch(/flex-wrap:\s*wrap/)
+    expect(rule('.strip__field')).toMatch(/white-space:\s*nowrap/)
   })
 
   it('names the seed, so the picture on screen can be reproduced', () => {
@@ -1998,6 +2010,34 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     fireEvent.click(faceOf('TRK-06'), { detail: 1 })
     expect(screen.getByLabelText('Track review: TRK-06')).toBeInTheDocument()
     expect(document.activeElement).toBe(list())
+  })
+
+  it('Open from Sites goes to the Priority list first, then selects: the detail opens beside the list and focus lands on the row (#205)', () => {
+    const replay = start()
+    raise(replay, 'TRK-06', '60', '02:31')
+    fireEvent.click(screen.getByRole('button', { name: 'Sites' }))
+    expect(screen.getByRole('heading', { name: 'Sites' })).toBeInTheDocument()
+    fireEvent.click(faceOf('TRK-06'))
+    expect(screen.getByRole('button', { name: 'Priority' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText('Track review: TRK-06')).toBeInTheDocument()
+    expect(cards()).toEqual([])
+    // The list mounted before the landing request was made, so the keyboard Open lands on the
+    // row as it does from the list (#202 item 4; #204 round 1 drops a request made unmounted).
+    expect(document.activeElement).toBe(within(rowOf('TRK-06')).getByRole('button'))
+  })
+
+  it('a map click on Sites keeps Sites up, and a × on Sites moves nothing — as before (#205)', () => {
+    const replay = start()
+    raise(replay, 'TRK-06', '60', '02:31')
+    fireEvent.click(screen.getByRole('button', { name: 'Sites' }))
+    fireEvent.click(screen.getByTestId('map-select'))
+    expect(screen.getByRole('button', { name: 'Sites' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByTestId('map').getAttribute('data-selected')).not.toBe('')
+    expect(screen.queryByLabelText(/^Track review: /)).toBeNull()
+    fireEvent.click(clearOf('TRK-06'))
+    expect(cards()).toEqual([])
+    expect(screen.getByRole('button', { name: 'Sites' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByLabelText(/^Track review: /)).toBeNull()
   })
 
   it('refuses both controls behind the track’s frontier (#77), and clears the cards on Dismiss', () => {

@@ -222,12 +222,13 @@ export function SitesPanel({
   ]
   // The ids of the reason above, for every control the rewound state disables (#79 review).
   const describedBy = rewound ? 'sites-rewound-state sites-rewound-times' : undefined
+  // The flipping label alone carries the state, as Play/Pause and Mute do: a label and
+  // aria-pressed that both flip announce the state inverted (ruled A on #36 [18]; #205).
   const addButton = (kind: SiteKind, label: string) => (
     <button
       type="button"
       className="sites__button"
       disabled={rewound || (adding !== kind && !canAdd(set))}
-      aria-pressed={adding === kind}
       onClick={() => onPlacing(adding === kind ? null : { kind: 'add', site: kind })}
     >
       {adding === kind ? 'Cancel' : label}
