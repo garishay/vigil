@@ -500,8 +500,6 @@
   grid-template-columns: 22rem 26rem 1fr;
 }
 
-/* 03b, ruled B1 on #3: Review shows the drawer alone at the drawer column's own 26 rem — one
-   component, one width on either surface. */
 /* Raw mode (S4a): no rail — the map fills the body, and the drawer opens beside it on a click. */
 .shell__body--raw {
   grid-template-columns: 1fr;
@@ -812,13 +810,6 @@
   background: var(--panel);
   padding: 1rem;
   overflow-y: auto;
-}
-
-/* On the Review surface the drawer nests inside the rail: no second border, no doubled padding. */
-.rail .drawer {
-  border-right: none;
-  padding: 0.75rem 0 0;
-  overflow-y: visible;
 }
 
 .drawer__header {

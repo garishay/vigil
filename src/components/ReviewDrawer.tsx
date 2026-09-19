@@ -102,8 +102,8 @@ function Picker<Id extends string>({
 /**
  * The Review drawer (§7, PR 03): everything known about one track, observed or derived, plus the
  * §7.1 lifecycle — status, actions, escalation handoff, and the per-track event log. Its own
- * column beside the Queue, so the operator never loses the list to read a track (§4.2); the
- * Review surface shows the same component alone, at the same 26 rem (ruled B1 on #3).
+ * column beside the list, so the operator never loses the list to read a track (§4.2), at 26 rem
+ * (ruled B1 on #3); raw draws it beside the map alone, and no surface shows it on its own (#183).
  *
  * The score breakdown (04b) sits between the kinematics and the history line, which counts the
  * trail the map draws (06b). The Track Visuals slot is 03c's silhouette tier; 03d adds the photo

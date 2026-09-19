@@ -18,27 +18,30 @@ https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&subj
 ```
 
 The link opens on the brief. Run 1 ends in **Start run 2** — the pair's other scenario, the other condition, the same code. Run 2 ends in **See your results** and **Download results**, the one file to hand over.
-A fresh code per person: a run is kept in the browser under its code.
-A link that opens on **Session complete** means that browser already holds the code — **Clear saved runs** on the sheet page.
-A Demo link with a subject code is not a study link: a study link names its recording as `?feed=recording:…`.
+A link with `subject` and `run` opens on the brief and is a study run; without them it is a demo and plays on.
+A fresh code per person: a run is kept in the browser under its code. A link opened with one run saved resumes at the run not yet saved.
+A link that opens on **Session complete** means that code's session is finished in that browser — **Download results** is on that card; a new person takes a fresh code.
+**Clear saved runs**, on the sheet page, removes every saved run in that browser — every code — so download first.
 
 <details><summary>Every scenario link, and the URL parameters</summary>
 
-| scenario | condition | Study                                                                                                                                         | Demo                                                                                                              |
-| -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 02a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a)                   | [`?recording=vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02a) |
-| 02a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) | —                                                                                                                 |
-| 02b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b)                   | [`?recording=vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02b) |
-| 02b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw) | —                                                                                                                 |
-| 03a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a)                   | [`?recording=vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03a) |
-| 03a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw) | —                                                                                                                 |
-| 03b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b)                   | [`?recording=vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03b) |
-| 03b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) | —                                                                                                                 |
+| scenario | condition | link                                                                                                                                          |
+| -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 02a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a)                   |
+| 02a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) |
+| 02b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b)                   |
+| 02b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw) |
+| 03a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a)                   |
+| 03a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw) |
+| 03b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b)                   |
+| 03b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) |
+
+One link a row, not two: the Demo form this list once carried beside each Study form — `?recording=vigil-phl-002&scenario=…` — resolves to the same session, since `?recording=<id>` is the alias of `?feed=recording:<id>` and is folded into the feed list before anything else reads it (`src/lib/session.ts`); a link is a study run when it carries `subject` and `run`, whichever form named the recording.
 
 A 02 study link (S3b, S4a) is the corroboration pair; a 03 link (S7) the prioritization pair. A 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turned (S7d) — where a 02 run is six minutes. A worked study link, subject S03, run 1: [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1).
 
-- `feed=recording:<id>` — the study's recording, as a study link names it; the picture is the recording's real layer with the scenario beside it.
-- `recording=<id>` — a demo on that recording; `vigil-phl-001` is the default.
+- `feed=recording:<id>` — the recording; the picture is its real layer with the scenario beside it. `vigil-phl-001` is the default.
+- `recording=<id>` — the same, as an alias: the two forms are one.
 - `scenario=<name>` — a study scenario by name; `on`, the default, is the default deal, `off` none. A study link names one.
 - `mode=raw` — the unaided condition; `vigil`, the default, is the app as built.
 - `subject=<code>` — with `run`, both or neither: the person's code, under which the browser keeps their runs.
