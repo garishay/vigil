@@ -2,44 +2,52 @@
 
 **Explainable airspace triage for the PHL area.**
 
-**Live at <https://garishay.github.io/vigil/>** — the default recording; the evening arrivals bank
-is [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002). Open
-one, press Play, read the Priority list. Every merge to `main` redeploys it.
+## Open it
 
-The operator study’s scenarios open by name (S3b): **Study-02a-vigil**
-[`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a) ·
-**Demo-02a-vigil** [`?recording=vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02a) ·
-**Study-02b-vigil** [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b) ·
-**Demo-02b-vigil** [`?recording=vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02b).
-The unaided condition (S4a): **Study-02a-raw**
-[`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) ·
-**Study-02b-raw** [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw).
-The prioritization pair (S7): **Study-03a-vigil**
-[`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a) ·
-**Study-03a-raw** [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw) ·
-**Study-03b-vigil** [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b) ·
-**Study-03b-raw** [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) ·
-**Demo-03a-vigil** [`?recording=vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03a) ·
-**Demo-03b-vigil** [`?recording=vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03b);
-a 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turned (S7d) — where a 02 run is six minutes.
-`?scenario=on` is the default deal, `off` none; `?mode=vigil`, the default, is the app as built.
-A study run shows only what the task needs (S8): no tab bar in either condition — the run opens on the map and, in Vigil, the **Priority list** beside it, with the detail in place on selection — the detail offers Escalate and Dismiss, each one click on any track and closing the detail, and a track the subject has opened reads Opened and is drawn in a grey on the map from the click, one they have escalated or dismissed is drawn hollow; in Vigil the map spends one colour, red on a track at warning, and every other track wears the unaided neutral with no dim and no map legend (S9b); the brief that opens the run is one screen with the map's own legend, and the three end questions read as questions with their ends labelled.
-A **study run** (S4b) adds `&subject=<code>&run=<n>` to a study link, both or neither —
-[`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1):
-the brief, the scenario's minutes on the clock, the end screen with Copy run.
-One link per subject (S6a-iii): once the three questions are answered the run is kept in that
-browser under the subject’s code, and run 1’s end screen carries **Start run 2** — the pair’s
-other scenario, the other mode, the same subject. Run 2’s carries **See your results**, and with
-both runs in the browser the subject sheet is drawn in the tab they ran in, with **Download
-results** — the one file to hand over — as its primary. When run 1 is not in that browser the end
-screen says so and offers the run’s own file instead. A link opened again resumes at the first run
-not yet saved and never re-runs a saved one; with both saved the session is complete and the
-results are offered there too.
-The **sheet page** (S6a-ii) is [`?sheet`](https://garishay.github.io/vigil/?sheet): drop a results
-file, or both run files, or paste them, and the subject sheet is drawn in that tab, downloaded, or
-printed — the comparison whole on page 1 and the logs flowing on with no line cut (S5g, #194). It
-reads what the replay tool reads and refuses what the replay tool refuses,
-and **Clear saved runs** asks once, in place, before it removes what the browser holds.
+- **The demo** — <https://garishay.github.io/vigil/> — the default recording. Press Play, read the Priority list. Every merge to `main` redeploys it.
+- **The evening arrivals bank** — [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002).
+- **The sheet page** — [`?sheet`](https://garishay.github.io/vigil/?sheet): drop a results file, or both run files, or paste them, and the subject sheet is drawn in that tab, downloaded or printed; **Clear saved runs** asks once before it removes what the browser holds.
+
+## Run a study session — one link per person
+
+Unaided first, then Vigil; or Vigil first, then unaided. Put the person's code in for `<code>`:
+
+```
+https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw&subject=<code>&run=1
+https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&subject=<code>&run=1
+```
+
+The link opens on the brief. Run 1 ends in **Start run 2** — the pair's other scenario, the other condition, the same code. Run 2 ends in **See your results** and **Download results**, the one file to hand over.
+A fresh code per person: a run is kept in the browser under its code.
+A link that opens on **Session complete** means that browser already holds the code — **Clear saved runs** on the sheet page.
+A Demo link with a subject code is not a study link: a study link names its recording as `?feed=recording:…`.
+
+<details><summary>Every scenario link, and the URL parameters</summary>
+
+| scenario | condition | Study                                                                                                                                         | Demo                                                                                                              |
+| -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 02a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a)                   | [`?recording=vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02a) |
+| 02a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) | —                                                                                                                 |
+| 02b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b)                   | [`?recording=vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02b) |
+| 02b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw) | —                                                                                                                 |
+| 03a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a)                   | [`?recording=vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03a) |
+| 03a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw) | —                                                                                                                 |
+| 03b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b)                   | [`?recording=vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03b) |
+| 03b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) | —                                                                                                                 |
+
+A 02 study link (S3b, S4a) is the corroboration pair; a 03 link (S7) the prioritization pair. A 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turned (S7d) — where a 02 run is six minutes. A worked study link, subject S03, run 1: [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1).
+
+- `feed=recording:<id>` — the study's recording, as a study link names it; the picture is the recording's real layer with the scenario beside it.
+- `recording=<id>` — a demo on that recording; `vigil-phl-001` is the default.
+- `scenario=<name>` — a study scenario by name; `on`, the default, is the default deal, `off` none. A study link names one.
+- `mode=raw` — the unaided condition; `vigil`, the default, is the app as built.
+- `subject=<code>` — with `run`, both or neither: the person's code, under which the browser keeps their runs.
+- `run=<n>` — 1 or 2; a link opened again resumes at the first run not yet saved and never re-runs a saved one.
+- `sheet` — the sheet page, alone.
+
+</details>
+
+A study run shows only what the task needs (S8): no tab bar in either condition — the run opens on the map and, in Vigil, the **Priority list** beside it, with the detail in place on selection — the detail offers Escalate and Dismiss, each one click on any track and closing the detail, and a track the subject has opened reads Opened and is drawn in a grey on the map from the click, one they have escalated or dismissed is drawn hollow; in Vigil the map spends one colour, red on a track at warning, and every other track wears the unaided neutral with no dim and no map legend (S9b); the brief that opens the run is one screen with the map's own legend, and the three end questions read as questions with their ends labelled. The demo opens on the same Priority list beside the map, with Sites as its other tab (#183).
 
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated

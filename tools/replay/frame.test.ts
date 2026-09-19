@@ -656,9 +656,9 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
   const vigilCaption = (svg: string) =>
     [...svg.matchAll(/class="caption"[^>]*>([^<]*)</g)].map((match) => match[1])
 
-  it('draws the Queue box under the map on 02a and 02b — the S5c gate’s five lines exactly — and the twenty-six on 03a (S7c, #163)', () => {
+  it('draws the Priority list box under the map on 02a and 02b — the S5c gate’s five lines exactly — and the twenty-six on 03a (S7c, #163)', () => {
     const a = frameSvg(vigilOf('S03-02a-vigil-1'))
-    expect(textsOf(a, 'vigil-queue-title')).toEqual(['Queue at 0:58 · 5 above calm'])
+    expect(textsOf(a, 'vigil-queue-title')).toEqual(['Priority list at 0:58 · 5 above calm'])
     expect(queueLines(a)).toEqual([
       '1 TRK-11 72 · Remote ID mismatch, closing, near PHL Airfield',
       '2 TRK-12 64 · Revisiting, non-cooperative, near PHL Airfield',
@@ -679,7 +679,7 @@ describe('the Vigil annotations, on a Vigil frame only (S5c-ii, #138, ruled C1�
     expect(box.width).toBe('840')
     expect(Number(box.height)).toBe(30 + 5 * 18 + 6)
     const c = frameSvg(vigilOf('S05-03a-vigil-1'))
-    expect(textsOf(c, 'vigil-queue-title')).toEqual(['Queue at 1:11 · 26 above calm'])
+    expect(textsOf(c, 'vigil-queue-title')).toEqual(['Priority list at 1:11 · 26 above calm'])
     expect(queueLines(c)).toHaveLength(26)
     expect(queueLines(c)[0]).toBe('1 TRK-31 73 · Non-cooperative, closing, near PHL Airfield')
     expect(queueLines(c)[13]).toBe('14 TRK-25 61 · Orbiting, non-cooperative, low and slow')

@@ -65,10 +65,10 @@ describe('the pair (S5d-i, #138, ruled A6, N8, G1–G6) — the two frames and t
     expect(pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')).toBe(svg)
   })
 
-  it('caps each frame’s Queue box at five rows with the count line, while the run’s own frame keeps every row (G2)', () => {
+  it('caps each frame’s Priority list box at five rows with the count line, while the run’s own frame keeps every row (G2)', () => {
     const svg = pairOf('S05-03a-raw-1', 'S05-03a-vigil-1')
     expect(tagsOf(svg, 'vigil-queue-line')).toHaveLength(5)
-    expect(textsOf(svg, 'vigil-queue-title')).toEqual(['Queue at 1:11 · 26 above calm'])
+    expect(textsOf(svg, 'vigil-queue-title')).toEqual(['Priority list at 1:11 · 26 above calm'])
     expect(textsOf(svg, 'vigil-queue-more')).toEqual([
       "… 21 more above calm, on the run's own frame",
     ])

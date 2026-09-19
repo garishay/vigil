@@ -48,7 +48,6 @@ vi.mock('./components/MapView', () => ({
     tracks,
     injects,
     selectedId,
-    selectionShown = true,
     trail = [],
     projection = [],
     projectionEntryS = null,
@@ -67,7 +66,6 @@ vi.mock('./components/MapView', () => ({
     tracks?: { id: string }[]
     injects?: { id: string }[]
     selectedId?: string | null
-    selectionShown?: boolean
     trail?: unknown[]
     projection?: readonly unknown[]
     projectionEntryS?: number | null
@@ -87,7 +85,6 @@ vi.mock('./components/MapView', () => ({
         data-tracks={tracks?.length ?? 0}
         data-injects={injects?.length ?? 0}
         data-selected={selectedId ?? ''}
-        data-selection-shown={String(selectionShown)}
         data-trail={trail.length}
         data-projection={projection.length}
         data-entry={projectionEntryS ?? ''}
@@ -197,25 +194,31 @@ describe('App shell', () => {
     expect(screen.getByText(/not for operational use/i)).toBeInTheDocument()
   })
 
-  it('opens on Home', () => {
+  it('opens on the Priority list, with Sites as the other tab and no Home or Review (#183)', () => {
+    // Two tabs cost a click and explained nothing; the list is the app. Home's two sentences
+    // went with it (ruled A) — the strip labels its own fields.
     render(<App schedule={never} />)
-    expect(screen.getByRole('button', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('heading', { name: 'Picture summary' })).toBeInTheDocument()
-  })
-
-  it('says the sim clock opens at the recording’s clock start — true under every recording (#36 [14])', () => {
-    // From #84 the hour is the recording's, not the scenario's; the body copy says so.
-    render(<App schedule={never} />)
+    expect(screen.getByRole('button', { name: 'Priority' })).toHaveAttribute('aria-current', 'page')
     expect(
-      screen.getByText(
-        /The sim clock opens at the recording’s clock start and ticks with playback\./,
-      ),
+      screen.getByRole('heading', { name: 'Priority list — highest first' }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('navigation', { name: 'Surfaces' }))
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Priority', 'Sites'])
+    expect(screen.queryByText(/The sim clock opens at the recording/)).toBeNull()
   })
 
   it('reports the cooperative track count once the recording loads', async () => {
     render(<App schedule={never} />)
-    await waitFor(() => expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2'))
+    await waitFor(() =>
+      expect(
+        within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative')
+          .nextSibling,
+      ).toHaveTextContent('2'),
+    )
     expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '2')
   })
 
@@ -282,7 +285,6 @@ describe('App shell', () => {
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent(SCENARIO.seed)
     // And the scorer agrees with the strip (#98 review): no inject row is tagged off-hours, and
     // the breakdown's Off-hours row reads the same hour, inside the window, at 0.
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const rows = within(queue).getAllByRole('listitem')
@@ -302,7 +304,6 @@ describe('App shell', () => {
 
   it('scores every row, with the ADS-B block held under the ceiling (04a)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
     const chips = rows.map((row) => Number(row.querySelector('.queue__score')?.textContent))
     expect(chips.every((chip) => Number.isInteger(chip) && chip >= 0 && chip <= 100)).toBe(true)
@@ -319,7 +320,6 @@ describe('App shell', () => {
 
   it('opens a row to its breakdown in the drawer, header and bars agreeing with the chip (04b)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const firstRow = within(queue).getAllByRole('listitem')[0]
     const chip = firstRow.querySelector('.queue__score') as HTMLElement
@@ -330,9 +330,8 @@ describe('App shell', () => {
     expect(within(breakdown).getAllByRole('meter')).toHaveLength(6)
   })
 
-  it('ranks both layers into one queue on the Queue surface', () => {
+  it('ranks both layers into one list', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const rows = within(queue).getAllByRole('listitem')
     const injectCount = Number(screen.getByTestId('map').getAttribute('data-injects'))
@@ -346,19 +345,21 @@ describe('App shell', () => {
     expect(within(rows[0]).getByText(/^TRK-\d\d$/)).toBeInTheDocument()
   })
 
-  it('shows the Queue only on the Queue surface', () => {
+  it('shows the list at load and not on Sites, and back again', () => {
     render(<App schedule={never} />)
-    expect(screen.queryByRole('list', { name: 'Ranked queue' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sites' }))
     expect(screen.queryByRole('list', { name: 'Ranked queue' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Priority' }))
+    expect(screen.getByRole('list', { name: 'Ranked queue' })).toBeInTheDocument()
   })
 
   it('holds the count back while the recording is still loading', () => {
     useSession.mockReturnValue({ status: 'loading' })
     render(<App schedule={never} />)
-    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('…')
+    expect(
+      within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative').nextSibling,
+    ).toHaveTextContent('…')
     // The seed too: no scenario is in force until the session is (#145 round 2).
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent('…')
     expect(screen.getByTestId('map')).toHaveAttribute('data-tracks', '0')
@@ -369,7 +370,9 @@ describe('App shell', () => {
     useSession.mockReturnValue({ status: 'error', message: 'could not load the ADS-B recording' })
     render(<App schedule={never} />)
     expect(screen.getByRole('alert')).toHaveTextContent('could not load the ADS-B recording')
-    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('—')
+    expect(
+      within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative').nextSibling,
+    ).toHaveTextContent('—')
   })
 
   // A session the URL could not make is refused in its own words (#115, ruling 4; A7): on the
@@ -383,7 +386,9 @@ describe('App shell', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Feed "sonar:1" — unknown feed kind "sonar"',
     )
-    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('—')
+    expect(
+      within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative').nextSibling,
+    ).toHaveTextContent('—')
     expect(screen.getByText('Injects').nextSibling).toHaveTextContent('—')
     expect(screen.getByText('Recording').nextSibling).toHaveTextContent('—')
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent('—')
@@ -395,12 +400,13 @@ describe('App shell', () => {
   it('shows the recording alone with the scenario off, counting zero injects', () => {
     useSession.mockReturnValue(ready(CAPTURE, DEFAULT_RECORDING, false))
     render(<App schedule={never} />)
-    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2')
+    expect(
+      within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative').nextSibling,
+    ).toHaveTextContent('2')
     expect(screen.getByText('Injects').nextSibling).toHaveTextContent('0')
     // No scenario, no seed to reproduce it from: a dash, not the config's (#145 round 2).
     expect(screen.getByText('Seed').nextSibling).toHaveTextContent('—')
     expect(screen.getByTestId('map')).toHaveAttribute('data-injects', '0')
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const rows = within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
     expect(rows).toHaveLength(2)
     expect(rows.every((row) => within(row).queryByText('INJECT') === null)).toBe(true)
@@ -408,7 +414,6 @@ describe('App shell', () => {
 
   it('opens the drawer beside the list from a row click, and closes it (03a)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const firstRow = within(queue).getAllByRole('listitem')[0]
     fireEvent.click(within(firstRow).getByRole('button'))
@@ -424,54 +429,8 @@ describe('App shell', () => {
     expect(document.querySelector('.shell__body--drawer')).toBeNull()
   })
 
-  it('shows the drawer alone on Review, and an empty state without a selection (03a)', () => {
-    render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
-    expect(screen.getByText('Select a track from the Queue.')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
-    const queue = screen.getByRole('list', { name: 'Ranked queue' })
-    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
-    expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
-    expect(screen.queryByText('Select a track from the Queue.')).not.toBeInTheDocument()
-    // Selection persisted across the surface switch — client state only.
-    expect(screen.queryByRole('list', { name: 'Ranked queue' })).not.toBeInTheDocument()
-  })
-
-  it('lands focus on the Review nav item when the drawer closes on Review, not on body (#46)', () => {
-    render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
-    const queue = screen.getByRole('list', { name: 'Ranked queue' })
-    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
-
-    // A keyboard operator has the close button focused when they activate it; the Queue's
-    // row-focus return is unmounted here, so without #46 the unmount drops them on body.
-    const close = screen.getByRole('button', { name: 'Close review' })
-    close.focus()
-    fireEvent.click(close)
-    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Review' }))
-    expect(document.activeElement).not.toBe(document.body)
-  })
-
-  it('leaves a mouse-driven close on Review alone — no focus jump to the header (#53 review)', () => {
-    render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
-    const queue = screen.getByRole('list', { name: 'Ranked queue' })
-    fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
-    // A mouse click carries a positive detail; the drawer's own recovery skips it for the same
-    // reason (03b round 6) — a pointer user parked on the nav button would Space-activate it.
-    fireEvent.click(screen.getByRole('button', { name: 'Close review' }), { detail: 1 })
-    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
-    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Review' }))
-  })
-
   it('sends a mouse-driven close on the Queue surface to the list, not the row (#54)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const row = within(within(queue).getAllByRole('listitem')[0]).getByRole('button')
     fireEvent.click(row, { detail: 1 })
@@ -486,7 +445,6 @@ describe('App shell', () => {
 
   it('keeps the Queue-surface close returning focus to the row, as 03a built it (#46)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     const row = within(within(queue).getAllByRole('listitem')[0]).getByRole('button')
     fireEvent.click(row)
@@ -498,7 +456,6 @@ describe('App shell', () => {
 
   it('selects from the map side and syncs the row (03a)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByTestId('map-select'))
     expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
     const selected = document.querySelector('.queue__row--selected')
@@ -508,11 +465,10 @@ describe('App shell', () => {
     )
   })
 
-  it('lands a Home-surface map selection on the Queue, where it can be reviewed and cleared (03a)', () => {
+  it('opens the drawer beside the list on a map selection, with no surface to hop from (03a; #183)', () => {
     render(<App schedule={never} />)
-    // Home has no drawer and no close button; a selection made there must not strand the user.
     fireEvent.click(screen.getByTestId('map-select'))
-    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('button', { name: 'Priority' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close review' }))
     expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
@@ -520,7 +476,6 @@ describe('App shell', () => {
 
   it('filters by layer without renumbering the ranks (03a)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const injectCount = Number(screen.getByTestId('map').getAttribute('data-injects'))
 
     // On this picture every inject outranks the two distant ADS-B tracks, so the ADS-B filter is
@@ -546,7 +501,6 @@ describe('App shell', () => {
 
   it('walks the full lifecycle New → Assessing → Escalated → Resolved in the drawer (03b)', () => {
     render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
     const drawer = () => screen.getByLabelText(/^Track review: /)
@@ -593,7 +547,6 @@ describe('App shell', () => {
     const { rerender } = render(
       <App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     replay.tick(10)
     rerender(<App schedule={replay.schedule} now={() => '2026-09-01T13:00:00.000Z'} />)
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
@@ -605,7 +558,6 @@ describe('App shell', () => {
 
   it('filters by state with global ranks kept, composing with the layer filter (03b)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = () => screen.getByRole('list', { name: 'Ranked queue' })
     const total = within(queue()).getAllByRole('listitem').length
 
@@ -631,7 +583,6 @@ describe('App shell', () => {
 
   it('shows lifecycle state on the row, and Active as the non-terminal set with global ranks (03e)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = () => screen.getByRole('list', { name: 'Ranked queue' })
     const rows = () => within(queue()).getAllByRole('listitem')
     const total = rows().length
@@ -672,10 +623,9 @@ describe('App shell', () => {
 
   it('says when no track matches the filters, but not while the picture is loading (#49)', () => {
     const { rerender } = render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     // The live region is there from the moment the Queue is, empty: a region that appears in the
     // same commit as its text is one some screen readers never announce (#51 review).
-    const region = () => screen.getByRole('status')
+    const region = () => document.querySelector('.rail__empty') as HTMLElement
     expect(region()).toBeEmptyDOMElement()
 
     // Nothing is escalated on a fresh picture, so the Escalated chip is the first legitimately
@@ -688,13 +638,13 @@ describe('App shell', () => {
     expect(screen.getByLabelText('Tracks in queue')).toHaveTextContent('0')
     expect(region()).toHaveTextContent('No tracks match the filters.')
 
-    // The filters persist across surfaces, so a round trip through Home must land back on the
+    // The filters persist across surfaces, so a round trip through Sites must land back on the
     // *same* region, refilled — not a fresh one born with its text (#51 review, round 3).
     const node = region()
-    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sites' }))
     expect(region()).toBe(node)
     expect(region()).toBeEmptyDOMElement()
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Priority' }))
     expect(region()).toBe(node)
     expect(region()).toHaveTextContent('No tracks match the filters.')
 
@@ -714,27 +664,21 @@ describe('App shell', () => {
     expect(region()).toBeEmptyDOMElement()
   })
 
-  it('keeps the selection but not the ring on Home (03b, ruled A2 on #3)', () => {
+  it('keeps the selection across the two surfaces, the ring with it (#183; A2 on #3 is moot)', () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByTestId('map-select'))
     const selected = screen.getByTestId('map').getAttribute('data-selected')
     expect(selected).not.toBe('')
-    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('true')
-
-    // Home: the ring is suppressed as presentation, but the selection itself still reaches the
-    // map — nulling it instead would reset the ease stamp and re-fly the camera (#47 review).
-    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    // Sites keeps the selection — the map still reads it — and the drawer waits on the list.
+    fireEvent.click(screen.getByRole('button', { name: 'Sites' }))
     expect(screen.getByTestId('map').getAttribute('data-selected')).toBe(selected)
-    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('false')
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
-    expect(screen.getByTestId('map').getAttribute('data-selection-shown')).toBe('true')
+    expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Priority' }))
     expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
   })
 
   it('chains actions batched into one commit instead of overwriting (03b review fix)', () => {
     render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
     const drawer = screen.getByLabelText(/^Track review: /)
@@ -754,25 +698,18 @@ describe('App shell', () => {
     ])
   })
 
-  it('renders the Review surface at the drawer column width (03b, ruled B1 on #3)', () => {
-    render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
-    expect(document.querySelector('.shell__body--review')).not.toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
-    expect(document.querySelector('.shell__body--review')).toBeNull()
-  })
-
   it('switches surfaces without unmounting the map', () => {
     render(<App schedule={never} />)
     const map = screen.getByTestId('map')
+    fireEvent.click(screen.getByRole('button', { name: 'Sites' }))
+    expect(screen.getByRole('heading', { name: 'Sites' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sites' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('button', { name: 'Priority' })).not.toHaveAttribute('aria-current')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
-    expect(screen.getByRole('heading', { name: 'Ranked queue' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('button', { name: 'Home' })).not.toHaveAttribute('aria-current')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
-    expect(screen.getByRole('heading', { name: 'Track review' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Priority' }))
+    expect(
+      screen.getByRole('heading', { name: 'Priority list — highest first' }),
+    ).toBeInTheDocument()
 
     expect(screen.getByTestId('map')).toBe(map)
   })
@@ -786,7 +723,6 @@ describe('App shell', () => {
       photographer: 'Tester',
     })
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     const queue = screen.getByRole('list', { name: 'Ranked queue' })
     fireEvent.click(within(within(queue).getAllByRole('listitem')[0]).getByRole('button'))
@@ -806,7 +742,6 @@ describe('App shell', () => {
 
   it('never looks up a photo for an inject (03d)', async () => {
     render(<App schedule={never} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByTestId('map-select'))
     expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
     await act(async () => {})
@@ -891,7 +826,6 @@ describe('App replay clock (06a)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     // AAL423 starts inside the ring and ranks above the parked track.
     const before = idents()
@@ -907,7 +841,6 @@ describe('App replay clock (06a)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     replay.tick(10)
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }))
     const frozen = document.querySelector('.queue')?.textContent
@@ -924,7 +857,6 @@ describe('App replay clock (06a)', () => {
     useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     // 02:37:00: TRK-05 is 6.0 km out, closing at 19.1 kt on 346° — the gate's own numbers.
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '420' } })
     fireEvent.click(document.querySelector('[data-id="inject-05"] button') as HTMLElement)
@@ -949,7 +881,6 @@ describe('App replay clock (06a)', () => {
     const replay = manualClock()
     let wall = '2026-09-01T12:04:31.000Z'
     render(<App schedule={replay.schedule} now={() => wall} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     expect(idents()).not.toContain('cccccc')
     wall = '2026-09-01T12:05:01.000Z'
@@ -967,7 +898,6 @@ describe('App replay clock (06a)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     const row = rows().find((r) => within(r).queryByText('bbbbbb')) as HTMLElement
     fireEvent.click(within(row).getByRole('button'))
@@ -999,7 +929,6 @@ describe('App replay clock (06a)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     const open = (ident: string) =>
       fireEvent.click(
@@ -1034,7 +963,6 @@ describe('App replay clock (06a)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     const open = (ident: string) =>
       fireEvent.click(
@@ -1067,24 +995,23 @@ describe('App replay clock (06a)', () => {
     ])
   })
 
-  it('lands focus on the Review nav item when the picture takes the reviewed track away (#73 review)', () => {
+  it('lands focus on the list when the picture takes the reviewed track away (#73 review; #183)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     fireEvent.click(
       within(rows().find((r) => within(r).queryByText('bbbbbb')) as HTMLElement).getByRole(
         'button',
       ),
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
-    // A keyboard operator mid-walk: focus is on a drawer button when the track coasts out.
+    // A keyboard operator mid-walk: focus is on a drawer button when the track coasts out. The
+    // list is mounted under every close now, so its own return lands them there — the row is
+    // gone with the track, and the list itself is the place that keeps their position.
     screen.getByRole('button', { name: 'Assess' }).focus()
     replay.tick(91)
     expect(screen.queryByLabelText(/^Track review: /)).not.toBeInTheDocument()
-    expect(screen.getByText('Select a track from the Queue.')).toBeInTheDocument()
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Review' }))
+    expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
   })
 })
 
@@ -1116,7 +1043,6 @@ describe('App record under the clock (06b)', () => {
     useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
     // Twenty minutes in one seek: at most one crossing per band change the record last saw.
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '1185' } })
@@ -1153,7 +1079,6 @@ describe('App record under the clock (06b)', () => {
     useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value: '1185' } })
     const crossedRow = rows().find((row) => {
@@ -1176,7 +1101,6 @@ describe('App record under the clock (06b)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'ADS-B' }))
     fireEvent.click(
       within(rows().find((r) => within(r).queryByText('AAL423')) as HTMLElement).getByRole(
@@ -1211,16 +1135,11 @@ describe('App record under the clock (06b)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     replay.tick(67)
     fireEvent.click(screen.getByTestId('map-select'))
     // An inject at 67 s: the frame-grid instants 0, 15, 30, 45, 60 and now.
     expect(screen.getByText('History: 6 known positions over the last 2 min')).toBeInTheDocument()
     expect(screen.getByTestId('map')).toHaveAttribute('data-trail', '6')
-    // Home suppresses the ring, and the trail with it — presentation only (A2 on #3).
-    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
-    expect(screen.getByTestId('map')).toHaveAttribute('data-trail', '6')
-    expect(screen.getByTestId('map')).toHaveAttribute('data-selection-shown', 'false')
   })
 })
 
@@ -1229,7 +1148,6 @@ describe('App pattern row under the clock (05a)', () => {
     useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
     const rows = () =>
       within(screen.getByRole('list', { name: 'Ranked queue' })).getAllByRole('listitem')
@@ -1278,7 +1196,6 @@ describe('App rewound actions (#77)', () => {
     useSession.mockReturnValue(MOVING)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(action('Queue'))
     fireEvent.click(action('ADS-B'))
     fireEvent.click(
       within(rows().find((r) => within(r).queryByText('AAL423')) as HTMLElement).getByRole(
@@ -1361,7 +1278,6 @@ describe('App rewound actions (#77)', () => {
     const replay = manualClock()
     terminalIdsSeen.length = 0
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(action('Queue'))
     fireEvent.click(action('ADS-B'))
 
     // Ten ticks of the clock. `ranked` is a new array on every one of them (#76) and new tracks
@@ -1390,7 +1306,6 @@ describe('App rewound actions (#77)', () => {
     const replay = manualClock()
     bandsSeen.length = 0
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(action('Queue'))
 
     // Ten ticks: `ranked` is new on every one (#76), so a map memoised on it would be new too.
     // The map may only change identity when its content does — and a run of ticks with no
@@ -1485,7 +1400,6 @@ describe('App pattern entries, the tag, and the re-surface (05b, ruled on #5)', 
     useSession.mockReturnValue(LONG)
     const replay = manualClock()
     render(<App schedule={replay.schedule} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(screen.getByRole('button', { name: 'INJECT' }))
     return replay
   }
@@ -1583,7 +1497,6 @@ describe('App Sites surface (08a, ruled on #86)', () => {
 
   it('opens on the config set, and a placed site re-scores the queue and logs the crossing at sim time', () => {
     render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
-    fireEvent.click(action('Queue'))
     const before = chips()
     fireEvent.click(action('Sites'))
     expect(screen.getByRole('heading', { name: 'Sites' })).toBeInTheDocument()
@@ -1610,9 +1523,9 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield,site-2')
     expect(screen.getByText('2 sites · edited from config')).toBeInTheDocument()
 
-    // The queue re-scored against the session set: the inject sits inside the new ring and
-    // reads warning; its record logs the crossing at sim time, after its first-seen line.
-    fireEvent.click(action('Queue'))
+    // Back on the list: it re-scored against the session set — the inject sits inside the new
+    // ring and reads warning; its record logs the crossing at sim time, after its first-seen line.
+    fireEvent.click(action('Priority'))
     expect(chips()).not.toEqual(before)
     const row = rows().find((r) => within(r).queryByText(trackIdent(target))) as HTMLElement
     expect(row.querySelector('.queue__score')).toHaveAttribute('data-band', 'warning')
@@ -1633,7 +1546,7 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     fireEvent.click(action('Sites'))
     fireEvent.click(action('Reset to config'))
     expect(screen.getByText('1 site · config')).toBeInTheDocument()
-    fireEvent.click(action('Queue'))
+    fireEvent.click(action('Priority'))
     expect(chips()).toEqual(before)
   })
 
@@ -1648,7 +1561,6 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     render(<App schedule={never} />)
     // The first picture is the restored set's: the inject inside last session's ring reads
     // warning with nothing pressed, and the map was handed both sites.
-    fireEvent.click(action('Queue'))
     const row = rows().find((r) => within(r).queryByText(trackIdent(target))) as HTMLElement
     expect(row.querySelector('.queue__score')).toHaveAttribute('data-band', 'warning')
     expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield,site-2')
@@ -1788,8 +1700,8 @@ describe('App Sites surface (08a, ruled on #86)', () => {
     expect(siteRows()).toHaveLength(2)
     expect(screen.queryByText('Centre is outside the AO')).not.toBeInTheDocument()
     fireEvent.click(action('+ Protected site'))
-    // Leaving the surface disarms the map: a click on Home must not place a site.
-    fireEvent.click(action('Home'))
+    // Leaving the surface disarms the map: a click on the list must not place a site.
+    fireEvent.click(action('Priority'))
     expect(screen.getByTestId('map')).toHaveAttribute('data-placing', 'false')
   })
 
@@ -1849,7 +1761,6 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
     render(<App schedule={never} now={() => '2026-09-01T12:04:31.000Z'} />)
     const heard = injectsAtOpen().find((inject) => inject.identity === 'cooperative')!
     const silent = injectsAtOpen().find((inject) => inject.identity === 'non-cooperative')!
-    fireEvent.click(action('Queue'))
     const before = chips()
     expect(rowFor(trackIdent(heard))).not.toHaveTextContent('Friendly launch')
     // The map's fill reads the chip's band, so the demo moment is one step there too (#96): the
@@ -1865,9 +1776,9 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
     expect(siteRows()[1]).toHaveTextContent('Launch area 2')
     expect(siteRows()[1]).toHaveTextContent('Friendly launch area')
     // The clock never ran: the picture is unmoved, and the map still got the new band.
+    fireEvent.click(action('Priority'))
     expect(mapBands()).not.toContain(heard.id)
     expect(mapBands()).not.toContain('adsb-')
-    fireEvent.click(action('Queue'))
     const row = rowFor(trackIdent(heard))
     expect(Number(row.querySelector('.queue__score')?.textContent)).toBeLessThanOrEqual(30)
     expect(row.querySelector('.queue__score')).toHaveAttribute('data-band', 'calm')
@@ -1884,7 +1795,7 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
     placeTarget.center = silent.position
     fireEvent.click(action('+ Friendly launch area'))
     fireEvent.click(screen.getByTestId('map-place'))
-    fireEvent.click(action('Queue'))
+    fireEvent.click(action('Priority'))
     expect(chips()).toEqual(withHeardCapped)
     expect(rowFor(trackIdent(silent))).not.toHaveTextContent('Friendly launch')
 
@@ -1895,7 +1806,7 @@ describe('App friendly launch areas and the site plan (08b, ruled on #86)', () =
     // Reset returns the config picture.
     fireEvent.click(action('Sites'))
     fireEvent.click(action('Reset to config'))
-    fireEvent.click(action('Queue'))
+    fireEvent.click(action('Priority'))
     expect(chips()).toEqual(before)
   })
 
@@ -2006,9 +1917,9 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
   it('acknowledges from the card: New becomes Assessing, the line is written at sim time, the card clears, the handoff carries it', () => {
     const replay = start()
     const at = raise(replay, 'TRK-06', '60', '02:31')
-    // The card's body is a selection: the Queue opens with TRK-06 in the drawer.
+    // The card's body is a selection: TRK-06 opens in the drawer beside the list.
     fireEvent.click(within(cardOf('TRK-06')).getByRole('button', { name: /Warning/ }))
-    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
     expect(logLines().at(-1)).toBe(`${at}Warning — up from caution`)
     fireEvent.click(within(cardOf('TRK-06')).getByRole('button', { name: 'Acknowledge' }))
     expect(cards().some((card) => card.includes('TRK-06'))).toBe(false)
@@ -2034,7 +1945,6 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     seek('600')
     expect(ack()).toBeEnabled()
     expect(within(stack()).getByRole('status')).toHaveTextContent('')
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(cards().some((card) => card.includes('TRK-06'))).toBe(false)
@@ -2067,7 +1977,6 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
 
   it('raises Re-surfaced in place of the crossing on a Dismissed track (A5)', () => {
     const replay = start()
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     seek('360')
     fireEvent.click(within(rowOf('UAS-CD84')).getByRole('button'))
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
@@ -2085,7 +1994,9 @@ describe('raw mode (S4a, #136, ruled) — the fairness spec, line by line', () =
     useSession.mockReturnValue(rawReady())
     render(<App schedule={never} />)
     expect(screen.queryByRole('navigation', { name: 'Surfaces' })).toBeNull()
-    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('2')
+    expect(
+      within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative').nextSibling,
+    ).toHaveTextContent('2')
     expect(screen.getByText('Injects')).toBeInTheDocument()
     expect(screen.getByText('Recording')).toBeInTheDocument()
     expect(screen.getByText('Sim clock')).toBeInTheDocument()
@@ -2106,7 +2017,6 @@ describe('raw mode (S4a, #136, ruled) — the fairness spec, line by line', () =
     expect(map()).toHaveAttribute('data-terminal', '')
     expect(map()).toHaveAttribute('data-bands', '')
     expect(map()).toHaveAttribute('data-projection', '0')
-    expect(map()).toHaveAttribute('data-selection-shown', 'true')
   })
 
   it('opens the observed-only drawer beside the map on a click, keeps the trail, and acts through Assess and Escalate', () => {
@@ -2174,7 +2084,9 @@ describe('raw mode (S4a, #136, ruled) — the fairness spec, line by line', () =
     expect(screen.getByRole('button', { name: /^(Play|Pause)$/ })).toBeInTheDocument()
     expect(screen.getByText('Seed')).toBeInTheDocument()
     expect(screen.getByText('Alerts')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Picture summary' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Priority list — highest first' }),
+    ).toBeInTheDocument()
     expect(map()).toHaveAttribute('data-mode', 'vigil')
     expect(map().getAttribute('data-bands')).not.toBe('')
   })
@@ -2198,7 +2110,9 @@ describe('raw mode while the recording loads (#148 round 1)', () => {
     expect(screen.queryByRole('button', { name: /^(Play|Pause)$/ })).toBeNull()
     expect(screen.queryByText('Seed')).toBeNull()
     expect(screen.queryByText('Alerts')).toBeNull()
-    expect(screen.getByText('Cooperative').nextSibling).toHaveTextContent('…')
+    expect(
+      within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative').nextSibling,
+    ).toHaveTextContent('…')
     expect(screen.getByText('Playback').nextSibling).toHaveTextContent('—')
     expect(screen.getByTestId('map')).toHaveAttribute('data-mode', 'raw')
   })
@@ -2579,21 +2493,24 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     useSession.mockReturnValue(ready(CAPTURE))
     const { unmount } = render(<App schedule={never} />)
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByText('Cooperative')).toBeInTheDocument()
+    expect(
+      within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Injects')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sites' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^(Play|Pause)$/ })).toBeInTheDocument()
     expect(screen.getByRole('main')).not.toHaveAttribute('inert')
     // The demo keeps the Seed, the layer chips, and the INJECT badge (#36 [37], [38]).
     expect(screen.getByText('Seed')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
     expect(screen.getByRole('group', { name: 'Filter by layer' })).toBeInTheDocument()
     expect(screen.getAllByText('INJECT').length).toBeGreaterThan(1)
     unmount()
     useSession.mockReturnValue(ready(CAPTURE, DEFAULT_RECORDING, true, 'raw'))
     render(<App schedule={never} />)
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByText('Cooperative')).toBeInTheDocument()
+    expect(
+      within(document.querySelector('.strip') as HTMLElement).getByText('Cooperative'),
+    ).toBeInTheDocument()
     expect(field('Playback')).toHaveTextContent(/^[0-9][0-9]:[0-9][0-9]$/)
   })
 })
@@ -2836,7 +2753,6 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
       replay.tick(1)
       fireEvent.click(screen.getByTestId('map-select'))
       const map = screen.getByTestId('map')
-      expect(map).toHaveAttribute('data-selection-shown', 'true')
       expect(map.getAttribute('data-selected')).not.toBe('')
       cleanup()
     }
@@ -2937,7 +2853,6 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     render(<App schedule={manualClock().schedule} now={() => NOW} />)
     const nav = screen.getByRole('navigation', { name: 'Surfaces' })
     expect(nav).toBeInTheDocument()
-    fireEvent.click(within(nav).getByRole('button', { name: 'Queue' }))
     const states = screen.getByRole('group', { name: 'Filter by state' })
     expect(within(states).getByRole('button', { name: 'Resolved' })).toBeInTheDocument()
     // And the demo's own lifecycle: Escalate still follows an Assess there.
