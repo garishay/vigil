@@ -527,8 +527,11 @@
   padding: 1.5rem;
 }
 
+/* Every run overlay shares the card — the brief, the end screen, the session-complete card.
+   Widened from 40rem for the questions' labelled ends (S8, #180 item 5, ruled C): at 40rem the
+   1–10 row broke onto three lines and the legend collided with its low end. */
 .run__card {
-  width: min(40rem, 100%);
+  width: min(52rem, 100%);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
@@ -583,10 +586,27 @@
   font-size: 0.875rem;
 }
 
+/* The answer row (S8, #180 item 5; ruled R3): the low end, the ten choices and the high end on
+   one line by construction — nothing in it may wrap, so the row can only overflow, and at the
+   card's width it does not: the longest row, *1 = not at all … 10 = extremely*, is measured in
+   the PR at 1280×720. The radio's own margin is dropped, since Chrome's 3 px a side across ten
+   of them was most of what pushed the row over. */
+.run__answer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.run__end {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
 .run__scale {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
 }
 
 .run__choice {
@@ -594,6 +614,10 @@
   align-items: center;
   gap: 0.25rem;
   font-size: 0.875rem;
+}
+
+.run__choice input {
+  margin: 0;
 }
 
 .run__hint {

@@ -2247,9 +2247,9 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       }),
     )
   const answerAll = () => {
-    answer('Mental demand', '6')
-    answer('Time pressure', '7')
-    answer('Confidence in your decisions', '5')
+    answer('How mentally demanding was the task?', '6')
+    answer('How hurried or rushed was the pace?', '7')
+    answer('How confident are you that you escalated the right tracks?', '5')
   }
   const runJsonText = () =>
     (within(dialog()).getByLabelText('Run JSON') as HTMLTextAreaElement).value
@@ -2429,10 +2429,10 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(within(dialog()).queryByRole('button')).toBeNull()
     expect(within(dialog()).getByText('Answer all three to continue.')).toBeInTheDocument()
     expect(within(dialog()).queryByLabelText('Run JSON')).toBeNull()
-    answer('Mental demand', '6')
-    answer('Time pressure', '7')
+    answer('How mentally demanding was the task?', '6')
+    answer('How hurried or rushed was the pace?', '7')
     expect(within(dialog()).queryByRole('button', { name: 'Copy run' })).toBeNull()
-    answer('Confidence in your decisions', '5')
+    answer('How confident are you that you escalated the right tracks?', '5')
     // The backups appear with the rest, in their own row under the way on (ruled R1).
     expect(within(dialog()).getByRole('button', { name: 'Copy run' })).toBeEnabled()
     expect(within(dialog()).queryByText('Answer all three to continue.')).toBeNull()
@@ -2632,9 +2632,9 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
       }),
     )
   const answerAll = () => {
-    answer('Mental demand', '6')
-    answer('Time pressure', '7')
-    answer('Confidence in your decisions', '5')
+    answer('How mentally demanding was the task?', '6')
+    answer('How hurried or rushed was the pace?', '7')
+    answer('How confident are you that you escalated the right tracks?', '5')
   }
   /** A run as the store holds one — the fields the shell reads back. */
   const savedRun = (index: number) => ({
@@ -2663,11 +2663,11 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     const { replay } = open(paired('raw', 1))
     toTheEnd(replay)
     // Nothing is stored until the run is a run: two answers is not three.
-    answer('Mental demand', '6')
-    answer('Time pressure', '7')
+    answer('How mentally demanding was the task?', '6')
+    answer('How hurried or rushed was the pace?', '7')
     expect(localStorage.getItem('vigil.run.S03.1')).toBeNull()
     expect(within(dialog()).queryByText(/is saved in this browser/)).toBeNull()
-    answer('Confidence in your decisions', '5')
+    answer('How confident are you that you escalated the right tracks?', '5')
     // What is stored is the run's own text — byte for byte what Copy run puts on the clipboard.
     const stored = localStorage.getItem('vigil.run.S03.1')
     expect(stored).toBe((within(dialog()).getByLabelText('Run JSON') as HTMLTextAreaElement).value)

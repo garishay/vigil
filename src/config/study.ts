@@ -101,14 +101,34 @@ export type QuestionId = 'demand' | 'pressure' | 'confidence'
 export interface WorkloadQuestion {
   /** The key the run JSON's `answers` carries, and the replay reads (S5). */
   id: QuestionId
+  /** The question as the subject reads it — a question, not a heading (S8, #180 item 5). */
   label: string
+  /** What the scale's low end means, and what its high end means — said, not guessed. */
+  ends: { low: string; high: string }
 }
 
-/** The three workload questions after every run (ruled A7; #131), each answered on the scale. */
+/**
+ * The three workload questions after every run (ruled A7; #131; S8, #180 item 5): full
+ * questions with labelled ends, adapted from NASA-TLX's mental demand and temporal demand items
+ * plus a confidence item. The ids and the 1–10 scale are unchanged, so the run JSON's answer
+ * keys, the store, the results envelope and every committed fixture read exactly as before.
+ */
 export const QUESTIONS: readonly WorkloadQuestion[] = [
-  { id: 'demand', label: 'Mental demand' },
-  { id: 'pressure', label: 'Time pressure' },
-  { id: 'confidence', label: 'Confidence in your decisions' },
+  {
+    id: 'demand',
+    label: 'How mentally demanding was the task?',
+    ends: { low: 'very low', high: 'very high' },
+  },
+  {
+    id: 'pressure',
+    label: 'How hurried or rushed was the pace?',
+    ends: { low: 'very low', high: 'very high' },
+  },
+  {
+    id: 'confidence',
+    label: 'How confident are you that you escalated the right tracks?',
+    ends: { low: 'not at all', high: 'extremely' },
+  },
 ]
 
 /** The answers' scale, whole numbers inclusive (#131: 1–10 each). */

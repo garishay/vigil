@@ -95,22 +95,34 @@ export function RunEnd({
         <h2 className="run__title" id="run-title">
           {title}
         </h2>
+        {/* Full questions with labelled ends (S8, #180 item 5): the question reads as a
+            question, and what 1 and 10 mean is said beside the scale rather than guessed. One
+            row per question — the low end, the ten choices, the high end — that never wraps
+            (ruled R3). The ids and the scale are unchanged, so every answer key reads as before. */}
         {questions.map((question) => (
           <fieldset className="run__question" key={question.id}>
             <legend className="run__legend">{question.label}</legend>
-            <div className="run__scale">
-              {values.map((value) => (
-                <label className="run__choice" key={value}>
-                  <input
-                    type="radio"
-                    name={`run-${question.id}`}
-                    value={value}
-                    checked={answers[question.id] === value}
-                    onChange={() => onAnswer(question.id, value)}
-                  />
-                  <span>{value}</span>
-                </label>
-              ))}
+            <div className="run__answer">
+              <span className="run__end">
+                {scale.min} = {question.ends.low}
+              </span>
+              <div className="run__scale">
+                {values.map((value) => (
+                  <label className="run__choice" key={value}>
+                    <input
+                      type="radio"
+                      name={`run-${question.id}`}
+                      value={value}
+                      checked={answers[question.id] === value}
+                      onChange={() => onAnswer(question.id, value)}
+                    />
+                    <span>{value}</span>
+                  </label>
+                ))}
+              </div>
+              <span className="run__end">
+                {scale.max} = {question.ends.high}
+              </span>
             </div>
           </fieldset>
         ))}
