@@ -284,6 +284,30 @@ describe('Queue', () => {
     expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
   })
 
+  it('drops a landing request made while it was not mounted, and lands the next one (#204 round 1, finding 1)', () => {
+    // The demo's Sites surface unmounts the list; an Open pressed there must not replay when the
+    // list comes back and steal focus from the tab that brought it.
+    const { rerender } = render(
+      <Queue
+        ranked={RANKED}
+        selectedId="inject-01"
+        landing={{ n: 3, row: true }}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(document.activeElement).toBe(document.body)
+    rerender(
+      <Queue
+        ranked={RANKED}
+        selectedId="inject-01"
+        landing={{ n: 4, row: true }}
+        onSelect={vi.fn()}
+      />,
+    )
+    const [, unheard] = rows()
+    expect(document.activeElement).toBe(within(unheard).getByRole('button'))
+  })
+
   it('selects a track through its row button (03a)', () => {
     const onSelect = vi.fn()
     render(<Queue ranked={RANKED} selectedId={null} onSelect={onSelect} />)

@@ -1956,6 +1956,42 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     expect(logLines().at(-1)).toBe(`${at}Acknowledged`)
   })
 
+  /** TRK-06's card raised at 02:31:13, then UAS-CD84's two at 02:38:58 — three cards, two tracks. */
+  const raiseBoth = (replay: ReturnType<typeof manualClock>) => {
+    raise(replay, 'TRK-06', '60', '02:31')
+    seek('520')
+    for (let i = 0; i < 40 && cards().length < 3; i++) replay.tick()
+    expect(cards()).toHaveLength(3)
+  }
+
+  it('a keyboard × with no face left enabled lands on the list (#204 round 1, finding 2)', () => {
+    const replay = start()
+    raiseBoth(replay)
+    // Clock at 02:38:00: UAS-CD84's record (02:38:58) is ahead of it and its two cards are
+    // disabled; TRK-06's is behind it and its card is live.
+    seek('480')
+    expect(faceOf('UAS-CD84')).toBeDisabled()
+    expect(faceOf('TRK-06')).toBeEnabled()
+    fireEvent.click(clearOf('TRK-06'))
+    expect(cards()).toHaveLength(2)
+    expect(document.activeElement).toBe(list())
+  })
+
+  it('a keyboard × on the open track’s own card lands on the next card, not in the drawer (#204 round 1, finding 3)', () => {
+    const replay = start()
+    raiseBoth(replay)
+    // TRK-06 open from its row, New: its × writes the line and New becomes Assessing, the
+    // transition the drawer's own rescue watches. The × was pressed in the stack, so the stack
+    // owns the landing.
+    fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
+    expect(screen.getByLabelText('Track review: TRK-06')).toBeInTheDocument()
+    fireEvent.click(clearOf('TRK-06'))
+    expect(cards()).toHaveLength(2)
+    expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    const remaining = within(stack()).getAllByRole('button', { name: /Open$/ })
+    expect(document.activeElement).toBe(remaining[1])
+  })
+
   it('a pointer Open lands focus on the list, not the row (#54)', () => {
     const replay = start()
     raise(replay, 'TRK-06', '60', '02:31')

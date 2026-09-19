@@ -135,6 +135,48 @@ describe('runEvents (S4b, #137, ruled A5, A6)', () => {
     ])
   })
 
+  it('orders only the pair Open writes — same track, same second; everything else keeps the order it happened in (#204 round 1, finding 4)', () => {
+    // Planted: a select on inject-11, then Open on inject-12's card, in one second. The subject
+    // acted in that order, and the record reads it so — inject-11's select, then inject-12's
+    // line and its select. The mirror — Open first, the other row after — reads the mirror.
+    const opened12 = acted(opened('inject-12', BEGIN), 'acknowledge', BEGIN + 20)
+    const logs = { 'inject-11': opened('inject-11', BEGIN), 'inject-12': opened12 }
+    expect(
+      runEvents(
+        logs,
+        [
+          { tSec: BEGIN + 20, trackId: 'inject-11' },
+          { tSec: BEGIN + 20, trackId: 'inject-12' },
+        ],
+        BEGIN,
+        END,
+      ),
+    ).toEqual([
+      { t: 20, type: 'select', track: 'inject-11' },
+      { t: 20, type: 'alert_ack', track: 'inject-12' },
+      { t: 20, type: 'select', track: 'inject-12' },
+    ])
+    expect(
+      runEvents(
+        logs,
+        [
+          { tSec: BEGIN + 20, trackId: 'inject-12' },
+          { tSec: BEGIN + 20, trackId: 'inject-11' },
+        ],
+        BEGIN,
+        END,
+      ),
+    ).toEqual([
+      { t: 20, type: 'alert_ack', track: 'inject-12' },
+      { t: 20, type: 'select', track: 'inject-12' },
+      { t: 20, type: 'select', track: 'inject-11' },
+    ])
+    // A × alone at the same second as another row's select: no pair, so the order stands.
+    expect(
+      runEvents(logs, [{ tSec: BEGIN + 20, trackId: 'inject-11' }], BEGIN, END).map((e) => e.type),
+    ).toEqual(['select', 'alert_ack'])
+  })
+
   it('writes a first open as its select and nothing else — the select is the record (S8-ii, amendment item 4)', () => {
     // Opening an untouched track moves it to Assessing on the record, and the run JSON's shape
     // does not move for it: no `open` type, no `assess` written on its behalf.

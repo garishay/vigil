@@ -109,6 +109,25 @@ describe('AlertStack (#101, 101a)', () => {
     expect(document.activeElement).toBe(document.body)
   })
 
+  it('lands a keyboard × on the nearest face still enabled, never on a disabled one (#204 round 1, finding 2)', () => {
+    // Clock at 02:38:20: inject-04's record is ahead of it, the other two behind. Clearing the
+    // top card leaves a disabled face where it stood and an enabled one below it.
+    const mixed: Alert[] = [
+      { trackId: 'inject-08', kind: 'warning', word: 'Warning', tSec: 491, seq: 2 },
+      ALERTS[1],
+      ALERTS[2],
+    ]
+    const frontierOf = (id: string) => ({ ...FRONTIER, 'inject-08': 491 })[id] ?? 0
+    const { rerender } = render(<AlertStack {...props({ alerts: mixed, tSec: 500, frontierOf })} />)
+    const button = clears()[0]
+    button.focus()
+    fireEvent.click(button, { detail: 0 })
+    button.blur()
+    rerender(<AlertStack {...props({ alerts: mixed.slice(1), tSec: 500, frontierOf })} />)
+    expect(faces()[0]).toBeDisabled()
+    expect(document.activeElement).toBe(faces()[1])
+  })
+
   it('refuses both controls behind the track’s own frontier, each described by its own record time (#77)', () => {
     // Clock at 02:38:20: TRK-06's record (02:38:11) is behind it, UAS-CD84's (02:38:58) ahead.
     const { rerender } = render(<AlertStack {...props({ tSec: 500 })} />)
