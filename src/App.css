@@ -55,7 +55,8 @@
 
 .strip {
   display: flex;
-  gap: 2rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
   margin: 0;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
@@ -67,6 +68,7 @@
   gap: 0.5rem;
   align-items: baseline;
   font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 .strip__field dt {
@@ -1401,7 +1403,7 @@
   cursor: default;
 }
 
-.sites__button[aria-pressed='true'] {
+.sites__button--armed {
   border-color: var(--accent);
   color: var(--accent);
 }

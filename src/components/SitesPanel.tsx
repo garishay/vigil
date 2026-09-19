@@ -222,12 +222,14 @@ export function SitesPanel({
   ]
   // The ids of the reason above, for every control the rewound state disables (#79 review).
   const describedBy = rewound ? 'sites-rewound-state sites-rewound-times' : undefined
+  // The flipping label alone carries the state a reader hears, as Play/Pause and Mute do: a
+  // label and aria-pressed that both flip announce the state inverted (ruled A on #36 [18];
+  // #205). What is seen is the class: a control that arms the map looks armed (#206 round 1).
   const addButton = (kind: SiteKind, label: string) => (
     <button
       type="button"
-      className="sites__button"
+      className={adding === kind ? 'sites__button sites__button--armed' : 'sites__button'}
       disabled={rewound || (adding !== kind && !canAdd(set))}
-      aria-pressed={adding === kind}
       onClick={() => onPlacing(adding === kind ? null : { kind: 'add', site: kind })}
     >
       {adding === kind ? 'Cancel' : label}
