@@ -489,13 +489,19 @@ export function ReviewDrawer({
       {!raw && (
         <section className="drawer__events" aria-label="Event log">
           <h4 className="drawer__subtitle">Event log</h4>
+          {/* A study run's log leaves the acknowledge line out (S8b, #202, item 5): the card
+              is the subject's tool, not the track's history, the replay's log writes no line for
+              it either (frame.ts), and the word Acknowledge is on no screen a subject reads. The
+              run JSON carries it; the demo's log reads it as #101 ruled. */}
           <ol className="drawer__log">
-            {log.map((event) => (
-              <li className="drawer__event" key={event.seq}>
-                <span className="drawer__eventclock">{clock(event.tSec)}</span>
-                <span>{describeEvent(event, contacts, dispositions, clock)}</span>
-              </li>
-            ))}
+            {log
+              .filter((event) => !run || event.action !== 'acknowledge')
+              .map((event) => (
+                <li className="drawer__event" key={event.seq}>
+                  <span className="drawer__eventclock">{clock(event.tSec)}</span>
+                  <span>{describeEvent(event, contacts, dispositions, clock)}</span>
+                </li>
+              ))}
           </ol>
         </section>
       )}

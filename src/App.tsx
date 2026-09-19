@@ -235,6 +235,8 @@ export default function App({
     if (raises > 0) playTone()
   }, [raises, playTone])
   const [alertsRead, setAlertsRead] = useState<Record<string, number>>({})
+  // Where a card's control lands focus (S8b, #202): counted, so each request lands once.
+  const [landing, setLanding] = useState({ n: 0, row: false })
 
   // The session's site set (08a, ruled on #86): the operator's protected sites, seeded from
   // config and scored against on every tick. An edited set is kept in this browser as its plan
@@ -630,20 +632,21 @@ export default function App({
   const logFor = (entry: RankedTrack): TrackEvent[] =>
     eventLogs[entry.track.id] ?? firstSeen(entry.track.id, observedSnapshot(entry), now(), tSec)
 
-  // Acknowledge (#101): answers a card. A workflow action under #77, refused behind the track's
-  // own frontier — the card's button is disabled there, and this refuses anyway. The line is
-  // written through the table, so a New track becomes Assessing by the existing transition and
-  // an Assessing or Escalated one keeps its status with the line still written; a Dismissed
-  // track — a Re-surfaced card — has no transition to write and its cards simply clear, since
-  // the table keeps Dismissed terminal. The fold above clears the cards when the line lands.
-  const acknowledge = (trackId: string) => {
+  // Acknowledge (#101): answers a card — what both of the card's controls write (S8b, #202). A
+  // workflow action under #77, refused behind the track's own frontier — the card's controls are
+  // disabled there, and this refuses anyway. The line is written through the table, so a New
+  // track becomes Assessing by the existing transition and an Assessing or Escalated one keeps
+  // its status with the line still written; a Dismissed track — a Re-surfaced card — has no
+  // transition to write and its cards simply clear, since the table keeps Dismissed terminal.
+  // The fold above clears the cards when the line lands. True when the card was answered.
+  const acknowledge = (trackId: string): boolean => {
     const log = eventLogs[trackId]
-    if (!log || tSec < log[log.length - 1].tSec) return
+    if (!log || tSec < log[log.length - 1].tSec) return false
     // A study run takes actions only while it runs (ruled A4): none before Begin, none after.
-    if (inStudy && !runActive) return
+    if (inStudy && !runActive) return false
     if (isTerminal(statusOf(log))) {
       setAlerts((current) => clearFor(current, trackId))
-      return
+      return true
     }
     const at = now()
     const entry = ranked.find((candidate) => candidate.track.id === trackId)
@@ -659,8 +662,26 @@ export default function App({
         run: inStudy,
       }),
     }))
+    return true
   }
-  // A selection — a Queue row, a map dot, an alert card's open — is logged in a study run at the
+  // The card's two controls (S8b, #202). Open answers the card and opens its track: the
+  // acknowledge line first, the select after it at the same second, so the run JSON carries the
+  // pair and in a run the open marks the track as any open does; the demo's lifecycle reads the
+  // line as #101 ruled. Focus lands where a selection from the list lands it — the row under
+  // the keyboard, the list under a pointer (#54). The quiet clear writes the line alone and
+  // moves nothing; the one that empties the stack lands focus on the list rather than body.
+  const openCard = (trackId: string, keyboard: boolean) => {
+    if (!acknowledge(trackId)) return
+    select(trackId)
+    setLanding((current) => ({ n: current.n + 1, row: keyboard }))
+  }
+  const clearCard = (trackId: string) => {
+    if (!acknowledge(trackId)) return
+    if (clearFor(alerts, trackId).length === 0) {
+      setLanding((current) => ({ n: current.n + 1, row: false }))
+    }
+  }
+  // A selection — a Queue row, a map dot, an alert card's Open — is logged in a study run at the
   // clock it was made (ruled A5); the same track opened again is a new line, since the replay
   // draws the hops. Before Begin the overlay takes every click; after the end the shell is inert
   // and the selection refused anyway, so a click selects nothing new (ruled A4).
@@ -1072,6 +1093,7 @@ export default function App({
                   ranked={visible}
                   selectedId={selectedId}
                   restoreFocus={keyboardClose}
+                  landing={landing}
                   statusFor={(id) => statusOf(eventLogs[id])}
                   resurfacedFor={(entry) =>
                     resurfaced(eventLogs[entry.track.id], entry.track.source, entry.score.friendly)
@@ -1188,8 +1210,8 @@ export default function App({
               clock={clock}
               tSec={tSec}
               frontierOf={(id) => eventLogs[id]?.at(-1)?.tSec ?? tSec}
-              onOpen={select}
-              onAcknowledge={acknowledge}
+              onOpen={openCard}
+              onClear={clearCard}
             />
           )}
         </MapView>

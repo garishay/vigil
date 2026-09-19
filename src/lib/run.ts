@@ -59,12 +59,23 @@ const EVENT_TYPE: Partial<Record<TrackEvent['action'], RunEventType>> = {
 }
 
 /**
+ * At a tie on `t`: an answered card precedes the selection its Open made — the card was
+ * answered, then the track opened (S8b, #202, item 2) — a selection precedes an action a
+ * subject took on the track just opened, and the rest keep the record's order.
+ */
+const TIE: Record<RunEventType, number> = {
+  alert_ack: 0,
+  select: 1,
+  assess: 2,
+  escalate: 2,
+  dismiss: 2,
+}
+
+/**
  * The run's events, from the record and the selections: each selection as `select`, each
- * lifecycle action under the contract's name, `t` counted from Begin, sorted by `t` — a stable
- * sort with the selections listed first, so at a tie the opening precedes the action a subject
- * took on the track just opened, and the rest keep the record's order. An entry outside the
- * window is not the run's: a first-seen stamped at Begin before the overlay lifted, an action
- * the shell refused after the end.
+ * lifecycle action under the contract's name, `t` counted from Begin, sorted by `t` and then
+ * by `TIE`, stably. An entry outside the window is not the run's: a first-seen stamped at
+ * Begin before the overlay lifted, an action the shell refused after the end.
  */
 export function runEvents(
   logs: Readonly<Record<string, readonly TrackEvent[]>>,
@@ -84,7 +95,7 @@ export function runEvents(
       }
     }
   }
-  return events.sort((a, b) => a.t - b.t)
+  return events.sort((a, b) => a.t - b.t || TIE[a.type] - TIE[b.type])
 }
 
 export interface RunInput {
