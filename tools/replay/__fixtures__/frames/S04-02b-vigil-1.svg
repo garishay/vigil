@@ -68,9 +68,9 @@
 <text x="30" y="800" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">"never opened" marks the engine's above-calm tracks at the freeze that the run never opened:</text>
 <text x="30" y="814" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the analyst's overlay, drawn on both conditions; raw's screen never showed that set.</text>
 <text x="30" y="828" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">A look after the freeze is drawn as a dashed outline on a dashed path, and one the regenerated picture no longer holds is not drawn at all:</text>
-<text x="30" y="842" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the background picture, the Queue box and every reading are the frozen second's.</text>
+<text x="30" y="842" font-family="system-ui, sans-serif" class="footnote" font-size="11" fill="#63707f">the background picture, the Priority list box and every reading are the frozen second's.</text>
 <rect class="vigil-queue" x="30" y="856" width="840" height="126" rx="6" fill="#121821" stroke="#1f2a37"/>
-<text x="46" y="876" font-family="system-ui, sans-serif" class="vigil-queue-title" font-size="12" font-weight="700" fill="#e6edf3">Queue at 0:58 · 5 above calm</text>
+<text x="46" y="876" font-family="system-ui, sans-serif" class="vigil-queue-title" font-size="12" font-weight="700" fill="#e6edf3">Priority list at 0:58 · 5 above calm</text>
 <text x="46" y="894" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-11" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#ff6b57">1</tspan> TRK-11 72 · Remote ID mismatch, closing, near PHL Airfield</text>
 <text x="46" y="912" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-12" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">2</tspan> TRK-12 64 · Revisiting, non-cooperative, near PHL Airfield</text>
 <text x="46" y="930" font-family="system-ui, sans-serif" class="vigil-queue-line" data-id="inject-13" font-size="11" fill="#8b98a9"><tspan font-weight="700" fill="#f5b942">3</tspan> TRK-13 58 · Non-cooperative, near PHL Airfield, low and slow</text>

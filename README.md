@@ -4,7 +4,7 @@
 
 **Live at <https://garishay.github.io/vigil/>** — the default recording; the evening arrivals bank
 is [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002). Open
-one, press Play, read the Queue. Every merge to `main` redeploys it.
+one, press Play, read the Priority list. Every merge to `main` redeploys it.
 
 The operator study’s scenarios open by name (S3b): **Study-02a-vigil**
 [`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a) ·
@@ -177,7 +177,7 @@ flowchart LR
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
     app["App.tsx + data/useCapture.ts<br/>loads the recording the query names, once<br/>holds the inject plan · samples both layers and every history at the clock's t<br/>opens a track's log when it first appears · sim clock ticking from the recording's clock start"]
-    queue["Queue<br/>ranked list, the product · reason tag in plain English"]
+    queue["Queue — the Priority list on screen (#183)<br/>ranked list, the product · reason tag in plain English"]
     map["MapView + IdentityLegend + glyphs<br/>context · three shapes by what a track broadcast — an aircraft turned to its heading, a drone, the plain dot — rasterised as SDF images so paint colours them · breadcrumb trail behind the selected track, fading to its old end · its projected path to the ring, dashed, an arrowhead and the entry reading where it meets it · raw's heading tick, one screen length from the marker's edge<br/>the subject's own bookkeeping (S8, S9b): a track they have opened drawn in a grey from the click, label and tick with it, one they have escalated or dismissed drawn hollow at its own size — identical in both conditions, from their own clicks alone · a study run in Vigil spends one colour, warning on the whole marker, and no dim; the legend is the brief's there"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>a study run: Escalate and Dismiss in one click and no Assess — opening marks — the source word on the header badge, no empty image area (S8)<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count · time to entry"]
     clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick · how it last moved<br/>a study run's window: held at Begin, ended at +6:00, never restarted<br/>scheduler injected, so no test waits on time"]
@@ -294,14 +294,14 @@ threat's first open and standoff, the false escalations (tracks that never enter
 escalations of later entrants on their own column, the order — and its frame freezes at the last
 threat's escalation with one decision line per threat (S5c-i). A Vigil run's frame carries what
 Vigil's screen showed and raw's did not (S5c-ii): the warm labels beside every above-calm
-inject, the Queue box under the map with every candidate's rank, composite, and reason tag, a
+inject, the Priority list box under the map with every candidate's rank, composite, and reason tag, a
 threat's Remote ID mismatch line where its score read one, the Entry row's estimate beside each
 threat's dot, and after each threat look the caption's line of what Vigil read then — the app's
 own readings through the engine, every element gated on the mode so no annotation reaches a raw
 frame: the corroboration pair's raw frames are byte for byte as before. On the prioritization
 pair each threat carries one map label per mode and the T0 range and entry clock move into the
 caption, so its raw frames change by that alone. Exactly two run files also write **the pair**
-(S5d-i) — `pair-<subject>-<scenario>.svg`, the two frames side by side, each Queue box capped at
+(S5d-i) — `pair-<subject>-<scenario>.svg`, the two frames side by side, each Priority list box capped at
 its top five rows, and under them the block: the attention counts for both conditions, then one
 row per threat with the run's window as a shared time axis carrying each condition's first open
 and escalation and the threat's ring entry, and the standoff band for that threat with one dot
@@ -325,7 +325,7 @@ inside the ring, with that scenario's entry point a tick across the ring. Unlike
 runs of one scenario and two of one condition are refused in words. Every frame draws one
 numbered marker per distinct track looked at, with a `×N` badge when the run came back to it.
 A frame's path and markers carry **the whole run**, not the span up to the freeze (S5f): the
-freeze stays where it is — the picture, the Queue box and every reading are that second — and a
+freeze stays where it is — the picture, the Priority list box and every reading are that second — and a
 look after it is drawn as a dashed outline on a dashed path, the outline filled with the panel so
 its numeral reads over nothing else; a late look the regenerated picture no longer holds is not
 drawn, and the footnote's key says so. The subtitle gives both counts. Each frame's caption also

@@ -502,10 +502,6 @@
 
 /* 03b, ruled B1 on #3: Review shows the drawer alone at the drawer column's own 26 rem — one
    component, one width on either surface. */
-.shell__body--review {
-  grid-template-columns: 26rem 1fr;
-}
-
 /* Raw mode (S4a): no rail — the map fills the body, and the drawer opens beside it on a click. */
 .shell__body--raw {
   grid-template-columns: 1fr;
