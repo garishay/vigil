@@ -6,7 +6,7 @@
  * the same file name; pure, so the browser can call it.
  */
 
-import { sheetName, sheetSvg } from './sheet.ts'
+import { sheetBlocks, sheetName, sheetSvg } from './sheet.ts'
 import { pairName, pairSvg } from './pair.ts'
 import { RunRefusal } from './load.ts'
 import type { FrameInput, FrameOptions } from './frame.ts'
@@ -14,10 +14,21 @@ import type { FrameInput, FrameOptions } from './frame.ts'
 /** The pair's Queue boxes show this many rows and count the rest (S5d-i, ruled G2). */
 export const PAIR_QUEUE_CAP = 5
 
+/**
+ * A document composed: the file name the CLI writes it under, the one SVG that file holds, and
+ * the same document as blocks for the browser to mount one by one (S5g, #194) — the sheet's
+ * blocks, or the pair whole, since a pair's log is short and its print is one page.
+ */
+export interface Composed {
+  name: string
+  svg: string
+  blocks: string[]
+}
+
 export function compose(
   runs: readonly FrameInput[],
   options: FrameOptions = { queueCap: PAIR_QUEUE_CAP },
-): { name: string; svg: string } {
+): Composed {
   // The count is checked here rather than at the call site, so the guard travels with the
   // function: `parseResults` stays permissive about how many runs a file holds, and two is
   // required where two are actually read (round 1 on #185). A refusal, not a TypeError on
@@ -30,15 +41,14 @@ export function compose(
   }
   const [first, second] = runs
   if (first.record.scenario === second.record.scenario) {
-    return {
-      name: pairName(first.record, second.record),
-      svg: pairSvg({ left: first, right: second }, options),
-    }
+    const svg = pairSvg({ left: first, right: second }, options)
+    return { name: pairName(first.record, second.record), svg, blocks: [svg] }
   }
   const unaided = first.record.mode === 'raw' ? first : second
   const vigil = unaided === first ? second : first
   return {
     name: sheetName(unaided.record, vigil.record),
     svg: sheetSvg({ unaided, vigil }, options),
+    blocks: sheetBlocks({ unaided, vigil }, options),
   }
 }

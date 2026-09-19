@@ -2,16 +2,20 @@
  * The subject sheet (S5e, #164; the #131 amendment of 2026-09-16 evening): one document for a
  * subject's two runs — an unaided run on one scenario beside a Vigil run on the other, the
  * counterbalanced pair the pilot actually collects, which the pair refuses because its rows,
- * window, and order read one cast. The order a reader meets it: the headline in sentences the
- * tool writes from the metrics, one condition per pair of sentences, the counts among them as
- * prose and never as a key-value line; the two frames side by side, unaided left, Vigil right,
- * their Queue boxes capped as the pair's are; then one row per threat by role — threat 1 each
- * scenario's first entrant — with the time lane the pair draws, each condition's lane carrying
- * its own entry tick and its own window end on an axis running the longer window, and beside it,
- * in place of the standoff axis, the ring: the 5 km ring north up on an 8 km panel, the site at
- * its centre, each condition's escalation plotted at its true bearing and range at the second of
- * escalation — hollow inside the ring — and its scenario's entry point a tick on the ring in
- * that condition's colour. Pure and deterministic; the metrics and the CSV are untouched.
+ * window, and order read one cast. The order a reader meets it (S5g, #194): the headline in
+ * sentences the tool writes from the metrics, one condition per pair of sentences, the counts
+ * among them as prose and never as a key-value line; the two frames' pictures side by side,
+ * unaided left, Vigil right; then one row per threat by role — threat 1 each scenario's first
+ * entrant — with the time lane the pair draws, each condition's lane carrying its own entry tick
+ * and its own window end on an axis running the longer window, and beside it, in place of the
+ * standoff axis, the ring: the 5 km ring north up on an 8 km panel, the site at its centre, each
+ * condition's escalation plotted at its true bearing and range at the second of escalation —
+ * hollow inside the ring — and its scenario's entry point a tick on the ring in that condition's
+ * colour; the other escalations; then the two frames' logs side by side with Vigil's Queue box
+ * capped as the pair's is, and the footnotes last. The sheet is drawn as blocks, each from its
+ * own y — a page breaks only between them, never through a log line — that the browser mounts
+ * one by one and the CLI stacks into one file. Pure and deterministic; the metrics and the CSV
+ * are untouched.
  */
 
 import { bearingDegrees } from '../../src/lib/geo.ts'
@@ -19,16 +23,21 @@ import { injectTracksAt } from '../../src/lib/injects.ts'
 import { STUDY } from '../../src/config/study.ts'
 import type { RunRecord } from '../../src/lib/run.ts'
 import {
+  CAPTION,
   CONDITION_COLOR,
+  captionText,
   escAttr,
-  frameDocument,
+  frameParts,
+  looksOfRun,
   mmss,
+  PANEL,
   wrapText,
   outcomeWords,
   THEME,
   trackNamer,
   type FrameInput,
   type FrameOptions,
+  type FrameParts,
 } from './frame.ts'
 import { familyOf } from './figure.ts'
 import { otherEscalations, type RunMetrics, type ThreatMetrics } from './metrics.ts'
@@ -56,6 +65,15 @@ const TIME_X = 220
 const TIME_W = 900
 /** The other-escalations row (S5f, #173): its title, two lanes and its own axis, above its words. */
 const OTHER_TOP = 200
+/** The logs' row (S5g, #194): its title and subtitle, then both panels' tops above the first line. */
+const LOG_TOP = 66
+/**
+ * How far each block's ground and panel run on under the block below (S5g, #194): a page and a
+ * viewer lay the blocks out at a fractional scale, and two rects that merely meet leave a
+ * hairline of the paper between their antialiased edges. The block below paints over the
+ * overrun, so nothing shows but the join closing.
+ */
+const OVERLAP = 8
 /** The ring panel: 8 km from its centre to the outer circle, at 15 px per km. */
 const RING_CX = 1480
 const RING_KM = 8
@@ -94,9 +112,16 @@ export const ordinalWord = (i: number): string => ORDINALS[i] ?? `${i + 1}th`
  * R1): a margin belongs to a threat by name, and a contraction would leave a reader to guess
  * which is which — the order clause of the second sentence makes the wrong guess the likelier
  * one. The repeated verb is elided and *to spare* is said once, on the first clause that states a
- * margin; a miss reads as a miss.
+ * margin; a miss reads as a miss. The looks it took are the looks to the last threat escalation,
+ * with the whole run's count — the CSV's column — after them in parentheses (S5g, #194): a run
+ * that had both threats escalated at 0:30 in 6 looks is not a run of 43 looks first. With no
+ * threat escalated the whole-run count stands alone, as it did; and when the run looked at
+ * nothing after its last escalation the two counts are one, said once.
  */
-export function openingSentence(m: RunMetrics): string {
+export function openingSentence({
+  metrics: m,
+  record,
+}: Pick<FrameInput, 'metrics' | 'record'>): string {
   const condition = m.mode === 'raw' ? 'Unaided' : 'With Vigil'
   // A run with no select at all is not a run that opened a threat first: the Queue can be
   // worked and a track escalated without ever being selected, and the lane below says as much
@@ -126,9 +151,18 @@ export function openingSentence(m: RunMetrics): string {
       ] as const
     }),
   )
-  // The whole run's looks, which is the CSV's column — the frame's own subtitle counts the
-  // looks up to its freeze, so the sentence names the span it means.
-  return `${condition} on ${m.scenario}, ${m.subject} ${opened}, ${decisions}, in ${m.looks} ${plural(m.looks, 'look')} over the whole run.`
+  const escalated = m.threats.flatMap((threat) =>
+    threat.timeToEscalateS === null ? [] : [threat.timeToEscalateS],
+  )
+  const toLast =
+    escalated.length === 0
+      ? m.looks
+      : looksOfRun(record).filter((event) => event.t <= Math.max(...escalated)).length
+  const looks =
+    toLast === m.looks
+      ? `in ${m.looks} ${plural(m.looks, 'look')} over the whole run`
+      : `in ${toLast} ${plural(toLast, 'look')} (${m.looks} over the whole run)`
+  return `${condition} on ${m.scenario}, ${m.subject} ${opened}, ${decisions}, ${looks}.`
 }
 
 /** Clauses joined with *and*, a verb dropped when it repeats the clause before it. */
@@ -239,8 +273,42 @@ const ringPoint = (cy: number, bearing: number, m: number): [number, number] => 
   return [round1(RING_CX + Math.sin(rad) * r), round1(cy - Math.cos(rad) * r)]
 }
 
-/** The subject sheet as an SVG document. */
-export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions = {}): string {
+/**
+ * A block of the sheet (S5g, #194): what it is, its height, and its lines drawn from its own
+ * y = 0. The browser mounts each as its own `<svg>` so a printed page breaks only between
+ * blocks; the CLI stacks the same blocks into one file.
+ */
+export interface SheetBlock {
+  name: string
+  height: number
+  lines: string[]
+}
+
+/**
+ * A block as the `<svg>` both the browser and the CLI's file carry, byte for byte: its ground
+ * runs `OVERLAP` under the block below, and `overflow` lets it.
+ */
+const blockSvg = (block: SheetBlock, width: number): string =>
+  [
+    `<svg class="block" data-block="${block.name}" width="${width}" height="${block.height}" viewBox="0 0 ${width} ${block.height}" overflow="visible">`,
+    `<rect width="${width}" height="${block.height + OVERLAP}" fill="${THEME.bg}"/>`,
+    ...block.lines,
+    '</svg>',
+  ].join('\n')
+
+/** One condition's column of the logs' rows: the unaided frame's own x, or Vigil's past the gap. */
+const column = (x: number, lines: readonly string[]): string[] =>
+  lines.length === 0
+    ? []
+    : x === 0
+      ? [...lines]
+      : [`<g transform="translate(${x} 0)">`, ...lines, '</g>']
+
+/** The subject sheet laid out as blocks, in the order a reader meets them. */
+function sheetLayout(
+  { unaided, vigil }: SheetInput,
+  options: FrameOptions,
+): { width: number; blocks: SheetBlock[]; attrs: string } {
   const a = unaided.metrics
   const b = vigil.metrics
   // The refusals in the order a reader would ask them: the family first, since two scenarios of
@@ -265,10 +333,10 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       `a sheet pairs threats by role — ${a.scenario} casts ${a.threats.length} and ${b.scenario} casts ${b.threats.length}`,
     )
   }
-  const l = frameDocument(unaided, { ...options, clipId: 'sheet-unaided' })
-  const r = frameDocument(vigil, { ...options, clipId: 'sheet-vigil' })
+  const l = frameParts(unaided, { ...options, clipId: 'sheet-unaided' })
+  const r = frameParts(vigil, { ...options, clipId: 'sheet-vigil' })
   const width = l.width + GAP + r.width
-  const top = Math.max(l.height, r.height)
+  const top = Math.max(l.top.height, r.top.height)
   const rows = a.threats.length
   const aColor = CONDITION_COLOR.raw
   const bColor = CONDITION_COLOR.vigil
@@ -306,33 +374,31 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
     return row
   })
   const headH = hy - HEAD_GAP + HEAD_BOTTOM
-  const height = headH + top + rows * ROW_H + otherH + footH
   const runS = Math.max(a.runS, b.runS)
   const tX = (s: number) => round1(TIME_X + (s / runS) * TIME_W)
-  const parts: string[] = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-unaided="${escAttr(a.subject)}-${escAttr(a.scenario)}-${a.mode}-${a.run}" data-vigil="${escAttr(b.subject)}-${escAttr(b.scenario)}-${b.mode}-${b.run}">`,
-    `<rect width="${width}" height="${height}" fill="${THEME.bg}"/>`,
-  ]
+  const blocks: SheetBlock[] = []
 
-  // The headline: the title, then two sentences per condition in that condition's colour.
+  // The headline — the title, then two sentences per condition in that condition's colour — and
+  // under it the two frames' pictures, unaided left and Vigil right, each its own run's frame
+  // above its log: one block, since a headline alone on a page would head nothing.
   const who = a.subject === b.subject ? a.subject : `${a.subject} · ${b.subject}`
-  parts.push(
+  const headline: string[] = [
     text(
       PAD,
       34,
       `SUBJECT SHEET · ${who} · ${a.scenario} unaided, ${b.scenario} with Vigil`,
       `class="sheet-title" font-size="18" font-weight="600" fill="${THEME.text}"`,
     ),
-  )
+  ]
   for (const [input, color] of said) {
     const m = input.metrics
     const { y, lines } = headRows[m.mode === 'raw' ? 0 : 1]
-    parts.push(
+    headline.push(
       `<circle cx="${PAD + 5}" cy="${y - 5}" r="5" fill="${color}"/>`,
       text(
         TEXT_X,
         y,
-        openingSentence(m),
+        openingSentence(input),
         `class="headline" data-mode="${m.mode}" font-size="15" fill="${THEME.text}"`,
       ),
       ...lines.map((line, i) =>
@@ -345,16 +411,15 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
       ),
     )
   }
-
-  // The two frames, unaided left and Vigil right, each drawn as its own run's frame.
-  parts.push(
-    `<svg class="frame-unaided" x="0" y="${headH}" width="${l.width}" height="${l.height}" viewBox="0 0 ${l.width} ${l.height}">`,
-    ...l.lines,
+  headline.push(
+    `<svg class="frame-unaided" x="0" y="${headH}" width="${l.width}" height="${l.top.height}" viewBox="0 0 ${l.width} ${l.top.height}">`,
+    ...l.top.lines,
     '</svg>',
-    `<svg class="frame-vigil" x="${l.width + GAP}" y="${headH}" width="${r.width}" height="${r.height}" viewBox="0 0 ${r.width} ${r.height}">`,
-    ...r.lines,
+    `<svg class="frame-vigil" x="${l.width + GAP}" y="${headH}" width="${r.width}" height="${r.top.height}" viewBox="0 0 ${r.width} ${r.top.height}">`,
+    ...r.top.lines,
     '</svg>',
   )
+  blocks.push({ name: 'headline', height: headH + top, lines: headline })
 
   // The axis’s own ticks at a lane block’s baseline: every minute the window reaches, and its
   // end, with a minute dropped when the end would crowd it. The third row runs the same scale
@@ -374,11 +439,12 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
           ],
     )
 
-  // One row per threat by role: the time lane with a lane per condition, and the ring beside it.
-  let y = headH + top
+  // One row per threat by role, a block each: the time lane with a lane per condition, and the
+  // ring beside it.
   a.threats.forEach((threat, i) => {
     const other = b.threats[i]
-    const ry = y
+    const parts: string[] = []
+    const ry = 0
     const ay = ry + 196
     parts.push(
       `<line x1="${PAD}" y1="${ry}" x2="${width - PAD}" y2="${ry}" stroke="${THEME.line}"/>`,
@@ -530,7 +596,7 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         ),
       )
     })
-    y += ROW_H
+    blocks.push({ name: `threat-${i + 1}`, height: ROW_H, lines: parts })
   })
 
   // The third row (S5f, #173): every escalation the run made that is no row above, one lane per
@@ -538,7 +604,8 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
   // beneath saying what it turned out to be. Absent when neither condition made one — and a
   // condition that made none says so on its lane, since the row is the other condition's.
   if (otherH > 0) {
-    const ry = y
+    const parts: string[] = []
+    const ry = 0
     const ay = ry + 156
     parts.push(
       `<line x1="${PAD}" y1="${ry}" x2="${width - PAD}" y2="${ry}" stroke="${THEME.line}"/>`,
@@ -608,8 +675,73 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         line += 1
       }
     })
-    y += otherH
+    blocks.push({ name: 'other', height: otherH, lines: parts })
   }
+
+  // The logs (S5g, #194): each frame's decision log, the lines the frame's own caption box
+  // draws, side by side under the comparison — unaided left, Vigil right, where their frames
+  // stand — one block per line so a printed page breaks between lines and never through one,
+  // and Vigil's Queue box, capped as the pair's is, after them. A panel is drawn as slices, one
+  // per block: its top above the first line, a slice under each, its bottom under the last.
+  const columns: [FrameParts, number][] = [
+    [l, 0],
+    [r, l.width + GAP],
+  ]
+  const panelX = 30
+  const panelW = PANEL.width - 60
+  const slice = (y: number, h: number): string =>
+    `<rect x="${panelX}" y="${y}" width="${panelW}" height="${h + OVERLAP}" fill="${THEME.panel}"/>`
+  const longest = Math.max(...columns.map(([frame]) => frame.lines.length))
+  blocks.push({
+    name: 'logs',
+    height: LOG_TOP + CAPTION.top,
+    lines: [
+      `<line x1="${PAD}" y1="0" x2="${width - PAD}" y2="0" stroke="${THEME.line}"/>`,
+      text(
+        PAD,
+        26,
+        'the look logs',
+        `class="row-title" font-size="15" font-weight="600" fill="${THEME.text}"`,
+      ),
+      text(
+        PAD,
+        46,
+        "Every look and action in each run, in time order — unaided left, Vigil right. Under Vigil's log, the list as Vigil showed it at the freeze.",
+        `class="row-subtitle" font-size="12" fill="${THEME.muted}"`,
+      ),
+      ...columns.flatMap(([frame, x]) =>
+        column(x, frame.lines.length === 0 ? [] : [slice(LOG_TOP, CAPTION.top)]),
+      ),
+    ],
+  })
+  for (let i = 0; i < longest; i++) {
+    blocks.push({
+      name: `log-${i + 1}`,
+      height: CAPTION.line,
+      lines: columns.flatMap(([frame, x]) =>
+        column(
+          x,
+          i < frame.lines.length
+            ? [slice(0, CAPTION.line), ...captionText(frame.lines[i], CAPTION.line - 6)]
+            : i === frame.lines.length && i > 0
+              ? [slice(0, CAPTION.bottom)]
+              : [],
+        ),
+      ),
+    })
+  }
+  // The Queue box, its gap above it the panels' bottom where a log ran to the last line.
+  const queue = r.queue(12)
+  blocks.push({
+    name: 'queue',
+    height: 12 + queue.height,
+    lines: [
+      ...columns.flatMap(([frame, x]) =>
+        column(x, frame.lines.length === longest && longest > 0 ? [slice(0, CAPTION.bottom)] : []),
+      ),
+      ...column(l.width + GAP, queue.lines),
+    ],
+  })
 
   // The footnotes, a line each: SVG text does not wrap, and the role rule with R4's sentence
   // behind it runs 1 839 px on an 1 820 px sheet (#164 R4).
@@ -633,18 +765,45 @@ export function sheetSvg({ unaided, vigil }: SheetInput, options: FrameOptions =
         ]
       : []),
   ]
-  parts.push(
-    `<line x1="${PAD}" y1="${y}" x2="${width - PAD}" y2="${y}" stroke="${THEME.line}"/>`,
-    ...footnotes.map((line, i) =>
-      text(
-        PAD,
-        y + 22 + i * 18,
-        line,
-        `class="sheet-footnote" font-size="11" fill="${THEME.faint}"`,
+  blocks.push({
+    name: 'footnotes',
+    height: footH,
+    lines: [
+      `<line x1="${PAD}" y1="0" x2="${width - PAD}" y2="0" stroke="${THEME.line}"/>`,
+      ...footnotes.map((line, i) =>
+        text(PAD, 22 + i * 18, line, `class="sheet-footnote" font-size="11" fill="${THEME.faint}"`),
       ),
-    ),
-    '</svg>',
-    '',
-  )
+    ],
+  })
+
+  const attrs = `data-unaided="${escAttr(a.subject)}-${escAttr(a.scenario)}-${a.mode}-${a.run}" data-vigil="${escAttr(b.subject)}-${escAttr(b.scenario)}-${b.mode}-${b.run}"`
+  return { width, blocks, attrs }
+}
+
+/**
+ * The subject sheet as blocks, each a complete `<svg>` (S5g, #194): what the browser mounts,
+ * one element per block, so its print breaks only between them.
+ */
+export function sheetBlocks(input: SheetInput, options: FrameOptions = {}): string[] {
+  const { width, blocks } = sheetLayout(input, options)
+  return blocks.map((block) => blockSvg(block, width))
+}
+
+/**
+ * The subject sheet as one SVG document, the CLI's file: the same blocks, byte for byte, each
+ * stacked at its y inside a `<g>` — the wrapper is the only line the file adds.
+ */
+export function sheetSvg(input: SheetInput, options: FrameOptions = {}): string {
+  const { width, blocks, attrs } = sheetLayout(input, options)
+  const height = blocks.reduce((sum, block) => sum + block.height, 0)
+  const parts = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" ${attrs}>`,
+  ]
+  let y = 0
+  for (const block of blocks) {
+    parts.push(`<g transform="translate(0 ${y})">`, blockSvg(block, width), '</g>')
+    y += block.height
+  }
+  parts.push('</svg>', '')
   return parts.join('\n')
 }

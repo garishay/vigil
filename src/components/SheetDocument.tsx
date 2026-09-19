@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react'
 import { useCopy } from './useCopy'
 import { download } from '../lib/download'
-import type { SaveFile } from '../data/sheet'
+import type { Composed, SaveFile } from '../data/sheet'
 
 /**
  * A drawn document and what a reader does with it (S6a-iii, #165): the SVG the tool wrote, the
@@ -26,7 +26,7 @@ export function SheetDocument({
   copyWord = 'Copy the runs',
   children,
 }: {
-  document_: { name: string; svg: string }
+  document_: Composed
   files: readonly SaveFile[]
   /** What the save reads when it is the one thing to hand over; absent leaves every control quiet. */
   primarySave?: string
@@ -70,13 +70,17 @@ export function SheetDocument({
         </button>
         {children}
       </div>
-      <div
-        className="sheet__document"
-        // The tool's own SVG, built in this tab from text this tab parsed: the string is the
-        // renderer's output, not the file's, and every value a file supplied is escaped for the
-        // context it lands in — text by `esc`, attributes by `escAttr` (round 1 on #187).
-        dangerouslySetInnerHTML={{ __html: document_.svg }}
-      />
+      <div className="sheet__document">
+        {/* The tool's own SVG, built in this tab from text this tab parsed: the string is the
+            renderer's output, not the file's, and every value a file supplied is escaped for
+            the context it lands in — text by `esc`, attributes by `escAttr` (round 1 on
+            #187). Mounted block by block (S5g, #194): the sheet is its blocks, one element
+            each, so a print breaks only between them and never through a log line; the download
+            is the CLI's one file of the same blocks. */}
+        {document_.blocks.map((block, index) => (
+          <div key={index} className="sheet__block" dangerouslySetInnerHTML={{ __html: block }} />
+        ))}
+      </div>
       <div className="sheet__copy">
         {/* The clipboard fallback for the save: `useCopy` selects this textarea when the
             clipboard API is missing or refused, so it is on screen and holding the text rather

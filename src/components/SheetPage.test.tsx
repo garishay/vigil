@@ -302,4 +302,38 @@ describe('the leave-behind (round 1, finding 1)', () => {
     }
     expect(hidden).not.toContain('.sheet__document')
   }, 30_000)
+
+  it('prints the sheet block by block, with no line cut and no header or footer (S5g, #194, item 2)', async () => {
+    await paste(`${fixture('S03-02a-raw-1.json')}\n${fixture('S04-02b-vigil-1.json')}`)
+    // One element per block the tool drew — the 02 sheet's twelve — each holding one `<svg>`
+    // of its own, so a page can break between any two and inside none.
+    const blocks = [...document.querySelectorAll('.sheet__document .sheet__block')]
+    expect(blocks).toHaveLength(12)
+    expect(blocks.map((block) => block.querySelectorAll(':scope > svg').length)).toEqual(
+      Array(12).fill(1),
+    )
+    expect(blocks.map((block) => block.querySelector('svg')?.dataset.block)).toEqual([
+      'headline',
+      'threat-1',
+      'logs',
+      'log-1',
+      'log-2',
+      'log-3',
+      'log-4',
+      'log-5',
+      'log-6',
+      'log-7',
+      'queue',
+      'footnotes',
+    ])
+    // The print rule, read rather than restated: a block never breaks inside, and the page's
+    // margin is 6 mm above and below (ruled R4 on #194) — Chrome hides each of its four header
+    // and footer texts when it would cross the content box, and its template stands them 15 pt
+    // in, so 17 pt holds none of them (measured: 8 mm hides all four, 9 mm draws them) — and
+    // 12 mm at the sides (ruled R5), where the fixtures' sheet fits one page.
+    const css = sheetCss.replace(/\/\*[\s\S]*?\*\//g, '')
+    const print = /@media print \{([\s\S]*?)\n\}/.exec(css)![1]
+    expect(print).toMatch(/\.sheet__block \{[^}]*break-inside:\s*avoid/)
+    expect(css).toMatch(/@page \{\s*margin:\s*6mm 12mm;\s*\}/)
+  }, 30_000)
 })

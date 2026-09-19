@@ -29,14 +29,19 @@ describe('the results view (S6a-iii-b, #165, items 4 and 5, ruled R2)', () => {
   it('draws the subject sheet by the tool’s own code, in this tab', async () => {
     const view = await drawn()
     const study = await fetchStudy(fetcher)
-    // The same document `documentOf` gives the sheet page, which is `compose`'s — one renderer.
+    // The same document `documentOf` gives the sheet page, which is `compose`'s — one renderer,
+    // mounted block by block (S5g, #194): one element per block the tool drew, in its order.
     // Both sides go through the DOM, so this compares what was parsed rather than two spellings
     // of the same markup.
-    const expected = document.createElement('div')
-    expected.innerHTML = documentOf([one, two], study).svg
-    expect((view.querySelector('.sheet__document') as HTMLElement).innerHTML).toBe(
-      expected.innerHTML,
-    )
+    const composed = documentOf([one, two], study)
+    const parsed = (markup: string) => {
+      const holder = document.createElement('div')
+      holder.innerHTML = markup
+      return holder.innerHTML
+    }
+    const mounted = [...view.querySelectorAll('.sheet__block')].map((block) => block.innerHTML)
+    expect(mounted).toEqual(composed.blocks.map(parsed))
+    expect(mounted).toHaveLength(20)
     expect(view.textContent).toContain('SUBJECT SHEET')
   }, 60_000)
 
