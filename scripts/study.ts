@@ -196,6 +196,16 @@ export interface StudyResult {
   kindChanges: { id: string; count: number; kinds: string }[]
   /** Every inject of the cast, in id order, with its ring entry. */
   entries: { id: string; enteredS: number | null }[]
+  /**
+   * What goes red and when (S9b, #199, ruled R1): the tracks at warning on Begin's tick, every
+   * crossing into or out of warning inside the window, and the real layer's highest composite —
+   * a scenario or scoring edit that paints anything but a threat or a band row red fails here.
+   */
+  warning: {
+    atBegin: string[]
+    crossings: { id: string; tSec: number; into: boolean }[]
+    realLayerMax: number
+  }
 }
 
 export function loadRecording(id: string): Recording {
@@ -297,6 +307,7 @@ export function runStudy(
     return run
   }
   const aboveCalm: { tSec: number; ids: string[] }[] = []
+  const warning = { atBegin: [] as string[], crossings: [] as StudyResult['warning']['crossings'] }
   const threat = {
     crossingS: null as number | null,
     crossingRangeM: null as number | null,
@@ -344,8 +355,13 @@ export function runStudy(
       const { track, score } = entry
       const run = runOf(track)
       const band = bandOf(Math.round(score.composite), scoring.bands)
+      const before = run.bandAt.get(tSec - 1)
       run.bands.push(band)
       run.bandAt.set(tSec, band)
+      // The warning set at Begin and every crossing of warning's line after it (S9b, R1).
+      if (tSec === begin && band === 'warning') warning.atBegin.push(track.id)
+      if (before !== undefined && (before === 'warning') !== (band === 'warning'))
+        warning.crossings.push({ id: track.id, tSec, into: band === 'warning' })
       run.kinds.push(score.pattern ?? 'null')
       run.rankAt.set(tSec, i + 1)
       run.compositeAt.set(tSec, score.composite)
@@ -488,6 +504,10 @@ export function runStudy(
       .map((run) => ({ id: run.id, count: kindChangesOf(run.kinds), kinds: kindsOf(run.kinds) }))
       .filter((k) => k.count > 0),
     entries: injects.map((run) => ({ id: run.id, enteredS: run.enteredS })),
+    warning: {
+      ...warning,
+      realLayerMax: aircraft.reduce((top, run) => Math.max(top, run.maxComposite), -Infinity),
+    },
   }
 }
 

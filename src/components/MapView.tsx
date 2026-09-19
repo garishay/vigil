@@ -10,7 +10,6 @@ import { bearingDegrees, circlePolygon } from '../lib/geo'
 import {
   MARK_RING,
   OPENED_GREY,
-  OPENED_MARK,
   BAND_COLOR,
   formatEntryClock,
   trackIdent,
@@ -54,25 +53,26 @@ const hollowHalo = (width: number): ExpressionSpecification =>
   ['case', IS_HANDLED, 1.1, width] as ExpressionSpecification
 
 /**
- * The map in a study run (S9b, #199): one channel a question, ink spent in the order the
+ * The map in a study run (S9b, #199, ruled): one channel a question, ink spent in the order the
  * questions are asked. In Vigil a track at **warning** takes the warning colour on the whole
  * marker, all three shapes, and every other track the neutral the unaided picture uses — no
  * caution fill, no identity stroke; the list and the drawer keep their chips and dots, with
- * words beside them. In both conditions the **opened** mark moves onto the marker itself:
- * `OPENED_MARK` picks the candidate — `grey`, the marker with its label and tick dropped to a
- * grey plainly between untouched and hollow, or `ring`, S8-i's ring at a weight that is found
- * at device scale 1. A warning track keeps its colour at full brightness when opened, until it
- * is handled (item 3): Vigil's judgment outranks the bookkeeping. Handled stays hollow, in the
- * neutral (S8-i, ruled R1). The demo's paint is untouched.
+ * words beside them. In both conditions the **opened** mark is the marker itself dropped to a
+ * grey between untouched and hollow, its label and tick with it — the marker's own brightness,
+ * the operator's channel (ruled A; a ring at a weight that could be found was the loudest thing
+ * on the picture, louder than the red beside it). A warning track keeps its colour at full
+ * brightness when opened, until it is handled (item 3, ruled C): colour answers which one needs
+ * me now, and a handled track does not. Handled stays hollow, in the neutral (S8-i, R1). The
+ * terminal-or-ground dim is withheld in a run too (ruled B), brightness being the operator's: a
+ * parked aircraft is drawn at the neutral like every other untouched track, and the drawer's
+ * badge says it is on the ground. The demo's paint, its dim and its legend are untouched.
  */
 const IS_OPENED = ['==', ['get', 'mark'], 'assessed'] as ExpressionSpecification
 const IS_WARNING = ['==', ['get', 'band'], 'warning'] as ExpressionSpecification
-/** The ring candidate's weight — S8-i's 1.25 px at 0.42 was lost among 115 tracks. */
-const OPENED_RING = { widthPx: 2.25, opacity: 0.9 }
 /**
  * A run's ink for a marker, its stroke, its label and its tick: the neutral, the warning colour
- * in Vigil on a track at warning, the opened grey where that candidate is drawn, and the
- * neutral again once handled — the hollow outline carries no colour.
+ * in Vigil on a track at warning, the opened grey, and the neutral again once handled — the
+ * hollow outline carries no colour.
  */
 const runInk = (vigil: boolean): ExpressionSpecification =>
   [
@@ -80,9 +80,32 @@ const runInk = (vigil: boolean): ExpressionSpecification =>
     IS_HANDLED,
     RAW_COLOR,
     ...(vigil ? [IS_WARNING, BAND_COLOR.warning] : []),
-    ...(OPENED_MARK === 'grey' ? [IS_OPENED, OPENED_GREY] : []),
+    IS_OPENED,
+    OPENED_GREY,
     RAW_COLOR,
   ] as ExpressionSpecification
+/**
+ * The dim, Vigil's own (#61, #36 [9]): terminal or on the ground on an aircraft, terminal on an
+ * inject, one expression a layer so a handled ground track never dims twice — and its absence
+ * in a run (S9b, ruled B), where only a handled dot empties.
+ */
+const ADSB_DIM: ExpressionSpecification = [
+  'case',
+  ['any', ['get', 'terminal'], ['get', 'onGround']],
+  0.4,
+  0.8,
+]
+const HALO_DIM: ExpressionSpecification = ['case', ['get', 'terminal'], 0.07, 0.14]
+const DOT_DIM = [
+  'case',
+  IS_HANDLED,
+  0,
+  ['case', ['get', 'terminal'], 0.5, 0.95],
+] as ExpressionSpecification
+const DOT_STROKE_DIM: ExpressionSpecification = ['case', ['get', 'terminal'], 0.5, 1]
+const DRONE_DIM: ExpressionSpecification = ['case', ['get', 'terminal'], 0.5, 0.95]
+/** A run's dot: emptied where handled, full otherwise — no dim. */
+const RUN_DOT = ['case', IS_HANDLED, 0, 0.95] as ExpressionSpecification
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
 const PROJECTION_SOURCE = 'selected-projection'
@@ -517,9 +540,9 @@ export function MapView({
    */
   mode?: Mode
   /**
-   * A study run (S9b, #199): in Vigil the warning colour alone, the neutral on every other
-   * track; in both conditions the opened mark on the marker itself; the legend withheld — the
-   * brief carries it. The demo is the map as built.
+   * A study run (S9b, #199, ruled): in Vigil the warning colour alone, the neutral on every
+   * other track and no dim; in both conditions the opened mark on the marker itself; the legend
+   * withheld — the brief carries it. The demo is the map as built.
    */
   run?: boolean
   onSelect?: (id: string) => void
@@ -664,7 +687,7 @@ export function MapView({
           // (`.queue__row--ground, .queue__row--terminal { opacity: 0.55 }`), so a handled
           // ground track does not dim twice. Composing the two instead would put a terminal
           // ground glyph at 0.22, which on this background is gone (ruled on #61).
-          'icon-opacity': ['case', ['any', ['get', 'terminal'], ['get', 'onGround']], 0.4, 0.8],
+          'icon-opacity': ADSB_DIM,
         },
       })
       map.addLayer({
@@ -764,7 +787,7 @@ export function MapView({
         paint: {
           'circle-radius': 11,
           'circle-color': IDENTITY_STROKE,
-          'circle-opacity': ['case', ['get', 'terminal'], 0.07, 0.14],
+          'circle-opacity': HALO_DIM,
           'circle-blur': 0.6,
         },
       })
@@ -779,15 +802,10 @@ export function MapView({
           'circle-color': BAND_FILL,
           // Emptied where the track is handled, at its own size; the stroke below stays, so
           // the dot reads as an outline of itself rather than as a ring around a marker.
-          'circle-opacity': [
-            'case',
-            IS_HANDLED,
-            0,
-            ['case', ['get', 'terminal'], 0.5, 0.95],
-          ] as ExpressionSpecification,
+          'circle-opacity': DOT_DIM,
           'circle-stroke-width': 2,
           'circle-stroke-color': IDENTITY_STROKE,
-          'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.5, 1],
+          'circle-stroke-opacity': DOT_STROKE_DIM,
         },
       })
       // The drone glyph (S9): a heard, associated Remote ID, drawn whatever it overlaps — the
@@ -804,7 +822,7 @@ export function MapView({
         },
         paint: {
           'icon-color': hollowed(DRONE_FILL),
-          'icon-opacity': ['case', ['get', 'terminal'], 0.5, 0.95],
+          'icon-opacity': DRONE_DIM,
           'icon-halo-color': DRONE_FILL,
           'icon-halo-width': hollowHalo(0),
         },
@@ -993,22 +1011,25 @@ export function MapView({
     map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-stroke-color', stroke)
     map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', hollowed(droneInk))
     map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-halo-color', droneInk)
-    // The opened grey reaches the label and the tick too, where raw draws them; the ring
-    // candidate keeps its layers, at the weight that is found, and the grey withholds them.
-    const textInk = run ? runInk(false) : RAW_COLOR
-    for (const id of [`${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
-      map.setPaintProperty(id, 'text-color', textInk)
+    // The opened grey reaches the label and the tick too, where raw draws them — and only there:
+    // Vigil's hidden label layers keep their paint, so the demo's paint has no neutral in it.
+    if (raw) {
+      const textInk = run ? runInk(false) : RAW_COLOR
+      for (const id of [`${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
+        map.setPaintProperty(id, 'text-color', textInk)
+      }
+      map.setPaintProperty(`${INJECT_SOURCE}-tick`, 'icon-color', textInk)
     }
-    map.setPaintProperty(`${INJECT_SOURCE}-tick`, 'icon-color', textInk)
+    // The opened mark is the marker itself in a run, so S8-i's ring layers are withheld there;
+    // the demo keeps them. The dim goes with the run too (ruled B): brightness is the operator's.
     for (const id of [`${ADSB_SOURCE}-mark`, `${INJECT_SOURCE}-mark`]) {
-      map.setLayoutProperty(id, 'visibility', run && OPENED_MARK === 'grey' ? 'none' : 'visible')
-      map.setPaintProperty(id, 'circle-stroke-width', run ? OPENED_RING.widthPx : MARK_RING.widthPx)
-      map.setPaintProperty(
-        id,
-        'circle-stroke-opacity',
-        run ? OPENED_RING.opacity : MARK_RING.opacity,
-      )
+      map.setLayoutProperty(id, 'visibility', run ? 'none' : 'visible')
     }
+    map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-opacity', run ? 0.8 : ADSB_DIM)
+    map.setPaintProperty(`${INJECT_SOURCE}-halo`, 'circle-opacity', run ? 0.14 : HALO_DIM)
+    map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-opacity', run ? RUN_DOT : DOT_DIM)
+    map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-stroke-opacity', run ? 1 : DOT_STROKE_DIM)
+    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-opacity', run ? 0.95 : DRONE_DIM)
   }, [mode, run, styleReady])
 
   useEffect(() => {

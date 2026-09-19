@@ -2,8 +2,12 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { BandDot, IdentityDot, IdentityLegend, ShapeGlyph } from './IdentityDot'
 import { GLYPHS, GLYPH_BOX, GLYPH_PX } from './glyphs'
-import { BAND_COLOR, MARK_RING, SHAPES, SHAPE_LABEL } from '../lib/display'
+import { BAND_COLOR, OPENED_GREY, SHAPES, SHAPE_LABEL } from '../lib/display'
 import { IDENTITIES, IDENTITY_COLOR, IDENTITY_LABEL } from '../lib/identity'
+
+/** jsdom serialises an inline hex colour as `rgb(r, g, b)`. */
+const rgb = (hex: string) =>
+  `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
 
 describe('IdentityDot', () => {
   it('is decorative: the colour is data, the label beside it carries the meaning', () => {
@@ -106,24 +110,20 @@ describe('ShapeGlyph (S9)', () => {
     expect(svg().querySelector('circle')?.getAttribute('fill')).toBeNull()
   })
 
-  it('draws the subject’s mark on the dot (S8-ii): the assessed ring in the map’s own pixels, the handled dot hollow at its own size', () => {
+  it('draws the subject’s mark on the dot as a run paints it (S8-ii; S9b, ruled A): opened in the grey on the marker itself, handled hollow at its own size, warning in Vigil’s one colour', () => {
     const { rerender } = render(<ShapeGlyph shape="dot" mark="assessed" />)
     const circles = () => [...document.querySelectorAll('.shape-glyph circle')]
+    const svg = () => document.querySelector('.shape-glyph') as SVGElement
     const units = GLYPH_BOX / GLYPH_PX
-    expect(circles()).toHaveLength(2)
-    const [dot, ring] = circles()
-    expect(dot.getAttribute('fill')).toBeNull()
-    // The ring the map's layer paints — 9 px at 1.25 px and 0.42 on a 22 px box — in units. The
-    // map's stroke sits outside its radius, so the ring spans 9 → 10.25 px there; an SVG stroke
-    // straddles its path, so the mid-stroke radius carries the half (#198 round 1).
-    expect(ring.getAttribute('fill')).toBe('none')
-    expect(ring.getAttribute('stroke')).toBe(MARK_RING.color)
-    const mid = Number(ring.getAttribute('r'))
-    const half = Number(ring.getAttribute('stroke-width')) / 2
-    expect(mid - half).toBeCloseTo(MARK_RING.radiusPx * units, 9)
-    expect(mid + half).toBeCloseTo((MARK_RING.radiusPx + MARK_RING.widthPx) * units, 9)
-    expect(Number(ring.getAttribute('stroke-width'))).toBeCloseTo(MARK_RING.widthPx * units, 9)
-    expect(Number(ring.getAttribute('stroke-opacity'))).toBe(MARK_RING.opacity)
+    // Opened: the dot itself, in the grey — never a ring.
+    expect(circles()).toHaveLength(1)
+    expect(circles()[0].getAttribute('fill')).toBeNull()
+    expect(svg().style.color).toBe(rgb(OPENED_GREY))
+    expect(svg()).toHaveAttribute('data-mark', 'assessed')
+    rerender(<ShapeGlyph shape="dot" warning />)
+    expect(circles()).toHaveLength(1)
+    expect(svg().style.color).toBe(rgb(BAND_COLOR.warning))
+    expect(svg()).toHaveAttribute('data-warning', 'true')
     rerender(<ShapeGlyph shape="dot" mark="handled" />)
     expect(circles()).toHaveLength(1)
     const [hollow] = circles()

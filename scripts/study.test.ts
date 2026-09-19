@@ -406,6 +406,28 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
     }
   })
 
+  it('what goes red and when (S9b, #199, ruled R1): the two threats at Begin, only threats and band rows ever at warning inside the window, nothing crossing out, and the real layer never', () => {
+    // The read-out the S9b gate made from the same seams, held so a scenario or scoring edit that
+    // paints anything else red fails the build: 03a's band rows cross at Begin + 128, 130, 157
+    // and 189; 03b's at 129, 129, 157 and 190; the real layer's highest composite is 30.
+    for (const name of pair) {
+      const { warning, config } = results[name]
+      const roles = STUDY_CAST[name]
+      expect([...warning.atBegin].sort()).toEqual([...roles.threats].sort())
+      const red = new Set([...roles.threats, ...(roles.band ?? [])])
+      for (const crossing of warning.crossings) {
+        expect(red.has(crossing.id), `${name}: ${crossing.id} at ${crossing.tSec}`).toBe(true)
+        expect(crossing.into, `${name}: ${crossing.id} left warning at ${crossing.tSec}`).toBe(true)
+      }
+      expect(warning.crossings.map((c) => c.id).sort()).toEqual([...(roles.band ?? [])].sort())
+      expect(warning.crossings.map((c) => c.tSec - config.beginS)).toEqual(
+        name === '03a' ? [128, 130, 157, 189] : [129, 129, 157, 190],
+      )
+      expect(warning.realLayerMax).toBeLessThan(SCORING.bands.warning)
+      expect(Math.round(warning.realLayerMax)).toBe(30)
+    }
+  })
+
   it('the orbit bait’s closing read sweeps 0 to 23 and it holds ranks 13 to 18, with no pattern-kind change on either cast under the floor (#155, R2)', () => {
     for (const name of pair) {
       expect(p(name).orbit).toEqual({

@@ -45,26 +45,38 @@ describe('the brief, rebuilt for reading (S8, #180 item 6, ruled; the amendmentâ
     unmount()
     draw(true)
     expect(headings()).toEqual(['The clock', 'On the map', 'What you do', 'What counts'])
+    // The red line is the Vigil block's, so unaided never hears of a colour it does not see.
+    expect(screen.queryByText('Red is warning: it needs you now.')).toBeNull()
   })
 
-  it('does not grow: 158 words in Vigil and 140 unaided, under the accepted 159 and 141, the title and Begin included (ruled B; the amendmentâ€™s item 6)', () => {
+  it('does not grow: 159 words in Vigil and 134 unaided, at and under the accepted 159 and 141, the title and Begin included (ruled B; S9b, ruled D)', () => {
     // The ceiling is the rule; the exact count is pinned so any growth is a re-pin, not a drift.
-    // The gate's 159 carried a 12-word Assess line; the two mark lines that replace it are 11.
+    // S9b: the two mark lines (11) became one row (5), and the Vigil block gained the red line (7).
     const { unmount } = draw(false)
-    expect(words(spoken(card()))).toHaveLength(158)
+    expect(words(spoken(card()))).toHaveLength(159)
     unmount()
     draw(true)
-    expect(words(spoken(card()))).toHaveLength(140)
+    expect(words(spoken(card()))).toHaveLength(134)
   })
 
   it('says what the screen does: the ring means opened, the hollow marker means escalated or dismissed, Escalate is one click, no Assess line, the restraint sentence, and never who an escalation goes to (R4)', () => {
     draw(false)
-    const symbolBefore = (text: string) =>
-      screen.getByText(text).previousElementSibling?.querySelector('.shape-glyph')
-    expect(symbolBefore('A track you have opened.')).toHaveAttribute('data-mark', 'assessed')
-    expect(symbolBefore('A track you escalated or dismissed.')).toHaveAttribute(
-      'data-mark',
+    // The three states in one row (S9b): untouched, opened in the run's grey, handled hollow.
+    const row = screen.getByText(
+      'Untouched, opened, escalated or dismissed.',
+    ).previousElementSibling
+    const marks = [...(row?.querySelectorAll('.shape-glyph') ?? [])]
+    expect(marks.map((glyph) => glyph.getAttribute('data-mark'))).toEqual([
+      null,
+      'assessed',
       'handled',
+    ])
+    expect((marks[1] as HTMLElement).style.color).toBe('rgb(127, 139, 152)')
+    // Vigil's one colour, said in the Vigil-only block and drawn as the dot at warning.
+    const red = screen.getByText('Red is warning: it needs you now.').previousElementSibling
+    expect(red?.querySelector('.shape-glyph')).toHaveAttribute('data-warning', 'true')
+    expect((red?.querySelector('.shape-glyph') as HTMLElement).style.color).toBe(
+      'rgb(255, 107, 87)',
     )
     expect(screen.getByText(/One click, and you are done with that track\.$/)).toBeInTheDocument()
     expect(
@@ -85,6 +97,8 @@ describe('the brief, rebuilt for reading (S8, #180 item 6, ruled; the amendmentâ
     expect(glyphs.map((glyph) => glyph.getAttribute('data-shape'))).toEqual([
       'aircraft',
       'drone',
+      'dot',
+      'dot',
       'dot',
       'dot',
       'dot',

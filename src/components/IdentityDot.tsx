@@ -2,9 +2,7 @@ import { BANDS, BAND_LABEL } from '../config/scoring'
 import { GLYPHS, GLYPH_BOX, GLYPH_PX, polygonPoints, type Part } from './glyphs'
 import {
   BAND_COLOR,
-  MARK_RING,
   OPENED_GREY,
-  OPENED_MARK,
   SHAPES,
   SHAPE_LABEL,
   type TrackShape,
@@ -84,9 +82,10 @@ const DOT_STROKE = 2 * UNITS_PER_PX
 /**
  * The map's shape as inline SVG (S9, #181): the same parts the map rasterises, so the key and
  * the marker cannot drift; the dot is the circle the map draws. Decorative, as the dots are, and
- * the brief's legend draws with it too (S8), with the subject's own mark on the dot (S8-ii,
- * ruled R1): **assessed** is the faint ring about it, in the map's own pixels scaled to the
- * box; **handled** is the dot drawn hollow at its own size — the fill gone, the stroke kept.
+ * the brief's legend draws with it too (S8), with the subject's own mark on the dot as a study
+ * run paints it (S8-ii, R1; S9b, ruled A): **opened** is the dot in the run's grey — the marker
+ * itself, not a ring — and **handled** the dot drawn hollow at its own size, the fill gone, the
+ * stroke kept; **warning** is Vigil's one colour on it.
  */
 export function ShapeGlyph({
   shape,
@@ -99,13 +98,8 @@ export function ShapeGlyph({
   warning?: boolean
 }) {
   const c = GLYPH_BOX / 2
-  // The opened mark as the run paints it (S9b): the grey on the marker itself, or the ring.
-  const opened = mark === 'assessed'
-  const ink = warning
-    ? BAND_COLOR.warning
-    : opened && OPENED_MARK === 'grey'
-      ? OPENED_GREY
-      : undefined
+  // The opened mark as the run paints it (S9b, ruled A): the marker itself in the grey.
+  const ink = warning ? BAND_COLOR.warning : mark === 'assessed' ? OPENED_GREY : undefined
   return (
     <svg
       className="shape-glyph"
@@ -129,21 +123,6 @@ export function ShapeGlyph({
         />
       ) : (
         <circle cx={c} cy={c} r={DOT_R} />
-      )}
-      {opened && OPENED_MARK === 'ring' && (
-        <circle
-          cx={c}
-          cy={c}
-          // The map paints `circle-stroke-width` outside `circle-radius`, so the ring's
-          // mid-stroke sits half a stroke out from `radiusPx`; an SVG stroke straddles its
-          // path, so the radius carries that half here — the dot's own hollowing does the
-          // same, and the legend keeps the marker's outer edge.
-          r={(MARK_RING.radiusPx + MARK_RING.widthPx / 2) * UNITS_PER_PX}
-          fill="none"
-          stroke={MARK_RING.color}
-          strokeWidth={MARK_RING.widthPx * UNITS_PER_PX}
-          strokeOpacity={MARK_RING.opacity}
-        />
       )}
     </svg>
   )

@@ -1012,6 +1012,106 @@ describe('raw mode (S4a, #136, ruled A4)', () => {
   })
 })
 
+describe('a study run’s paint (S9b, #199, ruled A–C; #131’s fairness spec)', () => {
+  const neutral = '#c5cfdc'
+  const grey = '#7f8b98'
+  const OPENED = ['==', ['get', 'mark'], 'assessed']
+  const WARNING = ['==', ['get', 'band'], 'warning']
+  /** The run's one ink: handled → the neutral; warning (Vigil) → red; opened → grey; else neutral. */
+  const ink = (vigil: boolean) => [
+    'case',
+    HANDLED,
+    neutral,
+    ...(vigil ? [WARNING, BAND_COLOR.warning] : []),
+    OPENED,
+    grey,
+    neutral,
+  ]
+  const paints = (layer: string, prop: string) =>
+    mapInstance.setPaintProperty.mock.calls
+      .filter((c) => c[0] === layer && c[1] === prop)
+      .map((c) => c[2])
+
+  it('paints warning alone in Vigil: the red on a track at warning, the neutral on every other, the opened grey on the marker, no colour once handled', () => {
+    render(<MapView ao={AO} run tracks={TRACKS} injects={INJECTS} />)
+    // The dot's fill and stroke, the halo, and both glyphs carry the same ink; a handled glyph
+    // is still hollowed through it.
+    for (const [layer, prop] of [
+      ['inject-tracks-dot', 'circle-color'],
+      ['inject-tracks-dot', 'circle-stroke-color'],
+      ['inject-tracks-halo', 'circle-color'],
+    ]) {
+      expect(paints(layer, prop).at(-1)).toEqual(ink(true))
+    }
+    for (const layer of ['adsb-tracks-glyph', 'inject-tracks-glyph']) {
+      expect(paints(layer, 'icon-color').at(-1)).toEqual(['case', HANDLED, HOLLOW, ink(true)])
+      expect(paints(layer, 'icon-halo-color').at(-1)).toEqual(ink(true))
+    }
+    // The label and the tick are raw's layers, hidden here and painted only there (below).
+    expect(paints('adsb-tracks-label', 'text-color')).toHaveLength(0)
+    // No caution token, no identity token, anywhere in the run's paint.
+    const painted = JSON.stringify(mapInstance.setPaintProperty.mock.calls)
+    expect(painted).not.toContain(BAND_COLOR.caution)
+    for (const hex of Object.values(IDENTITY_COLOR)) expect(painted).not.toContain(hex)
+    // The opened mark is the marker: S8-i's ring layers are withheld in a run.
+    for (const id of ['adsb-tracks-mark', 'inject-tracks-mark']) {
+      expect(mapInstance.setLayoutProperty).toHaveBeenCalledWith(id, 'visibility', 'none')
+    }
+    // No legend on the map — the brief carries it.
+    expect(screen.queryByRole('group', { name: 'Map legend' })).toBeNull()
+  })
+
+  it('withholds the dim in a run — brightness is the operator’s channel (ruled B) — and only a handled dot empties', () => {
+    render(<MapView ao={AO} run tracks={TRACKS} injects={INJECTS} />)
+    expect(paints('adsb-tracks-glyph', 'icon-opacity').at(-1)).toBe(0.8)
+    expect(paints('inject-tracks-halo', 'circle-opacity').at(-1)).toBe(0.14)
+    expect(paints('inject-tracks-dot', 'circle-opacity').at(-1)).toEqual(['case', HANDLED, 0, 0.95])
+    expect(paints('inject-tracks-dot', 'circle-stroke-opacity').at(-1)).toBe(1)
+    expect(paints('inject-tracks-glyph', 'icon-opacity').at(-1)).toBe(0.95)
+  })
+
+  it('unaided changes only in the opened mark: the neutral, the grey, and never the red', () => {
+    render(<MapView ao={AO} run mode="raw" tracks={TRACKS} injects={INJECTS} />)
+    for (const [layer, prop] of [
+      ['inject-tracks-dot', 'circle-color'],
+      ['inject-tracks-dot', 'circle-stroke-color'],
+      ['inject-tracks-halo', 'circle-color'],
+      ['adsb-tracks-label', 'text-color'],
+      ['inject-tracks-tick', 'icon-color'],
+    ]) {
+      expect(paints(layer, prop).at(-1)).toEqual(ink(false))
+    }
+    expect(JSON.stringify(mapInstance.setPaintProperty.mock.calls)).not.toContain(
+      BAND_COLOR.warning,
+    )
+    for (const id of ['adsb-tracks-mark', 'inject-tracks-mark']) {
+      expect(mapInstance.setLayoutProperty).toHaveBeenCalledWith(id, 'visibility', 'none')
+    }
+    expect(screen.queryByRole('group', { name: 'Map legend' })).toBeNull()
+  })
+
+  it('leaves the demo as built: the band fill, the identity stroke, the dim, the ring layers and the legend', () => {
+    render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} />)
+    expect(JSON.stringify(paints('inject-tracks-dot', 'circle-color').at(-1))).toContain(
+      BAND_COLOR.caution,
+    )
+    expect(JSON.stringify(paints('inject-tracks-dot', 'circle-stroke-color').at(-1))).toContain(
+      IDENTITY_COLOR.unknown,
+    )
+    expect(paints('adsb-tracks-glyph', 'icon-opacity').at(-1)).toEqual([
+      'case',
+      ['any', ['get', 'terminal'], ['get', 'onGround']],
+      0.4,
+      0.8,
+    ])
+    for (const id of ['adsb-tracks-mark', 'inject-tracks-mark']) {
+      expect(mapInstance.setLayoutProperty).toHaveBeenCalledWith(id, 'visibility', 'visible')
+    }
+    expect(JSON.stringify(mapInstance.setPaintProperty.mock.calls)).not.toContain(grey)
+    expect(screen.getByRole('group', { name: 'Map legend' })).toBeInTheDocument()
+  })
+})
+
 describe('the heading tick (S4a; S10, #182 item 5)', () => {
   it('holds the fairness spec’s heading line by visibility, not presence: one screen length from the marker’s edge at any zoom, never culled, raw only (#182 item 5)', () => {
     render(<MapView ao={AO} mode="raw" injects={INJECTS} />)

@@ -56,6 +56,7 @@ vi.mock('./components/MapView', () => ({
     marks = new Map<string, string>(),
     bands = new Map<string, string>(),
     mode = 'vigil',
+    run = false,
     onSelect,
     children,
   }: {
@@ -74,6 +75,7 @@ vi.mock('./components/MapView', () => ({
     marks?: ReadonlyMap<string, string>
     bands?: ReadonlyMap<string, string>
     mode?: string
+    run?: boolean
     onSelect?: (id: string) => void
     children?: React.ReactNode
   }) => {
@@ -96,6 +98,7 @@ vi.mock('./components/MapView', () => ({
         data-selected-site={selectedSiteId ?? ''}
         data-placing={String(placing)}
         data-mode={mode}
+        data-run={String(run)}
       >
         {/* Stands in for a dot click: selects the first inject, like the real map would. */}
         <button
@@ -2814,6 +2817,8 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     // moved them. The demo keeps them (pinned below).
     expect(screen.queryByRole('group', { name: 'Filter by state' })).toBeNull()
     expect(document.querySelectorAll('.chip')).toHaveLength(0)
+    // The map is told it is a run (S9b): warning alone in Vigil, the opened grey, no legend.
+    expect(screen.getByTestId('map')).toHaveAttribute('data-run', 'true')
     // The detail opens in place on selection, from the list.
     fireEvent.click(
       within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
@@ -2946,6 +2951,7 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     expect(document.querySelector('.queue__row--assessed')).toBeNull()
     expect(screen.getByTestId('map')).toHaveAttribute('data-marks', '')
     expect(document.querySelectorAll('.chip').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-run', 'false')
     fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
     expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
   })
