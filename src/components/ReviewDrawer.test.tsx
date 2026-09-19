@@ -760,18 +760,36 @@ describe('raw mode (S4a, #136, ruled A5)', () => {
   })
 })
 
-describe('a study run (S4b, #137, ruled A5’s opt-out)', () => {
-  it('hides Resolve in Vigil too, so both conditions offer the same three actions', () => {
+describe('a study run (S4b, #137, ruled A5’s opt-out; S8-ii, #180, the amendment’s item 2)', () => {
+  it('hides Resolve in Vigil too, and Assess in both conditions, so the two offer the same two actions', () => {
+    // Opening the track has already marked it, so a button named for what the subject just did
+    // read as a required first step; Escalate and Dismiss stay, each live in one click.
+    for (const mode of ['vigil', 'raw'] as const) {
+      const { unmount } = renderDrawer(entry(SILENT, 1, 7200.2), { run: true, mode })
+      const drawer = screen.getByRole('complementary', { name: /Track review/ })
+      expect(
+        within(drawer)
+          .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
+          .map((button) => [button.textContent, !(button as HTMLButtonElement).disabled]),
+      ).toEqual([
+        ['Escalate', true],
+        ['Dismiss', true],
+      ])
+      unmount()
+    }
     renderDrawer(entry(SILENT, 1, 7200.2), { run: true })
     const drawer = screen.getByRole('complementary', { name: /Track review/ })
-    expect(
-      within(drawer)
-        .getAllByRole('button', { name: /^(Assess|Escalate|Dismiss|Resolve)$/ })
-        .map((button) => button.textContent),
-    ).toEqual(['Assess', 'Escalate', 'Dismiss'])
     // Still Vigil's drawer otherwise: the score is opened, the event log drawn.
     expect(within(drawer).getByLabelText('Score breakdown')).toBeInTheDocument()
     expect(within(drawer).getByLabelText('Event log')).toBeInTheDocument()
+  })
+
+  it('keeps Assess in the demo, in either mode (item 8)', () => {
+    for (const mode of ['vigil', 'raw'] as const) {
+      const { unmount } = renderDrawer(entry(SILENT, 1, 7200.2), { mode })
+      expect(screen.getByRole('button', { name: 'Assess' })).toBeEnabled()
+      unmount()
+    }
   })
 })
 

@@ -52,8 +52,10 @@ export type Status = 'new' | 'assessing' | 'escalated' | 'resolved' | 'dismissed
  * The operator's actions. `acknowledge` (#101, 101a) answers an alert: it claims a New track by
  * the existing transition, and on a track already Assessing or Escalated it changes nothing but
  * still writes its line, so the handoff timeline carries it whichever status the track was in.
+ * `open` (S8-ii, #180, the owner's amendment of 2026-09-19) is a study run's own: the first
+ * open of an untouched track, which marks it. The demo's table has no cell for it.
  */
-export type LifecycleAction = 'assess' | 'escalate' | 'dismiss' | 'resolve' | 'acknowledge'
+export type LifecycleAction = 'assess' | 'escalate' | 'dismiss' | 'resolve' | 'acknowledge' | 'open'
 /** What the picture did, as opposed to what the operator did. */
 export type ObservationEvent = 'first-seen' | 'band' | 'pattern' | 'lost' | 'regained'
 
@@ -93,12 +95,20 @@ const TRANSITIONS: Record<Status, Partial<Record<LifecycleAction, Status>>> = {
  * The study run's table (S8, #180 item 2, ruled): **Escalate is live from New**, in both
  * conditions. The brief asks for one action and one click, and a greyed button on it is the
  * opposite of that — a subject who wants to escalate had to press Assess first, which measures
- * nothing and was the shakedown's own complaint in another form. Nothing else moves, and the
- * demo keeps the table above: its lifecycle is a workflow, not an instrument.
+ * nothing and was the shakedown's own complaint in another form.
+ *
+ * **Opening a track marks it** (S8-ii, the owner's amendment of 2026-09-19): the first open of
+ * an untouched track is the `open` action, New → Assessing at the click, so the faint ring, the
+ * Status row and the list row all read one status. The Assess button is withheld in a run — the
+ * click that opened the track had already said "I have looked at this one", and a button named
+ * for it read as a required first step. **Acknowledging an alert carries a New track** here
+ * rather than claiming it: the mark means opened, and the brief's legend says so, so a card
+ * answered from the stack draws no ring on a track the subject has not read. Nothing else moves,
+ * and the demo keeps the table above: its lifecycle is a workflow, not an instrument.
  */
 const RUN_TRANSITIONS: Record<Status, Partial<Record<LifecycleAction, Status>>> = {
   ...TRANSITIONS,
-  new: { ...TRANSITIONS.new, escalate: 'escalated' },
+  new: { ...TRANSITIONS.new, escalate: 'escalated', open: 'assessing', acknowledge: 'new' },
 }
 
 const tableFor = (run: boolean) => (run ? RUN_TRANSITIONS : TRANSITIONS)

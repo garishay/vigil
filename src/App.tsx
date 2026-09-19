@@ -664,18 +664,41 @@ export default function App({
     const at = now()
     const entry = ranked.find((candidate) => candidate.track.id === trackId)
     const observed = entry ? observedSnapshot(entry) : log[log.length - 1].observed
+    // Through the study run's table where this is a run (S8-ii): a card answered from the stack
+    // carries a New track rather than claiming it, so the ring stays the open's alone.
     setEventLogs((logs) => ({
       ...logs,
-      [trackId]: appendEvent(logs[trackId] ?? log, 'acknowledge', { at, tSec, observed }),
+      [trackId]: appendEvent(logs[trackId] ?? log, 'acknowledge', {
+        at,
+        tSec,
+        observed,
+        run: inStudy,
+      }),
     }))
   }
   // A selection — a Queue row, a map dot, an alert card's open — is logged in a study run at the
   // clock it was made (ruled A5); the same track opened again is a new line, since the replay
   // draws the hops. Before Begin the overlay takes every click; after the end the shell is inert
   // and the selection refused anyway, so a click selects nothing new (ruled A4).
+  //
+  // Opening a track marks it (S8-ii, #180, the owner's amendment of 2026-09-19, item 1): the
+  // first open of an untouched track moves it to Assessing at the click, so the faint ring, the
+  // Status row and the list row all read the one status off the log; a re-open changes nothing.
+  // The select is the record (item 4): `runEvents` maps no `open`, so the run JSON carries the
+  // selection and nothing else. The demo's select marks nothing (item 8).
   const select = (id: string) => {
     if (inStudy && !runActive) return
-    if (inStudy) setSelections((current) => [...current, { tSec, trackId: id }])
+    if (inStudy) {
+      setSelections((current) => [...current, { tSec, trackId: id }])
+      const at = now()
+      setEventLogs((logs) => {
+        const entry = ranked.find((candidate) => candidate.track.id === id)
+        const log = logs[id] ?? (entry && firstSeen(id, observedSnapshot(entry), at, tSec))
+        if (!log || statusOf(log) !== 'new') return logs
+        const observed = entry ? observedSnapshot(entry) : log[log.length - 1].observed
+        return { ...logs, [id]: appendEvent(log, 'open', { at, tSec, observed, run: true }) }
+      })
+    }
     setSelectedId(id)
   }
   // A selection is an intent to review (A2 on #3): one made on Home — a map dot, an alert card —

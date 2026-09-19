@@ -138,8 +138,9 @@ export function ReviewDrawer({
    */
   mode?: Mode
   /**
-   * A study run (S4b, #137, ruled A5's opt-out): Resolve is hidden in Vigil too, so both
-   * conditions offer the same three actions and the record's actions are the contract's union.
+   * A study run (S4b, #137, ruled A5's opt-out; S8-ii, #180): Resolve is hidden in Vigil too,
+   * and Assess in both conditions, so the two offer the same two actions — Escalate and Dismiss
+   * — and the record's actions are the contract's union.
    */
   run?: boolean
   sites: readonly ProtectedSite[]
@@ -304,9 +305,15 @@ export function ReviewDrawer({
     { label: 'Seen', value: `${track.lastSeenSec} s ago` },
   ]
   const rows = raw ? rawRows : vigilRows
-  // Raw offers the three actions the fairness spec names; Resolve is Vigil's fourth (ruled) —
-  // and a study run's Vigil offers the same three (S4b).
-  const actions = raw || run ? ACTIONS.filter(({ action }) => action !== 'resolve') : ACTIONS
+  // Raw offers the three actions the fairness spec names; Resolve is Vigil's fourth (ruled). A
+  // study run offers two in both conditions (S8-ii, #180, the amendment of 2026-09-19): Assess
+  // is withheld, since opening the track has already marked it, and Escalate and Dismiss are
+  // each live in one click from an untouched track.
+  const actions = run
+    ? ACTIONS.filter(({ action }) => action === 'escalate' || action === 'dismiss')
+    : raw
+      ? ACTIONS.filter(({ action }) => action !== 'resolve')
+      : ACTIONS
 
   // The panel renders from the log, not from transient UI state, so an escalated track shows its
   // handoff after Resolve, a close-and-reopen, or a surface switch — regenerated in full.
