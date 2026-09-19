@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { ShapeGlyph } from './IdentityDot'
 import type { BriefBlock, BriefLine } from '../config/study'
 
@@ -55,7 +56,23 @@ export function RunBrief({
                       <span className="brief__symbol">
                         <Symbol line={line} />
                       </span>
-                      <span>{line.text}</span>
+                      <span>
+                        {line.parts === undefined
+                          ? line.text
+                          : line.parts.map((part, i) =>
+                              i === 0 ? (
+                                part.text
+                              ) : (
+                                <Fragment key={part.text}>
+                                  {' '}
+                                  <span className="brief__inline">
+                                    <ShapeGlyph shape="dot" mark={part.mark ?? undefined} run />
+                                  </span>{' '}
+                                  {part.text}
+                                </Fragment>
+                              ),
+                            )}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -78,16 +95,12 @@ export function RunBrief({
  * round 1). It is a span, never a control.
  */
 function Symbol({ line }: { line: BriefLine }) {
-  if (line.marks !== undefined)
-    return (
-      <span className="brief__row">
-        {line.marks.map((mark, i) => (
-          <ShapeGlyph key={i} shape="dot" mark={mark ?? undefined} />
-        ))}
-      </span>
-    )
-  if (line.warning === true) return <ShapeGlyph shape="dot" warning />
-  if (line.shape !== undefined) return <ShapeGlyph shape={line.shape} mark={line.mark} />
+  // The states line (S9b, #201 round 1): the untouched dot takes the column before its word;
+  // the other two sit inline before theirs, so a reader never maps three dots to three words.
+  if (line.parts !== undefined)
+    return <ShapeGlyph shape="dot" mark={line.parts[0].mark ?? undefined} run />
+  if (line.warning === true) return <ShapeGlyph shape="dot" warning run />
+  if (line.shape !== undefined) return <ShapeGlyph shape={line.shape} mark={line.mark} run />
   if (line.ring === true) return <span className="brief__ring" aria-hidden="true" />
   if (line.button !== undefined) return <span className="brief__button">{line.button}</span>
   return null

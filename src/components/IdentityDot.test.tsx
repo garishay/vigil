@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { BandDot, IdentityDot, IdentityLegend, ShapeGlyph } from './IdentityDot'
 import { GLYPHS, GLYPH_BOX, GLYPH_PX } from './glyphs'
-import { BAND_COLOR, OPENED_GREY, SHAPES, SHAPE_LABEL } from '../lib/display'
+import { BAND_COLOR, NEUTRAL_INK, OPENED_GREY, SHAPES, SHAPE_LABEL } from '../lib/display'
 import { IDENTITIES, IDENTITY_COLOR, IDENTITY_LABEL } from '../lib/identity'
 
 /** jsdom serialises an inline hex colour as `rgb(r, g, b)`. */
@@ -137,6 +137,12 @@ describe('ShapeGlyph (S9)', () => {
     rerender(<ShapeGlyph shape="dot" />)
     expect(circles()).toHaveLength(1)
     expect(Number(circles()[0].getAttribute('r'))).toBeCloseTo(6.5 * units, 9)
+    expect(svg().style.color).toBe('')
+    // In a run's brief the untouched dot takes the map's neutral from the one constant, so the
+    // legend's step to the opened grey is the map's (#201 round 1); the demo's legend keeps its
+    // text tone.
+    rerender(<ShapeGlyph shape="dot" run />)
+    expect(svg().style.color).toBe(rgb(NEUTRAL_INK))
   })
 })
 

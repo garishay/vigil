@@ -1070,6 +1070,29 @@ describe('a study run’s paint (S9b, #199, ruled A–C; #131’s fairness spec)
     expect(paints('inject-tracks-glyph', 'icon-opacity').at(-1)).toBe(0.95)
   })
 
+  it('reads a run’s brightness off each dim’s own undimmed branch — one number a layer (#201 round 1)', () => {
+    render(<MapView ao={AO} run tracks={TRACKS} injects={INJECTS} />)
+    const demo = (id: string, prop: string) =>
+      mapInstance.addLayer.mock.calls.find(([layer]) => layer.id === id)![0].paint[
+        prop
+      ] as unknown[]
+    for (const [layer, prop] of [
+      ['adsb-tracks-glyph', 'icon-opacity'],
+      ['inject-tracks-halo', 'circle-opacity'],
+      ['inject-tracks-dot', 'circle-stroke-opacity'],
+      ['inject-tracks-glyph', 'icon-opacity'],
+    ]) {
+      expect(paints(layer, prop).at(-1)).toBe(demo(layer, prop).at(-1))
+    }
+    const dot = demo('inject-tracks-dot', 'circle-opacity').at(-1) as unknown[]
+    expect(paints('inject-tracks-dot', 'circle-opacity').at(-1)).toEqual([
+      'case',
+      HANDLED,
+      0,
+      dot.at(-1),
+    ])
+  })
+
   it('unaided changes only in the opened mark: the neutral, the grey, and never the red', () => {
     render(<MapView ao={AO} run mode="raw" tracks={TRACKS} injects={INJECTS} />)
     for (const [layer, prop] of [

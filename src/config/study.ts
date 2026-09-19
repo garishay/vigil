@@ -89,8 +89,11 @@ export interface BriefLine {
   shape?: TrackShape
   /** The subject's own mark on that shape (S8-i, S9b): opened, or the marker drawn hollow. */
   mark?: Mark
-  /** A row of marks on the dot (S9b): untouched, opened, handled — one line for the three. */
-  marks?: readonly (Mark | null)[]
+  /**
+   * The three states in one line (S9b, #201 round 1): each dot beside its own word — the untouched
+   * dot in the symbol column before the first, the grey and the hollow dots inline before theirs.
+   */
+  parts?: readonly { mark: Mark | null; text: string }[]
   /** Vigil's one colour (S9b): the dot drawn in the warning colour. */
   warning?: true
   /** The protected ring, drawn in the ring's own stroke. */
@@ -121,15 +124,15 @@ const sentenceCase = (text: string) => text.charAt(0).toUpperCase() + text.slice
  * session and the goal in large type, then labelled blocks. The clock line reads the run's own
  * length (S7, #152, ruled D4) to the half minute in words. Every block but the last is identical
  * across the conditions. The legend is the map's own three shapes (S9), the protected ring, and
- * the subject's two marks (S8-i, R1): the faint ring means a track they have opened — opening is
- * what marks it (the owner's amendment of 2026-09-19) — and the hollow marker one they have
- * escalated or dismissed. The actions are the two the run offers, drawn as their buttons; there
- * is no Assess line, since there is no Assess button. The restraint sentence stays (the owner's
- * note of 09-18), the brief never says who an escalation goes to (ruled R4), and it never says
- * how many tracks will enter the ring. The three states are one row of three dots (S9b, #199),
- * and the Vigil block says what red means, since red is the one colour a run spends. 159 words
- * in Vigil and 134 unaided, the title and Begin included, at and under the accepted 159 and 141
- * and pinned — the brief does not grow.
+ * the three states a marker can be in as the run paints them (S8-i, R1; S9b, #199): untouched
+ * in the neutral, opened in the grey — opening is what marks it (the owner's amendment of
+ * 2026-09-19) — and escalated or dismissed drawn hollow, each dot beside its own word on one
+ * line. The Vigil block says what red means, since red is the one colour a run spends. The
+ * actions are the two the run offers, drawn as their buttons; there is no Assess line, since
+ * there is no Assess button. The restraint sentence stays (the owner's note of 09-18), the brief
+ * never says who an escalation goes to (ruled R4), and it never says how many tracks will enter
+ * the ring. 159 words in Vigil and 134 unaided, the title and Begin included, at and under the
+ * accepted 159 and 141 and pinned — the brief does not grow.
  */
 export function briefBlocks(runS: number): readonly BriefBlock[] {
   return [
@@ -152,7 +155,11 @@ export function briefBlocks(runS: number): readonly BriefBlock[] {
         { shape: 'dot', text: 'Unidentified track, broadcasting nothing.' },
         { ring: true, text: 'The ring around the protected site.' },
         {
-          marks: [null, 'assessed', 'handled'],
+          parts: [
+            { mark: null, text: 'Untouched,' },
+            { mark: 'assessed', text: 'opened,' },
+            { mark: 'handled', text: 'escalated or dismissed.' },
+          ],
           text: 'Untouched, opened, escalated or dismissed.',
         },
       ],

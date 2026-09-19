@@ -63,11 +63,17 @@ export const MARK_RING = { color: '#94a3b8', radiusPx: 9, widthPx: 1.25, opacity
 
 /**
  * The opened mark in a study run (S9b, #199, ruled A), on the marker itself, in both conditions:
- * the marker, its label and its tick dropped to a grey plainly between the neutral (`#c5cfdc`)
- * and a hollow marker's ground. The map paints it and the brief's legend draws it, from this one
+ * the marker, its label and its tick dropped to a grey plainly between `NEUTRAL_INK` and a
+ * hollow marker's ground. The map paints it and the brief's legend draws it, from this one
  * literal. The demo keeps S8-i's faint ring.
  */
 export const OPENED_GREY = '#7f8b98'
+/**
+ * The neutral: raw mode's one colour, and a study run's in both conditions — the map's markers
+ * and the brief's legend read it from here, so the step from untouched to opened is the step the
+ * map shows (#201 round 1).
+ */
+export const NEUTRAL_INK = '#c5cfdc'
 
 /** Range to the protected site's center, km to one decimal (§7). */
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`

@@ -9,6 +9,7 @@ import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao
 import { bearingDegrees, circlePolygon } from '../lib/geo'
 import {
   MARK_RING,
+  NEUTRAL_INK,
   OPENED_GREY,
   BAND_COLOR,
   formatEntryClock,
@@ -89,23 +90,30 @@ const runInk = (vigil: boolean): ExpressionSpecification =>
  * inject, one expression a layer so a handled ground track never dims twice — and its absence
  * in a run (S9b, ruled B), where only a handled dot empties.
  */
+/** Each layer's undimmed brightness — the dim's own else branch, and a run's flat value. */
+const UNDIMMED = { adsb: 0.8, halo: 0.14, dot: 0.95, dotStroke: 1, drone: 0.95 }
 const ADSB_DIM: ExpressionSpecification = [
   'case',
   ['any', ['get', 'terminal'], ['get', 'onGround']],
   0.4,
-  0.8,
+  UNDIMMED.adsb,
 ]
-const HALO_DIM: ExpressionSpecification = ['case', ['get', 'terminal'], 0.07, 0.14]
+const HALO_DIM: ExpressionSpecification = ['case', ['get', 'terminal'], 0.07, UNDIMMED.halo]
 const DOT_DIM = [
   'case',
   IS_HANDLED,
   0,
-  ['case', ['get', 'terminal'], 0.5, 0.95],
+  ['case', ['get', 'terminal'], 0.5, UNDIMMED.dot],
 ] as ExpressionSpecification
-const DOT_STROKE_DIM: ExpressionSpecification = ['case', ['get', 'terminal'], 0.5, 1]
-const DRONE_DIM: ExpressionSpecification = ['case', ['get', 'terminal'], 0.5, 0.95]
-/** A run's dot: emptied where handled, full otherwise — no dim. */
-const RUN_DOT = ['case', IS_HANDLED, 0, 0.95] as ExpressionSpecification
+const DOT_STROKE_DIM: ExpressionSpecification = [
+  'case',
+  ['get', 'terminal'],
+  0.5,
+  UNDIMMED.dotStroke,
+]
+const DRONE_DIM: ExpressionSpecification = ['case', ['get', 'terminal'], 0.5, UNDIMMED.drone]
+/** A run's dot: emptied where handled, undimmed otherwise. */
+const RUN_DOT = ['case', IS_HANDLED, 0, UNDIMMED.dot] as ExpressionSpecification
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
 const PROJECTION_SOURCE = 'selected-projection'
@@ -148,9 +156,10 @@ const DRONE_TICK_OFFSET = [
 const ARROW_TIP_OFFSET_PX = ((GLYPH_BOX / 2 - 0.5) / GLYPH_BOX) * MARK_PX
 /**
  * Raw mode's one colour (S4a, #136, ruled A4; #131's fairness spec): every dot, every tick, every
- * label the same neutral — no band fill, no identity colour. Identity is read off the label.
+ * label the same neutral — no band fill, no identity colour. Identity is read off the label. A
+ * study run's neutral in both conditions too (S9b), from the literal the brief's legend reads.
  */
-const RAW_COLOR = '#c5cfdc'
+const RAW_COLOR = NEUTRAL_INK
 /** `--text` mirrored (R3 on #182): the path's arrowhead and its entry reading, to be seen. */
 const TEXT_COLOR = '#e6edf3'
 /**
@@ -1025,11 +1034,15 @@ export function MapView({
     for (const id of [`${ADSB_SOURCE}-mark`, `${INJECT_SOURCE}-mark`]) {
       map.setLayoutProperty(id, 'visibility', run ? 'none' : 'visible')
     }
-    map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-opacity', run ? 0.8 : ADSB_DIM)
-    map.setPaintProperty(`${INJECT_SOURCE}-halo`, 'circle-opacity', run ? 0.14 : HALO_DIM)
+    map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-opacity', run ? UNDIMMED.adsb : ADSB_DIM)
+    map.setPaintProperty(`${INJECT_SOURCE}-halo`, 'circle-opacity', run ? UNDIMMED.halo : HALO_DIM)
     map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-opacity', run ? RUN_DOT : DOT_DIM)
-    map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-stroke-opacity', run ? 1 : DOT_STROKE_DIM)
-    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-opacity', run ? 0.95 : DRONE_DIM)
+    map.setPaintProperty(
+      `${INJECT_SOURCE}-dot`,
+      'circle-stroke-opacity',
+      run ? UNDIMMED.dotStroke : DOT_STROKE_DIM,
+    )
+    map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-opacity', run ? UNDIMMED.drone : DRONE_DIM)
   }, [mode, run, styleReady])
 
   useEffect(() => {

@@ -623,10 +623,12 @@
   color: var(--text);
 }
 
-/* The three states in one row (S9b): untouched, opened, handled, side by side. */
-.brief__row {
-  display: inline-flex;
-  gap: 0.2rem;
+/* The states line (S9b): the grey and the hollow dot sit inline before their own words, at the
+   text's size, so the line's text starts where every other line's does. */
+.brief__inline .shape-glyph {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
 }
 
 /* The ring as the map draws it: the accent its RING_COLOR mirrors, 1.5 px at 0.7. */

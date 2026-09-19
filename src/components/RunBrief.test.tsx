@@ -61,17 +61,32 @@ describe('the brief, rebuilt for reading (S8, #180 item 6, ruled; the amendmentâ
 
   it('says what the screen does: the ring means opened, the hollow marker means escalated or dismissed, Escalate is one click, no Assess line, the restraint sentence, and never who an escalation goes to (R4)', () => {
     draw(false)
-    // The three states in one row (S9b): untouched, opened in the run's grey, handled hollow.
-    const row = screen.getByText(
-      'Untouched, opened, escalated or dismissed.',
-    ).previousElementSibling
-    const marks = [...(row?.querySelectorAll('.shape-glyph') ?? [])]
-    expect(marks.map((glyph) => glyph.getAttribute('data-mark'))).toEqual([
-      null,
+    // The states line (S9b; #201 round 1): each dot beside its own word â€” the untouched dot in
+    // the column before "Untouched,", the grey before "opened,", the hollow before the rest â€”
+    // and the untouched dot in the map's own neutral, so the step to the grey is the map's.
+    const line = [...document.querySelectorAll('.brief__line')].find(
+      (node) =>
+        spoken(node).replace(/\s+/g, ' ').trim() === 'Untouched, opened, escalated or dismissed.',
+    ) as HTMLElement
+    const column = line.querySelector('.brief__symbol .shape-glyph') as HTMLElement
+    expect(column.getAttribute('data-mark')).toBeNull()
+    expect(column.style.color).toBe('rgb(197, 207, 220)')
+    const sequence = [...line.children[1].childNodes]
+      .filter((node) => node.nodeType !== Node.TEXT_NODE || node.textContent?.trim())
+      .map((node) =>
+        node.nodeType === Node.TEXT_NODE
+          ? node.textContent?.trim()
+          : (node as HTMLElement).querySelector('.shape-glyph')?.getAttribute('data-mark'),
+      )
+    expect(sequence).toEqual([
+      'Untouched,',
       'assessed',
+      'opened,',
       'handled',
+      'escalated or dismissed.',
     ])
-    expect((marks[1] as HTMLElement).style.color).toBe('rgb(127, 139, 152)')
+    const inline = line.querySelector('.brief__inline [data-mark="assessed"]') as HTMLElement
+    expect(inline.style.color).toBe('rgb(127, 139, 152)')
     // Vigil's one colour, said in the Vigil-only block and drawn as the dot at warning.
     const red = screen.getByText('Red is warning: it needs you now.').previousElementSibling
     expect(red?.querySelector('.shape-glyph')).toHaveAttribute('data-warning', 'true')
@@ -104,6 +119,12 @@ describe('the brief, rebuilt for reading (S8, #180 item 6, ruled; the amendmentâ
       'dot',
     ])
     for (const glyph of glyphs) expect(glyph).toHaveAttribute('aria-hidden', 'true')
+    // Every glyph takes the run's own ink (#201 round 1): the map's neutral on the three shapes,
+    // the untouched dot and the hollow dot; the grey on the opened dot; the red on warning.
+    const inks = glyphs.map((glyph) => (glyph as HTMLElement).style.color)
+    expect(inks.filter((ink) => ink === 'rgb(197, 207, 220)')).toHaveLength(5)
+    expect(inks.filter((ink) => ink === 'rgb(127, 139, 152)')).toHaveLength(1)
+    expect(inks.filter((ink) => ink === 'rgb(255, 107, 87)')).toHaveLength(1)
     expect(document.querySelector('.brief__ring')).toHaveAttribute('aria-hidden', 'true')
     const buttons = [...document.querySelectorAll('.brief__button')]
     expect(buttons.map((button) => button.textContent)).toEqual(['Escalate', 'Dismiss'])

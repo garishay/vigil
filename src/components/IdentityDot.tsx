@@ -2,6 +2,7 @@ import { BANDS, BAND_LABEL } from '../config/scoring'
 import { GLYPHS, GLYPH_BOX, GLYPH_PX, polygonPoints, type Part } from './glyphs'
 import {
   BAND_COLOR,
+  NEUTRAL_INK,
   OPENED_GREY,
   SHAPES,
   SHAPE_LABEL,
@@ -91,15 +92,29 @@ export function ShapeGlyph({
   shape,
   mark,
   warning = false,
+  run = false,
 }: {
   shape: TrackShape
   mark?: Mark
   /** Vigil's one colour in a run (S9b): the marker at warning, drawn in the warning colour. */
   warning?: boolean
+  /**
+   * The brief's legend (S9b): every glyph takes the run's own ink — the neutral the map paints
+   * an untouched or handled marker in, so the step to the opened grey is the map's (#201 round
+   * 1). The map's own legend, the demo's, keeps the muted tone of its text.
+   */
+  run?: boolean
 }) {
   const c = GLYPH_BOX / 2
-  // The opened mark as the run paints it (S9b, ruled A): the marker itself in the grey.
-  const ink = warning ? BAND_COLOR.warning : mark === 'assessed' ? OPENED_GREY : undefined
+  // The marker as the run paints it (S9b, ruled A): red at warning, the grey once opened, the
+  // neutral otherwise.
+  const ink = warning
+    ? BAND_COLOR.warning
+    : mark === 'assessed'
+      ? OPENED_GREY
+      : run
+        ? NEUTRAL_INK
+        : undefined
   return (
     <svg
       className="shape-glyph"
