@@ -1235,6 +1235,9 @@ export default function App({
           marks={marks}
           bands={raw ? NO_BANDS : bands}
           mode={mode}
+          // A study run's paint (S9b, #199): warning alone in Vigil, the opened mark on the marker,
+          // no legend on the map. The demo keeps its paint.
+          run={inStudy}
           onSelect={selectTrack}
         >
           {!raw && (

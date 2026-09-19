@@ -50,6 +50,40 @@ const hollowed = (fill: ExpressionSpecification | string): ExpressionSpecificati
 /** The halo that draws a hollowed marker's outline; zero on every other track. */
 const hollowHalo = (width: number): ExpressionSpecification =>
   ['case', IS_HANDLED, 1.1, width] as ExpressionSpecification
+
+/**
+ * The map in a study run (S9b, #199): one channel a question, ink spent in the order the
+ * questions are asked. In Vigil a track at **warning** takes the warning colour on the whole
+ * marker, all three shapes, and every other track the neutral the unaided picture uses — no
+ * caution fill, no identity stroke; the list and the drawer keep their chips and dots, with
+ * words beside them. In both conditions the **opened** mark moves onto the marker itself:
+ * `OPENED_MARK` picks the candidate — `grey`, the marker with its label and tick dropped to a
+ * grey plainly between untouched and hollow, or `ring`, S8-i's ring at a weight that is found
+ * at device scale 1. A warning track keeps its colour at full brightness when opened, until it
+ * is handled (item 3): Vigil's judgment outranks the bookkeeping. Handled stays hollow, in the
+ * neutral (S8-i, ruled R1). The demo's paint is untouched.
+ */
+export const OPENED_MARK: 'grey' | 'ring' = 'grey'
+/** The opened grey: between the neutral (#c5cfdc) and the ground a hollow marker shows. */
+const OPENED_GREY = '#7f8b98'
+const IS_OPENED = ['==', ['get', 'mark'], 'assessed'] as ExpressionSpecification
+const IS_WARNING = ['==', ['get', 'band'], 'warning'] as ExpressionSpecification
+/** The ring candidate's weight — S8-i's 1.25 px at 0.42 was lost among 115 tracks. */
+const OPENED_RING = { widthPx: 2.25, opacity: 0.9 }
+/**
+ * A run's ink for a marker, its stroke, its label and its tick: the neutral, the warning colour
+ * in Vigil on a track at warning, the opened grey where that candidate is drawn, and the
+ * neutral again once handled — the hollow outline carries no colour.
+ */
+const runInk = (vigil: boolean): ExpressionSpecification =>
+  [
+    'case',
+    IS_HANDLED,
+    RAW_COLOR,
+    ...(vigil ? [IS_WARNING, BAND_COLOR.warning] : []),
+    ...(OPENED_MARK === 'grey' ? [IS_OPENED, OPENED_GREY] : []),
+    RAW_COLOR,
+  ] as ExpressionSpecification
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
 const PROJECTION_SOURCE = 'selected-projection'
@@ -417,6 +451,7 @@ export function MapView({
   marks = NO_MARKS,
   bands = NO_BANDS,
   mode = 'vigil',
+  run = false,
   onSelect,
   children,
 }: {
@@ -482,6 +517,12 @@ export function MapView({
    * the session may resolve after the map has built. `vigil` is the map as built.
    */
   mode?: Mode
+  /**
+   * A study run (S9b, #199): in Vigil the warning colour alone, the neutral on every other
+   * track; in both conditions the opened mark on the marker itself; the legend withheld — the
+   * brief carries it. The demo is the map as built.
+   */
+  run?: boolean
   onSelect?: (id: string) => void
   /** Overlays that live in the map's frame beside the legend — the alert stack (#101). */
   children?: ReactNode
@@ -939,20 +980,37 @@ export function MapView({
     }
     // Each fill is re-set through `hollowed`, so a handled marker stays empty when the mode
     // resolves; without it the condition's own paint filled it back in (S8, ruled R1).
-    const adsbInk = raw ? RAW_COLOR : ADSB_COLOR
-    const droneInk = raw ? RAW_COLOR : DRONE_FILL
+    // A study run paints one ink per track by the run's rule (S9b), in both conditions; the
+    // demo's Vigil paint is the band fill and the identity stroke as built.
+    const ink = run ? runInk(!raw) : null
+    const adsbInk = ink ?? (raw ? RAW_COLOR : ADSB_COLOR)
+    const droneInk = ink ?? (raw ? RAW_COLOR : DRONE_FILL)
+    const dotFill = ink ?? (raw ? RAW_COLOR : BAND_FILL)
+    const stroke = ink ?? (raw ? RAW_COLOR : IDENTITY_STROKE)
     map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-color', hollowed(adsbInk))
     map.setPaintProperty(`${ADSB_SOURCE}-glyph`, 'icon-halo-color', adsbInk)
-    map.setPaintProperty(`${INJECT_SOURCE}-halo`, 'circle-color', raw ? RAW_COLOR : IDENTITY_STROKE)
-    map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-color', raw ? RAW_COLOR : BAND_FILL)
-    map.setPaintProperty(
-      `${INJECT_SOURCE}-dot`,
-      'circle-stroke-color',
-      raw ? RAW_COLOR : IDENTITY_STROKE,
-    )
+    map.setPaintProperty(`${INJECT_SOURCE}-halo`, 'circle-color', stroke)
+    map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-color', dotFill)
+    map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-stroke-color', stroke)
     map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', hollowed(droneInk))
     map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-halo-color', droneInk)
-  }, [mode, styleReady])
+    // The opened grey reaches the label and the tick too, where raw draws them; the ring
+    // candidate keeps its layers, at the weight that is found, and the grey withholds them.
+    const textInk = run ? runInk(false) : RAW_COLOR
+    for (const id of [`${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
+      map.setPaintProperty(id, 'text-color', textInk)
+    }
+    map.setPaintProperty(`${INJECT_SOURCE}-tick`, 'icon-color', textInk)
+    for (const id of [`${ADSB_SOURCE}-mark`, `${INJECT_SOURCE}-mark`]) {
+      map.setLayoutProperty(id, 'visibility', run && OPENED_MARK === 'grey' ? 'none' : 'visible')
+      map.setPaintProperty(id, 'circle-stroke-width', run ? OPENED_RING.widthPx : MARK_RING.widthPx)
+      map.setPaintProperty(
+        id,
+        'circle-stroke-opacity',
+        run ? OPENED_RING.opacity : MARK_RING.opacity,
+      )
+    }
+  }, [mode, run, styleReady])
 
   useEffect(() => {
     const map = mapRef.current
@@ -997,7 +1055,9 @@ export function MapView({
         role="application"
         aria-label={`Airspace map centered on ${ao.name}`}
       />
-      {mode !== 'raw' && <IdentityLegend />}
+      {/* The legend is withheld in a study run (S9b): the brief carries it, and the map's
+          eight-entry legend named paint the run no longer spends. */}
+      {mode !== 'raw' && !run && <IdentityLegend />}
       {children}
     </div>
   )
