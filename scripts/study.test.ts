@@ -313,6 +313,30 @@ describe('the folds say what they mean (#147 round 2)', () => {
     )
   })
 
+  it('holds a track already at warning on its first scored tick in the red set — a planted copy of 02a’s threat appearing at Begin + 5 (S9b R1; #201 round 1)', () => {
+    // The fold read a crossing against the previous tick's band, so a track whose first scored
+    // tick inside the window is warning — appearing after Begin, or returning to the picture —
+    // was in neither the set at Begin nor the crossings, and the R1 pin never saw it. 02a's own
+    // threat is that case unplanted: it appears at Begin + 1 already at warning.
+    const planted = {
+      name: 'planted',
+      config: { ...base, cast: [...rows, { ...rows[0], startS: STUDY.beginS + 5 }] },
+    }
+    const { warning } = runStudy(planted, empty)
+    const plantedId = `inject-${11 + rows.length}`
+    const red = new Set([...warning.atBegin, ...warning.crossings.map((c) => c.id)])
+    expect(red.has(plantedId)).toBe(true)
+    expect(warning.crossings.find((c) => c.id === plantedId)).toMatchObject({
+      tSec: STUDY.beginS + 5,
+      into: true,
+    })
+    expect(red.has('inject-11')).toBe(true)
+    expect(warning.crossings.find((c) => c.id === 'inject-11')).toMatchObject({
+      tSec: STUDY.beginS + 1,
+      into: true,
+    })
+  })
+
   it('prints the seconds to entry rounded and judges the rounded number — the page never contradicts itself', () => {
     const at = (toEntryS: number) =>
       renderStudy({ ...results['02a'], threat: { ...results['02a'].threat, toEntryS } })
