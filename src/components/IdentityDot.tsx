@@ -3,6 +3,8 @@ import { GLYPHS, GLYPH_BOX, GLYPH_PX, polygonPoints, type Part } from './glyphs'
 import {
   BAND_COLOR,
   MARK_RING,
+  OPENED_GREY,
+  OPENED_MARK,
   SHAPES,
   SHAPE_LABEL,
   type TrackShape,
@@ -86,15 +88,33 @@ const DOT_STROKE = 2 * UNITS_PER_PX
  * ruled R1): **assessed** is the faint ring about it, in the map's own pixels scaled to the
  * box; **handled** is the dot drawn hollow at its own size — the fill gone, the stroke kept.
  */
-export function ShapeGlyph({ shape, mark }: { shape: TrackShape; mark?: Mark }) {
+export function ShapeGlyph({
+  shape,
+  mark,
+  warning = false,
+}: {
+  shape: TrackShape
+  mark?: Mark
+  /** Vigil's one colour in a run (S9b): the marker at warning, drawn in the warning colour. */
+  warning?: boolean
+}) {
   const c = GLYPH_BOX / 2
+  // The opened mark as the run paints it (S9b): the grey on the marker itself, or the ring.
+  const opened = mark === 'assessed'
+  const ink = warning
+    ? BAND_COLOR.warning
+    : opened && OPENED_MARK === 'grey'
+      ? OPENED_GREY
+      : undefined
   return (
     <svg
       className="shape-glyph"
       viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`}
       data-shape={shape}
       data-mark={mark}
+      data-warning={warning || undefined}
       aria-hidden="true"
+      style={ink ? { color: ink } : undefined}
     >
       {shape !== 'dot' ? (
         GLYPHS[shape].map((part, i) => <GlyphPart key={i} part={part} />)
@@ -110,7 +130,7 @@ export function ShapeGlyph({ shape, mark }: { shape: TrackShape; mark?: Mark }) 
       ) : (
         <circle cx={c} cy={c} r={DOT_R} />
       )}
-      {mark === 'assessed' && (
+      {opened && OPENED_MARK === 'ring' && (
         <circle
           cx={c}
           cy={c}

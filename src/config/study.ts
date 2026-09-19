@@ -87,8 +87,12 @@ export function runLengthWords(runS: number): string {
 export interface BriefLine {
   /** The map's own shape, drawn with `ShapeGlyph` so the key cannot drift from the marker. */
   shape?: TrackShape
-  /** The subject's own mark on that shape (S8-i): the faint ring, or the marker drawn hollow. */
+  /** The subject's own mark on that shape (S8-i, S9b): opened, or the marker drawn hollow. */
   mark?: Mark
+  /** A row of marks on the dot (S9b): untouched, opened, handled — one line for the three. */
+  marks?: readonly (Mark | null)[]
+  /** Vigil's one colour (S9b): the dot drawn in the warning colour. */
+  warning?: true
   /** The protected ring, drawn in the ring's own stroke. */
   ring?: true
   /** An action drawn as the button it is, so the word on the brief is the word on the screen. */
@@ -122,8 +126,10 @@ const sentenceCase = (text: string) => text.charAt(0).toUpperCase() + text.slice
  * escalated or dismissed. The actions are the two the run offers, drawn as their buttons; there
  * is no Assess line, since there is no Assess button. The restraint sentence stays (the owner's
  * note of 09-18), the brief never says who an escalation goes to (ruled R4), and it never says
- * how many tracks will enter the ring. 158 words in Vigil and 140 unaided, the title and Begin
- * included, under the accepted 159 and 141 and pinned — the brief does not grow.
+ * how many tracks will enter the ring. The three states are one row of three dots (S9b, #199),
+ * and the Vigil block says what red means, since red is the one colour a run spends. 159 words
+ * in Vigil and 134 unaided, the title and Begin included, at and under the accepted 159 and 141
+ * and pinned — the brief does not grow.
  */
 export function briefBlocks(runS: number): readonly BriefBlock[] {
   return [
@@ -145,8 +151,10 @@ export function briefBlocks(runS: number): readonly BriefBlock[] {
         { shape: 'drone', text: 'Drone, broadcasting its ID.' },
         { shape: 'dot', text: 'Unidentified track, broadcasting nothing.' },
         { ring: true, text: 'The ring around the protected site.' },
-        { shape: 'dot', mark: 'assessed', text: 'A track you have opened.' },
-        { shape: 'dot', mark: 'handled', text: 'A track you escalated or dismissed.' },
+        {
+          marks: [null, 'assessed', 'handled'],
+          text: 'Untouched, opened, escalated or dismissed.',
+        },
       ],
     },
     {
@@ -174,6 +182,7 @@ export function briefBlocks(runS: number): readonly BriefBlock[] {
       vigilOnly: true,
       lines: [
         { text: 'The priority list on the left ranks every track. The top row needs you first.' },
+        { warning: true, text: 'Red is warning: it needs you now.' },
       ],
     },
   ]

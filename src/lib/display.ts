@@ -61,6 +61,17 @@ export const BAND_COLOR: Record<WarmBand, string> = { caution: '#f5b942', warnin
  */
 export const MARK_RING = { color: '#94a3b8', radiusPx: 9, widthPx: 1.25, opacity: 0.42 } as const
 
+/**
+ * The opened mark in a study run (S9b, #199), on the marker itself, in both conditions: `grey`
+ * drops the marker, its label and its tick to a grey plainly between untouched and hollow;
+ * `ring` keeps S8-i's ring at a weight that is found at device scale 1. The map paints it and
+ * the brief's legend draws it, from this one constant. The demo keeps S8-i's faint ring.
+ */
+export const OPENED_MARK: 'grey' | 'ring' = 'grey'
+/** The opened grey, and the neutral it steps down from — raw's one colour, the run's too. */
+export const OPENED_GREY = '#7f8b98'
+export const NEUTRAL_INK = '#c5cfdc'
+
 /** Range to the protected site's center, km to one decimal (§7). */
 export const formatRangeKm = (rangeM: number) => `${(rangeM / 1000).toFixed(1)} km`
 

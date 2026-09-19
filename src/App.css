@@ -623,6 +623,12 @@
   color: var(--text);
 }
 
+/* The three states in one row (S9b): untouched, opened, handled, side by side. */
+.brief__row {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
 /* The ring as the map draws it: the accent its RING_COLOR mirrors, 1.5 px at 0.7. */
 .brief__ring {
   width: 1.1rem;

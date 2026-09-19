@@ -9,6 +9,8 @@ import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao
 import { bearingDegrees, circlePolygon } from '../lib/geo'
 import {
   MARK_RING,
+  OPENED_GREY,
+  OPENED_MARK,
   BAND_COLOR,
   formatEntryClock,
   trackIdent,
@@ -63,9 +65,6 @@ const hollowHalo = (width: number): ExpressionSpecification =>
  * is handled (item 3): Vigil's judgment outranks the bookkeeping. Handled stays hollow, in the
  * neutral (S8-i, ruled R1). The demo's paint is untouched.
  */
-export const OPENED_MARK: 'grey' | 'ring' = 'grey'
-/** The opened grey: between the neutral (#c5cfdc) and the ground a hollow marker shows. */
-const OPENED_GREY = '#7f8b98'
 const IS_OPENED = ['==', ['get', 'mark'], 'assessed'] as ExpressionSpecification
 const IS_WARNING = ['==', ['get', 'band'], 'warning'] as ExpressionSpecification
 /** The ring candidate's weight — S8-i's 1.25 px at 0.42 was lost among 115 tracks. */
