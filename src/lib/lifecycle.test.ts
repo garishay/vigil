@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   STATUSES,
   appendEvent,
+  mark,
   bandCrossing,
   canAct,
   canLose,
@@ -819,5 +820,67 @@ describe('the mismatch reading on the snapshot (S1, #132, opt-in S)', () => {
     expect(observedSnapshot(ranked({ ...track, broadcast: null })).mismatch).toBeNull()
     // Two observed positions and a label the broadcast carried — nothing from the answer key.
     expect(JSON.stringify(snapshot)).not.toMatch(/behavior|remoteId|silent|broadcasting/)
+  })
+})
+
+describe('the study run’s table (S8, #180 item 2, ruled)', () => {
+  it('lets Escalate fire from New in a run, and nowhere else', () => {
+    // A greyed Escalate on an untouched track is the opposite of the one action the brief asks
+    // for: a subject had to press Assess first, which measures nothing.
+    expect(canAct('new', 'escalate', true)).toBe(true)
+    expect(transition('new', 'escalate', true)).toBe('escalated')
+    // The demo keeps its lifecycle: there Escalate is still Assessing's alone.
+    expect(canAct('new', 'escalate')).toBe(false)
+    expect(() => transition('new', 'escalate')).toThrow(/illegal lifecycle transition/)
+  })
+
+  it('moves nothing else', () => {
+    // Only that one cell differs, so the run and the demo read the same everywhere else — the
+    // terminal pair, Resolve, the acknowledge self-transitions.
+    for (const status of STATUSES) {
+      for (const action of ['assess', 'escalate', 'dismiss', 'resolve', 'acknowledge'] as const) {
+        if (status === 'new' && action === 'escalate') continue
+        expect(canAct(status, action, true)).toBe(canAct(status, action))
+      }
+    }
+  })
+
+  it('takes an escalation with no recipient in a run, and refuses one in the demo', () => {
+    // With the picker gone there is no recipient to carry, and the run JSON never held the
+    // field: `runEvents` writes `{ t, type, track }` and no more.
+    const log = opened()
+    const escalated = appendEvent(log, 'escalate', {
+      at: '2026-09-01T12:05:00.000Z',
+      tSec: 20,
+      observed: OBSERVED,
+      run: true,
+    })
+    expect(statusOf(escalated)).toBe('escalated')
+    expect(escalated.at(-1)).toMatchObject({ from: 'new', to: 'escalated' })
+    expect(escalated.at(-1)?.recipient).toBeUndefined()
+    expect(() =>
+      appendEvent(log, 'escalate', {
+        at: '2026-09-01T12:05:00.000Z',
+        tSec: 20,
+        observed: OBSERVED,
+      }),
+    ).toThrow(/escalate needs a recipient/)
+  })
+})
+
+describe('the subject’s own bookkeeping (S8, #180 item 3, ruled R1)', () => {
+  it('reads handled off the two states a subject can end on, and assessed off the one they watch', () => {
+    expect(mark('new')).toBeNull()
+    expect(mark('assessing')).toBe('assessed')
+    expect(mark('escalated')).toBe('handled')
+    expect(mark('dismissed')).toBe('handled')
+    // Resolved is the demo's alone — a study run has no Resolve — and it is handled there too.
+    expect(mark('resolved')).toBe('handled')
+  })
+
+  it('agrees with the buttons: every status with no action left reads handled', () => {
+    for (const status of STATUSES) {
+      if (isTerminal(status)) expect(mark(status)).toBe('handled')
+    }
   })
 })

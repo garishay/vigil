@@ -349,7 +349,12 @@ export function describeEvent(
     case 'acknowledge':
       return 'Acknowledged'
     case 'escalate':
-      return `Escalated — to ${contacts.find((c) => c.id === event.recipient)?.name ?? event.recipient}`
+      // A study run escalates with no recipient — there is no picker and the run JSON never
+      // held the field — so the line is the word alone. Formatting the absent id unconditionally
+      // printed *Escalated — to undefined* on a subject's screen (round 1, finding 3).
+      return event.recipient === undefined
+        ? 'Escalated'
+        : `Escalated — to ${contacts.find((c) => c.id === event.recipient)?.name ?? event.recipient}`
     case 'dismiss':
       return 'Dismissed'
     case 'resolve':

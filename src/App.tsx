@@ -41,8 +41,10 @@ import {
   patternChange,
   regained,
   resurfaced,
+  mark,
   statusOf,
   type LifecycleAction,
+  type Mark,
   type Status,
   type TrackEvent,
 } from './lib/lifecycle'
@@ -68,6 +70,18 @@ import type { AdsbTrack, InjectTrack } from './lib/tracks'
 
 type SurfaceId = 'home' | 'queue' | 'review' | 'sites'
 type LayerFilter = 'all' | 'adsb' | 'inject'
+
+/**
+ * The rail's head in a study run (S8, #180 item 1): the list is the subject's instrument, and
+ * "Queue" names a waiting line rather than a ranking. Rendered text only — the code, the CSS
+ * classes, the CSV columns and the URL parameters keep "queue", as "unaided" stands beside
+ * "raw". The body says what the order means, once, where the demo's says where scores open.
+ */
+const STUDY_QUEUE = {
+  label: 'Priority',
+  title: 'Priority list — highest first',
+  body: 'The top row needs you first. Click a row or a track on the map to read it.',
+}
 
 const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] = [
   {
@@ -178,7 +192,6 @@ export default function App({
   loadResults?: () => Promise<typeof RunResultsView>
 } = {}) {
   const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
-  const surface = SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0]
   // The session the URL and the build name (#115): its feeds and, when on, its scenario. One
   // recording per session in this build, the resolver's rule, so the recording feed is the first.
   const session = useSession()
@@ -199,6 +212,13 @@ export default function App({
   // window's end, and closes on the end screen; nothing of it mounts in the demo (ruled A8).
   const study = resolved?.study ?? null
   const inStudy = study !== null
+  // A study run is the list and the map, and nothing else is reachable (item 1). The rail's
+  // header reads for the subject rather than for the codebase: *Priority list — highest first*,
+  // rendered text only, where the code, the classes and the parameters keep "queue".
+  const activeSurface: SurfaceId = inStudy ? 'queue' : surfaceId
+  const surface = inStudy
+    ? { ...STUDY_QUEUE, id: 'queue' as const }
+    : (SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0])
   // The run's window (S4b, ruled A2, A4): Begin's tick to the run's end — the scenario's own
   // length when its registry entry carries one (S7, #152, ruled D3), the study's default
   // otherwise, resolved with the session so the link fixes it.
@@ -413,6 +433,33 @@ export default function App({
   const terminalIds = useMemo(
     () => (terminalKey === '' ? [] : terminalKey.split(' ')),
     [terminalKey],
+  )
+  /**
+   * The subject's own bookkeeping (S8, #180 item 3; ruled 2026-09-19): every track they have
+   * assessed, escalated or dismissed, with which. Folded to a key first, for the same reason the
+   * bands are — a new Map identity re-pushes both sources, so this is rebuilt only when some
+   * track's mark actually moves, never on a tick that changed nothing.
+   *
+   * Identical in both conditions: the mark is what the subject did, not what Vigil derived, so
+   * nothing about it is withheld from the unaided picture. It is not the dim, which stays
+   * Vigil's, and ranking never reads it.
+   */
+  const markKey = Object.entries(eventLogs)
+    .map(([id, log]) => `${id}:${mark(statusOf(log)) ?? ''}`)
+    .filter((pair) => !pair.endsWith(':'))
+    .sort()
+    .join(' ')
+  const marks = useMemo(
+    () =>
+      new Map(
+        markKey === ''
+          ? []
+          : markKey.split(' ').map((pair) => {
+              const cut = pair.lastIndexOf(':')
+              return [pair.slice(0, cut), pair.slice(cut + 1) as Mark] as const
+            }),
+      ),
+    [markKey],
   )
   // The warm bands for the map's fill (#96), in the same two-step shape and for the same reason:
   // a new identity here re-pushes the inject source, so the key folds first and the Map is
@@ -653,9 +700,15 @@ export default function App({
         logs[selected.track.id] ??
           firstSeen(selected.track.id, observedSnapshot(selected), at, tSec),
         action,
-        { at, tSec, observed: observedSnapshot(selected), ...detail },
+        // The study run's table and its recipient-free escalation (ruled): one flag, read by
+        // the guard and by the transition, so the module refuses in the demo what it allows here.
+        { at, tSec, observed: observedSnapshot(selected), ...detail, run: inStudy },
       ),
     }))
+    // The detail closes on the action in a study run (S8, #180 item 3): the subject is done with
+    // this track and the next one is on the map behind it. Its mark says what they did, so the
+    // panel has nothing left to tell them. The demo leaves the panel open, as it does today.
+    if (inStudy && action !== 'acknowledge') setSelectedId(null)
   }
 
   // A site edit is a workflow action (#77): refused while the clock is behind the record's
@@ -779,10 +832,10 @@ export default function App({
     // Once per orphaning, never again on a later surface switch.
     if (orphanCount === orphanHandledRef.current) return
     orphanHandledRef.current = orphanCount
-    if (surfaceId === 'review' && document.activeElement === document.body) {
+    if (activeSurface === 'review' && document.activeElement === document.body) {
       reviewNavRef.current?.focus()
     }
-  }, [orphanCount, surfaceId])
+  }, [orphanCount, activeSurface])
   const drawer = selected && (
     <ReviewDrawer
       // Keyed by track, so picker and copied state never leak from one track to the next.
@@ -804,16 +857,16 @@ export default function App({
         const keyboard = event.detail === 0
         setKeyboardClose(keyboard)
         setSelectedId(null)
-        if (surfaceId === 'review' && keyboard) reviewNavRef.current?.focus()
+        if (activeSurface === 'review' && keyboard) reviewNavRef.current?.focus()
       }}
     />
   )
   // The drawer is its own column beside the Queue (§4.2 — the operator keeps the list while
   // reviewing); the Review surface shows the same drawer alone, at the same 26 rem (ruled B1, #3).
-  const drawerColumn = surfaceId === 'queue' && drawer
+  const drawerColumn = activeSurface === 'queue' && drawer
   const bodyClasses = ['shell__body']
   if (drawerColumn || (raw && drawer)) bodyClasses.push('shell__body--drawer')
-  if (surfaceId === 'review') bodyClasses.push('shell__body--review')
+  if (activeSurface === 'review') bodyClasses.push('shell__body--review')
   // Raw (S4a, ruled A3): no rail — the map fills the body, the drawer opens beside it on a click.
   if (raw) bodyClasses.push('shell__body--raw')
 
@@ -922,7 +975,11 @@ export default function App({
     <div className="shell">
       <header className="shell__header" inert={covered}>
         <h1 className="shell__wordmark">Vigil</h1>
-        {!raw && (
+        {/* No tab bar in a study run (S8, #180 item 1): the run opens on the map and the
+            ranked list, and the detail opens in place on selection. Home, Review and Sites are
+            not reachable — two tabs cost a click and explain nothing, and a subject who lands on
+            Home sees no list at all. Raw has never had the nav (the fairness spec). */}
+        {!raw && !inStudy && (
           <nav className="nav" aria-label="Surfaces">
             {SURFACES.filter((s) => !inStudy || s.id !== 'sites').map((s) => (
               <button
@@ -978,12 +1035,12 @@ export default function App({
               <h2 className="rail__title" id="rail-title">
                 {surface.title}
               </h2>
-              {surfaceId === 'queue' && (
+              {activeSurface === 'queue' && (
                 <span className="rail__count" aria-label="Tracks in queue">
                   {count(visible.length)}
                 </span>
               )}
-              {surfaceId === 'sites' && (
+              {activeSurface === 'sites' && (
                 <span className="rail__count" aria-label="Sites in the set">
                   {sites.length}
                 </span>
@@ -995,7 +1052,7 @@ export default function App({
                 {problem}
               </p>
             )}
-            {surfaceId === 'queue' && (
+            {activeSurface === 'queue' && (
               <>
                 {/* The layer chips are withheld in a study run (#36 [38], ruled A): a filter named
                   INJECT is the cue the single count removed. The demo keeps them. */}
@@ -1014,8 +1071,10 @@ export default function App({
                     ))}
                   </div>
                 )}
+                {/* Resolved is withheld in a study run (ruled): Resolve is not offered there,
+                  so a chip filtering for a state the subject cannot reach names nothing. */}
                 <div className="chips" role="group" aria-label="Filter by state">
-                  {STATE_FILTERS.map((filter) => (
+                  {STATE_FILTERS.filter((f) => !inStudy || f.id !== 'resolved').map((filter) => (
                     <button
                       key={filter.id}
                       type="button"
@@ -1050,13 +1109,13 @@ export default function App({
               screen readers never announce — and the filters persist across surfaces, so a
               return to the Queue would otherwise remount it already filled (#51 review). */}
             <p className="rail__empty" role="status">
-              {surfaceId === 'queue' && ready !== null && visible.length === 0
+              {activeSurface === 'queue' && ready !== null && visible.length === 0
                 ? 'No tracks match the filters.'
                 : null}
             </p>
-            {surfaceId === 'review' &&
+            {activeSurface === 'review' &&
               (drawer ?? <p className="rail__empty">Select a track from the Queue.</p>)}
-            {surfaceId === 'sites' && (
+            {activeSurface === 'sites' && (
               <SitesPanel
                 set={siteSet}
                 config={AO.protectedSites}
@@ -1117,7 +1176,7 @@ export default function App({
           ao={AO}
           sites={sites}
           areas={areas}
-          selectedSiteId={surfaceId === 'sites' ? selectedSiteId : null}
+          selectedSiteId={activeSurface === 'sites' ? selectedSiteId : null}
           placing={placing !== null}
           onPlace={place}
           tracks={adsb}
@@ -1127,13 +1186,18 @@ export default function App({
           // state it cannot explain. The suppression is presentation-only (`selectionShown`),
           // so a Home round trip cannot reset the ease stamp and re-fly the camera (#47).
           selectedId={selectedId}
-          selectionShown={raw || surfaceId !== 'home'}
+          // The effective surface, never the stored one (round 1, findings 1 and 2): a study run
+          // is pinned to the list and never changes `surfaceId`, which stays `home` from mount,
+          // so reading it here withheld the ring and the trail from a whole Vigil run — the
+          // trail is part of both conditions' picture, and S10's lines are drawn on it.
+          selectionShown={raw || activeSurface !== 'home'}
           trail={trail}
           // Raw (ruled A4): no projected path, no dim, no band fill — the derived readings the
           // fairness spec hides; the trail and the ring stay.
           projection={raw ? NO_LINE : projection}
           projectionEntryS={raw ? null : projectionEntryS}
           terminalIds={raw ? NO_IDS : terminalIds}
+          marks={marks}
           bands={raw ? NO_BANDS : bands}
           mode={mode}
           onSelect={selectTrack}

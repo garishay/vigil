@@ -159,6 +159,10 @@ const dataFor = (sourceId: string) =>
     features: { geometry: unknown; properties: Record<string, unknown> }[]
   }
 
+/** S8's handled case, as the paint expressions carry it, and the ground a hollow marker shows. */
+const HANDLED = ['==', ['get', 'mark'], 'handled']
+const HOLLOW = '#0b1220'
+
 describe('MapView', () => {
   it('builds the map from the AO config rather than its own coordinates', () => {
     render(<MapView ao={AO} />)
@@ -303,8 +307,10 @@ describe('MapView', () => {
     // 08b adds the friendly ring layer beside the protected line; #102 the projected path;
     // S4a the two label layers, hidden until raw; S9 the drone glyph beside the dot, the
     // aircraft glyph in the ADS-B dot's place; S10 the path's arrowhead and reading, and the
-    // heading tick as a symbol on the inject source in the S4a line layer's place.
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(16)
+    // heading tick as a symbol on the inject source in the S4a line layer's place; S8 the
+    // assessed ring, one per track source — handled is the marker itself, drawn hollow by the
+    // shape layers' own paint, so it adds no layer (ruled R1, and its pick at round 1).
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(18)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.indexOf('selected-trail-line')).toBeLessThan(order.indexOf('inject-tracks-halo'))
     expect(order.indexOf('selected-projection-line')).toBeGreaterThan(
@@ -467,7 +473,7 @@ describe('MapView', () => {
     )
   })
 
-  it('paints the drone glyph with no outline: the band fill for caution and warning, the cooperative tone otherwise, the dot’s dim (#186, ruled on R2)', () => {
+  it('paints the drone glyph with no outline but a handled one’s: the band fill for caution and warning, the cooperative tone otherwise, the dot’s dim (#186, ruled on R2; S8, ruled R1)', () => {
     render(<MapView ao={AO} />)
     const layers = Object.fromEntries(
       mapInstance.addLayer.mock.calls.map(([layer]) => [layer.id, layer]),
@@ -475,8 +481,11 @@ describe('MapView', () => {
     const dot = layers['inject-tracks-dot'].paint
     const glyph = layers['inject-tracks-glyph'].paint
     // Calm and terminal alike take the ADS-B layer's tone: a heard, calm drone is cooperative
-    // traffic; the warm bands read the same tokens the dot's fill does.
-    expect(glyph['icon-color']).toEqual([
+    // traffic; the warm bands read the same tokens the dot's fill does. Since S8's handled
+    // shape (ruled R1, and its addendum, which left the glyphs' hollowing to the lane) the fill
+    // is that reading under one case: empty where the subject is done with the track, the
+    // reading itself everywhere else.
+    const BAND_MATCH = [
       'match',
       ['get', 'band'],
       'caution',
@@ -484,16 +493,27 @@ describe('MapView', () => {
       'warning',
       BAND_COLOR.warning,
       '#8fa3bf',
-    ])
-    expect(glyph['icon-opacity']).toEqual(dot['circle-opacity'])
-    // No identity stroke in either mode: the shape already says heard and associated.
-    expect(glyph['icon-halo-width']).toBe(0)
-    expect(glyph).not.toHaveProperty('icon-halo-color')
-    // The dot keeps its own stroke: identity is read there.
+    ]
+    expect(glyph['icon-color']).toEqual(['case', HANDLED, HOLLOW, BAND_MATCH])
+    expect(glyph['icon-opacity']).toEqual(['case', ['get', 'terminal'], 0.5, 0.95])
+    // No identity stroke in either mode: the shape already says heard and associated. The halo
+    // is the outline a handled marker is drawn with, and zero on every other track — #186's R2
+    // governs how a drone is drawn, R1 how a track the subject has finished with is marked.
+    expect(glyph['icon-halo-width']).toEqual(['case', HANDLED, 1.1, 0])
+    expect(glyph['icon-halo-color']).toEqual(BAND_MATCH)
+    // The dot keeps its own stroke: identity is read there, and a hollowed dot keeps it.
     expect(dot['circle-stroke-width']).toBe(2)
-    // The aircraft wears the ADS-B layer's quiet colour and no stroke: the paint as built.
+    expect(dot['circle-opacity']).toEqual([
+      'case',
+      HANDLED,
+      0,
+      ['case', ['get', 'terminal'], 0.5, 0.95],
+    ])
+    // The aircraft wears the ADS-B layer's quiet colour and no stroke but the same outline.
     expect(layers['adsb-tracks-glyph'].paint).toEqual({
-      'icon-color': '#8fa3bf',
+      'icon-color': ['case', HANDLED, HOLLOW, '#8fa3bf'],
+      'icon-halo-color': '#8fa3bf',
+      'icon-halo-width': ['case', HANDLED, 1.1, 0],
       'icon-opacity': ['case', ['any', ['get', 'terminal'], ['get', 'onGround']], 0.4, 0.8],
     })
   })
@@ -672,9 +692,9 @@ describe('MapView', () => {
 
     expect(paintOf('inject-tracks-dot')['circle-opacity']).toEqual([
       'case',
-      ['get', 'terminal'],
-      0.5,
-      0.95,
+      HANDLED,
+      0,
+      ['case', ['get', 'terminal'], 0.5, 0.95],
     ])
     expect(paintOf('inject-tracks-dot')['circle-stroke-opacity']).toEqual([
       'case',
@@ -932,18 +952,28 @@ describe('raw mode (S4a, #136, ruled A4)', () => {
     }
     const neutral = '#c5cfdc'
     for (const [layer, prop] of [
-      ['adsb-tracks-glyph', 'icon-color'],
       ['inject-tracks-halo', 'circle-color'],
       ['inject-tracks-dot', 'circle-color'],
       ['inject-tracks-dot', 'circle-stroke-color'],
-      ['inject-tracks-glyph', 'icon-color'],
     ]) {
       expect(mapInstance.setPaintProperty).toHaveBeenCalledWith(layer, prop, neutral)
     }
-    // The drone's halo is never repainted: it has none in either mode (#186, ruled on R2).
+    // The two glyph fills carry the handled case with them, so a marker the subject finished
+    // with stays hollow when the condition resolves (S8, ruled R1) — without it the mode's own
+    // paint filled it back in. The halo they take is the neutral itself, so an unhandled glyph
+    // still draws none: the width is 0 everywhere but a handled track.
+    for (const layer of ['adsb-tracks-glyph', 'inject-tracks-glyph']) {
+      expect(mapInstance.setPaintProperty).toHaveBeenCalledWith(layer, 'icon-color', [
+        'case',
+        HANDLED,
+        HOLLOW,
+        neutral,
+      ])
+      expect(mapInstance.setPaintProperty).toHaveBeenCalledWith(layer, 'icon-halo-color', neutral)
+    }
     expect(
       mapInstance.setPaintProperty.mock.calls.some((call) =>
-        String(call[1]).startsWith('icon-halo'),
+        String(call[1]).startsWith('icon-halo-width'),
       ),
     ).toBe(false)
     // The ident rides every feature, for the label layers to print.

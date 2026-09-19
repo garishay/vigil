@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
@@ -2272,7 +2272,10 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(field('Sim clock')).toHaveTextContent('02:38:00')
     // One count in place of the split (ruled A13); no seek and no Pause; raw's shell otherwise.
     expect(field('Tracks')).toHaveTextContent(/^[0-9]+$/)
-    expect(screen.queryByText('Cooperative')).toBeNull()
+    // The strip's Cooperative/Injects split is the one A13 replaced with a single count. Scoped
+    // to the strip since S8: the run opens on the list, whose rows carry the identity word.
+    const strip = document.querySelector('.strip') as HTMLElement
+    expect(within(strip).queryByText('Cooperative')).toBeNull()
     expect(screen.queryByText('Injects')).toBeNull()
     expect(screen.queryByRole('slider', { name: 'Seek' })).toBeNull()
     expect(screen.queryByRole('button', { name: /^(Play|Pause)$/ })).toBeNull()
@@ -2351,11 +2354,14 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(field('Playback')).toHaveTextContent('—')
   })
 
-  it('Begin lifts the brief and the clock ticks from Begin + 1 — in Vigil too, with no Play, Pause, or seek, and no Sites surface', () => {
+  it('Begin lifts the brief and the clock ticks from Begin + 1 — in Vigil too, with no Play, Pause, or seek, and no tab bar at all (S8 item 1)', () => {
     const replay = start('vigil')
-    expect(screen.getByRole('navigation', { name: 'Surfaces' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Queue' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Sites' })).toBeNull()
+    // S8 item 1: no tab bar in a study run, in either condition. Where this once held a nav
+    // without Sites, the run now opens on the list and the nav is not reachable at all.
+    expect(screen.queryByRole('navigation', { name: 'Surfaces' })).toBeNull()
+    expect(
+      screen.getByRole('heading', { name: 'Priority list — highest first' }),
+    ).toBeInTheDocument()
     begin()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('main')).not.toHaveAttribute('inert')
@@ -2363,7 +2369,10 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(field('Sim clock')).toHaveTextContent('02:38:01')
     expect(field('Playback')).toHaveTextContent('+00:01')
     expect(field('Tracks')).toHaveTextContent(/^[0-9]+$/)
-    expect(screen.queryByText('Cooperative')).toBeNull()
+    // The strip's Cooperative/Injects split is the one A13 replaced with a single count. Scoped
+    // to the strip since S8: the run opens on the list, whose rows carry the identity word too.
+    const strip = document.querySelector('.strip') as HTMLElement
+    expect(within(strip).queryByText('Cooperative')).toBeNull()
     // The Seed names the scenario: hidden in a study run in both modes (#36 [37], ruled A).
     expect(screen.queryByText('Seed')).toBeNull()
     expect(screen.queryByRole('slider', { name: 'Seek' })).toBeNull()
@@ -2379,15 +2388,20 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     fireEvent.click(screen.getByTestId('map-select'))
     const id = screen.getByTestId('map').getAttribute('data-selected')
     expect(id).not.toBe('')
-    const drawer = screen.getByRole('complementary', { name: /Track review/ })
+    const detail = () => screen.getByRole('complementary', { name: /Track review/ })
     replay.tick(35)
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Assess' }))
+    // The detail closes on each action now (S8 item 3, ruled), so re-opening the track is a
+    // second look and the JSON records it as one — which is what a re-open is.
+    fireEvent.click(within(detail()).getByRole('button', { name: 'Assess' }))
+    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
     replay.tick(9)
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Escalate' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm escalation' }))
-    expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Escalated')
-    expect(within(drawer).queryByRole('button', { name: 'Resolve' })).toBeNull()
+    fireEvent.click(screen.getByTestId('map-select'))
+    expect(within(detail()).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    expect(within(detail()).queryByRole('button', { name: 'Resolve' })).toBeNull()
+    // Escalate takes no picker and no confirm (item 2, ruled), and closes the detail with it.
+    fireEvent.click(within(detail()).getByRole('button', { name: 'Escalate' }))
+    expect(screen.queryByRole('button', { name: 'Confirm escalation' })).toBeNull()
+    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
     replay.tick(301)
     expect(field('Playback')).toHaveTextContent('+05:59')
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -2429,6 +2443,8 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       events: [
         { t: 14, type: 'select', track: id },
         { t: 49, type: 'assess', track: id },
+        // The re-open after the detail closed is a second look, and the record says so (S8).
+        { t: 58, type: 'select', track: id },
         { t: 58, type: 'escalate', track: id },
       ],
       answers: { demand: 6, pressure: 7, confidence: 5 },
@@ -2451,7 +2467,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     const replay = start('vigil')
     expect(screen.getByTestId('map')).toHaveAttribute('data-sites', 'phl-airfield')
     begin()
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    // The run opens on the list already (S8 item 1, ruled) — there is no tab to press.
     replay.tick(20)
     // No layer chips in a run, the state chips kept; every badge a source word, never INJECT
     // (#36 [38], ruled A).
@@ -2474,13 +2490,17 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
         .map((button) => button.textContent),
     ).toEqual(['Assess', 'Escalate', 'Dismiss'])
     replay.tick(10)
+    // The detail closes on the action (S8 item 3, ruled) and the row wears the mark instead.
     fireEvent.click(within(drawer).getByRole('button', { name: 'Assess' }))
-    expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
+    expect(document.querySelector('.queue__row--assessed')).not.toBeNull()
     replay.tick(330)
     expect(dialog()).toHaveAccessibleName('Run complete — subject S03 · run 1 · +06:00')
-    // Refused after the end: the drawer's Dismiss changes nothing and logs nothing.
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Dismiss' }))
-    expect(within(drawer).getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    // Refused after the end: a click on the row logs nothing and opens nothing.
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
     answerAll()
     expect(JSON.parse(runJsonText())).toMatchObject({
       mode: 'vigil',
@@ -2717,6 +2737,122 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     expect(sent).toHaveLength(1)
     expect(new URLSearchParams(sent[0]).get('run')).toBe('2')
     if (real) Object.defineProperty(window, 'location', real)
+  })
+
+  it('opens on the list with no tab bar, and the detail in place (item 1)', () => {
+    const { replay } = open(paired('vigil', 1))
+    fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+    replay.tick(1)
+    // Two tabs cost a click and explain nothing, and a subject who lands on Home sees no list.
+    expect(screen.queryByRole('navigation', { name: 'Surfaces' })).toBeNull()
+    expect(
+      screen.getByRole('heading', { name: 'Priority list — highest first' }),
+    ).toBeInTheDocument()
+    expect(document.querySelector('.queue__row')).not.toBeNull()
+    // Resolve is withheld here, so a chip filtering for Resolved names a state no one can reach.
+    const states = screen.getByRole('group', { name: 'Filter by state' })
+    expect(within(states).queryByRole('button', { name: 'Resolved' })).toBeNull()
+    expect(within(states).getByRole('button', { name: 'Dismissed' })).toBeInTheDocument()
+    // The detail opens in place on selection, from the list.
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    expect(screen.getByRole('complementary', { name: /Track review/ })).toBeInTheDocument()
+  })
+
+  it('shows the selection ring and the trail in a run, in both conditions (round 1, 1 and 2)', () => {
+    // A study run never changes `surfaceId`, which stays `home` from mount, so reading it here
+    // withheld the ring and the trail from a whole Vigil run — and S10's lines are drawn on the
+    // trail. Pinned on the run itself, in both conditions, so a rename cannot take it again.
+    for (const mode of ['vigil', 'raw'] as const) {
+      const { replay } = open(paired(mode, 1))
+      fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+      replay.tick(1)
+      fireEvent.click(screen.getByTestId('map-select'))
+      const map = screen.getByTestId('map')
+      expect(map).toHaveAttribute('data-selection-shown', 'true')
+      expect(map.getAttribute('data-selected')).not.toBe('')
+      cleanup()
+    }
+  })
+
+  it('escalates an untouched track in one click, and closes the detail on it (ruled)', () => {
+    const { replay } = open(paired('vigil', 1))
+    fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+    replay.tick(1)
+    const row = document.querySelector('.queue__row') as HTMLElement
+    fireEvent.click(within(row).getByRole('button'))
+    const escalate = screen.getByRole('button', { name: 'Escalate' })
+    expect(escalate).toBeEnabled()
+    fireEvent.click(escalate)
+    // No picker, no confirm: the click is the escalation.
+    expect(screen.queryByRole('button', { name: 'Confirm escalation' })).toBeNull()
+    // The subject is done with this track, so the panel closes and its mark says what they did.
+    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
+    expect(document.querySelector('.queue__row--handled')).not.toBeNull()
+    expect(document.querySelector('.queue__row--assessed')).toBeNull()
+  })
+
+  it('wears the assessed mark where the subject only looked (item 3)', () => {
+    const { replay } = open(paired('vigil', 1))
+    fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+    replay.tick(1)
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Assess' }))
+    expect(document.querySelector('.queue__row--assessed')).not.toBeNull()
+    expect(document.querySelector('.queue__row--handled')).toBeNull()
+    expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
+  })
+
+  it('says Escalated and nothing after it when there is no recipient (round 1, 3)', () => {
+    // The picker is gone, so `recipient` is undefined; formatting it unconditionally printed
+    // *Escalated — to undefined* on a subject's screen.
+    const { replay } = open(paired('vigil', 1))
+    fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+    replay.tick(1)
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    const panel = screen.getByRole('complementary', { name: /Track review/ })
+    const entries = [...panel.querySelectorAll('.drawer__event')].map((row) => row.textContent)
+    expect(entries.some((text) => text?.includes('Escalated'))).toBe(true)
+    expect(entries.every((text) => !text?.includes('to undefined'))).toBe(true)
+    expect(panel.textContent).not.toContain('undefined')
+  })
+
+  it('draws the detail with no image area at all, so nothing beneath it moves (round 1, 6)', () => {
+    // Reserving the area puts back the empty box R2 removed; withholding it until a photo lands
+    // moves every row beneath it when one does. So it is withheld for the whole run.
+    const { replay } = open(paired('vigil', 1))
+    fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+    replay.tick(1)
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    expect(document.querySelector('.visuals__image')).toBeNull()
+    expect(document.querySelector('.visuals')?.children).toHaveLength(2)
+    expect(document.querySelector('.visuals__class')).not.toBeNull()
+  })
+
+  it('leaves the demo’s shell and its lifecycle alone', () => {
+    useSession.mockReturnValue(LONG)
+    render(<App schedule={manualClock().schedule} now={() => NOW} />)
+    const nav = screen.getByRole('navigation', { name: 'Surfaces' })
+    expect(nav).toBeInTheDocument()
+    fireEvent.click(within(nav).getByRole('button', { name: 'Queue' }))
+    const states = screen.getByRole('group', { name: 'Filter by state' })
+    expect(within(states).getByRole('button', { name: 'Resolved' })).toBeInTheDocument()
+    // And the demo's own lifecycle: Escalate still follows an Assess there.
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    expect(screen.getByRole('button', { name: 'Escalate' })).toBeDisabled()
   })
 
   it('does not offer a run this browser already holds, however the session was run', () => {

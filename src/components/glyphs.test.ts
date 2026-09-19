@@ -138,7 +138,8 @@ describe('the two marks (S10, #182)', () => {
     if (head.kind !== 'polygon') throw new Error('head')
     expect(head.points[0]).toEqual([GLYPH_BOX / 2, 0.5])
     expect(head.points.every(([, y]) => y >= 0.5)).toBe(true)
-    // Both mirrored about the axis, as the glyphs are.
+    // Both mirrored about the axis, as the glyphs are: each is drawn along a bearing, so an
+    // asymmetry would read as a turn.
     for (const mark of Object.values(MARKS))
       for (let y = 0.5; y < GLYPH_BOX; y += 1)
         for (let x = 0.5; x < GLYPH_BOX / 2; x += 1)

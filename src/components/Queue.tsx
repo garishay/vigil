@@ -11,7 +11,7 @@ import {
   trackIdent,
 } from '../lib/display'
 import { IDENTITY_LABEL } from '../lib/identity'
-import { STATUS_LABEL, isTerminal, type Status } from '../lib/lifecycle'
+import { STATUS_LABEL, isTerminal, mark, type Status } from '../lib/lifecycle'
 import type { RankedTrack } from '../lib/ranking'
 
 /**
@@ -128,6 +128,10 @@ export function Queue({
         const status = statusFor(track.id)
         const surfaced = resurfacedFor(entry)
         const classes = ['queue__row']
+        // The subject's own bookkeeping (S8, #180 item 3): a track they have acted on wears a
+        // mark, lighter for assessed than for handled. Not prioritization — ranking never reads
+        // status — and identical to the map's mark in both modes.
+        if (mark(status) !== null) classes.push(`queue__row--${mark(status)}`)
         if (track.onGround) classes.push('queue__row--ground')
         if (isTerminal(status) && !surfaced) classes.push('queue__row--terminal')
         if (track.id === selectedId) classes.push('queue__row--selected')

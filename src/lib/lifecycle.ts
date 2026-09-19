@@ -89,8 +89,22 @@ const TRANSITIONS: Record<Status, Partial<Record<LifecycleAction, Status>>> = {
   dismissed: {},
 }
 
-export const canAct = (status: Status, action: LifecycleAction): boolean =>
-  TRANSITIONS[status][action] !== undefined
+/**
+ * The study run's table (S8, #180 item 2, ruled): **Escalate is live from New**, in both
+ * conditions. The brief asks for one action and one click, and a greyed button on it is the
+ * opposite of that — a subject who wants to escalate had to press Assess first, which measures
+ * nothing and was the shakedown's own complaint in another form. Nothing else moves, and the
+ * demo keeps the table above: its lifecycle is a workflow, not an instrument.
+ */
+const RUN_TRANSITIONS: Record<Status, Partial<Record<LifecycleAction, Status>>> = {
+  ...TRANSITIONS,
+  new: { ...TRANSITIONS.new, escalate: 'escalated' },
+}
+
+const tableFor = (run: boolean) => (run ? RUN_TRANSITIONS : TRANSITIONS)
+
+export const canAct = (status: Status, action: LifecycleAction, run = false): boolean =>
+  tableFor(run)[status][action] !== undefined
 
 /**
  * Terminal iff the table permits no action from it — derived rather than listed, and by the same
@@ -101,8 +115,8 @@ export const isTerminal = (status: Status): boolean =>
   Object.values(TRANSITIONS[status]).every((next) => next === undefined)
 
 /** The next status, or a throw on a transition the table does not allow. */
-export function transition(status: Status, action: LifecycleAction): Status {
-  const next = TRANSITIONS[status][action]
+export function transition(status: Status, action: LifecycleAction, run = false): Status {
+  const next = tableFor(run)[status][action]
   if (!next) throw new Error(`illegal lifecycle transition: ${action} from ${status}`)
   return next
 }
@@ -454,6 +468,12 @@ export interface ActionInput {
   observed: ObservedSnapshot
   recipient?: ContactId
   disposition?: DispositionId
+  /**
+   * A study run: Escalate is live from New and carries no recipient, because the run has no
+   * picker and the run JSON never held the field (S8, #180 item 2, ruled). The demo leaves it
+   * unset and keeps both the table and the guard.
+   */
+  run?: boolean
 }
 
 /**
@@ -468,7 +488,10 @@ export function appendEvent(
   input: ActionInput,
 ): TrackEvent[] {
   if (log.length === 0) throw new Error('appendEvent needs a log opened by firstSeen')
-  if (action === 'escalate' && !input.recipient) throw new Error('escalate needs a recipient')
+  // A study run's escalation has no recipient to carry: the picker is gone, and `recipient`
+  // never reached the run JSON in the first place. The demo's guard is unchanged.
+  if (action === 'escalate' && !input.recipient && input.run !== true)
+    throw new Error('escalate needs a recipient')
   if (action === 'resolve' && !input.disposition) throw new Error('resolve needs a disposition')
   const from = statusOf(log)
   return [
@@ -480,10 +503,31 @@ export function appendEvent(
       tSec: input.tSec,
       action,
       from,
-      to: transition(from, action),
+      to: transition(from, action, input.run === true),
       ...(action === 'escalate' ? { recipient: input.recipient } : {}),
       ...(action === 'resolve' ? { disposition: input.disposition } : {}),
       observed: input.observed,
     },
   ]
 }
+
+/** What a subject has done with a track, for the mark the map and the list row wear. */
+export type Mark = 'assessed' | 'handled'
+
+/**
+ * The subject's own bookkeeping (S8, #180 item 3; the owner's ruling of 2026-09-19): a track
+ * escalated or dismissed is **handled** — the subject is done with it — and one assessed is
+ * **assessed**, a lighter mark meaning looked at and being watched. Everything else is untouched.
+ *
+ * Derived from the status rather than listed, so the mark cannot disagree with the buttons: the
+ * two terminal statuses a subject can reach are the two handled ones, and Resolved is the demo's
+ * alone (a study run has no Resolve). It is not prioritization — ranking never reads status — and
+ * it is not the dim: the terminal-or-ground dim stays Vigil's, and the mark is drawn identically
+ * in both conditions.
+ */
+export const mark = (status: Status): Mark | null =>
+  status === 'escalated' || status === 'dismissed' || status === 'resolved'
+    ? 'handled'
+    : status === 'assessing'
+      ? 'assessed'
+      : null
