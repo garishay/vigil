@@ -1370,12 +1370,22 @@
 }
 
 /* The subject's own bookkeeping on the list row (S8, #180 item 3), the map's mark in the list's
-   own idiom: a dot in the gutter. Not the dim — that stays Vigil's — and ranking never reads it. */
+   own idiom: a dot in the gutter. Not the dim — that stays Vigil's — and ranking never reads it.
+
+   The row's own gutter, outside the rank's column: `.queue__rowbutton` is
+   `1.5rem 1fr auto` from its left edge, so a dot at `left: 0.25rem` sat inside the rank and
+   ran under a two-digit number (round 1, finding 4). The row is padded left instead and the dot
+   takes the space that opens, so it clears the rank at every width. */
+.queue__row--assessed .queue__rowbutton,
+.queue__row--handled .queue__rowbutton {
+  padding-left: 0.85rem;
+}
+
 .queue__row--assessed .queue__rowbutton::before,
 .queue__row--handled .queue__rowbutton::before {
   position: absolute;
-  top: 0.65rem;
-  left: 0.25rem;
+  top: 0.8rem;
+  left: 0.2rem;
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
@@ -1384,11 +1394,29 @@
 }
 
 /* Handled is quieter than assessed on the row too, as it is on the map (ruled R1): the
-   subject is done with the track, so its mark recedes rather than shouts. */
+   subject is done with the track, so its mark recedes rather than shouts.
+
+   Dimmed once, not twice (round 1, finding 5). Dismissed and Resolved are terminal, so the
+   row's own `opacity: 0.55` was already multiplying the mark down to 0.15 — all but gone, and
+   the ordering untouched → assessed → handled held on an escalated row and broke on a dismissed
+   one. The mark is lifted back out of the row's dim by the reciprocal, so its own strength is
+   what shows whatever the row is doing. */
 .queue__row--assessed .queue__rowbutton::before {
   opacity: 0.55;
 }
 
 .queue__row--handled .queue__rowbutton::before {
   opacity: 0.28;
+}
+
+.queue__row--terminal.queue__row--handled .queue__rowbutton::before,
+.queue__row--ground.queue__row--handled .queue__rowbutton::before {
+  /* 0.28 ÷ 0.55, so the composed alpha is the 0.28 the rule above asks for. */
+  opacity: 0.509;
+}
+
+.queue__row--terminal.queue__row--assessed .queue__rowbutton::before,
+.queue__row--ground.queue__row--assessed .queue__rowbutton::before {
+  /* 0.55 ÷ 0.55 — the assessed mark at full strength under the row's dim. */
+  opacity: 1;
 }

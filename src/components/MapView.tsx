@@ -17,39 +17,34 @@ const SITES_SOURCE = 'protected-sites'
 const ADSB_SOURCE = 'adsb-tracks'
 const INJECT_SOURCE = 'inject-tracks'
 /**
- * The subject's own bookkeeping (S8, #180 item 3; ruled R1): **assessed** is the faint ring that
- * stood, and **handled** is quieter than it and is never a ring — a ring reads as a highlight and
+ * The subject's own bookkeeping (S8, #180 item 3; ruled R1, and its pick at round 1):
+ * **assessed** is a faint ring about the marker, and **handled** is the marker itself drawn
+ * empty at its own size — the dot's fill gone and its stroke kept, a glyph's fill swapped for
+ * an outline of the same ink.
+ *
+ * Handled is quieter than assessed and is never a ring: a ring reads as a highlight and
  * resembles the selection ring, and a track the subject is done with should not be the loudest
- * thing on the map.
- *
- * Two shapes for handled, one constant apart (ruled R1's addendum), so the owner picks from the
- * pictures rather than from words:
- *
- * - `check` — a small check badge on the marker's upper right, all three shapes, in the muted
- *   tone. Ink added, but the smallest that was findable among 115 tracks.
- * - `hollow` — the marker itself drawn empty at its own size: the dot's fill gone and its stroke
- *   kept, the glyphs' fill swapped for a halo of the same ink. Findable by construction, and it
- *   adds no ink at all.
+ * thing on the map. Emptying the marker spends less ink than ringing it, which is that order by
+ * construction, and it is findable without hunting because it changes the shape itself. A check
+ * badge was the alternative and was all but lost on the study picture at 11 px.
  *
  * Neither is a dim: the terminal-or-ground dim stays Vigil's and is read from `terminal`, which
- * raw never receives.
+ * raw never receives. The outline a hollow glyph needs is the handled marker's alone — every
+ * other track's halo is zero — so #186's R2 still governs how a drone is drawn.
  */
-const HANDLED_MARK = 'hollow' as 'check' | 'hollow'
 
-/** The assessed ring, and the check badge's ink — the muted text tone, in both conditions. */
+/** The assessed ring's ink — the muted text tone, in both conditions. */
 const MARK_COLOR = '#94a3b8'
 /** What a hollowed marker's fill becomes: the map's own ground, so the shape reads as an outline. */
 const HOLLOW_FILL = '#0b1220'
 /** True where a track is handled, for the paint expressions that hollow it. */
 const IS_HANDLED = ['==', ['get', 'mark'], 'handled'] as ExpressionSpecification
-/** A fill that empties when the track is handled and `hollow` is the shape in force. */
-const hollowed = (fill: ExpressionSpecification | string): ExpressionSpecification | string =>
-  HANDLED_MARK === 'hollow'
-    ? (['case', IS_HANDLED, HOLLOW_FILL, fill] as ExpressionSpecification)
-    : fill
-/** The halo that draws a hollowed glyph's outline; zero everywhere else. */
-const hollowHalo = (width: number) =>
-  HANDLED_MARK === 'hollow' ? (['case', IS_HANDLED, 1.1, width] as ExpressionSpecification) : width
+/** A fill that empties where the track is handled. */
+const hollowed = (fill: ExpressionSpecification | string): ExpressionSpecification =>
+  ['case', IS_HANDLED, HOLLOW_FILL, fill] as ExpressionSpecification
+/** The halo that draws a hollowed marker's outline; zero on every other track. */
+const hollowHalo = (width: number): ExpressionSpecification =>
+  ['case', IS_HANDLED, 1.1, width] as ExpressionSpecification
 const SELECT_SOURCE = 'selected-track'
 const TRAIL_SOURCE = 'selected-trail'
 const PROJECTION_SOURCE = 'selected-projection'
@@ -68,12 +63,6 @@ const GLYPH_RATIO = 2
  * pixels — and the arrowhead the box's height too.
  */
 const MARK_PX = 12
-/**
- * The handled badge's drawn size, screen px (R1 (a)). The 3.5 px disc the draft first tried was
- * unfindable among 115 tracks; 11 px is the smallest that carries a check's two bars — about
- * 3 px of ink on the long one — and reads at device scale 1.
- */
-const HANDLED_PX = 11
 /**
  * Where a tick starts: at the marker's edge, not its centre (#182 item 5). The dot's edge is its
  * radius and stroke. The drone is drawn nose-up while the tick swings round it, so its edge
@@ -555,7 +544,7 @@ export function MapView({
         })
       }
       // The two marks (S10) the same way: the heading tick and the path's arrowhead.
-      for (const mark of ['tick', 'arrow', 'check'] as const) {
+      for (const mark of ['tick', 'arrow'] as const) {
         map.addImage(mark, glyphImage(MARKS[mark], MARK_PX, GLYPH_RATIO), {
           sdf: true,
           pixelRatio: GLYPH_RATIO,
@@ -651,26 +640,6 @@ export function MapView({
           'circle-stroke-color': MARK_COLOR,
           'circle-stroke-opacity': 0.42,
         },
-      })
-      // (a) the handled badge (R1): the check on the marker's upper right, all three shapes,
-      // in the muted tone. Present only when `check` is the shape in force; `hollow` draws
-      // nothing here and empties the marker instead.
-      map.addLayer({
-        id: `${ADSB_SOURCE}-handled`,
-        type: 'symbol',
-        source: ADSB_SOURCE,
-        filter:
-          HANDLED_MARK === 'check'
-            ? (IS_HANDLED as ExpressionSpecification)
-            : (['==', ['get', 'mark'], 'never'] as ExpressionSpecification),
-        layout: {
-          'icon-image': 'check',
-          'icon-size': HANDLED_PX / MARK_PX,
-          'icon-offset': [HANDLED_PX * 0.55, -HANDLED_PX * 0.55],
-          'icon-allow-overlap': true,
-          'icon-ignore-placement': true,
-        },
-        paint: { 'icon-color': MARK_COLOR, 'icon-opacity': 0.75 },
       })
       // The breadcrumb trail (06b) sits under the injects and the ring: where the selected
       // track has been must never cover where it is. It fades toward its old end (S10, #182):
@@ -768,15 +737,14 @@ export function MapView({
         paint: {
           'circle-radius': 4.5,
           'circle-color': BAND_FILL,
-          'circle-opacity':
-            HANDLED_MARK === 'hollow'
-              ? ([
-                  'case',
-                  IS_HANDLED,
-                  0,
-                  ['case', ['get', 'terminal'], 0.5, 0.95],
-                ] as ExpressionSpecification)
-              : (['case', ['get', 'terminal'], 0.5, 0.95] as ExpressionSpecification),
+          // Emptied where the track is handled, at its own size; the stroke below stays, so
+          // the dot reads as an outline of itself rather than as a ring around a marker.
+          'circle-opacity': [
+            'case',
+            IS_HANDLED,
+            0,
+            ['case', ['get', 'terminal'], 0.5, 0.95],
+          ] as ExpressionSpecification,
           'circle-stroke-width': 2,
           'circle-stroke-color': IDENTITY_STROKE,
           'circle-stroke-opacity': ['case', ['get', 'terminal'], 0.5, 1],
@@ -815,26 +783,6 @@ export function MapView({
           'circle-stroke-color': MARK_COLOR,
           'circle-stroke-opacity': 0.42,
         },
-      })
-      // (a) the handled badge (R1): the check on the marker's upper right, all three shapes,
-      // in the muted tone. Present only when `check` is the shape in force; `hollow` draws
-      // nothing here and empties the marker instead.
-      map.addLayer({
-        id: `${INJECT_SOURCE}-handled`,
-        type: 'symbol',
-        source: INJECT_SOURCE,
-        filter:
-          HANDLED_MARK === 'check'
-            ? (IS_HANDLED as ExpressionSpecification)
-            : (['==', ['get', 'mark'], 'never'] as ExpressionSpecification),
-        layout: {
-          'icon-image': 'check',
-          'icon-size': HANDLED_PX / MARK_PX,
-          'icon-offset': [HANDLED_PX * 0.55, -HANDLED_PX * 0.55],
-          'icon-allow-overlap': true,
-          'icon-ignore-placement': true,
-        },
-        paint: { 'icon-color': MARK_COLOR, 'icon-opacity': 0.75 },
       })
       // Raw mode's labels for the injects (S4a), above their dots, hidden until raw.
       map.addLayer({

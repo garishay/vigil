@@ -1186,7 +1186,11 @@ export default function App({
           // state it cannot explain. The suppression is presentation-only (`selectionShown`),
           // so a Home round trip cannot reset the ease stamp and re-fly the camera (#47).
           selectedId={selectedId}
-          selectionShown={raw || surfaceId !== 'home'}
+          // The effective surface, never the stored one (round 1, findings 1 and 2): a study run
+          // is pinned to the list and never changes `surfaceId`, which stays `home` from mount,
+          // so reading it here withheld the ring and the trail from a whole Vigil run — the
+          // trail is part of both conditions' picture, and S10's lines are drawn on it.
+          selectionShown={raw || activeSurface !== 'home'}
           trail={trail}
           // Raw (ruled A4): no projected path, no dim, no band fill — the derived readings the
           // fairness spec hides; the trail and the ring stay.

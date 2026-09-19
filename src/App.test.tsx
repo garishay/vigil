@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import App from './App'
 import { AO } from './config/ao'
@@ -2760,6 +2760,22 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     expect(screen.getByRole('complementary', { name: /Track review/ })).toBeInTheDocument()
   })
 
+  it('shows the selection ring and the trail in a run, in both conditions (round 1, 1 and 2)', () => {
+    // A study run never changes `surfaceId`, which stays `home` from mount, so reading it here
+    // withheld the ring and the trail from a whole Vigil run — and S10's lines are drawn on the
+    // trail. Pinned on the run itself, in both conditions, so a rename cannot take it again.
+    for (const mode of ['vigil', 'raw'] as const) {
+      const { replay } = open(paired(mode, 1))
+      fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+      replay.tick(1)
+      fireEvent.click(screen.getByTestId('map-select'))
+      const map = screen.getByTestId('map')
+      expect(map).toHaveAttribute('data-selection-shown', 'true')
+      expect(map.getAttribute('data-selected')).not.toBe('')
+      cleanup()
+    }
+  })
+
   it('escalates an untouched track in one click, and closes the detail on it (ruled)', () => {
     const { replay } = open(paired('vigil', 1))
     fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
@@ -2788,6 +2804,40 @@ describe('a study run is a session (S6a-iii, #165, items 2, 3 and 8)', () => {
     expect(document.querySelector('.queue__row--assessed')).not.toBeNull()
     expect(document.querySelector('.queue__row--handled')).toBeNull()
     expect(screen.queryByRole('complementary', { name: /Track review/ })).toBeNull()
+  })
+
+  it('says Escalated and nothing after it when there is no recipient (round 1, 3)', () => {
+    // The picker is gone, so `recipient` is undefined; formatting it unconditionally printed
+    // *Escalated — to undefined* on a subject's screen.
+    const { replay } = open(paired('vigil', 1))
+    fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+    replay.tick(1)
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Escalate' }))
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    const panel = screen.getByRole('complementary', { name: /Track review/ })
+    const entries = [...panel.querySelectorAll('.drawer__event')].map((row) => row.textContent)
+    expect(entries.some((text) => text?.includes('Escalated'))).toBe(true)
+    expect(entries.every((text) => !text?.includes('to undefined'))).toBe(true)
+    expect(panel.textContent).not.toContain('undefined')
+  })
+
+  it('draws the detail with no image area at all, so nothing beneath it moves (round 1, 6)', () => {
+    // Reserving the area puts back the empty box R2 removed; withholding it until a photo lands
+    // moves every row beneath it when one does. So it is withheld for the whole run.
+    const { replay } = open(paired('vigil', 1))
+    fireEvent.click(screen.getByRole('button', { name: 'Begin' }))
+    replay.tick(1)
+    fireEvent.click(
+      within(document.querySelector('.queue__row') as HTMLElement).getByRole('button'),
+    )
+    expect(document.querySelector('.visuals__image')).toBeNull()
+    expect(document.querySelector('.visuals')?.children).toHaveLength(2)
+    expect(document.querySelector('.visuals__class')).not.toBeNull()
   })
 
   it('leaves the demo’s shell and its lifecycle alone', () => {

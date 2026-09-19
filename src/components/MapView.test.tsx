@@ -308,8 +308,9 @@ describe('MapView', () => {
     // S4a the two label layers, hidden until raw; S9 the drone glyph beside the dot, the
     // aircraft glyph in the ADS-B dot's place; S10 the path's arrowhead and reading, and the
     // heading tick as a symbol on the inject source in the S4a line layer's place; S8 the
-    // assessed ring and the handled badge, one of each per track source.
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(20)
+    // assessed ring, one per track source — handled is the marker itself, drawn hollow by the
+    // shape layers' own paint, so it adds no layer (ruled R1, and its pick at round 1).
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(18)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.indexOf('selected-trail-line')).toBeLessThan(order.indexOf('inject-tracks-halo'))
     expect(order.indexOf('selected-projection-line')).toBeGreaterThan(
@@ -460,8 +461,7 @@ describe('MapView', () => {
       { width: number; height: number; data: Uint8ClampedArray },
       Record<string, unknown>,
     ][]
-    // S8 adds the handled badge beside S10's two bearing marks.
-    expect(images.map(([id]) => id)).toEqual(['aircraft', 'drone', 'tick', 'arrow', 'check'])
+    expect(images.map(([id]) => id)).toEqual(['aircraft', 'drone', 'tick', 'arrow'])
     for (const [, image, options] of images) {
       expect(options).toEqual({ sdf: true, pixelRatio: 2 })
       expect(image.width).toBe(image.height)
