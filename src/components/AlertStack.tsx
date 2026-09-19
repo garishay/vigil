@@ -41,7 +41,7 @@ export function AlertStack({
   /** Sim time as the record prints it. */
   clock: (tSec: number) => string
   tSec: number
-  /** The sim time of the track's last record entry — behind it, Acknowledge is refused. */
+  /** The sim time of the track's last record entry — behind it, both controls are refused. */
   frontierOf: (trackId: string) => number
   /** Open: answer the card and open its track. `keyboard` is the click's modality (#54). */
   onOpen: (trackId: string, keyboard: boolean) => void
@@ -109,9 +109,9 @@ export function AlertStack({
                 aria-describedby={describedBy}
                 onClick={(event) => onOpen(alert.trackId, event.detail === 0)}
               >
-                <span className="alert__word">{alert.word}</span>
-                <span className="alert__ident">{ident}</span>
-                <span className="alert__time">{clock(alert.tSec)}</span>
+                <span className="alert__word">{alert.word}</span>{' '}
+                <span className="alert__ident">{ident}</span>{' '}
+                <span className="alert__time">{clock(alert.tSec)}</span>{' '}
                 <span className="alert__verb">Open</span>
               </button>
               {disabled && (

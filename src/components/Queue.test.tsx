@@ -251,6 +251,39 @@ describe('Queue', () => {
     expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
   })
 
+  it('lands a request from the shell on the selected row under the keyboard, on the list under a pointer, once per request (S8b, #202)', () => {
+    const { rerender } = render(
+      <Queue
+        ranked={RANKED}
+        selectedId="inject-01"
+        landing={{ n: 1, row: true }}
+        onSelect={vi.fn()}
+      />,
+    )
+    const [, unheard] = rows()
+    expect(document.activeElement).toBe(within(unheard).getByRole('button'))
+    // The same request again lands nothing — a later selection must not re-run it.
+    ;(document.activeElement as HTMLElement).blur()
+    rerender(
+      <Queue
+        ranked={RANKED}
+        selectedId="inject-03"
+        landing={{ n: 1, row: true }}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(document.activeElement).toBe(document.body)
+    rerender(
+      <Queue
+        ranked={RANKED}
+        selectedId="inject-03"
+        landing={{ n: 2, row: false }}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Ranked queue' }))
+  })
+
   it('selects a track through its row button (03a)', () => {
     const onSelect = vi.fn()
     render(<Queue ranked={RANKED} selectedId={null} onSelect={onSelect} />)

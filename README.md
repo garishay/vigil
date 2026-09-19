@@ -50,7 +50,7 @@ A 02 study link (S3b, S4a) is the corroboration pair; a 03 link (S7) the priorit
 
 </details>
 
-A study run shows only what the task needs (S8): no tab bar in either condition — the run opens on the map and, in Vigil, the **Priority list** beside it, with the detail in place on selection — the detail offers Escalate and Dismiss, each one click on any track and closing the detail, and a track the subject has opened reads Opened and is drawn in a grey on the map from the click, one they have escalated or dismissed is drawn hollow; in Vigil the map spends one colour, red on a track at warning, and every other track wears the unaided neutral with no dim and no map legend (S9b); the brief that opens the run is one screen with the map's own legend, and the three end questions read as questions with their ends labelled. The demo opens on the same Priority list beside the map, with Sites as its other tab (#183).
+A study run shows only what the task needs (S8): no tab bar in either condition — the run opens on the map and, in Vigil, the **Priority list** beside it, with the detail in place on selection — the detail offers Escalate and Dismiss, each one click on any track and closing the detail, and a track the subject has opened reads Opened and is drawn in a grey on the map from the click, one they have escalated or dismissed is drawn hollow; in Vigil an alert card's face is Open — it opens the card's track and clears the card — and its × clears the card alone (S8b); in Vigil the map spends one colour, red on a track at warning, and every other track wears the unaided neutral with no dim and no map legend (S9b); the brief that opens the run is one screen with the map's own legend, and the three end questions read as questions with their ends labelled. The demo opens on the same Priority list beside the map, with Sites as its other tab (#183).
 
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
@@ -196,7 +196,7 @@ flowchart LR
     copy["components/useCopy.ts<br/>copy with the clipboard, fall back to the textarea's selection<br/>'Copied' only for the text actually copied"]
     copy -- handoff --> review
     copy -- site plan --> panel
-    stack["components/AlertStack.tsx<br/>the cards over the map, newest first · the body selects the track<br/>Acknowledge, refused behind the track's frontier"]
+    stack["components/AlertStack.tsx<br/>the cards over the map, newest first · the face is Open — answers the card, opens its track · × clears it and moves nothing (#202)<br/>both refused behind the track's frontier"]
     app --> queue
     app --> map
     app -- cards · the clock's last move --> stack
