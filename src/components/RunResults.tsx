@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './SheetPage.css'
 import { SheetDocument } from './SheetDocument'
-import { documentOf, fetchStudy, filesFor } from '../data/sheet'
+import { documentOf, fetchStudy, filesFor, type Composed } from '../data/sheet'
 import type { RunRecord } from '../lib/run'
 
 /**
@@ -24,7 +24,7 @@ export function RunResults({
   runs: readonly RunRecord[]
   fetcher?: typeof fetch
 }) {
-  const [drawn, setDrawn] = useState<{ name: string; svg: string } | null>(null)
+  const [drawn, setDrawn] = useState<Composed | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
 
   useEffect(() => {

@@ -106,7 +106,10 @@
   overflow-x: auto;
 }
 
-.sheet__document svg {
+/* The document's blocks (S5g, #194), each an SVG of its own, butted: no gap between a log line
+   and the next, on screen or on paper. */
+.sheet__block svg {
+  display: block;
   max-width: 100%;
   height: auto;
 }
@@ -116,13 +119,47 @@
 }
 
 /*
- * One clean page (S6a, #165, A9): printing the results view prints the sheet and nothing else —
- * the controls, the intake and the page's dark ground are the screen's. The sheet is an SVG on a
- * dark ground of its own, so the page prints it as it renders.
+ * A clean print (S6a, #165, A9; S5g, #194): printing the results view prints the sheet and
+ * nothing else — the controls, the intake and the page's dark ground are the screen's. The
+ * sheet is SVG on a dark ground of its own, so the page prints it as it renders, block by block:
+ * a page breaks only between blocks, so page 1 holds the comparison whole and the logs flow on
+ * with no line ever cut.
+ *
+ * The page's margin is 6 mm above and below: every page's paper edge, and what keeps the
+ * browser's own header and footer — the date, the title, the URL, the page number — off the
+ * print (ruled R4 on #194). Chrome draws each of those in the margin and hides any that would
+ * cross into the page's content box; its template stands them 15 pt in from the paper's edge,
+ * so a margin of 17 pt holds none of them — a line of 8 pt text does not fit in the 2 pt left.
+ * Measured at the gate: 8 mm and under hides all four, 9 mm and over draws them; the browser's
+ * own default is 10 mm, which is how the rehearsal's print carried them. The sides are 12 mm
+ * (ruled R5): the sheet scales to the width between them, and at 12 mm a short session's sheet
+ * — the fixtures' 2 506 px — fits one page where 6 mm left a second page holding the Queue box
+ * and four footnotes; a long session breaks between two log lines either way.
  */
+@page {
+  margin: 6mm 12mm;
+}
+
 @media print {
   .sheet {
     padding: 0;
+  }
+
+  .sheet__block {
+    break-inside: avoid;
+  }
+
+  /* A heading never stands alone and the Queue box never leaves its log (round 1 on #195):
+     the logs' row never ends a page, its first line and the Queue box never begin one — the
+     block's own name, read off the `<svg>` it holds, says which is which. `:has()` is in
+     every browser since 2023 (Chrome 105, Safari 15.4, Firefox 121). */
+  .sheet__block:has(> svg[data-block='logs']) {
+    break-after: avoid;
+  }
+
+  .sheet__block:has(> svg[data-block='log-1']),
+  .sheet__block:has(> svg[data-block='queue']) {
+    break-before: avoid;
   }
 
   /* The chrome, all of it. The controls are named here rather than left to sit inside a hidden

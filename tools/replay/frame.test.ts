@@ -7,7 +7,10 @@ import { distanceMeters } from '../../src/lib/geo.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import {
+  CAPTION,
   captionLines,
+  captionText,
+  frameParts,
   FOOTNOTE,
   FOOTNOTE_LINES,
   LATE_FOOTNOTE_LINES,
@@ -1013,6 +1016,42 @@ describe('the frame’s document for the pair (S5d-i, ruled G2)', () => {
     expect(frameDocument(fixture('S03-02a-vigil-1'), { queueCap: 5 }).lines).toEqual(
       frameDocument(fixture('S03-02a-vigil-1')).lines,
     )
+  })
+
+  it('draws the frame from its two parts — the picture, then the log from the picture’s height — the same bytes as the file (S5g, #194)', () => {
+    // The sheet takes the picture and the log lines apart to put the logs below its comparison;
+    // the frame's own file is the two parts put back together under one ground, so the eight
+    // expected files below hold. Every log line goes through `captionText`, the box and the
+    // sheet's blocks alike.
+    for (const name of ['S05-03a-raw-1', 'S06-03b-vigil-1']) {
+      const input = fixture(name)
+      const parts = frameParts(input)
+      const whole = frameDocument(input)
+      const log = parts.log(parts.top.height)
+      expect(whole.height).toBe(parts.top.height + log.height)
+      expect(whole.lines).toEqual([
+        `<rect width="900" height="${whole.height}" fill="#0b0f14"/>`,
+        ...parts.top.lines,
+        ...log.lines,
+      ])
+      // The picture is the header, the map and its footnotes: 80, 700 and the foot.
+      expect(parts.top.height).toBe(input.record.mode === 'raw' ? 856 : 828)
+      // The Queue box stands wherever it is asked to, the same lines from another y.
+      const box = parts.queue(0)
+      expect(box.height).toBe(input.record.mode === 'vigil' ? 30 + 26 * 18 + 6 : 0)
+      if (input.record.mode === 'vigil') {
+        expect(box.lines[0]).toContain('y="0"')
+        expect(parts.queue(500).lines[0]).toContain('y="500"')
+        expect(parts.queue(500).lines.length).toBe(box.lines.length)
+      }
+      // The log's lines are the caption's, and the box draws each through captionText.
+      expect(parts.lines).toEqual(captionLines(input))
+      const captionY = parts.top.height + (input.record.mode === 'vigil' ? box.height + 12 : 0)
+      parts.lines.forEach((line, i) => {
+        for (const drawn of captionText(line, captionY + CAPTION.top + (i + 1) * CAPTION.line - 6))
+          expect(log.lines).toContain(drawn)
+      })
+    }
   })
 
   it('holds the eight fixture frames byte for byte as expected files', () => {
