@@ -39,6 +39,7 @@ export function Queue({
   ranked,
   selectedId = null,
   restoreFocus = true,
+  landing,
   run = false,
   statusFor = () => 'new',
   resurfacedFor = () => false,
@@ -60,6 +61,15 @@ export function Queue({
    * to the list instead, which has no activation to misfire and keeps the operator's place.
    */
   restoreFocus?: boolean
+  /**
+   * A landing request from the shell (S8b, #202): an alert card's Open lands focus where a
+   * selection from the list lands it — the selected row under the keyboard, the list under a
+   * pointer (#54) — and a clear that leaves no card to land on lands on the list. Counted, so
+   * each request lands once and a later selection moves nothing; a request made while the list
+   * was not mounted — the demo's Sites surface — is dropped, not kept for the next mount, which
+   * would steal focus from the tab that brought the list back (#204 round 1).
+   */
+  landing?: { n: number; row: boolean }
   /**
    * A study run (S4b, #36 [38], ruled A): the row's badge reads the source word raw's drawer
    * prints — *ADS-B*, *Remote ID*, *sensor* — in place of the layer, and wears no layer fill,
@@ -121,6 +131,19 @@ export function Queue({
       : null
     ;(row ?? listRef.current)?.focus?.()
   }, [selectedId, restoreFocus])
+
+  const landedRef = useRef(landing?.n ?? 0)
+  useEffect(() => {
+    if (!landing || landing.n === landedRef.current) return
+    landedRef.current = landing.n
+    const row =
+      landing.row && selectedId
+        ? listRef.current?.querySelector<HTMLButtonElement>(
+            `[data-id="${CSS.escape(selectedId)}"] button`,
+          )
+        : null
+    ;(row ?? listRef.current)?.focus?.()
+  }, [landing, selectedId])
 
   return (
     <ol className="queue" aria-label="Ranked queue" ref={listRef} tabIndex={-1}>

@@ -98,8 +98,7 @@
   align-items: center;
 }
 
-.playback__toggle,
-.alert__ack {
+.playback__toggle {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);
@@ -459,7 +458,37 @@
   font-variant-numeric: tabular-nums;
 }
 
-.alert__ack:disabled {
+/* The card's face is Open (S8b, #202): its word sits at the end of the row, quiet until the
+   card is hovered or focused; the clear is the drawer's own × beside it. */
+.alert__verb {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.alert__open:hover .alert__verb,
+.alert__open:focus-visible .alert__verb {
+  color: var(--text);
+}
+
+.alert__clear {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  padding: 0 0.4rem;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.alert__clear:hover {
+  color: var(--text);
+}
+
+.alert__open:disabled,
+.alert__clear:disabled {
   opacity: 0.5;
   cursor: default;
 }

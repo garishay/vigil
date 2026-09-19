@@ -570,6 +570,27 @@ describe('ReviewDrawer', () => {
     ])
   })
 
+  it('keeps the acknowledge line in the demo’s log and leaves it out of a study run’s (S8b, #202)', () => {
+    const ranked = entry(SILENT, 1, 7200.2)
+    const acked = (run: boolean) =>
+      appendEvent(openLog(ranked), 'acknowledge', {
+        at: '2026-09-01T12:06:02.000Z',
+        tSec: 0,
+        observed: observedSnapshot(ranked),
+        run,
+      })
+    const lines = () =>
+      within(screen.getByLabelText('Event log'))
+        .getAllByRole('listitem')
+        .map((item) => item.textContent)
+    const { unmount } = renderDrawer(ranked, { log: acked(false) })
+    expect(lines()).toEqual(['02:30:00New — first seen', '02:30:00Acknowledged'])
+    unmount()
+    // A run's line carries New; the card is the subject's tool, not the track's history.
+    renderDrawer(ranked, { run: true, log: acked(true) })
+    expect(lines()).toEqual(['02:30:00New — first seen'])
+  })
+
   it('shows the handoff once escalated, still there after resolve, and copies it (03b)', async () => {
     const ranked = entry(SILENT, 1, 7200.2)
     const writeText = vi.fn().mockResolvedValue(undefined)

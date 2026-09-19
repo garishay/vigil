@@ -1860,10 +1860,20 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
   const seek = (value: string) =>
     fireEvent.change(screen.getByRole('slider', { name: 'Seek' }), { target: { value } })
   const stack = () => screen.getByRole('region', { name: 'Alerts' })
+  // A card's text is its word, its ident and its time; the face's verb is read apart.
   const cards = () =>
     within(stack())
       .queryAllByRole('listitem')
-      .map((card) => card.querySelector('.alert__open')?.textContent ?? '')
+      .map((card) =>
+        ['.alert__word', '.alert__ident', '.alert__time']
+          .map((part) => card.querySelector(part)?.textContent ?? '')
+          .join(''),
+      )
+  const faceOf = (ident: string) =>
+    within(cardOf(ident)).getByRole('button', { name: new RegExp(`${ident} .* Open$`) })
+  const clearOf = (ident: string) =>
+    within(cardOf(ident)).getByRole('button', { name: new RegExp(`^Clear card — .* ${ident}$`) })
+  const list = () => screen.getByRole('list', { name: 'Ranked queue' })
   const cardOf = (ident: string) =>
     within(stack())
       .getAllByRole('listitem')
@@ -1914,17 +1924,17 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     expect(cards()).toEqual(before)
   })
 
-  it('acknowledges from the card: New becomes Assessing, the line is written at sim time, the card clears, the handoff carries it', () => {
+  it('Open answers the card and opens its track: the line written at sim time, New becomes Assessing, the card clears, the detail opens, focus lands on the row, the handoff carries it (S8b, #202)', () => {
     const replay = start()
     const at = raise(replay, 'TRK-06', '60', '02:31')
-    // The card's body is a selection: TRK-06 opens in the drawer beside the list.
-    fireEvent.click(within(cardOf('TRK-06')).getByRole('button', { name: /Warning/ }))
-    expect(screen.getByLabelText(/^Track review: /)).toBeInTheDocument()
-    expect(logLines().at(-1)).toBe(`${at}Warning — up from caution`)
-    fireEvent.click(within(cardOf('TRK-06')).getByRole('button', { name: 'Acknowledge' }))
+    expect(screen.queryByRole('button', { name: 'Acknowledge' })).toBeNull()
+    fireEvent.click(faceOf('TRK-06'))
     expect(cards().some((card) => card.includes('TRK-06'))).toBe(false)
+    expect(screen.getByLabelText('Track review: TRK-06')).toBeInTheDocument()
     expect(logLines().at(-1)).toBe(`${at}Acknowledged`)
     expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    // A keyboard Open lands where a selection from the list lands it: on the track's row.
+    expect(document.activeElement).toBe(within(rowOf('TRK-06')).getByRole('button'))
     // Escalated: the handoff timeline carries Acknowledged in sim time, before the escalation.
     fireEvent.click(screen.getByRole('button', { name: 'Escalate' }))
     fireEvent.click(screen.getByRole('radio', { name: 'PHL Tower' }))
@@ -1933,17 +1943,76 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     expect(handoff).toContain(`  ${at}  Acknowledged\n  ${at}  Escalated — to PHL Tower`)
   })
 
-  it('refuses Acknowledge behind the track’s frontier (#77), and clears the cards on Dismiss', () => {
+  it('× clears the card and moves nothing: the line written, New becomes Assessing, nothing selected, focus on the list once the stack is empty (S8b, #202)', () => {
+    const replay = start()
+    const at = raise(replay, 'TRK-06', '60', '02:31')
+    fireEvent.click(clearOf('TRK-06'))
+    expect(cards()).toEqual([])
+    expect(screen.queryByLabelText(/^Track review: /)).toBeNull()
+    expect(within(rowOf('TRK-06')).getByText('Assessing')).toBeInTheDocument()
+    expect(document.activeElement).toBe(list())
+    // The line is the demo's, as #101 ruled: opening the track from its row reads it.
+    fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
+    expect(logLines().at(-1)).toBe(`${at}Acknowledged`)
+  })
+
+  /** TRK-06's card raised at 02:31:13, then UAS-CD84's two at 02:38:58 — three cards, two tracks. */
+  const raiseBoth = (replay: ReturnType<typeof manualClock>) => {
+    raise(replay, 'TRK-06', '60', '02:31')
+    seek('520')
+    for (let i = 0; i < 40 && cards().length < 3; i++) replay.tick()
+    expect(cards()).toHaveLength(3)
+  }
+
+  it('a keyboard × with no face left enabled lands on the list (#204 round 1, finding 2)', () => {
+    const replay = start()
+    raiseBoth(replay)
+    // Clock at 02:38:00: UAS-CD84's record (02:38:58) is ahead of it and its two cards are
+    // disabled; TRK-06's is behind it and its card is live.
+    seek('480')
+    expect(faceOf('UAS-CD84')).toBeDisabled()
+    expect(faceOf('TRK-06')).toBeEnabled()
+    fireEvent.click(clearOf('TRK-06'))
+    expect(cards()).toHaveLength(2)
+    expect(document.activeElement).toBe(list())
+  })
+
+  it('a keyboard × on the open track’s own card lands on the next card, not in the drawer (#204 round 1, finding 3)', () => {
+    const replay = start()
+    raiseBoth(replay)
+    // TRK-06 open from its row, New: its × writes the line and New becomes Assessing, the
+    // transition the drawer's own rescue watches. The × was pressed in the stack, so the stack
+    // owns the landing.
+    fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
+    expect(screen.getByLabelText('Track review: TRK-06')).toBeInTheDocument()
+    fireEvent.click(clearOf('TRK-06'))
+    expect(cards()).toHaveLength(2)
+    expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Assessing')
+    const remaining = within(stack()).getAllByRole('button', { name: /Open$/ })
+    expect(document.activeElement).toBe(remaining[1])
+  })
+
+  it('a pointer Open lands focus on the list, not the row (#54)', () => {
     const replay = start()
     raise(replay, 'TRK-06', '60', '02:31')
-    const ack = () => within(cardOf('TRK-06')).getByRole('button', { name: 'Acknowledge' })
+    fireEvent.click(faceOf('TRK-06'), { detail: 1 })
+    expect(screen.getByLabelText('Track review: TRK-06')).toBeInTheDocument()
+    expect(document.activeElement).toBe(list())
+  })
+
+  it('refuses both controls behind the track’s frontier (#77), and clears the cards on Dismiss', () => {
+    const replay = start()
+    raise(replay, 'TRK-06', '60', '02:31')
+    const ack = () => clearOf('TRK-06')
     seek('30')
     expect(ack()).toBeDisabled()
+    expect(faceOf('TRK-06')).toBeDisabled()
     expect(within(stack()).getByRole('status')).toHaveTextContent(
       'Rewound — the workflow acts at the record’s frontier',
     )
     seek('600')
     expect(ack()).toBeEnabled()
+    expect(faceOf('TRK-06')).toBeEnabled()
     expect(within(stack()).getByRole('status')).toHaveTextContent('')
     fireEvent.click(within(rowOf('TRK-06')).getByRole('button'))
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
@@ -1983,6 +2052,11 @@ describe('App alerts — the stack over the map (#101, 101a, ruled)', () => {
     const at = raise(replay, 'UAS-CD84', '520', '02:38')
     expect(cards()).toContain(`Re-surfacedUAS-CD84${at}`)
     expect(cards()).not.toContain(`WarningUAS-CD84${at}`)
+    // Open on it: no line on a terminal track, the card clears, the track opens (S8b, #202).
+    fireEvent.click(faceOf('UAS-CD84'))
+    expect(cards()).toEqual([])
+    expect(screen.getByLabelText('Track review: UAS-CD84')).toBeInTheDocument()
+    expect(logLines().some((line) => line.includes('Acknowledged'))).toBe(false)
   })
 })
 
@@ -2447,8 +2521,8 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     expect(localStorage.getItem(STORE_KEY)).not.toBeNull()
   })
 
-  it('in Vigil: acknowledging a card marks nothing — the ring is the open’s alone (S8-ii, item 5)', () => {
-    // A card answered from the stack is not a look: the track stays New with no mark, the
+  it('in Vigil: × on a card marks nothing — the ring is the open’s alone (S8-ii, item 5; S8b, #202)', () => {
+    // A card cleared from the stack is not a look: the track stays New with no mark, the
     // card clears, and the JSON carries the alert_ack as before. Opening it afterwards marks it.
     const play = vi
       .spyOn(HTMLMediaElement.prototype, 'play')
@@ -2465,7 +2539,7 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
     }
     const card = cards()[0]
     const ident = card.querySelector('.alert__ident')?.textContent as string
-    fireEvent.click(within(card).getByRole('button', { name: 'Acknowledge' }))
+    fireEvent.click(within(card).getByRole('button', { name: /^Clear card/ }))
     expect(cards()).toHaveLength(0)
     expect(screen.getByTestId('map')).toHaveAttribute('data-marks', '')
     const row = [...document.querySelectorAll('.queue__row')].find((node) =>
@@ -2484,6 +2558,49 @@ describe('a study run (S4b, #137, ruled) — the brief, Begin, the window, the e
       events: [
         { t, type: 'alert_ack', track: id },
         { t: t + 5, type: 'select', track: id },
+      ],
+    })
+    play.mockRestore()
+  })
+
+  it('in Vigil: Open on a card is an open — the line then the select at one second, the track Opened and marked, no Acknowledged line on the screen (S8b, #202)', () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockImplementation(() => Promise.resolve())
+    const replay = start('vigil')
+    begin()
+    const cards = () =>
+      within(screen.getByRole('region', { name: 'Alerts' })).queryAllByRole('listitem')
+    let t = 0
+    while (cards().length === 0 && t < 120) {
+      replay.tick()
+      t += 1
+    }
+    const card = cards()[0]
+    const ident = card.querySelector('.alert__ident')?.textContent as string
+    fireEvent.click(within(card).getByRole('button', { name: /Open$/ }))
+    expect(cards()).toHaveLength(0)
+    const row = [...document.querySelectorAll('.queue__row')].find((node) =>
+      node.textContent?.includes(ident),
+    ) as HTMLElement
+    const id = row.getAttribute('data-id') as string
+    expect(screen.getByTestId('map')).toHaveAttribute('data-marks', `${id}:assessed`)
+    expect(row).toHaveClass('queue__row--assessed')
+    expect(within(row).getByText('Opened')).toBeInTheDocument()
+    expect(screen.getByLabelText(`Track review: ${ident}`)).toBeInTheDocument()
+    expect(screen.getByText('Status').nextElementSibling).toHaveTextContent('Opened')
+    const log = within(screen.getByLabelText('Event log'))
+      .getAllByRole('listitem')
+      .map((line) => line.textContent ?? '')
+    expect(log.at(-1)).toMatch(/Opened$/)
+    expect(log.some((line) => line.includes('Acknowledged'))).toBe(false)
+    expect(document.activeElement).toBe(within(row).getByRole('button'))
+    replay.tick(360 - t)
+    answerAll()
+    expect(JSON.parse(runJsonText())).toMatchObject({
+      events: [
+        { t, type: 'alert_ack', track: id },
+        { t, type: 'select', track: id },
       ],
     })
     play.mockRestore()
