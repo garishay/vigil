@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import './App.css'
 import { AlertStack } from './components/AlertStack'
 import { useAlertTone } from './components/useAlertTone'
@@ -674,6 +675,11 @@ export default function App({
   const frontierOf = (trackId: string) => eventLogs[trackId]?.at(-1)?.tSec ?? tSec
   const openCard = (trackId: string, keyboard: boolean) => {
     if (!acknowledge(trackId)) return
+    // Open from Sites goes to the list (#205): the detail lives beside the list, so the surface
+    // switches first and the select lands where the word says. The switch is committed on its
+    // own so the list is mounted before the landing request is made — a request made while it
+    // is not mounted is dropped (#204 round 1). A map click on Sites keeps Sites up, as before.
+    if (activeSurface !== 'queue') flushSync(() => changeSurface('queue'))
     select(trackId)
     setLanding((current) => ({ n: current.n + 1, row: keyboard }))
   }
