@@ -474,7 +474,6 @@ export function MapView({
   tracks = [],
   injects = [],
   selectedId = null,
-  selectionShown = true,
   trail = [],
   projection = NO_LINE,
   projectionEntryS = null,
@@ -523,13 +522,7 @@ export function MapView({
    * the clock paused), and the caller owes it one identity while no band has moved.
    */
   bands?: ReadonlyMap<string, WarmBand>
-  /**
-   * Whether the selection ring is drawn — presentation only (A2 on #3: Home suppresses the
-   * ring). The selection itself, and the once-per-selection ease stamp, ride `selectedId`:
-   * hiding the ring must not reset them, or a Home round trip re-flies the camera (#47).
-   */
-  selectionShown?: boolean
-  /** The selected track's history trail (06b), oldest first; drawn only with the ring. */
+  /** The selected track's history trail (06b), oldest first; drawn with the ring. */
   trail?: readonly [number, number][]
   /**
    * The selected track's projected path (#102, S10): its position and the point where dead
@@ -1048,18 +1041,15 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    map.getSource<GeoJSONSource>(TRAIL_SOURCE)?.setData(lineFeature(selectionShown ? trail : []))
-  }, [trail, selectionShown, styleReady])
+    map.getSource<GeoJSONSource>(TRAIL_SOURCE)?.setData(lineFeature(trail))
+  }, [trail, styleReady])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
-    const shown = selectionShown ? projection : []
-    map.getSource<GeoJSONSource>(PROJECTION_SOURCE)?.setData(lineFeature(shown))
-    map
-      .getSource<GeoJSONSource>(ENTRY_SOURCE)
-      ?.setData(entryFeature(shown, selectionShown ? projectionEntryS : null))
-  }, [projection, projectionEntryS, selectionShown, styleReady])
+    map.getSource<GeoJSONSource>(PROJECTION_SOURCE)?.setData(lineFeature(projection))
+    map.getSource<GeoJSONSource>(ENTRY_SOURCE)?.setData(entryFeature(projection, projectionEntryS))
+  }, [projection, projectionEntryS, styleReady])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1068,7 +1058,7 @@ export function MapView({
       (selectedId && [...tracks, ...injects].find((track) => track.id === selectedId)) || null
     map
       .getSource<GeoJSONSource>(SELECT_SOURCE)
-      ?.setData(selectionFeature(selectionShown ? (selected?.position ?? null) : null))
+      ?.setData(selectionFeature(selected?.position ?? null))
     // Stamped only when the camera actually flew: a selection whose track has not arrived yet
     // must still get its ease when the track appears. A cleared selection resets the stamp, so
     // deselecting and reselecting the same track flies again.
@@ -1078,7 +1068,7 @@ export function MapView({
       map.easeTo({ center: selected.position, duration: 600 })
       easedIdRef.current = selectedId
     }
-  }, [selectedId, selectionShown, tracks, injects, styleReady])
+  }, [selectedId, tracks, injects, styleReady])
 
   return (
     <div className="map-frame">

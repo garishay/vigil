@@ -106,8 +106,9 @@ export function Queue({
   // returns to the row that anchored the selection, or to the list itself when that row is
   // filtered out. A pointer-driven close skips the row and takes the list — `restoreFocus`
   // carries the modality gate the drawer and Review already apply, and only the row has an
-  // activation for Space to misfire (#54, shape from its review). (Closing from the Review
-  // surface, where this list is unmounted, is App's to catch — the Review nav item, #46.)
+  // activation for Space to misfire (#54, shape from its review). The list is mounted under every
+  // close since the Review tab went (#183), so this is the whole rule — an orphaned selection
+  // (#73) lands here too, on the list when its row has left with the track.
   const previousSelectedRef = useRef<string | null>(null)
   useEffect(() => {
     const previous = previousSelectedRef.current

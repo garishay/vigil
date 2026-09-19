@@ -417,7 +417,7 @@ export const FOOTNOTE = FOOTNOTE_LINES.join(' ')
  */
 export const LATE_FOOTNOTE_LINES = [
   'A look after the freeze is drawn as a dashed outline on a dashed path, and one the regenerated picture no longer holds is not drawn at all:',
-  "the background picture, the Queue box and every reading are the frozen second's.",
+  "the background picture, the Priority list box and every reading are the frozen second's.",
 ] as const
 
 /** The theme's tokens, for the pair and the study figure (S5d) — one palette, fixed in the SVGs. */
@@ -1106,7 +1106,7 @@ export function frameParts(input: FrameInput, options: FrameOptions = {}): Frame
             text(
               46,
               queueY + 20,
-              `Queue at ${mmss(metrics.freezeT)} · ${candidates.length} above calm`,
+              `Priority list at ${mmss(metrics.freezeT)} · ${candidates.length} above calm`,
               `class="vigil-queue-title" font-size="12" font-weight="700" fill="${COLOR.text}"`,
             ),
             ...shown.map(

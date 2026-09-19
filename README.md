@@ -2,44 +2,55 @@
 
 **Explainable airspace triage for the PHL area.**
 
-**Live at <https://garishay.github.io/vigil/>** — the default recording; the evening arrivals bank
-is [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002). Open
-one, press Play, read the Queue. Every merge to `main` redeploys it.
+## Open it
 
-The operator study’s scenarios open by name (S3b): **Study-02a-vigil**
-[`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a) ·
-**Demo-02a-vigil** [`?recording=vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02a) ·
-**Study-02b-vigil** [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b) ·
-**Demo-02b-vigil** [`?recording=vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=02b).
-The unaided condition (S4a): **Study-02a-raw**
-[`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) ·
-**Study-02b-raw** [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw).
-The prioritization pair (S7): **Study-03a-vigil**
-[`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a) ·
-**Study-03a-raw** [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw) ·
-**Study-03b-vigil** [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b) ·
-**Study-03b-raw** [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) ·
-**Demo-03a-vigil** [`?recording=vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03a) ·
-**Demo-03b-vigil** [`?recording=vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?recording=vigil-phl-002&scenario=03b);
-a 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turned (S7d) — where a 02 run is six minutes.
-`?scenario=on` is the default deal, `off` none; `?mode=vigil`, the default, is the app as built.
-A study run shows only what the task needs (S8): no tab bar in either condition — the run opens on the map and, in Vigil, the **Priority list** beside it, with the detail in place on selection — the detail offers Escalate and Dismiss, each one click on any track and closing the detail, and a track the subject has opened reads Opened and is drawn in a grey on the map from the click, one they have escalated or dismissed is drawn hollow; in Vigil the map spends one colour, red on a track at warning, and every other track wears the unaided neutral with no dim and no map legend (S9b); the brief that opens the run is one screen with the map's own legend, and the three end questions read as questions with their ends labelled.
-A **study run** (S4b) adds `&subject=<code>&run=<n>` to a study link, both or neither —
-[`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1):
-the brief, the scenario's minutes on the clock, the end screen with Copy run.
-One link per subject (S6a-iii): once the three questions are answered the run is kept in that
-browser under the subject’s code, and run 1’s end screen carries **Start run 2** — the pair’s
-other scenario, the other mode, the same subject. Run 2’s carries **See your results**, and with
-both runs in the browser the subject sheet is drawn in the tab they ran in, with **Download
-results** — the one file to hand over — as its primary. When run 1 is not in that browser the end
-screen says so and offers the run’s own file instead. A link opened again resumes at the first run
-not yet saved and never re-runs a saved one; with both saved the session is complete and the
-results are offered there too.
-The **sheet page** (S6a-ii) is [`?sheet`](https://garishay.github.io/vigil/?sheet): drop a results
-file, or both run files, or paste them, and the subject sheet is drawn in that tab, downloaded, or
-printed — the comparison whole on page 1 and the logs flowing on with no line cut (S5g, #194). It
-reads what the replay tool reads and refuses what the replay tool refuses,
-and **Clear saved runs** asks once, in place, before it removes what the browser holds.
+- **The demo** — <https://garishay.github.io/vigil/> — the default recording. Press Play, read the Priority list. Every merge to `main` redeploys it.
+- **The evening arrivals bank** — [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002).
+- **The sheet page** — [`?sheet`](https://garishay.github.io/vigil/?sheet): drop a results file, or both run files, or paste them, and the subject sheet is drawn in that tab, downloaded or printed; **Clear saved runs** asks once before it removes what the browser holds.
+
+## Run a study session — one link per person
+
+Unaided first, then Vigil; or Vigil first, then unaided. Put the person's code in for `<code>`:
+
+```
+https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw&subject=<code>&run=1
+https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&subject=<code>&run=1
+```
+
+The link opens on the brief. Run 1 ends in **Start run 2** — the pair's other scenario, the other condition, the same code. Run 2 ends in **See your results** and **Download results**, the one file to hand over.
+A link with `subject` and `run` opens on the brief and is a study run; without them it is a demo and plays on.
+A fresh code per person: a run is kept in the browser under its code. A link opened with one run saved resumes at the run not yet saved.
+A link that opens on **Session complete** means that code's session is finished in that browser — **Download results** is on that card; a new person takes a fresh code.
+**Clear saved runs**, on the sheet page, removes every saved run in that browser — every code — so download first.
+
+<details><summary>Every scenario link, and the URL parameters</summary>
+
+| scenario | condition | link                                                                                                                                          |
+| -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 02a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a)                   |
+| 02a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) |
+| 02b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b)                   |
+| 02b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw) |
+| 03a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a)                   |
+| 03a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw) |
+| 03b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b)                   |
+| 03b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) |
+
+One link a row, not two: the Demo form this list once carried beside each Study form — `?recording=vigil-phl-002&scenario=…` — resolves to the same session, since `?recording=<id>` is the alias of `?feed=recording:<id>` and is folded into the feed list before anything else reads it (`src/lib/session.ts`); a link is a study run when it carries `subject` and `run`, whichever form named the recording.
+
+A 02 study link (S3b, S4a) is the corroboration pair; a 03 link (S7) the prioritization pair. A 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turned (S7d) — where a 02 run is six minutes. A worked study link, subject S03, run 1: [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1).
+
+- `feed=recording:<id>` — the recording; the picture is its real layer with the scenario beside it. `vigil-phl-001` is the default.
+- `recording=<id>` — the same, as an alias: the two forms are one.
+- `scenario=<name>` — a study scenario by name; `on`, the default, is the default deal, `off` none. A study link names one.
+- `mode=raw` — the unaided condition; `vigil`, the default, is the app as built.
+- `subject=<code>` — with `run`, both or neither: the person's code, under which the browser keeps their runs.
+- `run=<n>` — 1 or 2; a link opened again resumes at the first run not yet saved and never re-runs a saved one.
+- `sheet` — the sheet page, alone.
+
+</details>
+
+A study run shows only what the task needs (S8): no tab bar in either condition — the run opens on the map and, in Vigil, the **Priority list** beside it, with the detail in place on selection — the detail offers Escalate and Dismiss, each one click on any track and closing the detail, and a track the subject has opened reads Opened and is drawn in a grey on the map from the click, one they have escalated or dismissed is drawn hollow; in Vigil the map spends one colour, red on a track at warning, and every other track wears the unaided neutral with no dim and no map legend (S9b); the brief that opens the run is one screen with the map's own legend, and the three end questions read as questions with their ends labelled. The demo opens on the same Priority list beside the map, with Sites as its other tab (#183).
 
 Vigil is an airspace-triage workstation for Philadelphia-area airspace. It fuses two layers into
 one picture — real, publicly broadcast ADS-B traffic (the cooperative aircraft) and simulated
@@ -177,7 +188,7 @@ flowchart LR
   subgraph ui["UI — React + MapLibre; consumes the modules, never reimplements them"]
     direction TB
     app["App.tsx + data/useCapture.ts<br/>loads the recording the query names, once<br/>holds the inject plan · samples both layers and every history at the clock's t<br/>opens a track's log when it first appears · sim clock ticking from the recording's clock start"]
-    queue["Queue<br/>ranked list, the product · reason tag in plain English"]
+    queue["Queue — the Priority list on screen (#183)<br/>ranked list, the product · reason tag in plain English"]
     map["MapView + IdentityLegend + glyphs<br/>context · three shapes by what a track broadcast — an aircraft turned to its heading, a drone, the plain dot — rasterised as SDF images so paint colours them · breadcrumb trail behind the selected track, fading to its old end · its projected path to the ring, dashed, an arrowhead and the entry reading where it meets it · raw's heading tick, one screen length from the marker's edge<br/>the subject's own bookkeeping (S8, S9b): a track they have opened drawn in a grey from the click, label and tick with it, one they have escalated or dismissed drawn hollow at its own size — identical in both conditions, from their own clicks alone · a study run in Vigil spends one colour, warning on the whole marker, and no dim; the legend is the brief's there"]
     review["components/ReviewDrawer.tsx + TrackVisuals + ScoreBreakdown<br/>one track — observed or derived<br/>a study run: Escalate and Dismiss in one click and no Assess — opening marks — the source word on the header badge, no empty image area (S8)<br/>silhouette by class · photo, credited (ADS-B only) · selection synced with the map<br/>score opened to its factors, band-coloured · lifecycle actions · event log and handoff in sim time · trail count · time to entry"]
     clock["data/usePlayback.ts + Playback<br/>the replay clock: play · pause · seek, one second per tick · how it last moved<br/>a study run's window: held at Begin, ended at +6:00, never restarted<br/>scheduler injected, so no test waits on time"]
@@ -294,14 +305,14 @@ threat's first open and standoff, the false escalations (tracks that never enter
 escalations of later entrants on their own column, the order — and its frame freezes at the last
 threat's escalation with one decision line per threat (S5c-i). A Vigil run's frame carries what
 Vigil's screen showed and raw's did not (S5c-ii): the warm labels beside every above-calm
-inject, the Queue box under the map with every candidate's rank, composite, and reason tag, a
+inject, the Priority list box under the map with every candidate's rank, composite, and reason tag, a
 threat's Remote ID mismatch line where its score read one, the Entry row's estimate beside each
 threat's dot, and after each threat look the caption's line of what Vigil read then — the app's
 own readings through the engine, every element gated on the mode so no annotation reaches a raw
 frame: the corroboration pair's raw frames are byte for byte as before. On the prioritization
 pair each threat carries one map label per mode and the T0 range and entry clock move into the
 caption, so its raw frames change by that alone. Exactly two run files also write **the pair**
-(S5d-i) — `pair-<subject>-<scenario>.svg`, the two frames side by side, each Queue box capped at
+(S5d-i) — `pair-<subject>-<scenario>.svg`, the two frames side by side, each Priority list box capped at
 its top five rows, and under them the block: the attention counts for both conditions, then one
 row per threat with the run's window as a shared time axis carrying each condition's first open
 and escalation and the threat's ring entry, and the standoff band for that threat with one dot
@@ -325,7 +336,7 @@ inside the ring, with that scenario's entry point a tick across the ring. Unlike
 runs of one scenario and two of one condition are refused in words. Every frame draws one
 numbered marker per distinct track looked at, with a `×N` badge when the run came back to it.
 A frame's path and markers carry **the whole run**, not the span up to the freeze (S5f): the
-freeze stays where it is — the picture, the Queue box and every reading are that second — and a
+freeze stays where it is — the picture, the Priority list box and every reading are that second — and a
 look after it is drawn as a dashed outline on a dashed path, the outline filled with the panel so
 its numeral reads over nothing else; a late look the regenerated picture no longer holds is not
 drawn, and the footnote's key says so. The subtitle gives both counts. Each frame's caption also

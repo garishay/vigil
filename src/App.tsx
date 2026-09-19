@@ -76,39 +76,23 @@ import {
 } from './lib/sites'
 import type { AdsbTrack, InjectTrack } from './lib/tracks'
 
-type SurfaceId = 'home' | 'queue' | 'review' | 'sites'
+type SurfaceId = 'queue' | 'sites'
 type LayerFilter = 'all' | 'adsb' | 'inject'
 
 /**
- * The rail's head in a study run (S8, #180 item 1): the list is the subject's instrument, and
- * "Queue" names a waiting line rather than a ranking. Rendered text only — the code, the CSS
- * classes, the CSV columns and the URL parameters keep "queue", as "unaided" stands beside
- * "raw". The body says what the order means, once, where the demo's says where scores open.
+ * The list is the app (#183, from the shakedown; S8, #180 item 1): the app opens on the ranked
+ * list, and the two tabs that cost a click and explained nothing — Home and Review — are gone.
+ * "Queue" names a waiting line rather than a ranking, so the rendered text says **Priority
+ * list** — the tab, the rail's header, the body — while the code, the CSS classes, the CSV
+ * columns and the URL parameters keep "queue", as "unaided" stands beside "raw". The header and
+ * the body are the study run's own words, so a run reads exactly what it read before.
  */
-const STUDY_QUEUE = {
-  label: 'Priority',
-  title: 'Priority list — highest first',
-  body: 'The top row needs you first. Click a row or a track on the map to read it.',
-}
-
 const SURFACES: { id: SurfaceId; label: string; title: string; body: string }[] = [
   {
-    id: 'home',
-    label: 'Home',
-    title: 'Picture summary',
-    body: 'Both layers are counted in the strip above and ranked in the Queue by score. The sim clock opens at the recording’s clock start and ticks with playback.',
-  },
-  {
     id: 'queue',
-    label: 'Queue',
-    title: 'Ranked queue',
-    body: 'Ranked by score; every score opens to its factors in Review.',
-  },
-  {
-    id: 'review',
-    label: 'Review',
-    title: 'Track review',
-    body: 'Everything known about the selected track. Every lifecycle action lands in its event log.',
+    label: 'Priority',
+    title: 'Priority list — highest first',
+    body: 'The top row needs you first. Click a row or a track on the map to read it.',
   },
   {
     id: 'sites',
@@ -199,7 +183,7 @@ export default function App({
   navigate?: (search: string) => void
   loadResults?: () => Promise<typeof RunResultsView>
 } = {}) {
-  const [surfaceId, setSurfaceId] = useState<SurfaceId>('home')
+  const [surfaceId, setSurfaceId] = useState<SurfaceId>('queue')
   // The session the URL and the build name (#115): its feeds and, when on, its scenario. One
   // recording per session in this build, the resolver's rule, so the recording feed is the first.
   const session = useSession()
@@ -220,13 +204,10 @@ export default function App({
   // window's end, and closes on the end screen; nothing of it mounts in the demo (ruled A8).
   const study = resolved?.study ?? null
   const inStudy = study !== null
-  // A study run is the list and the map, and nothing else is reachable (item 1). The rail's
-  // header reads for the subject rather than for the codebase: *Priority list — highest first*,
-  // rendered text only, where the code, the classes and the parameters keep "queue".
+  // A study run is the list and the map, and nothing else is reachable (S8, item 1): Sites is
+  // withheld there. The demo opens on the list too (#183) and keeps Sites beside it.
   const activeSurface: SurfaceId = inStudy ? 'queue' : surfaceId
-  const surface = inStudy
-    ? { ...STUDY_QUEUE, id: 'queue' as const }
-    : (SURFACES.find((s) => s.id === surfaceId) ?? SURFACES[0])
+  const surface = SURFACES.find((s) => s.id === activeSurface) ?? SURFACES[0]
   // The run's window (S4b, ruled A2, A4): Begin's tick to the run's end — the scenario's own
   // length when its registry entry carries one (S7, #152, ruled D3), the study's default
   // otherwise, resolved with the session so the link fixes it.
@@ -500,16 +481,11 @@ export default function App({
 
   // The picture can take the selection away: a selected track coasts out and the drawer unmounts
   // with nobody pressing Close (#73 review). Clear the selection, so the Queue's own return-to-
-  // list effect runs where the Queue is mounted, and remember it for the Review surface, where
-  // focus would otherwise fall to document.body — the failure #46 and #54 were built against.
-  // Guarded set-during-render, as the sighting fold below; only once the recording is in, since
-  // a loading picture has taken nothing away.
+  // list effect runs — the list is mounted under every close now (#183). Guarded
+  // set-during-render, as the sighting fold below; only once the recording is in, since a
+  // loading picture has taken nothing away.
   const orphaned = selectedId !== null && selected === null && ready !== null
-  const [orphanCount, setOrphanCount] = useState(0)
-  if (orphaned) {
-    setOrphanCount((count) => count + 1)
-    setSelectedId(null)
-  }
+  if (orphaned) setSelectedId(null)
 
   // The record's fold over the picture, once per render that changes it. Every track without a
   // log gets one opened now — its `at` from the wall clock, its `tSec` from the replay clock,
@@ -709,12 +685,6 @@ export default function App({
     }
     setSelectedId(id)
   }
-  // A selection is an intent to review (A2 on #3): one made on Home — a map dot, an alert card —
-  // lands the operator on the Queue, where the drawer and its close button are.
-  const selectTrack = (id: string) => {
-    select(id)
-    setSurfaceId((current) => (current === 'home' ? 'queue' : current))
-  }
 
   const act = (
     action: LifecycleAction,
@@ -801,7 +771,7 @@ export default function App({
   }
   const changeSurface = (id: SurfaceId) => {
     setSurfaceId(id)
-    // Leaving the Sites surface disarms the map: a click on Home must not place a site.
+    // Leaving the Sites surface disarms the map: a click on the list's map must not place a site.
     if (id !== 'sites') setPlacing(null)
   }
 
@@ -843,30 +813,12 @@ export default function App({
         ? session.message
         : null
 
-  // On Review the Queue is unmounted, so its row-focus return has nothing to land on: the close
-  // button a keyboard operator just pressed unmounts under them and focus falls to document.body.
-  // Land it on the surface's own nav item instead — named, visible, and the anchor of where they
-  // already are (#46). Keyboard activations only, the drawer's own modality gate: a keyboard
-  // click carries detail 0, a mouse click a positive count, and a mouse user parked on the nav
-  // button would have Space activate it instead of scrolling (#53 review, after 03b round 6).
-  // Queue-surface closes keep 03a's row return; this never runs there.
-  const reviewNavRef = useRef<HTMLButtonElement>(null)
   // The Queue's row return is an effect on the cleared selection and cannot see the click, so
   // the close handler records the modality beside the clear — state, so it commits with it —
-  // and the Queue skips the return for a pointer-driven close (#54).
+  // and the Queue skips the return for a pointer-driven close (#54). With the Review tab gone
+  // (#183) the list is mounted under every close, so the row return is the only one left, and
+  // an orphaned selection (#73) lands on the list the same way.
   const [keyboardClose, setKeyboardClose] = useState(true)
-  // The Review half of the orphan case above: after the commit that dropped the drawer, land
-  // focus on the Review nav item exactly as a keyboard close does — and only if it actually fell
-  // to body, so a pointer user's focus is left where it is.
-  const orphanHandledRef = useRef(0)
-  useEffect(() => {
-    // Once per orphaning, never again on a later surface switch.
-    if (orphanCount === orphanHandledRef.current) return
-    orphanHandledRef.current = orphanCount
-    if (activeSurface === 'review' && document.activeElement === document.body) {
-      reviewNavRef.current?.focus()
-    }
-  }, [orphanCount, activeSurface])
   const drawer = selected && (
     <ReviewDrawer
       // Keyed by track, so picker and copied state never leak from one track to the next.
@@ -885,19 +837,16 @@ export default function App({
       mode={mode}
       run={inStudy}
       onClose={(event) => {
-        const keyboard = event.detail === 0
-        setKeyboardClose(keyboard)
+        setKeyboardClose(event.detail === 0)
         setSelectedId(null)
-        if (activeSurface === 'review' && keyboard) reviewNavRef.current?.focus()
       }}
     />
   )
-  // The drawer is its own column beside the Queue (§4.2 — the operator keeps the list while
-  // reviewing); the Review surface shows the same drawer alone, at the same 26 rem (ruled B1, #3).
+  // The drawer is its own column beside the list (§4.2 — the operator keeps the list while
+  // reviewing), at 26 rem (ruled B1, #3); on Sites the selection is kept and the drawer waits.
   const drawerColumn = activeSurface === 'queue' && drawer
   const bodyClasses = ['shell__body']
   if (drawerColumn || (raw && drawer)) bodyClasses.push('shell__body--drawer')
-  if (activeSurface === 'review') bodyClasses.push('shell__body--review')
   // Raw (S4a, ruled A3): no rail — the map fills the body, the drawer opens beside it on a click.
   if (raw) bodyClasses.push('shell__body--raw')
 
@@ -1007,15 +956,13 @@ export default function App({
       <header className="shell__header" inert={covered}>
         <h1 className="shell__wordmark">Vigil</h1>
         {/* No tab bar in a study run (S8, #180 item 1): the run opens on the map and the
-            ranked list, and the detail opens in place on selection. Home, Review and Sites are
-            not reachable — two tabs cost a click and explain nothing, and a subject who lands on
-            Home sees no list at all. Raw has never had the nav (the fairness spec). */}
+            ranked list, and the detail opens in place on selection; Sites is not reachable. The
+            demo's two tabs are the list and Sites (#183). Raw has never had the nav. */}
         {!raw && !inStudy && (
           <nav className="nav" aria-label="Surfaces">
-            {SURFACES.filter((s) => !inStudy || s.id !== 'sites').map((s) => (
+            {SURFACES.map((s) => (
               <button
                 key={s.id}
-                ref={s.id === 'review' ? reviewNavRef : undefined}
                 type="button"
                 className="nav__item"
                 aria-current={s.id === surfaceId ? 'page' : undefined}
@@ -1142,14 +1089,12 @@ export default function App({
               line above is its assertive sibling. Mounted on every surface with only the text
               toggling, because a region inserted in the same commit as its text is one some
               screen readers never announce — and the filters persist across surfaces, so a
-              return to the Queue would otherwise remount it already filled (#51 review). */}
+              return to the list would otherwise remount it already filled (#51 review). */}
             <p className="rail__empty" role="status">
               {activeSurface === 'queue' && ready !== null && visible.length === 0
                 ? 'No tracks match the filters.'
                 : null}
             </p>
-            {activeSurface === 'review' &&
-              (drawer ?? <p className="rail__empty">Select a track from the Queue.</p>)}
             {activeSurface === 'sites' && (
               <SitesPanel
                 set={siteSet}
@@ -1216,16 +1161,9 @@ export default function App({
           onPlace={place}
           tracks={adsb}
           injects={injects}
-          // Ruled A2 on #3: the selection persists across surface switches, but Home's map is
-          // unannotated context — it never shows the ring, so no surface carries selection
-          // state it cannot explain. The suppression is presentation-only (`selectionShown`),
-          // so a Home round trip cannot reset the ease stamp and re-fly the camera (#47).
+          // The selection persists across the two surfaces and the ring and trail with it: the
+          // one surface that withheld them, Home, is gone (#183; A2 on #3 is moot).
           selectedId={selectedId}
-          // The effective surface, never the stored one (round 1, findings 1 and 2): a study run
-          // is pinned to the list and never changes `surfaceId`, which stays `home` from mount,
-          // so reading it here withheld the ring and the trail from a whole Vigil run — the
-          // trail is part of both conditions' picture, and S10's lines are drawn on it.
-          selectionShown={raw || activeSurface !== 'home'}
           trail={trail}
           // Raw (ruled A4): no projected path, no dim, no band fill — the derived readings the
           // fairness spec hides; the trail and the ring stay.
@@ -1238,7 +1176,7 @@ export default function App({
           // A study run's paint (S9b, #199): warning alone in Vigil, the opened mark on the marker,
           // no legend on the map. The demo keeps its paint.
           run={inStudy}
-          onSelect={selectTrack}
+          onSelect={select}
         >
           {!raw && (
             <AlertStack
@@ -1250,7 +1188,7 @@ export default function App({
               clock={clock}
               tSec={tSec}
               frontierOf={(id) => eventLogs[id]?.at(-1)?.tSec ?? tSec}
-              onOpen={selectTrack}
+              onOpen={select}
               onAcknowledge={acknowledge}
             />
           )}

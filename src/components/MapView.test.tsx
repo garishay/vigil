@@ -381,38 +381,6 @@ describe('MapView', () => {
     expect(dataFor('selected-track').features).toEqual([])
   })
 
-  it('suppresses the ring as presentation only — selection kept, camera not re-flown (03b, A2)', () => {
-    const { rerender } = render(
-      <MapView ao={AO} tracks={TRACKS} injects={INJECTS} selectedId="inject-01" />,
-    )
-    const eased = mapInstance.easeTo.mock.calls.length
-    // Home: the ring source empties while the selection stays put…
-    rerender(
-      <MapView
-        ao={AO}
-        tracks={TRACKS}
-        injects={INJECTS}
-        selectedId="inject-01"
-        selectionShown={false}
-      />,
-    )
-    expect(dataFor('selected-track').features).toEqual([])
-    // …and returns without a second flight: the ease stamp survived the round trip (#47).
-    rerender(
-      <MapView
-        ao={AO}
-        tracks={TRACKS}
-        injects={INJECTS}
-        selectedId="inject-01"
-        selectionShown={true}
-      />,
-    )
-    expect(dataFor('selected-track').features[0].geometry).toMatchObject({
-      coordinates: INJECTS[0].position,
-    })
-    expect(mapInstance.easeTo.mock.calls.length).toBe(eased)
-  })
-
   it('draws injects above cooperative traffic rather than under it', () => {
     render(<MapView ao={AO} />)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
@@ -724,7 +692,7 @@ describe('MapView', () => {
     ])
   })
 
-  it('draws the projected path as one dashed neutral line, only with the ring, and nothing without a course (#102, S10)', () => {
+  it('draws the projected path as one dashed neutral line, and nothing without a course (#102, S10)', () => {
     const projection: [number, number][] = [
       [-75.2, 39.9],
       [-75.22, 39.88],
@@ -750,17 +718,6 @@ describe('MapView', () => {
     expect(Object.values(BAND_COLOR)).not.toContain(layer.paint['line-color'])
     // A course that misses the ring: the line, and nothing at its end.
     expect(dataFor('selected-entry').features).toEqual([])
-    // Home hides the ring and the path with it, the selection kept (A2 on #3).
-    rerender(
-      <MapView
-        ao={AO}
-        injects={INJECTS}
-        selectedId="inject-01"
-        projection={projection}
-        selectionShown={false}
-      />,
-    )
-    expect(dataFor('selected-projection').features).toEqual([])
     // Inside, or nothing observed to project: nothing to draw.
     rerender(<MapView ao={AO} injects={INJECTS} selectedId="inject-01" projection={[]} />)
     expect(dataFor('selected-projection').features).toEqual([])
@@ -774,7 +731,7 @@ describe('MapView', () => {
       [-75.2, 39.9],
       [-75.19, 39.89],
     ]
-    const { rerender } = render(
+    render(
       <MapView
         ao={AO}
         injects={INJECTS}
@@ -835,18 +792,6 @@ describe('MapView', () => {
       315,
       'bottom',
     ])
-    // Home hides the end with the path.
-    rerender(
-      <MapView
-        ao={AO}
-        injects={INJECTS}
-        selectedId="inject-01"
-        projection={projection}
-        projectionEntryS={108}
-        selectionShown={false}
-      />,
-    )
-    expect(dataFor('selected-entry').features).toEqual([])
   })
 
   it('draws no arrowhead and no reading for a clamped entry whose path is zero (#192, ruled 3)', () => {
