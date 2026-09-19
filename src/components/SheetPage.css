@@ -149,6 +149,19 @@
     break-inside: avoid;
   }
 
+  /* A heading never stands alone and the Queue box never leaves its log (round 1 on #195):
+     the logs' row never ends a page, its first line and the Queue box never begin one — the
+     block's own name, read off the `<svg>` it holds, says which is which. `:has()` is in
+     every browser since 2023 (Chrome 105, Safari 15.4, Firefox 121). */
+  .sheet__block:has(> svg[data-block='logs']) {
+    break-after: avoid;
+  }
+
+  .sheet__block:has(> svg[data-block='log-1']),
+  .sheet__block:has(> svg[data-block='queue']) {
+    break-before: avoid;
+  }
+
   /* The chrome, all of it. The controls are named here rather than left to sit inside a hidden
      header: the document is the header's sibling now, so nesting hides nothing for it, and a
      leave-behind with a row of buttons across the top is not the leave-behind. */

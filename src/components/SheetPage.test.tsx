@@ -335,5 +335,25 @@ describe('the leave-behind (round 1, finding 1)', () => {
     const print = /@media print \{([\s\S]*?)\n\}/.exec(css)![1]
     expect(print).toMatch(/\.sheet__block \{[^}]*break-inside:\s*avoid/)
     expect(css).toMatch(/@page \{\s*margin:\s*6mm 12mm;\s*\}/)
+    // The ties (round 1 on #195): a heading never stands alone at a page's foot and the Queue
+    // box never begins a page away from its log — the logs' row never breaks after, its first
+    // line and the Queue box never break before. Each rule names its block by the name the
+    // block carries.
+    const rules = print.split('}').map((chunk) => {
+      const [selectors, declarations = ''] = chunk.split('{')
+      return { selectors: selectors.split(',').map((selector) => selector.trim()), declarations }
+    })
+    const declaring = (selector: string) =>
+      rules
+        .filter((rule) => rule.selectors.includes(selector))
+        .map((rule) => rule.declarations)
+        .join(' ')
+    expect(declaring(".sheet__block:has(> svg[data-block='logs'])")).toMatch(/break-after:\s*avoid/)
+    expect(declaring(".sheet__block:has(> svg[data-block='log-1'])")).toMatch(
+      /break-before:\s*avoid/,
+    )
+    expect(declaring(".sheet__block:has(> svg[data-block='queue'])")).toMatch(
+      /break-before:\s*avoid/,
+    )
   }, 30_000)
 })

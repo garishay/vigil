@@ -6,7 +6,7 @@
  * the same file name; pure, so the browser can call it.
  */
 
-import { sheetBlocks, sheetName, sheetSvg } from './sheet.ts'
+import { sheetDocument, sheetName } from './sheet.ts'
 import { pairName, pairSvg } from './pair.ts'
 import { RunRefusal } from './load.ts'
 import type { FrameInput, FrameOptions } from './frame.ts'
@@ -46,9 +46,9 @@ export function compose(
   }
   const unaided = first.record.mode === 'raw' ? first : second
   const vigil = unaided === first ? second : first
-  return {
-    name: sheetName(unaided.record, vigil.record),
-    svg: sheetSvg({ unaided, vigil }, options),
-    blocks: sheetBlocks({ unaided, vigil }, options),
-  }
+  // One layout, both readings (round 1 on #195): the file and the blocks come from the same
+  // `sheetLayout` call, so neither the CLI, which writes the file, nor the page, which mounts
+  // the blocks, pays for a second one it throws away.
+  const { svg, blocks } = sheetDocument({ unaided, vigil }, options)
+  return { name: sheetName(unaided.record, vigil.record), svg, blocks }
 }

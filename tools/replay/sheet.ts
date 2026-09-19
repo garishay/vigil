@@ -780,30 +780,39 @@ function sheetLayout(
   return { width, blocks, attrs }
 }
 
-/**
- * The subject sheet as blocks, each a complete `<svg>` (S5g, #194): what the browser mounts,
- * one element per block, so its print breaks only between them.
- */
-export function sheetBlocks(input: SheetInput, options: FrameOptions = {}): string[] {
-  const { width, blocks } = sheetLayout(input, options)
-  return blocks.map((block) => blockSvg(block, width))
+/** The subject sheet drawn: its blocks, and the CLI's one file of the same blocks. */
+export interface SheetDocument {
+  /** Each block a complete `<svg>` (S5g, #194): what the browser mounts, one element per block, so its print breaks only between them. */
+  blocks: string[]
+  /** One SVG document, the CLI's file: the same blocks, byte for byte, each stacked at its y inside a `<g>` — the wrapper is the only line the file adds. */
+  svg: string
 }
 
 /**
- * The subject sheet as one SVG document, the CLI's file: the same blocks, byte for byte, each
- * stacked at its y inside a `<g>` — the wrapper is the only line the file adds.
+ * The subject sheet, laid out once (round 1 on #195): the layout is the expensive half of the
+ * render — both frames' parts, every look placed, the engine at the freeze — and the blocks
+ * and the file are two readings of it, so `compose` takes both from one call.
  */
-export function sheetSvg(input: SheetInput, options: FrameOptions = {}): string {
+export function sheetDocument(input: SheetInput, options: FrameOptions = {}): SheetDocument {
   const { width, blocks, attrs } = sheetLayout(input, options)
+  const drawn = blocks.map((block) => blockSvg(block, width))
   const height = blocks.reduce((sum, block) => sum + block.height, 0)
   const parts = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" ${attrs}>`,
   ]
   let y = 0
-  for (const block of blocks) {
-    parts.push(`<g transform="translate(0 ${y})">`, blockSvg(block, width), '</g>')
+  blocks.forEach((block, i) => {
+    parts.push(`<g transform="translate(0 ${y})">`, drawn[i], '</g>')
     y += block.height
-  }
+  })
   parts.push('</svg>', '')
-  return parts.join('\n')
+  return { blocks: drawn, svg: parts.join('\n') }
 }
+
+/** The blocks alone, for a reader that wants nothing else. */
+export const sheetBlocks = (input: SheetInput, options: FrameOptions = {}): string[] =>
+  sheetDocument(input, options).blocks
+
+/** The file alone, for a reader that wants nothing else. */
+export const sheetSvg = (input: SheetInput, options: FrameOptions = {}): string =>
+  sheetDocument(input, options).svg
