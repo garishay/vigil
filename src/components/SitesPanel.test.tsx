@@ -128,14 +128,20 @@ describe('SitesPanel (08a)', () => {
   it('arms the map from the add button, says so in the live line, and cancels from the button or Escape', () => {
     const props = renderPanel(fromConfig(CONFIG))
     expect(document.querySelector('.sites__hint')).toHaveTextContent('')
+    // At rest the button wears no armed class.
+    expect(screen.getByRole('button', { name: '+ Protected site' })).not.toHaveClass(
+      'sites__button--armed',
+    )
     fireEvent.click(screen.getByRole('button', { name: '+ Protected site' }))
     expect(props.onPlacing).toHaveBeenCalledWith({ kind: 'add', site: 'protected' })
     // Armed: the button reads Cancel and the hint says what the click does. The label alone
-    // carries the state — no aria-pressed, which would announce it inverted (#36 [18]; #205).
+    // carries the state a reader hears — no aria-pressed, which would announce it inverted
+    // (#36 [18]; #205) — and the armed class carries what is seen (#206 round 1).
     const placing: Placing = { kind: 'add', site: 'protected' }
     vi.mocked(props.onPlacing).mockClear()
     render(<SitesPanel {...props} placing={placing} />)
     expect(screen.getByRole('button', { name: 'Cancel' })).not.toHaveAttribute('aria-pressed')
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('sites__button--armed')
     expect(screen.getByText('Click the map to place the centre')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(props.onPlacing).toHaveBeenLastCalledWith(null)

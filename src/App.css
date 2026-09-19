@@ -1403,7 +1403,7 @@
   cursor: default;
 }
 
-.sites__button[aria-pressed='true'] {
+.sites__button--armed {
   border-color: var(--accent);
   color: var(--accent);
 }
