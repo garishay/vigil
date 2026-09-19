@@ -1,0 +1,102 @@
+{
+ "viewport": [
+  1280,
+  720
+ ],
+ "stripHeight": 69,
+ "inner": 1248,
+ "gap": "8px 32px",
+ "wrap": "wrap",
+ "lineH": null,
+ "fields": [
+  {
+   "label": "Cooperative",
+   "value": "75",
+   "x": 16,
+   "y": 56,
+   "width": 98,
+   "height": 22,
+   "labelLines": 1,
+   "valueLines": 1,
+   "oneLineWidth": 98
+  },
+  {
+   "label": "Injects",
+   "value": "6",
+   "x": 146,
+   "y": 56,
+   "width": 59,
+   "height": 22,
+   "labelLines": 1,
+   "valueLines": 1,
+   "oneLineWidth": 59
+  },
+  {
+   "label": "Seed",
+   "value": "vigil-phl-001",
+   "x": 237,
+   "y": 56,
+   "width": 108,
+   "height": 22,
+   "labelLines": 1,
+   "valueLines": 1,
+   "oneLineWidth": 108
+  },
+  {
+   "label": "Recording",
+   "value": "vigil-phl-001 · 2026-08-31",
+   "x": 377,
+   "y": 56,
+   "width": 223,
+   "height": 22,
+   "labelLines": 1,
+   "valueLines": 1,
+   "oneLineWidth": 223
+  },
+  {
+   "label": "Sim clock",
+   "value": "02:30:01",
+   "x": 632,
+   "y": 56,
+   "width": 116,
+   "height": 22,
+   "labelLines": 1,
+   "valueLines": 1,
+   "oneLineWidth": 116
+  },
+  {
+   "label": "Playback",
+   "value": "Pause 00:01 / 19:45",
+   "x": 780,
+   "y": 56,
+   "width": 402,
+   "height": 22,
+   "labelLines": 1,
+   "valueLines": 2,
+   "oneLineWidth": 402
+  },
+  {
+   "label": "Alerts",
+   "value": "Mute",
+   "x": 16,
+   "y": 86,
+   "width": 103,
+   "height": 22,
+   "labelLines": 1,
+   "valueLines": 2,
+   "oneLineWidth": 103
+  },
+  {
+   "label": "AO",
+   "value": "Philadelphia",
+   "x": 1170,
+   "y": 86,
+   "width": 94,
+   "height": 22,
+   "labelLines": 1,
+   "valueLines": 1,
+   "oneLineWidth": 94
+  }
+ ],
+ "rows": 2
+}
