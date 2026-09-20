@@ -343,10 +343,13 @@ drawn, and the footnote's key says so. The subtitle gives both counts. Each fram
 lists **every escalation the run made besides the threats** — the look it came off, the second,
 the track as the run read it, and what it turned out to be: a track that never enters the ring,
 one that enters after the window closed, or a real aircraft, cooperative traffic and never a
-threat. The sheet accounts for the same escalations twice over: its headline names each one
-instead of counting classes, and beneath the threats' rows a third row puts a mark on the same
-time axis per condition, with what each turned out to be in words under it — absent when neither
-condition escalated anything else, and never calling a due-later inbound a non-threat.
+threat. The sheet accounts for the same escalations twice over: its headline counts them by
+class — each condition opens with one tally line, the same fields in the same order (threats
+stopped, the first escalation's clock, the standoff per threat or MISSED, early escalations, false
+alarms), and its counts sentence says _nine early escalations and one false alarm_ rather than
+listing idents (S5h) — and beneath the threats' rows a third row names every one, a mark on the
+same time axis per condition with what each turned out to be in words under it — absent when
+neither condition escalated anything else, and never calling a due-later inbound a non-threat.
 The caption is a **decision log** (S5g): one line per decision — open, assess, dismiss, escalate —
 in the clock's order over the whole run, each tagged with the look it came off, and each fact said
 once, so an open line no longer carries the escalation's clock and the escalation's own line

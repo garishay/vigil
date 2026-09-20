@@ -2,20 +2,21 @@
  * The subject sheet (S5e, #164; the #131 amendment of 2026-09-16 evening): one document for a
  * subject's two runs — an unaided run on one scenario beside a Vigil run on the other, the
  * counterbalanced pair the pilot actually collects, which the pair refuses because its rows,
- * window, and order read one cast. The order a reader meets it (S5g, #194): the headline in
- * sentences the tool writes from the metrics, one condition per pair of sentences, the counts
- * among them as prose and never as a key-value line; the two frames' pictures side by side,
- * unaided left, Vigil right; then one row per threat by role — threat 1 each scenario's first
- * entrant — with the time lane the pair draws, each condition's lane carrying its own entry tick
- * and its own window end on an axis running the longer window, and beside it, in place of the
- * standoff axis, the ring: the 5 km ring north up on an 8 km panel, the site at its centre, each
- * condition's escalation plotted at its true bearing and range at the second of escalation —
- * hollow inside the ring — and its scenario's entry point a tick on the ring in that condition's
- * colour; the other escalations; then the two frames' logs side by side with Vigil's Queue box
- * capped as the pair's is, and the footnotes last. The sheet is drawn as blocks, each from its
- * own y — a page breaks only between them, never through a log line — that the browser mounts
- * one by one and the CLI stacks into one file. Pure and deterministic; the metrics and the CSV
- * are untouched.
+ * window, and order read one cast. The order a reader meets it (S5g, #194): the headline per
+ * condition — one tally line of the counts and times the sheet already computes (S5h, #207),
+ * then one sentence the tool writes from the metrics, the escalations besides the threats said
+ * as counts and never by ident, since the row below lists every one; the two frames' pictures
+ * side by side, unaided left, Vigil right; then one row per threat by role — threat 1 each
+ * scenario's first entrant — with the time lane the pair draws, each condition's lane carrying
+ * its own entry tick and its own window end on an axis running the longer window, and beside
+ * it, in place of the standoff axis, the ring: the 5 km ring north up on an 8 km panel, the site
+ * at its centre, each condition's escalation plotted at its true bearing and range at the second
+ * of escalation — hollow inside the ring — and its scenario's entry point a tick on the ring in
+ * that condition's colour; the other escalations; then the two frames' logs side by side with
+ * Vigil's Queue box capped as the pair's is, and the footnotes last. The sheet is drawn as
+ * blocks, each from its own y — a page breaks only between them, never through a log line —
+ * that the browser mounts one by one and the CLI stacks into one file. Pure and deterministic;
+ * the metrics and the CSV are untouched.
  */
 
 import { bearingDegrees } from '../../src/lib/geo.ts'
@@ -31,7 +32,6 @@ import {
   looksOfRun,
   mmss,
   PANEL,
-  wrapText,
   outcomeWords,
   THEME,
   trackNamer,
@@ -50,14 +50,16 @@ const PAD = 30
 /** Where the headline’s prose starts, clear of its condition dot. */
 const TEXT_X = 48
 /**
- * The headline block above the frames: the title's row, then per condition an opening sentence
- * and its counts sentence, which wraps when a run names enough escalations to need it. At one
- * line each the block stands 150, as S5e drew it.
+ * The headline block above the frames: the title's row, then per condition its tally line and
+ * its sentence (S5h, #207). Two lines each whatever the run did — the sentence counts the
+ * escalations besides the threats rather than naming them, so it never wraps — and the block
+ * stands 150, as S5e drew it: the fixtures' sheet keeps its one printed page (#194 R5).
  */
 const HEAD_TOP = 62
-const HEAD_LINE = 18
+const TALLY_GAP = 22
 const HEAD_GAP = 30
 const HEAD_BOTTOM = 14
+const HEAD_H = HEAD_TOP + 2 * TALLY_GAP + HEAD_GAP + HEAD_BOTTOM
 const ROW_H = 320
 const FOOT_H = 80
 /** The time axis: the longer of the two windows over 900 px, as the pair scales its own. */
@@ -176,41 +178,56 @@ function joinClauses(clauses: readonly (readonly [string, string])[]): string {
 }
 
 /**
- * The headline's second sentence (#164; S5f, #173): **every escalation the run made besides the
- * threats, named** — the track as the run read it, the second, and what it turned out to be in
- * the frame's own words — where it counted classes before. A reader who watched the run finds
- * each dispatch here and in the row below; the classes the CSV counts are the footnote's, under
- * the row that shows them. The order is reported last, never as the headline (#153).
+ * The condition's tally line (S5h, #207), the same fields in the same order on every sheet: the
+ * threats stopped of the threats cast, the first threat escalation's clock, each threat's
+ * standoff in role order as the ring legend writes it or *MISSED*, then the early escalations and
+ * the false alarms as the figure's items count them (K7, K8 B) — digits, a zero included. Every
+ * number is one the CSV already carries; no composite and no percentage (#131's read does not move).
  */
-export function countsChunks(input: FrameInput): string[] {
-  const { metrics: m, record } = input
-  const others = otherEscalations(record, input.study.index, input.plan)
-  // The run's own name for the track, the frame's rule (#177): the ident the screen showed at
-  // the freeze, falling back to the track's last event. Resolving it here at the escalation's
-  // own second would print one ident where the frame beside it prints another.
-  const { ident } = trackNamer(input)
-  const named = others.map(
-    (other) => `${ident(other.id)} at ${mmss(other.t)} (${outcomeWords(other)})`,
+export function tallyLine({ metrics: m }: Pick<FrameInput, 'metrics'>): string {
+  const stopped = m.threats.filter((threat) => !threat.miss).length
+  const escalated = m.threats.flatMap((threat) =>
+    threat.timeToEscalateS === null ? [] : [threat.timeToEscalateS],
   )
+  const spare = m.threats
+    .map((threat) => (threat.standoffM === null ? 'MISSED' : kmWord(threat.standoffM)))
+    .join(', ')
+  return [
+    `threats stopped ${stopped} of ${m.threats.length}`,
+    escalated.length === 0
+      ? 'no threat escalated'
+      : `first escalation at ${mmss(Math.min(...escalated))}`,
+    `to spare ${spare}`,
+    `early escalations ${m.escalationsOfLaterEntrants}`,
+    `false alarms ${m.falseEscalations}`,
+  ].join(' · ')
+}
+
+/**
+ * The headline's sentence, whole (#164; S5f, #173; S5h, #207): the opening sentence — the
+ * threats and the looks — carrying the escalations the run made besides the threats **as
+ * counts** in the footnote's two classes, where a second sentence named each one before. A
+ * subject who works down the list makes many, and a list of idents here repeated the row below,
+ * which keeps every ident. A class with none is left unsaid; with neither, the sentence ends on
+ * the looks. The order is reported last, never as the headline (#153).
+ */
+export function headlineSentence(input: Pick<FrameInput, 'metrics' | 'record'>): string {
+  const { metrics: m, record } = input
   const order =
     m.orderCorrect === null
       ? ''
       : m.orderCorrect
         ? '; the threats were escalated in entry order'
         : `; ${escalationOrderWords(m, record)}`
-  if (named.length === 0) return [`Nothing else was escalated${order}.`]
-  // One chunk per escalation, its comma or its *and* carried with it, so a line ends between two
-  // of them and never inside one: the parentheses are what make the list scannable (#174 round 1).
-  const items = named.map((name, i) =>
-    i === named.length - 1
-      ? `${named.length > 1 ? 'and ' : ''}${name}${order}.`
-      : `${name}${i === named.length - 2 ? '' : ','}`,
-  )
-  return [`Besides the threats, ${record.subject} escalated`, ...items]
+  const early = m.escalationsOfLaterEntrants
+  const alarms = m.falseEscalations
+  const counts = [
+    ...(early > 0 ? [`${inWords(early)} early ${plural(early, 'escalation')}`] : []),
+    ...(alarms > 0 ? [`${inWords(alarms)} false ${plural(alarms, 'alarm')}`] : []),
+  ]
+  const others = counts.length === 0 ? '' : `, with ${counts.join(' and ')}`
+  return `${openingSentence(input).slice(0, -1)}${others}${order}.`
 }
-
-/** The same sentence, whole — what a reader hears, and what the sheet writes when it fits one line. */
-export const countsSentence = (input: FrameInput): string => countsChunks(input).join(' ')
 
 /** The roles in the order the record escalated them: *threat 2 was escalated before threat 1*. */
 function escalationOrderWords(m: RunMetrics, record: RunRecord): string {
@@ -358,29 +375,18 @@ function sheetLayout(
     otherRows[0] + otherRows[1] === 0 ? 0 : OTHER_TOP + (otherRows[0] + otherRows[1]) * 18 + 20
   // The foot takes one more line when the row is there, for the counts sentence under it.
   const footH = FOOT_H + (otherH > 0 ? 18 : 0)
-  // The headline's own height (#174 round 1): a sentence that names every escalation grows with
-  // the run, and an SVG does not wrap, so it is broken to the sheet's width and the block grows
-  // by a line for each break. One line per condition — every run the fixtures hold, and every
-  // run with three escalations or fewer besides the threats — leaves the block at its 150.
   const said: [FrameInput, string][] = [
     [unaided, aColor],
     [vigil, bColor],
   ]
-  let hy = HEAD_TOP
-  const headRows = said.map(([input]) => {
-    const lines = wrapText(countsChunks(input), 13, width - TEXT_X - PAD)
-    const row = { y: hy, lines }
-    hy += 22 + (lines.length - 1) * HEAD_LINE + HEAD_GAP
-    return row
-  })
-  const headH = hy - HEAD_GAP + HEAD_BOTTOM
   const runS = Math.max(a.runS, b.runS)
   const tX = (s: number) => round1(TIME_X + (s / runS) * TIME_W)
   const blocks: SheetBlock[] = []
 
-  // The headline — the title, then two sentences per condition in that condition's colour — and
-  // under it the two frames' pictures, unaided left and Vigil right, each its own run's frame
-  // above its log: one block, since a headline alone on a page would head nothing.
+  // The headline — the title, then per condition its tally line in that condition's colour and
+  // its sentence under it (S5h, #207) — and under them the two frames' pictures, unaided left
+  // and Vigil right, each its own run's frame above its log: one block, since a headline alone
+  // on a page would head nothing.
   const who = a.subject === b.subject ? a.subject : `${a.subject} · ${b.subject}`
   const headline: string[] = [
     text(
@@ -390,36 +396,34 @@ function sheetLayout(
       `class="sheet-title" font-size="18" font-weight="600" fill="${THEME.text}"`,
     ),
   ]
-  for (const [input, color] of said) {
+  said.forEach(([input, color], k) => {
     const m = input.metrics
-    const { y, lines } = headRows[m.mode === 'raw' ? 0 : 1]
+    const y = HEAD_TOP + k * (TALLY_GAP + HEAD_GAP)
     headline.push(
-      `<circle cx="${PAD + 5}" cy="${y - 5}" r="5" fill="${color}"/>`,
+      `<circle cx="${PAD + 5}" cy="${y - 4}" r="5" fill="${color}"/>`,
       text(
         TEXT_X,
         y,
-        openingSentence(input),
+        tallyLine(input),
+        `class="headline-tally" data-mode="${m.mode}" font-size="13" font-weight="600" fill="${color}"`,
+      ),
+      text(
+        TEXT_X,
+        y + TALLY_GAP,
+        headlineSentence(input),
         `class="headline" data-mode="${m.mode}" font-size="15" fill="${THEME.text}"`,
       ),
-      ...lines.map((line, i) =>
-        text(
-          TEXT_X,
-          y + 22 + i * HEAD_LINE,
-          line,
-          `class="headline-counts" data-mode="${m.mode}" font-size="13" fill="${THEME.muted}"`,
-        ),
-      ),
     )
-  }
+  })
   headline.push(
-    `<svg class="frame-unaided" x="0" y="${headH}" width="${l.width}" height="${l.top.height}" viewBox="0 0 ${l.width} ${l.top.height}">`,
+    `<svg class="frame-unaided" x="0" y="${HEAD_H}" width="${l.width}" height="${l.top.height}" viewBox="0 0 ${l.width} ${l.top.height}">`,
     ...l.top.lines,
     '</svg>',
-    `<svg class="frame-vigil" x="${l.width + GAP}" y="${headH}" width="${r.width}" height="${r.top.height}" viewBox="0 0 ${r.width} ${r.top.height}">`,
+    `<svg class="frame-vigil" x="${l.width + GAP}" y="${HEAD_H}" width="${r.width}" height="${r.top.height}" viewBox="0 0 ${r.width} ${r.top.height}">`,
     ...r.top.lines,
     '</svg>',
   )
-  blocks.push({ name: 'headline', height: headH + top, lines: headline })
+  blocks.push({ name: 'headline', height: HEAD_H + top, lines: headline })
 
   // The axis’s own ticks at a lane block’s baseline: every minute the window reaches, and its
   // end, with a minute dropped when the end would crowd it. The third row runs the same scale
