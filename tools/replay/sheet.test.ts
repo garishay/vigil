@@ -85,10 +85,10 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
       'With Vigil on 03b, S06 opened a threat first, escalated threat 1 with 0.9 km to spare and threat 2 with 0.6 km, in 3 looks over the whole run; the threats were escalated in entry order.',
     ])
     // Each condition opens with its tally line (S5h, #207, item 1): the same five fields in the
-    // same order — the CSV's own numbers, the standoffs signed as the ring legend writes them.
+    // same order — the CSV's own numbers, the standoffs in the sentence's own words (R4).
     expect(textsOf(svg, 'headline-tally')).toEqual([
-      'threats stopped 2 of 2 · first escalation at 0:58 · to spare +0.1 km, +0.8 km · early escalations 1 · false alarms 0',
-      'threats stopped 2 of 2 · first escalation at 0:30 · to spare +0.9 km, +0.6 km · early escalations 0 · false alarms 0',
+      'threats stopped 2 of 2 · first threat escalated at 0:58 · to spare 0.1 km, 0.8 km · early escalations 1 · false alarms 0',
+      'threats stopped 2 of 2 · first threat escalated at 0:30 · to spare 0.9 km, 0.6 km · early escalations 0 · false alarms 0',
     ])
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S05 · S06 · 03a unaided, 03b with Vigil',
@@ -106,10 +106,10 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
       'Unaided on 03b, S06 opened two non-threats first, escalated threat 1 inside the ring and missed threat 2, in 3 looks (4 over the whole run), with one early escalation and one false alarm.',
       'With Vigil on 03a, S05 opened a threat first, escalated threat 1 with 0.8 km to spare and threat 2 with 0.7 km, in 2 looks (3 over the whole run); the threats were escalated in entry order.',
     ])
-    // The tally reads the miss as MISSED and the inside escalation as a negative standoff, and
-    // the first escalation is the first threat escalation there was (S5h, #207).
+    // The tally reads the miss as MISSED and the inside escalation in the sentence's words, and
+    // the clock is the first threat escalation, labelled so — the run's first Escalate of any track was 0:33 (R2).
     expect(textsOf(svg, 'headline-tally')[0]).toBe(
-      'threats stopped 1 of 2 · first escalation at 1:58 · to spare −0.2 km, MISSED · early escalations 1 · false alarms 1',
+      'threats stopped 1 of 2 · first threat escalated at 1:58 · to spare 0.2 km inside the ring, MISSED · early escalations 1 · false alarms 1',
     )
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S06 · S05 · 03b unaided, 03a with Vigil',
@@ -126,8 +126,8 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     // each sentence ends on its looks.
     // The tally on one threat: one of one, one standoff, the zeros in digits.
     expect(textsOf(svg, 'headline-tally')).toEqual([
-      'threats stopped 1 of 1 · first escalation at 0:58 · to spare +1.2 km · early escalations 0 · false alarms 0',
-      'threats stopped 1 of 1 · first escalation at 0:58 · to spare +1.2 km · early escalations 0 · false alarms 0',
+      'threats stopped 1 of 1 · first threat escalated at 0:58 · to spare 1.2 km · early escalations 0 · false alarms 0',
+      'threats stopped 1 of 1 · first threat escalated at 0:58 · to spare 1.2 km · early escalations 0 · false alarms 0',
     ])
   })
 
@@ -710,7 +710,7 @@ describe('the headline on a run that escalated many — S5h (#207), where #174 w
   it('says ten escalations besides the threats as two counts on one line, and the headline keeps its height', () => {
     expect([ten.metrics.escalationsOfLaterEntrants, ten.metrics.falseEscalations]).toEqual([9, 1])
     expect(tallyLine(ten)).toBe(
-      'threats stopped 2 of 2 · first escalation at 0:16 · to spare +1.1 km, +1.0 km · early escalations 9 · false alarms 1',
+      'threats stopped 2 of 2 · first threat escalated at 0:16 · to spare 1.1 km, 1.0 km · early escalations 9 · false alarms 1',
     )
     expect(headlineSentence(ten)).toBe(
       'With Vigil on 03b, S06 opened two non-threats first, escalated threat 1 with 1.1 km to spare and threat 2 with 1.0 km, in 6 looks (16 over the whole run), with nine early escalations and one false alarm; the threats were escalated in entry order.',

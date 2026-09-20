@@ -345,7 +345,7 @@ the track as the run read it, and what it turned out to be: a track that never e
 one that enters after the window closed, or a real aircraft, cooperative traffic and never a
 threat. The sheet accounts for the same escalations twice over: its headline counts them by
 class — each condition opens with one tally line, the same fields in the same order (threats
-stopped, the first escalation's clock, the standoff per threat or MISSED, early escalations, false
+stopped, the first threat escalation's clock, the standoff per threat in the sentence's words or MISSED, early escalations, false
 alarms), and its counts sentence says _nine early escalations and one false alarm_ rather than
 listing idents (S5h) — and beneath the threats' rows a third row names every one, a mark on the
 same time axis per condition with what each turned out to be in words under it — absent when

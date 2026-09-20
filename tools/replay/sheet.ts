@@ -179,10 +179,12 @@ function joinClauses(clauses: readonly (readonly [string, string])[]): string {
 
 /**
  * The condition's tally line (S5h, #207), the same fields in the same order on every sheet: the
- * threats stopped of the threats cast, the first threat escalation's clock, each threat's
- * standoff in role order as the ring legend writes it or *MISSED*, then the early escalations and
- * the false alarms as the figure's items count them (K7, K8 B) — digits, a zero included. Every
- * number is one the CSV already carries; no composite and no percentage (#131's read does not move).
+ * threats stopped of the threats cast; the first threat escalation's clock, labelled as the
+ * threats' since the run's first Escalate of any track can be earlier (ruled R2); each threat's
+ * standoff in role order in the sentence's own words — *1.1 km*, *0.2 km inside the ring*,
+ * *MISSED* — so the two never disagree (ruled R4); then the early escalations and the false
+ * alarms as the figure's items count them (K7, K8 B) — digits, a zero included. Every number is
+ * one the CSV already carries; no composite and no percentage (#131's read does not move).
  */
 export function tallyLine({ metrics: m }: Pick<FrameInput, 'metrics'>): string {
   const stopped = m.threats.filter((threat) => !threat.miss).length
@@ -190,13 +192,19 @@ export function tallyLine({ metrics: m }: Pick<FrameInput, 'metrics'>): string {
     threat.timeToEscalateS === null ? [] : [threat.timeToEscalateS],
   )
   const spare = m.threats
-    .map((threat) => (threat.standoffM === null ? 'MISSED' : kmWord(threat.standoffM)))
+    .map((threat) =>
+      threat.standoffM === null
+        ? 'MISSED'
+        : threat.standoffM < 0
+          ? `${(-threat.standoffM / 1000).toFixed(1)} km inside the ring`
+          : `${(threat.standoffM / 1000).toFixed(1)} km`,
+    )
     .join(', ')
   return [
     `threats stopped ${stopped} of ${m.threats.length}`,
     escalated.length === 0
       ? 'no threat escalated'
-      : `first escalation at ${mmss(Math.min(...escalated))}`,
+      : `first threat escalated at ${mmss(Math.min(...escalated))}`,
     `to spare ${spare}`,
     `early escalations ${m.escalationsOfLaterEntrants}`,
     `false alarms ${m.falseEscalations}`,
