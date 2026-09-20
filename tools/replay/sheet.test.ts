@@ -30,6 +30,14 @@ import { orderWords, pairSvg } from './pair.ts'
 import { studySvg } from './figure.ts'
 
 const study = loadStudy()
+/** The headline's width: the sheet less the prose's x and the right pad. */
+const HEADLINE_WIDTH = 1820 - 48 - 30
+/**
+ * A 15 px system-ui sentence's width per character, measured in Chrome on this sheet (#208
+ * round 1): 1 706.2 px over 264 characters and 1 590.0 over 246, both 6.46; the estimate the
+ * frame uses over-reads it by a fifth.
+ */
+const PX_PER_CHAR_15 = 6.47
 const fixture = (name: string): FrameInput => {
   const record = readRuns(`tools/replay/__fixtures__/${name}.json`)[0]
   const plan = planFor(record.scenario, study.timeline)
@@ -87,8 +95,8 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     // Each condition opens with its tally line (S5h, #207, item 1): the same five fields in the
     // same order — the CSV's own numbers, the standoffs in the sentence's own words (R4).
     expect(textsOf(svg, 'headline-tally')).toEqual([
-      'threats stopped 2 of 2 · first threat escalated at 0:58 · to spare 0.1 km, 0.8 km · early escalations 1 · false alarms 0',
-      'threats stopped 2 of 2 · first threat escalated at 0:30 · to spare 0.9 km, 0.6 km · early escalations 0 · false alarms 0',
+      'threats escalated before the ring 2 of 2 · first threat escalated at 0:58 · 0.1 km to spare, 0.8 km to spare · early escalations 1 · false alarms 0',
+      'threats escalated before the ring 2 of 2 · first threat escalated at 0:30 · 0.9 km to spare, 0.6 km to spare · early escalations 0 · false alarms 0',
     ])
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S05 · S06 · 03a unaided, 03b with Vigil',
@@ -106,10 +114,11 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
       'Unaided on 03b, S06 opened two non-threats first, escalated threat 1 inside the ring and missed threat 2, in 3 looks (4 over the whole run), with one early escalation and one false alarm.',
       'With Vigil on 03a, S05 opened a threat first, escalated threat 1 with 0.8 km to spare and threat 2 with 0.7 km, in 2 looks (3 over the whole run); the threats were escalated in entry order.',
     ])
-    // The tally reads the miss as MISSED and the inside escalation in the sentence's words, and
-    // the clock is the first threat escalation, labelled so — the run's first Escalate of any track was 0:33 (R2).
+    // The tally reads the miss as MISSED and the inside escalation in the sentence's words and
+    // counts neither as escalated before the ring (round 1); the clock is the first threat
+    // escalation, labelled so — the run's first Escalate of any track was 0:33 (R2).
     expect(textsOf(svg, 'headline-tally')[0]).toBe(
-      'threats stopped 1 of 2 · first threat escalated at 1:58 · to spare 0.2 km inside the ring, MISSED · early escalations 1 · false alarms 1',
+      'threats escalated before the ring 0 of 2 · first threat escalated at 1:58 · 0.2 km inside the ring, MISSED · early escalations 1 · false alarms 1',
     )
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S06 · S05 · 03b unaided, 03a with Vigil',
@@ -126,8 +135,8 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     // each sentence ends on its looks.
     // The tally on one threat: one of one, one standoff, the zeros in digits.
     expect(textsOf(svg, 'headline-tally')).toEqual([
-      'threats stopped 1 of 1 · first threat escalated at 0:58 · to spare 1.2 km · early escalations 0 · false alarms 0',
-      'threats stopped 1 of 1 · first threat escalated at 0:58 · to spare 1.2 km · early escalations 0 · false alarms 0',
+      'threats escalated before the ring 1 of 1 · first threat escalated at 0:58 · 1.2 km to spare · early escalations 0 · false alarms 0',
+      'threats escalated before the ring 1 of 1 · first threat escalated at 0:58 · 1.2 km to spare · early escalations 0 · false alarms 0',
     ])
   })
 
@@ -139,7 +148,7 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     }
     const none = { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
     expect(tallyLine(none)).toBe(
-      'threats stopped 0 of 2 · no threat escalated · to spare MISSED, MISSED · early escalations 0 · false alarms 0',
+      'threats escalated before the ring 0 of 2 · no threat escalated · MISSED, MISSED · early escalations 0 · false alarms 0',
     )
     expect(headlineSentence(none)).toBe(
       'Unaided on 03a, S05 opened two non-threats first, missed threat 1 and threat 2, in 6 looks over the whole run.',
@@ -710,7 +719,7 @@ describe('the headline on a run that escalated many — S5h (#207), where #174 w
   it('says ten escalations besides the threats as two counts on one line, and the headline keeps its height', () => {
     expect([ten.metrics.escalationsOfLaterEntrants, ten.metrics.falseEscalations]).toEqual([9, 1])
     expect(tallyLine(ten)).toBe(
-      'threats stopped 2 of 2 · first threat escalated at 0:16 · to spare 1.1 km, 1.0 km · early escalations 9 · false alarms 1',
+      'threats escalated before the ring 2 of 2 · first threat escalated at 0:16 · 1.1 km to spare, 1.0 km to spare · early escalations 9 · false alarms 1',
     )
     expect(headlineSentence(ten)).toBe(
       'With Vigil on 03b, S06 opened two non-threats first, escalated threat 1 with 1.1 km to spare and threat 2 with 1.0 km, in 6 looks (16 over the whole run), with nine early escalations and one false alarm; the threats were escalated in entry order.',
@@ -723,17 +732,125 @@ describe('the headline on a run that escalated many — S5h (#207), where #174 w
     for (const cls of ['headline-tally', 'headline']) {
       for (const line of textsOf(svg, cls)) expect(line).not.toMatch(/\b(TRK|UAS)-/)
     }
-    // The tally fits by the estimate; the sentence's width is the gate's browser measurement —
-    // this one, the longest the fixtures can write, stands 1 590 px of the 1 742 available — since the
-    // estimate over-reads a 15 px sentence by a fifth and would fail a line that fits.
+    // The tally fits by the estimate; the sentence by the measured rate below — this one stands
+    // 1 590 px of the 1 742 available in Chrome, where the estimate would read it at 1 956 and
+    // fail a line that fits.
     for (const line of textsOf(svg, 'headline-tally')) {
-      expect(estimateWidth(line, 13)).toBeLessThanOrEqual(1820 - 48 - 30)
+      expect(estimateWidth(line, 13)).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    }
+    for (const line of textsOf(svg, 'headline')) {
+      expect(line.length * PX_PER_CHAR_15).toBeLessThanOrEqual(HEADLINE_WIDTH)
     }
     expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
     expect(svg).toContain('data-block="headline" width="1820" height="1006"')
     expect(tagsOf(svg, 'other-mark-vigil')).toHaveLength(10)
     // The sheet renders two whole frames; the runner is slower than this machine (#166 round 1).
   }, 30_000)
+
+  /**
+   * The longest sentence the code can build (#208 round 1): every branch at its longest on one
+   * run — seven distinct non-threats opened and never a threat, both threats escalated inside
+   * the ring in entry order, looks after the last escalation so both counts print, seven of
+   * each count class (the five-letter count words are the longest; eleven and up print digits).
+   * On the S06 03b Vigil fixture's fields, the threats escalated after their entries at 1:42
+   * and 3:08; nothing committed.
+   */
+  const longestRun = (): FrameInput => {
+    const base = fixture('S06-03b-vigil-1')
+    const opened = [
+      'inject-21',
+      'inject-79',
+      'inject-19',
+      'inject-82',
+      'inject-98',
+      'inject-26',
+      'inject-51',
+    ]
+    const early = [
+      'inject-33',
+      'inject-95',
+      'inject-80',
+      'inject-96',
+      'inject-89',
+      'inject-144',
+      'inject-13',
+    ]
+    const events: RunEvent[] = [
+      ...opened.map((track, i): RunEvent => ({ t: 5 + i * 5, type: 'select', track })),
+      ...opened.map((track, i): RunEvent => ({ t: 50 + i * 5, type: 'escalate', track })),
+      ...early.map((track, i): RunEvent => ({ t: 90 + i * 5, type: 'escalate', track })),
+      { t: 195, type: 'escalate', track: 'inject-29' },
+      { t: 200, type: 'escalate', track: 'inject-23' },
+      ...Array.from({ length: 13 }, (_, i): RunEvent => ({
+        t: 204 + i,
+        type: 'select',
+        track: 'inject-19',
+      })),
+    ]
+    const record: RunRecord = { ...base.record, events }
+    return { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+  }
+
+  it('pins the longest sentence the code can build inside the sheet’s width (#208 round 1)', () => {
+    const longest = longestRun()
+    expect(longest.metrics.threats.map((threat) => threat.standoffM)).toEqual([-1186, -78])
+    expect(headlineSentence(longest)).toBe(
+      'With Vigil on 03b, S06 opened seven non-threats and never a threat, escalated threat 1 inside the ring and threat 2 inside the ring, in 7 looks (20 over the whole run), with seven early escalations and seven false alarms; the threats were escalated in entry order.',
+    )
+    // Measured in Chrome: 1 706.2 px over its 264 characters, 36 px inside the budget. A
+    // three-digit look count adds two characters, still inside; a subject code longer than the
+    // study's three characters by more than five would run past the edge — the codes are S13–S18
+    // and S90–S99 (#131), and the loader accepts any, so that limit is stated here, not guarded.
+    expect(headlineSentence(longest).length).toBe(264)
+    expect((264 + 2) * PX_PER_CHAR_15).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    // The tally on this run: neither threat before the ring, both inside by their magnitude.
+    expect(tallyLine(longest)).toBe(
+      'threats escalated before the ring 0 of 2 · first threat escalated at 3:15 · 1.2 km inside the ring, 0.1 km inside the ring · early escalations 7 · false alarms 7',
+    )
+    const svg = sheetSvg({ unaided: fixture('S05-03a-raw-1'), vigil: longest }, { queueCap: 5 })
+    for (const line of textsOf(svg, 'headline')) {
+      expect(line.length * PX_PER_CHAR_15).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    }
+    for (const line of textsOf(svg, 'headline-tally')) {
+      expect(estimateWidth(line, 13)).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    }
+    expect(svg).toContain('data-block="headline" width="1820" height="1006"')
+  }, 30_000)
+
+  it('never lets the tally and the sentence disagree on a threat (#208 round 1)', () => {
+    // The miss layout, pinned as the owner asked: threat 1 escalated inside the ring and threat
+    // 2 missed count as none before the ring, and the sentence says the same two things.
+    const miss = sheetOf('S06-03b-raw-1', 'S05-03a-vigil-1')
+    expect(textsOf(miss, 'headline-tally')[0]).toContain('threats escalated before the ring 0 of 2')
+    expect(textsOf(miss, 'headline-tally')[0]).toContain('· 0.2 km inside the ring, MISSED ·')
+    expect(textsOf(miss, 'headline')[0]).toContain(
+      'escalated threat 1 inside the ring and missed threat 2',
+    )
+    // And on every sheet, threat by threat: a tally value's kind — to spare, inside the ring,
+    // MISSED — is the kind the sentence gives that threat, and its figure is in the sentence.
+    for (const [unaided, vigil] of [
+      ['S05-03a-raw-1', 'S06-03b-vigil-1'],
+      ['S06-03b-raw-1', 'S05-03a-vigil-1'],
+      ['S03-02a-raw-1', 'S04-02b-vigil-1'],
+    ] as const) {
+      const svg = sheetOf(unaided, vigil)
+      const tallies = textsOf(svg, 'headline-tally')
+      const sentences = textsOf(svg, 'headline')
+      tallies.forEach((tally, k) => {
+        const values = tally.split(' · ')[2].split(', ')
+        const before = values.filter((value) => value.endsWith('to spare')).length
+        expect(
+          tally.startsWith(`threats escalated before the ring ${before} of ${values.length}`),
+        ).toBe(true)
+        for (const value of values) {
+          if (value === 'MISSED') expect(sentences[k]).toContain('missed')
+          else if (value.endsWith('inside the ring'))
+            expect(sentences[k]).toContain('inside the ring')
+          else expect(sentences[k]).toContain(`with ${value.replace(' to spare', '')}`)
+        }
+      })
+    }
+  })
 
   it('stands every sheet’s headline at 150, as S5e drew it: the tally and the sentence, two lines a condition', () => {
     for (const [unaided, vigil] of [
