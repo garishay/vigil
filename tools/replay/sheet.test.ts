@@ -18,7 +18,8 @@ import { loadStudy, readRuns } from './files.ts'
 import { otherEscalations, runMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 import {
-  countsSentence,
+  headlineSentence,
+  tallyLine,
   openingSentence,
   ordinalWord,
   sheetBlocks,
@@ -29,6 +30,14 @@ import { orderWords, pairSvg } from './pair.ts'
 import { studySvg } from './figure.ts'
 
 const study = loadStudy()
+/** The headline's width: the sheet less the prose's x and the right pad. */
+const HEADLINE_WIDTH = 1820 - 48 - 30
+/**
+ * A 15 px system-ui sentence's width per character, measured in Chrome on this sheet (#208
+ * round 1): 1 706.2 px over 264 characters and 1 590.0 over 246, both 6.46; the estimate the
+ * frame uses over-reads it by a fifth.
+ */
+const PX_PER_CHAR_15 = 6.47
 const fixture = (name: string): FrameInput => {
   const record = readRuns(`tools/replay/__fixtures__/${name}.json`)[0]
   const plan = planFor(record.scenario, study.timeline)
@@ -73,17 +82,21 @@ const atEscalation = (input: FrameInput, i: number) => {
 }
 
 describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the headline', () => {
-  it('writes two sentences per condition on the prioritization sheet, every threat named (R1)', () => {
+  it('writes a tally line and one sentence per condition on the prioritization sheet, every threat named (R1)', () => {
     const svg = sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1')
+    // The sentence keeps the threats and the looks and says the escalations besides the threats
+    // as counts in the footnote's two classes (S5h, #207, item 2), where a second sentence named
+    // each one (S5f, #173): the row below keeps every ident. A class with none is left unsaid,
+    // and the order clause stays last (K3).
     expect(textsOf(svg, 'headline')).toEqual([
-      'Unaided on 03a, S05 opened two non-threats first, escalated threat 1 with 0.1 km to spare and threat 2 with 0.8 km, in 5 looks (6 over the whole run).',
-      'With Vigil on 03b, S06 opened a threat first, escalated threat 1 with 0.9 km to spare and threat 2 with 0.6 km, in 3 looks over the whole run.',
+      'Unaided on 03a, S05 opened two non-threats first, escalated threat 1 with 0.1 km to spare and threat 2 with 0.8 km, in 5 looks (6 over the whole run), with one early escalation; threat 2 was escalated before threat 1.',
+      'With Vigil on 03b, S06 opened a threat first, escalated threat 1 with 0.9 km to spare and threat 2 with 0.6 km, in 3 looks over the whole run; the threats were escalated in entry order.',
     ])
-    // The second sentence names every escalation the run made besides the threats, with what
-    // each turned out to be, where it counted classes before (S5f, #173, ruled N4 A).
-    expect(textsOf(svg, 'headline-counts')).toEqual([
-      'Besides the threats, S05 escalated TRK-65 at 2:30 (enters the ring at 6:59, after the window closed); threat 2 was escalated before threat 1.',
-      'Nothing else was escalated; the threats were escalated in entry order.',
+    // Each condition opens with its tally line (S5h, #207, item 1): the same five fields in the
+    // same order — the CSV's own numbers, the standoffs in the sentence's own words (R4).
+    expect(textsOf(svg, 'headline-tally')).toEqual([
+      'threats escalated before the ring 2 of 2 · first threat escalated at 0:58 · 0.1 km to spare, 0.8 km to spare · early escalations 1 · false alarms 0',
+      'threats escalated before the ring 2 of 2 · first threat escalated at 0:30 · 0.9 km to spare, 0.6 km to spare · early escalations 0 · false alarms 0',
     ])
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S05 · S06 · 03a unaided, 03b with Vigil',
@@ -95,14 +108,17 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     // run escalated a threat late and missed the other: both clauses are pinned on real events,
     // never on a constructed record.
     const svg = sheetOf('S06-03b-raw-1', 'S05-03a-vigil-1')
+    // The two escalations as one of each class, and no order clause: the order is null while a
+    // threat is missed (#153, ruled K3).
     expect(textsOf(svg, 'headline')).toEqual([
-      'Unaided on 03b, S06 opened two non-threats first, escalated threat 1 inside the ring and missed threat 2, in 3 looks (4 over the whole run).',
-      'With Vigil on 03a, S05 opened a threat first, escalated threat 1 with 0.8 km to spare and threat 2 with 0.7 km, in 2 looks (3 over the whole run).',
+      'Unaided on 03b, S06 opened two non-threats first, escalated threat 1 inside the ring and missed threat 2, in 3 looks (4 over the whole run), with one early escalation and one false alarm.',
+      'With Vigil on 03a, S05 opened a threat first, escalated threat 1 with 0.8 km to spare and threat 2 with 0.7 km, in 2 looks (3 over the whole run); the threats were escalated in entry order.',
     ])
-    // The two escalations named in the record's order, and no order clause: the order is null
-    // while a threat is missed (#153, ruled K3).
-    expect(textsOf(svg, 'headline-counts')[0]).toBe(
-      'Besides the threats, S06 escalated TRK-33 at 0:33 (enters the ring at 6:32, after the window closed) and TRK-21 at 1:10 (never enters the ring).',
+    // The tally reads the miss as MISSED and the inside escalation in the sentence's words and
+    // counts neither as escalated before the ring (round 1); the clock is the first threat
+    // escalation, labelled so — the run's first Escalate of any track was 0:33 (R2).
+    expect(textsOf(svg, 'headline-tally')[0]).toBe(
+      'threats escalated before the ring 0 of 2 · first threat escalated at 1:58 · 0.2 km inside the ring, MISSED · early escalations 1 · false alarms 1',
     )
     expect(textsOf(svg, 'sheet-title')).toEqual([
       'SUBJECT SHEET · S06 · S05 · 03b unaided, 03a with Vigil',
@@ -115,11 +131,28 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
       'Unaided on 02a, S03 opened a threat first, escalated the threat with 1.2 km to spare, in 1 look over the whole run.',
       'With Vigil on 02b, S04 opened a threat first, escalated the threat with 1.2 km to spare, in 1 look (2 over the whole run).',
     ])
-    // One threat, so no order clause at all (K3); neither run escalated anything else.
-    expect(textsOf(svg, 'headline-counts')).toEqual([
-      'Nothing else was escalated.',
-      'Nothing else was escalated.',
+    // One threat, so no order clause at all (K3), and neither run escalated anything else, so
+    // each sentence ends on its looks.
+    // The tally on one threat: one of one, one standoff, the zeros in digits.
+    expect(textsOf(svg, 'headline-tally')).toEqual([
+      'threats escalated before the ring 1 of 1 · first threat escalated at 0:58 · 1.2 km to spare · early escalations 0 · false alarms 0',
+      'threats escalated before the ring 1 of 1 · first threat escalated at 0:58 · 1.2 km to spare · early escalations 0 · false alarms 0',
     ])
+  })
+
+  it('tallies a run that escalated no threat in the same fields (S5h, #207, item 1)', () => {
+    const base = fixture('S05-03a-raw-1')
+    const record = {
+      ...base.record,
+      events: base.record.events.filter((e) => e.type !== 'escalate'),
+    }
+    const none = { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+    expect(tallyLine(none)).toBe(
+      'threats escalated before the ring 0 of 2 · no threat escalated · MISSED, MISSED · early escalations 0 · false alarms 0',
+    )
+    expect(headlineSentence(none)).toBe(
+      'Unaided on 03a, S05 opened two non-threats first, missed threat 1 and threat 2, in 6 looks over the whole run.',
+    )
   })
 
   it('leads with the looks to the last threat escalation and carries the whole run’s count after it (S5g, #194, item 3)', () => {
@@ -153,9 +186,9 @@ describe('the subject sheet (S5e, #164, ruled K1–K10, R1, R4, R5) — the head
     const inOrder = fixture('S06-03b-vigil-1')
     const inverted = fixture('S05-03a-raw-1')
     const missed = fixture('S06-03b-raw-1')
-    expect(countsSentence(inOrder)).toContain('; the threats were escalated in entry order.')
-    expect(countsSentence(inverted)).toContain('; threat 2 was escalated before threat 1.')
-    expect(countsSentence(missed)).not.toContain(';')
+    expect(headlineSentence(inOrder)).toContain('; the threats were escalated in entry order.')
+    expect(headlineSentence(inverted)).toContain('; threat 2 was escalated before threat 1.')
+    expect(headlineSentence(missed)).not.toContain(';')
   })
 })
 
@@ -337,9 +370,9 @@ describe('the subject sheet — the rows', () => {
 describe('the subject sheet — the document', () => {
   it('composes the two frames’ pictures unchanged, the unaided one left, with the Queue box capped (K2)', () => {
     const svg = sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1')
-    // Each frame's picture — its header, its map, its footnotes — under the headline's 150, the
-    // unaided one 856 tall for its key line and the Vigil one 828; the logs stand in their own
-    // blocks below the comparison (S5g, #194).
+    // Each frame's picture — its header, its map, its footnotes — under the headline's 150 (S5h,
+    // #207: two lines per condition), the unaided one 856 tall for its key line and the Vigil
+    // one 828; the logs stand in their own blocks below the comparison (S5g, #194).
     expect(svg).toContain('<svg class="frame-unaided" x="0" y="150" width="900" height="856"')
     expect(svg).toContain('<svg class="frame-vigil" x="920" y="150" width="900" height="828"')
     // The sheet stands its blocks' sum: 150 and the taller picture, a row per threat, the third
@@ -643,62 +676,207 @@ describe('the sheet’s other escalations (S5f, #173)', () => {
   })
 })
 
-describe('the headline’s width — round 1 (#174)', () => {
-  /** A run that escalated five tracks besides its threats: two baits, three rows due later. */
-  const busyRun = (): FrameInput => {
-    const base = fixture('S05-03a-raw-1')
-    const events: RunEvent[] = [
-      { t: 10, type: 'select', track: 'inject-35' },
-      { t: 20, type: 'escalate', track: 'inject-35' },
-      { t: 30, type: 'select', track: 'inject-36' },
-      { t: 40, type: 'escalate', track: 'inject-36' },
-      { t: 41, type: 'select', track: 'inject-57' },
-      { t: 58, type: 'escalate', track: 'inject-57' },
-      { t: 66, type: 'select', track: 'inject-74' },
-      { t: 70, type: 'escalate', track: 'inject-74' },
-      { t: 72, type: 'select', track: 'inject-25' },
-      { t: 74, type: 'escalate', track: 'inject-25' },
-      { t: 84, type: 'select', track: 'inject-31' },
-      { t: 97, type: 'escalate', track: 'inject-31' },
-      { t: 130, type: 'select', track: 'inject-65' },
-      { t: 150, type: 'escalate', track: 'inject-65' },
+describe('the headline on a run that escalated many — S5h (#207), where #174 wrapped the names', () => {
+  /**
+   * The gate's worst case: S06's 03b Vigil run with both threats escalated by 0:30 as the long
+   * session had them, then the subject works down the list — nine later entrants and one
+   * never-entrant, a look and an Escalate each. On the committed fixtures' fields; nothing
+   * committed. Before S5h the sentence naming them ran to four lines.
+   */
+  const tenRun = (): FrameInput => {
+    const base = fixture('S06-03b-vigil-1')
+    const others = [
+      'inject-33',
+      'inject-95',
+      'inject-80',
+      'inject-96',
+      'inject-89',
+      'inject-144',
+      'inject-13',
+      'inject-73',
+      'inject-83',
+      'inject-21',
     ]
-    const record: RunRecord = { ...base.record, subject: 'SXX', events }
+    const events: RunEvent[] = [
+      { t: 3, type: 'select', track: 'inject-21' },
+      { t: 7, type: 'select', track: 'inject-79' },
+      { t: 11, type: 'select', track: 'inject-29' },
+      { t: 16, type: 'escalate', track: 'inject-29' },
+      { t: 19, type: 'select', track: 'inject-19' },
+      { t: 22, type: 'select', track: 'inject-23' },
+      { t: 28, type: 'select', track: 'inject-73' },
+      { t: 30, type: 'escalate', track: 'inject-23' },
+      ...others.flatMap((track, i): RunEvent[] => [
+        { t: 40 + i * 16, type: 'select', track },
+        { t: 46 + i * 16, type: 'escalate', track },
+      ]),
+    ]
+    const record: RunRecord = { ...base.record, events }
     return { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
   }
-  const busy = busyRun()
+  const ten = tenRun()
 
-  it('breaks the counts sentence to the sheet’s width and grows the headline by the lines it takes', () => {
-    // Five escalations besides the threats: one line of this sentence measures 1 839 px in a
-    // browser on an 1 820 px sheet, so it is broken rather than run off the edge.
-    const svg = sheetSvg({ unaided: busy, vigil: fixture('S06-03b-vigil-1') }, { queueCap: 5 })
-    const lines = textsOf(svg, 'headline-counts')
-    expect(lines).toHaveLength(3)
-    expect(lines[0] + ' ' + lines[1]).toBe(countsSentence(busy))
-    // The break falls between two named escalations and never inside one: the parentheses are
-    // what make the list scannable, so the first line ends on a closed one and the second opens
-    // with the last item's *and* (#174 round 1).
-    expect(lines[0].endsWith('(never enters the ring)')).toBe(true)
-    expect(lines[1].startsWith('and TRK-65 at 2:30 (')).toBe(true)
-    for (const line of lines) {
-      expect(line.startsWith(' ')).toBe(false)
-      expect(estimateWidth(line, 13)).toBeLessThanOrEqual(1820 - 48 - 30)
+  it('says ten escalations besides the threats as two counts on one line, and the headline keeps its height', () => {
+    expect([ten.metrics.escalationsOfLaterEntrants, ten.metrics.falseEscalations]).toEqual([9, 1])
+    expect(tallyLine(ten)).toBe(
+      'threats escalated before the ring 2 of 2 · first threat escalated at 0:16 · 1.1 km to spare, 1.0 km to spare · early escalations 9 · false alarms 1',
+    )
+    expect(headlineSentence(ten)).toBe(
+      'With Vigil on 03b, S06 opened two non-threats first, escalated threat 1 with 1.1 km to spare and threat 2 with 1.0 km, in 6 looks (16 over the whole run), with nine early escalations and one false alarm; the threats were escalated in entry order.',
+    )
+    const svg = sheetSvg({ unaided: fixture('S05-03a-raw-1'), vigil: ten }, { queueCap: 5 })
+    // One line per condition and its tally, no ident in the headline, and the block at 150
+    // whatever the run did: the third row below names all ten (S5f).
+    expect(textsOf(svg, 'headline')).toHaveLength(2)
+    expect(textsOf(svg, 'headline-tally')).toHaveLength(2)
+    for (const cls of ['headline-tally', 'headline']) {
+      for (const line of textsOf(svg, cls)) expect(line).not.toMatch(/\b(TRK|UAS)-/)
     }
-    // The block grows by that one line, and the frames move with it inside it.
-    expect(svg).toContain('<svg class="frame-unaided" x="0" y="168"')
-    expect(svg).toContain('data-block="headline" width="1820" height="1024"')
+    // The tally fits by the estimate; the sentence by the measured rate below — this one stands
+    // 1 590 px of the 1 742 available in Chrome, where the estimate would read it at 1 956 and
+    // fail a line that fits.
+    for (const line of textsOf(svg, 'headline-tally')) {
+      expect(estimateWidth(line, 13)).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    }
+    for (const line of textsOf(svg, 'headline')) {
+      expect(line.length * PX_PER_CHAR_15).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    }
+    expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
+    expect(svg).toContain('data-block="headline" width="1820" height="1006"')
+    expect(tagsOf(svg, 'other-mark-vigil')).toHaveLength(10)
     // The sheet renders two whole frames; the runner is slower than this machine (#166 round 1).
   }, 30_000)
 
-  it('leaves a sheet whose sentences fit on one line exactly where S5e put it', () => {
+  /**
+   * The longest sentence the code can build (#208 round 1): every branch at its longest on one
+   * run — seven distinct non-threats opened and never a threat, both threats escalated inside
+   * the ring in entry order, looks after the last escalation so both counts print, seven of
+   * each count class (the five-letter count words are the longest; eleven and up print digits).
+   * On the S06 03b Vigil fixture's fields, the threats escalated after their entries at 1:42
+   * and 3:08; nothing committed.
+   */
+  const longestRun = (): FrameInput => {
+    const base = fixture('S06-03b-vigil-1')
+    const opened = [
+      'inject-21',
+      'inject-79',
+      'inject-19',
+      'inject-82',
+      'inject-98',
+      'inject-26',
+      'inject-51',
+    ]
+    const early = [
+      'inject-33',
+      'inject-95',
+      'inject-80',
+      'inject-96',
+      'inject-89',
+      'inject-144',
+      'inject-13',
+    ]
+    const events: RunEvent[] = [
+      ...opened.map((track, i): RunEvent => ({ t: 5 + i * 5, type: 'select', track })),
+      ...opened.map((track, i): RunEvent => ({ t: 50 + i * 5, type: 'escalate', track })),
+      ...early.map((track, i): RunEvent => ({ t: 90 + i * 5, type: 'escalate', track })),
+      { t: 195, type: 'escalate', track: 'inject-29' },
+      { t: 200, type: 'escalate', track: 'inject-23' },
+      ...Array.from({ length: 13 }, (_, i): RunEvent => ({
+        t: 204 + i,
+        type: 'select',
+        track: 'inject-19',
+      })),
+    ]
+    const record: RunRecord = { ...base.record, events }
+    return { ...base, record, metrics: runMetrics(record, study.index, base.plan) }
+  }
+
+  it('pins the longest sentence the code can build inside the sheet’s width (#208 round 1)', () => {
+    const longest = longestRun()
+    expect(longest.metrics.threats.map((threat) => threat.standoffM)).toEqual([-1186, -78])
+    expect(headlineSentence(longest)).toBe(
+      'With Vigil on 03b, S06 opened seven non-threats and never a threat, escalated threat 1 inside the ring and threat 2 inside the ring, in 7 looks (20 over the whole run), with seven early escalations and seven false alarms; the threats were escalated in entry order.',
+    )
+    // Measured in Chrome: 1 706.2 px over its 264 characters, 36 px inside the budget. A
+    // three-digit look count adds two characters, still inside; a subject code longer than the
+    // study's three characters by more than five would run past the edge — the codes are S13–S18
+    // and S90–S99 (#131), and the loader accepts any, so that limit is stated here, not guarded.
+    expect(headlineSentence(longest).length).toBe(264)
+    expect((264 + 2) * PX_PER_CHAR_15).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    // The tally on this run: neither threat before the ring, both inside by their magnitude.
+    expect(tallyLine(longest)).toBe(
+      'threats escalated before the ring 0 of 2 · first threat escalated at 3:15 · 1.2 km inside the ring, 0.1 km inside the ring · early escalations 7 · false alarms 7',
+    )
+    const svg = sheetSvg({ unaided: fixture('S05-03a-raw-1'), vigil: longest }, { queueCap: 5 })
+    for (const line of textsOf(svg, 'headline')) {
+      expect(line.length * PX_PER_CHAR_15).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    }
+    for (const line of textsOf(svg, 'headline-tally')) {
+      expect(estimateWidth(line, 13)).toBeLessThanOrEqual(HEADLINE_WIDTH)
+    }
+    expect(svg).toContain('data-block="headline" width="1820" height="1006"')
+  }, 30_000)
+
+  it('never lets the tally and the sentence disagree on a threat (#208 round 1)', () => {
+    // The miss layout, pinned as the owner asked: threat 1 escalated inside the ring and threat
+    // 2 missed count as none before the ring, and the sentence says the same two things.
+    const miss = sheetOf('S06-03b-raw-1', 'S05-03a-vigil-1')
+    expect(textsOf(miss, 'headline-tally')[0]).toContain('threats escalated before the ring 0 of 2')
+    expect(textsOf(miss, 'headline-tally')[0]).toContain('· 0.2 km inside the ring, MISSED ·')
+    expect(textsOf(miss, 'headline')[0]).toContain(
+      'escalated threat 1 inside the ring and missed threat 2',
+    )
+    // And on every sheet, threat by threat: a tally value's kind — to spare, inside the ring,
+    // MISSED — is the kind the sentence gives that threat, and its figure is in the sentence.
     for (const [unaided, vigil] of [
       ['S05-03a-raw-1', 'S06-03b-vigil-1'],
       ['S06-03b-raw-1', 'S05-03a-vigil-1'],
       ['S03-02a-raw-1', 'S04-02b-vigil-1'],
     ] as const) {
       const svg = sheetOf(unaided, vigil)
-      expect(textsOf(svg, 'headline-counts')).toHaveLength(2)
+      const tallies = textsOf(svg, 'headline-tally')
+      const sentences = textsOf(svg, 'headline')
+      tallies.forEach((tally, k) => {
+        const values = tally.split(' · ')[2].split(', ')
+        const before = values.filter((value) => value.endsWith('to spare')).length
+        expect(
+          tally.startsWith(`threats escalated before the ring ${before} of ${values.length}`),
+        ).toBe(true)
+        for (const value of values) {
+          if (value === 'MISSED') expect(sentences[k]).toContain('missed')
+          else if (value.endsWith('inside the ring'))
+            expect(sentences[k]).toContain('inside the ring')
+          else expect(sentences[k]).toContain(`with ${value.replace(' to spare', '')}`)
+        }
+      })
+    }
+  })
+
+  it('stands every sheet’s headline at 150, as S5e drew it: the tally and the sentence, two lines a condition', () => {
+    for (const [unaided, vigil] of [
+      ['S05-03a-raw-1', 'S06-03b-vigil-1'],
+      ['S06-03b-raw-1', 'S05-03a-vigil-1'],
+      ['S03-02a-raw-1', 'S04-02b-vigil-1'],
+    ] as const) {
+      const svg = sheetOf(unaided, vigil)
+      expect(textsOf(svg, 'headline')).toHaveLength(2)
       expect(svg).toContain('<svg class="frame-unaided" x="0" y="150"')
+      // The two lines at their baselines — the tally where the sentence stood, the sentence
+      // where the counts stood — the second condition 52 below the first, so the fixtures'
+      // sheet prints on the one page #194 R5 ruled.
+      for (const [k, y] of [
+        [0, 62],
+        [1, 114],
+      ] as const) {
+        const mode = k === 0 ? 'raw' : 'vigil'
+        expect(svg).toContain(
+          `<text x="48" y="${y}" font-family="system-ui, sans-serif" class="headline-tally" data-mode="${mode}"`,
+        )
+        expect(svg).toContain(
+          `<text x="48" y="${y + 22}" font-family="system-ui, sans-serif" class="headline" data-mode="${mode}"`,
+        )
+      }
+      expect(svg).not.toContain('headline-counts')
     }
   })
 })
@@ -743,7 +921,8 @@ describe('one name per track across the document (#177, ruled M1–M4, R1)', () 
           expect(textsOf(svg, `other-legend-${side}`)).toContain(
             `${side === 'unaided' ? 'unaided' : 'Vigil'} · ${ident} escalated ${mmss(other.t)} — ${outcomeWords(other)}`,
           )
-          expect(countsSentence(input)).toContain(`${ident} at ${mmss(other.t)}`)
+          // The headline no longer names it (S5h, #207): the row is the one place it is listed.
+          expect(headlineSentence(input)).not.toContain(ident)
         }
       }
       // And no word a reader sees carries a study id, on the sheet as on its frames.
@@ -826,7 +1005,7 @@ describe('the sheet in blocks (S5g, #194)', () => {
     for (const cls of [
       'sheet-title',
       'headline',
-      'headline-counts',
+      'headline-tally',
       'frame-unaided',
       'frame-vigil',
       'row-title',
