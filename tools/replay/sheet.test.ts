@@ -434,9 +434,13 @@ describe('the subject sheet — the document', () => {
   })
 
   it('draws the same bytes twice (K10 — the pins are the content’s, not a file’s)', () => {
-    expect(sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1')).toBe(
-      sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1'),
+    // One side rendered afresh, past the shared sheet (#209): the pin is that two renders agree,
+    // which a cached string compared with itself would not prove (#210 round 1).
+    const fresh = sheetSvg(
+      { unaided: fixture('S05-03a-raw-1'), vigil: fixture('S06-03b-vigil-1') },
+      { queueCap: 5 },
     )
+    expect(fresh).toBe(sheetOf('S05-03a-raw-1', 'S06-03b-vigil-1'))
   })
 })
 
