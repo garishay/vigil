@@ -43,9 +43,23 @@ const fixture = (name: string): FrameInput => {
   const plan = planFor(record.scenario, study.timeline)
   return { record, plan, study, metrics: runMetrics(record, study.index, plan) }
 }
-/** The sheet as the CLI draws it: the Queue boxes capped at five rows, as the pair's are (ruled K2). */
-const sheetOf = (unaided: string, vigil: string) =>
-  sheetSvg({ unaided: fixture(unaided), vigil: fixture(vigil) }, { queueCap: 5 })
+/**
+ * The sheet as the CLI draws it: the Queue boxes capped at five rows, as the pair's are (ruled
+ * K2) — rendered once per pair and shared across the file's tests. The render is the expensive
+ * half — both frames and the engine at the freeze, about a second a sheet here and twice that
+ * on the runner — and a test that reads four of them sat at the default timeout on `main`
+ * (#209). The output is a string of two committed fixtures, so sharing it changes nothing a
+ * test can see.
+ */
+const sheets = new Map<string, string>()
+const sheetOf = (unaided: string, vigil: string): string => {
+  const key = `${unaided} ${vigil}`
+  const drawn = sheets.get(key)
+  if (drawn !== undefined) return drawn
+  const svg = sheetSvg({ unaided: fixture(unaided), vigil: fixture(vigil) }, { queueCap: 5 })
+  sheets.set(key, svg)
+  return svg
+}
 
 const attrs = (tag: string) =>
   Object.fromEntries(
