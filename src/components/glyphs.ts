@@ -138,23 +138,11 @@ export const GLYPHS: Record<'aircraft' | 'drone', readonly Part[]> = {
 }
 
 /**
- * The map's two marks (S10, #182), on the same box and raster as the glyphs: the heading tick,
- * a bar the box's full height, drawn in raw at one screen length from a marker's edge along
- * the observed heading; the arrowhead the projected path ends in where it meets the ring, its
- * tip at the top of the box so the anchor is the tip.
+ * The map's mark (S10, #182), on the same box and raster as the glyphs: the arrowhead the
+ * projected path ends in where it meets the ring, its tip at the top of the box so the anchor
+ * is the tip. The heading tick that shared this record is gone (S10b, #211).
  */
-export const MARKS: Record<'tick' | 'arrow', readonly Part[]> = {
-  tick: [
-    {
-      kind: 'polygon',
-      points: [
-        [10.5, 0],
-        [13.5, 0],
-        [13.5, 24],
-        [10.5, 24],
-      ],
-    },
-  ],
+export const MARKS: Record<'arrow', readonly Part[]> = {
   arrow: [
     {
       kind: 'polygon',
@@ -166,28 +154,6 @@ export const MARKS: Record<'tick' | 'arrow', readonly Part[]> = {
       ],
     },
   ],
-}
-
-/** The drone's full extent on the box, units — its width across an axis. */
-export const DRONE_EXTENT =
-  2 * (cut(DRONE.rotorAt) + cut(DRONE.rotorRadius) + cut(DRONE.rotorWidth) / 2)
-
-/**
- * How far a glyph's ink reaches from the box's centre along a heading, units (#192, ruled 2):
- * the last point on that ray inside the union, to a twentieth of a unit. The drone is drawn
- * nose-up while raw's tick swings round it, so where the tick starts is this reach along the
- * tick's own heading — the body's edge on an axis, where the ray passes between two rotors,
- * and a rotor's far edge on a diagonal.
- */
-export function reachAlong(parts: readonly Part[], headingDeg: number): number {
-  const rad = (headingDeg * Math.PI) / 180
-  const ux = Math.sin(rad)
-  const uy = -Math.cos(rad)
-  let reach = 0
-  for (let t = 0; t <= C * Math.SQRT2; t += 0.05) {
-    if (signedDistance(parts, [C + ux * t, C + uy * t]) < 0) reach = t
-  }
-  return reach
 }
 
 /** Even-odd ray cast: whether the point is inside the polygon. */

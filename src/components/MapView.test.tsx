@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MapView } from './MapView'
 import { AO } from '../config/ao'
@@ -306,11 +306,11 @@ describe('MapView', () => {
     expect(entrySource.data.features).toEqual([])
     // 08b adds the friendly ring layer beside the protected line; #102 the projected path;
     // S4a the two label layers, hidden until raw; S9 the drone glyph beside the dot, the
-    // aircraft glyph in the ADS-B dot's place; S10 the path's arrowhead and reading, and the
-    // heading tick as a symbol on the inject source in the S4a line layer's place; S8 the
-    // assessed ring, one per track source — handled is the marker itself, drawn hollow by the
-    // shape layers' own paint, so it adds no layer (ruled R1, and its pick at round 1).
-    expect(mapInstance.addLayer).toHaveBeenCalledTimes(18)
+    // aircraft glyph in the ADS-B dot's place; S10 the path's arrowhead and reading (its
+    // heading tick, once in the S4a line layer's place, is gone — S10b); S8 the assessed ring,
+    // one per track source — handled is the marker itself, drawn hollow by the shape layers'
+    // own paint, so it adds no layer (ruled R1, and its pick at round 1).
+    expect(mapInstance.addLayer).toHaveBeenCalledTimes(17)
     const order = mapInstance.addLayer.mock.calls.map(([layer]) => layer.id)
     expect(order.indexOf('selected-trail-line')).toBeLessThan(order.indexOf('inject-tracks-halo'))
     expect(order.indexOf('selected-projection-line')).toBeGreaterThan(
@@ -319,8 +319,6 @@ describe('MapView', () => {
     expect(order.indexOf('selected-projection-line')).toBeLessThan(
       order.indexOf('inject-tracks-halo'),
     )
-    // The tick sits under the markers it starts from.
-    expect(order.indexOf('inject-tracks-tick')).toBeLessThan(order.indexOf('inject-tracks-halo'))
     // The path's end draws above the selection ring (R3); the ring above everything else.
     expect(order.slice(-3)).toEqual([
       'selected-track-ring',
@@ -414,7 +412,7 @@ describe('MapView', () => {
       filter: ['==', ['get', 'shape'], 'drone'],
       layout: { 'icon-image': 'drone', 'icon-allow-overlap': true, 'icon-ignore-placement': true },
     })
-    // The drone is not turned: a quadcopter has no nose, and the tick carries its heading in raw.
+    // The drone is not turned: a quadcopter has no nose, and no mark carries its heading (S10b).
     expect(layers['inject-tracks-glyph'].layout).not.toHaveProperty('icon-rotate')
     expect(layers['inject-tracks-dot'].paint['circle-stroke-color'][1]).toEqual(['get', 'identity'])
     expect(layers['inject-tracks-halo'].paint['circle-radius']).toBeGreaterThan(
@@ -429,7 +427,7 @@ describe('MapView', () => {
       { width: number; height: number; data: Uint8ClampedArray },
       Record<string, unknown>,
     ][]
-    expect(images.map(([id]) => id)).toEqual(['aircraft', 'drone', 'tick', 'arrow'])
+    expect(images.map(([id]) => id)).toEqual(['aircraft', 'drone', 'arrow'])
     for (const [, image, options] of images) {
       expect(options).toEqual({ sdf: true, pixelRatio: 2 })
       expect(image.width).toBe(image.height)
@@ -890,9 +888,9 @@ describe('MapView', () => {
 })
 
 describe('raw mode (S4a, #136, ruled A4)', () => {
-  it('paints every shape one neutral, shows a label per track and a heading tick per drone or dot, and draws no legend (S9)', () => {
+  it('paints every shape one neutral, shows a label per track, and draws no legend (S9)', () => {
     render(<MapView ao={AO} mode="raw" tracks={TRACKS} injects={INJECTS} />)
-    for (const id of ['inject-tracks-tick', 'adsb-tracks-label', 'inject-tracks-label']) {
+    for (const id of ['adsb-tracks-label', 'inject-tracks-label']) {
       expect(mapInstance.setLayoutProperty).toHaveBeenCalledWith(id, 'visibility', 'visible')
     }
     const neutral = '#c5cfdc'
@@ -931,22 +929,12 @@ describe('raw mode (S4a, #136, ruled A4)', () => {
       'TRK-02',
       'UAS-8E8F',
     ])
-    // A tick for each moving, airborne inject with a heading — a drone or a dot; an aircraft
-    // gets none, its glyph is turned to its heading (S9). The tick is a mark on the inject
-    // feature itself (S10): the feature says whether it has one and which way it points.
-    const injectFeatures = dataFor('inject-tracks').features
-    expect(injectFeatures.map((f) => [f.properties.tick, f.properties.heading])).toEqual([
-      [true, 118.4],
-      [true, 238.6],
-      [true, 90],
-    ])
-    expect(dataFor('adsb-tracks').features.every((f) => !('tick' in f.properties))).toBe(true)
     expect(screen.queryByRole('group', { name: 'Map legend' })).toBeNull()
   })
 
-  it('keeps Vigil’s paint and the raw layers hidden when the mode is vigil', () => {
+  it('keeps Vigil’s paint and the raw labels hidden when the mode is vigil', () => {
     render(<MapView ao={AO} tracks={TRACKS} injects={INJECTS} />)
-    for (const id of ['inject-tracks-tick', 'adsb-tracks-label', 'inject-tracks-label']) {
+    for (const id of ['adsb-tracks-label', 'inject-tracks-label']) {
       expect(mapInstance.setLayoutProperty).toHaveBeenCalledWith(id, 'visibility', 'none')
     }
     const neutralCalls = mapInstance.setPaintProperty.mock.calls.filter(
@@ -992,7 +980,7 @@ describe('a study run’s paint (S9b, #199, ruled A–C; #131’s fairness spec)
       expect(paints(layer, 'icon-color').at(-1)).toEqual(['case', HANDLED, HOLLOW, ink(true)])
       expect(paints(layer, 'icon-halo-color').at(-1)).toEqual(ink(true))
     }
-    // The label and the tick are raw's layers, hidden here and painted only there (below).
+    // The label is raw's layer, hidden here and painted only there (below).
     expect(paints('adsb-tracks-label', 'text-color')).toHaveLength(0)
     // No caution token, no identity token, anywhere in the run's paint.
     const painted = JSON.stringify(mapInstance.setPaintProperty.mock.calls)
@@ -1045,7 +1033,6 @@ describe('a study run’s paint (S9b, #199, ruled A–C; #131’s fairness spec)
       ['inject-tracks-dot', 'circle-stroke-color'],
       ['inject-tracks-halo', 'circle-color'],
       ['adsb-tracks-label', 'text-color'],
-      ['inject-tracks-tick', 'icon-color'],
     ]) {
       expect(paints(layer, prop).at(-1)).toEqual(ink(false))
     }
@@ -1080,91 +1067,84 @@ describe('a study run’s paint (S9b, #199, ruled A–C; #131’s fairness spec)
   })
 })
 
-describe('the heading tick (S4a; S10, #182 item 5)', () => {
-  it('holds the fairness spec’s heading line by visibility, not presence: one screen length from the marker’s edge at any zoom, never culled, raw only (#182 item 5)', () => {
-    render(<MapView ao={AO} mode="raw" injects={INJECTS} />)
-    const tick = mapInstance.addLayer.mock.calls.find(
-      ([layer]) => layer.id === 'inject-tracks-tick',
+describe('no heading mark on an inject (S10b, #211; the fairness spec’s heading line)', () => {
+  /** Every inject-source layer as added, by id, and the mode toggles that name one. */
+  const markerLayers = (mode: 'raw' | 'vigil') => {
+    cleanup()
+    mapInstance.addLayer.mockClear()
+    mapInstance.addImage.mockClear()
+    mapInstance.setLayoutProperty.mockClear()
+    render(<MapView ao={AO} mode={mode} tracks={TRACKS} injects={INJECTS} />)
+    const layers = mapInstance.addLayer.mock.calls
+      .map(([layer]) => layer)
+      .filter((layer) => layer.source === 'inject-tracks')
+    return {
+      ids: layers.map((layer) => layer.id),
+      layers,
+      images: mapInstance.addImage.mock.calls.map(([id]) => id),
+      toggled: mapInstance.setLayoutProperty.mock.calls
+        .filter(([id]) => String(id).startsWith('inject-tracks'))
+        .map(([id, , value]) => [id, value])
+        .sort(),
+      features: dataFor('inject-tracks').features.map((f) => Object.keys(f.properties).sort()),
+    }
+  }
+
+  it('draws no heading tick in either mode: no tick layer, no tick image, no tick or heading on an inject feature — the S10 tick removed, nothing in its place (ruled on #211)', () => {
+    for (const mode of ['raw', 'vigil'] as const) {
+      const picture = markerLayers(mode)
+      expect(picture.ids.some((id) => id.includes('tick'))).toBe(false)
+      expect(picture.images).toEqual(['aircraft', 'drone', 'arrow'])
+      for (const keys of picture.features) {
+        expect(keys).not.toContain('tick')
+        expect(keys).not.toContain('heading')
+      }
+    }
+    // The aircraft glyph is unchanged: it still turns to its heading.
+    const aircraft = mapInstance.addLayer.mock.calls.find(
+      ([layer]) => layer.id === 'adsb-tracks-glyph',
     )![0]
-    // A symbol is placed in screen pixels, so its length is one fixed length at every zoom —
-    // the S4a line was 300 m on the ground, 5 px at the working zoom, under the 13 px dot.
-    expect(tick).toMatchObject({
-      type: 'symbol',
-      source: 'inject-tracks',
-      filter: ['get', 'tick'],
-      layout: {
-        'icon-image': 'tick',
-        'icon-rotate': ['get', 'heading'],
-        'icon-rotation-alignment': 'map',
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true,
-      },
-      paint: { 'icon-color': '#c5cfdc' },
-    })
-    // The mark is 12 px long; it starts at the marker's edge, so its centre stands the edge
-    // plus half its length forward: 6.5 + 6 for the dot (its radius and stroke); for the drone
-    // the glyph's reach along the heading (#192, ruled 2) — the glyph is drawn nose-up while
-    // the tick swings round it, so the edge is the body's 2.27 px on an axis and a rotor's far
-    // edge, 11.23 px, on a diagonal — read off a step table over the heading folded to 0–45°.
-    // Forward is a negative y under the rotation.
-    const offset = tick.layout['icon-offset']
-    expect(offset.slice(0, 2)).toEqual(['case', ['==', ['get', 'shape'], 'drone']])
-    expect(offset[3][1]).toEqual([0, -12.5])
-    const drone = offset[2]
-    expect(drone[0]).toBe('step')
-    expect(drone[1]).toEqual([
-      'min',
-      ['%', ['get', 'heading'], 90],
-      ['-', 90, ['%', ['get', 'heading'], 90]],
+    expect(aircraft.layout['icon-rotate']).toEqual(['get', 'heading'])
+  })
+
+  it('builds the inject marker layers equal across the modes, and toggles only the label by mode', () => {
+    const raw = markerLayers('raw')
+    const vigil = markerLayers('vigil')
+    expect(raw.ids).toEqual([
+      'inject-tracks-halo',
+      'inject-tracks-dot',
+      'inject-tracks-glyph',
+      'inject-tracks-mark',
+      'inject-tracks-label',
     ])
-    // The table's first entry is the axis; its last the diagonal. To within a pixel.
-    const standoff = (literal: unknown[]) => -(literal[1] as [number, number])[1] - 6
-    expect(standoff(drone[2] as unknown[])).toBeCloseTo(2.27, 0)
-    const last = drone[drone.length - 1] as unknown[]
-    expect(drone[drone.length - 2]).toBeLessThanOrEqual(45)
-    expect(standoff(last)).toBeCloseTo(11.23, 0)
-    // The image is the box's height at 12 px, at the same ratio as the glyphs.
-    const [, image, options] = mapInstance.addImage.mock.calls.find(([id]) => id === 'tick')!
-    expect(options).toEqual({ sdf: true, pixelRatio: 2 })
-    expect(image.width).toBe(24 + 14)
-    // Only an airborne inject with a heading, moving at 2 kt or more, carries one (R2): a
-    // hover's drift under that is noise; a still track and a heading-less one carry none.
-    const drift = { ...INJECTS[0], groundSpeedKt: 1.9 }
-    const still = { ...INJECTS[0], headingDeg: null, groundSpeedKt: 0 }
-    const walking = { ...INJECTS[1], groundSpeedKt: 2 }
-    render(<MapView ao={AO} mode="raw" injects={[drift, still, walking]} />)
-    expect(dataFor('inject-tracks').features.map((f) => f.properties.tick)).toEqual([
-      false,
-      false,
-      true,
+    expect(vigil.layers).toEqual(raw.layers)
+    expect(vigil.features).toEqual(raw.features)
+    // The one inject layer the mode shows or hides is the label; every marker layer is drawn
+    // in both, and the mode reaches it through paint alone. The assessed ring is toggled by
+    // `run`, not by the mode (S9b) — visible in the demo either way.
+    expect(raw.toggled).toEqual([
+      ['inject-tracks-label', 'visible'],
+      ['inject-tracks-mark', 'visible'],
+    ])
+    expect(vigil.toggled).toEqual([
+      ['inject-tracks-label', 'none'],
+      ['inject-tracks-mark', 'visible'],
     ])
   })
 
-  it('puts raw’s label on the side the tick is not on: left for a heading into the right-hand half, right otherwise or with no tick (R1)', () => {
+  it('puts every inject label on the default side — anchored left, hanging right — now that R1 has no mark to clear', () => {
     render(<MapView ao={AO} mode="raw" injects={INJECTS} />)
     const label = mapInstance.addLayer.mock.calls.find(
       ([layer]) => layer.id === 'inject-tracks-label',
     )![0]
-    const left = [
-      'all',
-      ['get', 'tick'],
-      ['>=', ['get', 'heading'], 20],
-      ['<', ['get', 'heading'], 160],
-    ]
-    // Anchored right (hanging left) at a heading of 20° up to 160° with a tick; else anchored
-    // left (hanging right), the S4a placement — the same 1.2 em standoff either way.
-    expect(label.layout['text-anchor']).toEqual(['case', left, 'right', 'left'])
-    expect(label.layout['text-offset']).toEqual([
-      'case',
-      left,
-      ['literal', [-1.2, 0]],
-      ['literal', [1.2, 0]],
-    ])
-    // The aircraft's label keeps its side: no tick to clear.
+    // The S4a placement, the aircraft label's side; the same 1.2 em standoff.
+    expect(label.layout['text-anchor']).toBe('left')
+    expect(label.layout['text-offset']).toEqual([1.2, 0])
     const aircraft = mapInstance.addLayer.mock.calls.find(
       ([layer]) => layer.id === 'adsb-tracks-label',
     )![0]
     expect(aircraft.layout['text-anchor']).toBe('left')
+    expect(aircraft.layout['text-offset']).toEqual([1.2, 0])
   })
 
   it('names the font stack the basemap declares on every text layer, the entry reading included', () => {
@@ -1179,8 +1159,9 @@ describe('the heading tick (S4a; S10, #182 item 5)', () => {
     ])
     for (const layer of labels) {
       // Clear of a 22 px glyph at any heading (S9): 1.2 em of an 11 px face is 13 px — the
-      // aircraft's to the right; the inject's on the side the tick is not on (R1, below).
-      if (layer.id === 'adsb-tracks-label') expect(layer.layout['text-offset']).toEqual([1.2, 0])
+      // aircraft's to the right, and the inject's too, since no mark sits there (S10b).
+      if (layer.id !== 'selected-entry-reading')
+        expect(layer.layout['text-offset']).toEqual([1.2, 0])
       expect(layer.layout['text-font']).toEqual([
         'Montserrat Regular',
         'Open Sans Regular',
