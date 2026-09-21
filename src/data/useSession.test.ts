@@ -2,9 +2,9 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useSession } from './useSession'
 import { PHL } from '../config/ao'
-import { SCENARIO } from '../config/scenario'
 import { SCENARIO_02A } from '../config/scenarios/02a'
 import { SCENARIO_02B } from '../config/scenarios/02b'
+import { SCENARIO_03D } from '../config/scenarios/03d'
 import { scenarioFeed } from '../lib/feeds'
 import type { AdsbCapture } from '../lib/adsb'
 import { planScenario, timelineOf } from '../lib/injects'
@@ -29,15 +29,15 @@ describe('useSession (#115)', () => {
     fetcher.mockClear()
   })
 
-  it('opens the demo with no query and no env: the default recording, the scenario on', async () => {
+  it('opens the demo with no query and no env: the demo’s recording, 002, with the scenario on (S11, #213)', async () => {
     vi.stubGlobal('fetch', fetcher)
     const { result } = renderHook(() => useSession('', {}))
     await waitFor(() => expect(result.current.status).toBe('ready'))
     expect(fetcher).toHaveBeenCalledTimes(1)
-    expect(fetcher).toHaveBeenCalledWith('/adsb-phl.json')
+    expect(fetcher).toHaveBeenCalledWith('/adsb-phl-002.json')
     expect(result.current).toMatchObject({
-      session: { feeds: [{ kind: 'recording', id: 'vigil-phl-001' }], scenario: { on: true } },
-      feeds: [{ ref: { kind: 'recording', id: 'vigil-phl-001' }, capture: CAPTURE }],
+      session: { feeds: [{ kind: 'recording', id: 'vigil-phl-002' }], scenario: { on: true } },
+      feeds: [{ ref: { kind: 'recording', id: 'vigil-phl-002' }, capture: CAPTURE }],
     })
   })
 
@@ -47,8 +47,9 @@ describe('useSession (#115)', () => {
     await waitFor(() => expect(result.current.status).toBe('ready'))
     if (result.current.status !== 'ready') throw new Error('not ready')
     expect(result.current.feeds[0].timeline).toEqual(timelineOf(CAPTURE))
-    expect(result.current.scenario?.plan).toEqual(planScenario(timelineOf(CAPTURE)))
-    expect(result.current.scenario?.seed).toBe(SCENARIO.seed)
+    // The demo's scenario is 03d (S11, #213), so the plan is its cast on the grid, its seed the session's.
+    expect(result.current.scenario?.plan).toEqual(planScenario(timelineOf(CAPTURE), SCENARIO_03D))
+    expect(result.current.scenario?.seed).toBe(SCENARIO_03D.seed)
   })
 
   it('builds the feed from the scenario the session names — ?scenario=02a is the study file, its seed the session’s (S3b, #135)', async () => {

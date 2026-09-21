@@ -6,6 +6,7 @@ import { SCENARIO_02A } from './scenarios/02a'
 import { ROTATION_02B_DEG, SCENARIO_02B } from './scenarios/02b'
 import { SCENARIO_03A } from './scenarios/03a'
 import { ROTATION_03B_DEG, SCENARIO_03B } from './scenarios/03b'
+import { ROTATION_03D_DEG, SCENARIO_03D } from './scenarios/03d'
 import {
   HOVER_LEG_M,
   LEG_M,
@@ -24,6 +25,7 @@ import { associate, scenarioFeed } from '../lib/feeds'
 import { KT_TO_MS, bearingDegrees, destinationPoint, distanceMeters } from '../lib/geo'
 import { gridTimeline, injectTracksAt, planScenario, timelineOf } from '../lib/injects'
 import { entryAt } from '../lib/projection'
+import { queueOrder } from '../lib/ranking'
 import { historiesAt, indexCapture, memoryAt, originsOf } from '../lib/replay'
 import { bandOf, scoreTrack } from '../lib/scoring'
 import type { InjectTrack } from '../lib/tracks'
@@ -52,15 +54,17 @@ const kind = (entry: CastEntry) =>
           : 'mover'
 
 describe('the scenario registry (S3b, #135, ruled A5; #36 [26] A)', () => {
-  it('lists default — the default deal — first, then the two study files; an unknown name is refused', () => {
+  it('lists 03d — the demo’s, what the bare link and `on` open — first, then 001, the default deal, then the study files; an unknown name is refused', () => {
     expect(SCENARIOS.map((scenario) => scenario.name)).toEqual([
-      'default',
+      '03d',
+      '001',
       '02a',
       '02b',
       '03a',
       '03b',
     ])
-    expect(SCENARIOS[0].config).toBe(SCENARIO)
+    expect(SCENARIOS[0].config).toBe(SCENARIO_03D)
+    expect(scenarioNamed('001').config).toBe(SCENARIO)
     expect(scenarioNamed('02a').config).toBe(SCENARIO_02A)
     expect(scenarioNamed('02b').config).toBe(SCENARIO_02B)
     expect(scenarioNamed('03a').config).toBe(SCENARIO_03A)
@@ -73,7 +77,11 @@ describe('the scenario registry (S3b, #135, ruled A5; #36 [26] A)', () => {
     expect(scenarioNamed('03b').runS).toBe(218)
     expect(scenarioNamed('02a').runS).toBeUndefined()
     expect(scenarioNamed('02b').runS).toBeUndefined()
-    expect(scenarioNamed('default').runS).toBeUndefined()
+    expect(scenarioNamed('001').runS).toBeUndefined()
+    // The demo's scenario is not a study scenario: no run length of its own (S11, #213).
+    expect(scenarioNamed('03d').runS).toBeUndefined()
+    expect(scenarioNamed('03d').pairedWith).toBeUndefined()
+    expect(SCENARIO_03D.seed).toBe('demo-03d')
     expect(SCENARIO_03A.seed).toBe('study-03a')
     expect(SCENARIO_03B.seed).toBe('study-03b')
     // The seeds are the study's, never a recording id (ruled on #135).
@@ -679,6 +687,100 @@ describe('the prioritization pair’s ids and idents (S7d, #167, ruled M1, M2; R
       ),
     ).toEqual(['inject-100', 'inject-101', 'inject-148'])
   })
+})
+
+describe('the demo member 03d (S11, #213)', () => {
+  const FAR = 'inject-44'
+  const CLOSE = 'inject-39'
+
+  /** The idents the screen shows over ticks `from`–`to`, in both conditions (R2 on #167). */
+  function shownIdents(config: ScenarioConfig, from: number, to: number): Set<string> {
+    const plan = planScenario(timelineOf(CAPTURE), config)
+    const shown = new Set<string>()
+    for (const associationM of [STUDY_CONFIG.rawAssociationM, SCORING.cooperativity.mismatchM]) {
+      for (let tSec = from; tSec <= to; tSec++) {
+        for (const track of injectTracksAt(plan, tSec)) {
+          shown.add(trackIdent(associate(track, associationM)))
+        }
+      }
+    }
+    return shown
+  }
+
+  it('is 03a’s crowd turned 270° under a third id set — fifty-one rows: two threats of its own, then 03a’s rows 3–49 turned, then 03a’s two threat rows re-cut as near misses; no id in either twin, and no ident the bare link ever shows is one 03a or 03b shows in its window', () => {
+    const rows = cast(SCENARIO_03D)
+    expect(rows).toHaveLength(51)
+    expect(SCENARIO_03D.maxInjects).toBe(0)
+    expect(rows.slice(2, 49)).toEqual(
+      cast(SCENARIO_03A)
+        .slice(2)
+        .map((entry) => rotated(entry, ROTATION_03D_DEG)),
+    )
+    // Through the plan, as the app numbers them (R1 on #167), against both twins’ plans.
+    const planned = (config: ScenarioConfig) =>
+      planScenario(timelineOf(CAPTURE), config).specs.map((spec) => spec.id)
+    const ids = planned(SCENARIO_03D)
+    const twins = new Set([...planned(SCENARIO_03A), ...planned(SCENARIO_03B)])
+    expect(ids).toHaveLength(51)
+    expect(ids.filter((id) => twins.has(id))).toEqual([])
+    expect(ids.slice(0, 2)).toEqual([FAR, CLOSE])
+    for (const id of ['inject-31', 'inject-57', 'inject-29', 'inject-23']) {
+      expect(ids.slice(0, 2)).not.toContain(id)
+    }
+    // A silent row shows two digits, a heard row never shows its three (R2).
+    rows.forEach((row, i) => {
+      const n = Number(ids[i].slice('inject-'.length))
+      expect([ids[i], row.remoteId === 'silent' ? n < 100 : n >= 148]).toEqual([ids[i], true])
+    })
+    expect(rows.filter((row) => row.remoteId === 'silent')).toHaveLength(27)
+    // The idents shown, not the ids (Codex, round 1): a heard row draws its UAS label from the
+    // seed, so the screens are compared — the bare link over the whole recording, each twin over
+    // its own window. The corroboration pair numbers from 11 and is not held apart (`ids.ts`).
+    const demo = shownIdents(SCENARIO_03D, 0, 1185)
+    for (const twin of [SCENARIO_03A, SCENARIO_03B]) {
+      const study = shownIdents(twin, T0, T0 + 218)
+      expect([...demo].filter((ident) => study.has(ident))).toEqual([])
+    }
+  })
+
+  it('reads the cold open from t = 0: both threats warning at ranks 1 and 2 in the queue’s own order, the close one on top through 92 s and the far one from 93 s to its entry at 123 s; the close one enters at 158 s; nothing else is inside the ring or warning before 608 s', () => {
+    // The queue's comparator over the same picture (Codex, round 1): the crossing pinned at its
+    // tick, not a band — the app's order is `queueOrder`, and the shared fold sorts by composite.
+    const index = indexCapture(CAPTURE)
+    const feed = scenarioFeed(timelineOf(CAPTURE), SCENARIO_03D)
+    const origins = originsOf(index, feed.plan)
+    for (let tSec = 0; tSec <= 123; tSec++) {
+      const layer = feed.pictureAt(tSec)
+      const context = {
+        tSec,
+        minuteOfDay: 18 * 60 + 2 + Math.floor(tSec / 60),
+        memory: memoryAt((t) => injectTracksAt(feed.plan, t), feed.plan.intervalS, tSec),
+        history: historiesAt(index, feed.plan, layer, tSec, SCORING.pattern.windowS),
+        origins,
+      }
+      const top = layer
+        .map((track) => {
+          const score = scoreTrack(track, AO.protectedSites, context)
+          return { track, score, rangeM: score.rangeM }
+        })
+        .sort(queueOrder)
+        .slice(0, 2)
+        .map((entry) => entry.track.id)
+      expect([tSec, top]).toEqual([tSec, tSec < 93 ? [CLOSE, FAR] : [FAR, CLOSE]])
+    }
+    const ticks = fold(SCENARIO_03D, 0, 607)
+    for (const tick of ticks) {
+      expect(of(tick, FAR)!.band).toBe('warning')
+      expect(of(tick, CLOSE)!.band).toBe('warning')
+      for (const s of tick.scored) {
+        if (s.track.id === FAR || s.track.id === CLOSE) continue
+        expect(distanceMeters(C, s.track.position)).toBeGreaterThan(SITE.radiusM)
+        expect([tick.tSec, s.track.id, s.band]).not.toEqual([tick.tSec, s.track.id, 'warning'])
+      }
+    }
+    expect(ticks.find((t) => rangeAt(t, FAR) <= SITE.radiusM)!.tSec).toBe(123)
+    expect(ticks.find((t) => rangeAt(t, CLOSE) <= SITE.radiusM)!.tSec).toBe(158)
+  }, 30_000)
 })
 
 describe('the map’s shapes on the study casts (S9, #181)', () => {

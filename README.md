@@ -4,7 +4,9 @@
 
 ## Open it
 
-- **The demo** — <https://garishay.github.io/vigil/> — the default recording. Press Play, read the Priority list. Every merge to `main` redeploys it.
+- **The demo** — <https://garishay.github.io/vigil/> — scenario 03d on the evening recording (S11, #213): the 03 crowd with two threats of its own, both red at the top of the list from the first tick, the far one overtaking the close one at 1:33 and entering the ring at 2:03, the close one at 2:38. Press Play, read the Priority list. Every merge to `main` redeploys it. Never a study scenario and never counted; a study-run link on it runs at the study's Begin, after both threats have entered, until S11b (#214) gives 03d a Begin of its own.
+- **The demo, unaided** — [`?mode=raw`](https://garishay.github.io/vigil/?mode=raw) — the same picture with every derived reading hidden.
+- **The small-hours deal** — [`?recording=vigil-phl-001&scenario=001`](https://garishay.github.io/vigil/?recording=vigil-phl-001&scenario=001) — what the bare link opened before S11: six dealt injects on a calm picture, the golden's recording.
 - **The evening arrivals bank** — [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002).
 - **The sheet page** — [`?sheet`](https://garishay.github.io/vigil/?sheet): drop a results file, or both run files, or paste them, and the subject sheet is drawn in that tab, downloaded or printed; **Clear saved runs** asks once before it removes what the browser holds.
 
@@ -25,24 +27,29 @@ A link that opens on **Session complete** means that code's session is finished 
 
 <details><summary>Every scenario link, and the URL parameters</summary>
 
-| scenario | condition | link                                                                                                                                          |
-| -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| 02a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a)                   |
-| 02a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw) |
-| 02b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b)                   |
-| 02b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw) |
-| 03a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a)                   |
-| 03a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw) |
-| 03b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b)                   |
-| 03b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw) |
+The demo's rows first. The 02 and 03 rows under them are the study's answer keys and are not forwarded before the pilot closes.
+
+| scenario | condition | link                                                                                                                                                                                                             |
+| -------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 03d      | Vigil     | [the bare link](https://garishay.github.io/vigil/) — the demo's default, spelled out [`?feed=recording:vigil-phl-002&scenario=03d`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03d) |
+| 03d      | unaided   | [`?mode=raw`](https://garishay.github.io/vigil/?mode=raw)                                                                                                                                                        |
+| 001      | Vigil     | [`?recording=vigil-phl-001&scenario=001`](https://garishay.github.io/vigil/?recording=vigil-phl-001&scenario=001) — the default deal on its own recording                                                        |
+| 02a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a)                                                                                      |
+| 02a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw)                                                                    |
+| 02b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b)                                                                                      |
+| 02b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b&mode=raw)                                                                    |
+| 03a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a)                                                                                      |
+| 03a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw)                                                                    |
+| 03b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b)                                                                                      |
+| 03b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw)                                                                    |
 
 One link a row, not two: the Demo form this list once carried beside each Study form — `?recording=vigil-phl-002&scenario=…` — resolves to the same session, since `?recording=<id>` is the alias of `?feed=recording:<id>` and is folded into the feed list before anything else reads it (`src/lib/session.ts`); a link is a study run when it carries `subject` and `run`, whichever form named the recording.
 
-A 02 study link (S3b, S4a) is the corroboration pair; a 03 link (S7) the prioritization pair. A 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turned (S7d) — where a 02 run is six minutes. A worked study link, subject S03, run 1: [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1).
+A 02 study link (S3b, S4a) is the corroboration pair; a 03 link (S7) the prioritization pair; 03d (S11) is the demo's member of the 03 family — its crowd with a threat cast of its own, no ident shared with 03a or 03b, never counted. A 03 run is as long as its scenario says — 3:38 on both, since 03b is 03a turned (S7d) — where a 02 run is six minutes. A worked study link, subject S03, run 1: [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1).
 
-- `feed=recording:<id>` — the recording; the picture is its real layer with the scenario beside it. `vigil-phl-001` is the default.
+- `feed=recording:<id>` — the recording; the picture is its real layer with the scenario beside it. `vigil-phl-002` is the default, the demo's (S11); `vigil-phl-001` is the golden's.
 - `recording=<id>` — the same, as an alias: the two forms are one.
-- `scenario=<name>` — a study scenario by name; `on`, the default, is the default deal, `off` none. A study link names one.
+- `scenario=<name>` — a scenario by name; `on`, the default, is the registry's first — `03d`, the demo's — and `off` none; `001` is the default deal the golden runs on. A study link names one of the study's scenarios; on 03d it resolves and runs, uncounted, and shows the aftermath until S11b (#214).
 - `mode=raw` — the unaided condition; `vigil`, the default, is the app as built.
 - `subject=<code>` — with `run`, both or neither: the person's code, under which the browser keeps their runs.
 - `run=<n>` — 1 or 2; a link opened again resumes at the first run not yet saved and never re-runs a saved one.
@@ -95,7 +102,7 @@ flowchart LR
     direction LR
     subgraph real["Real layer — public ADS-B, cooperative by construction"]
       direction LR
-      recs["config/recordings.ts<br/>the registry: id · file · clock start<br/>?recording=id selects one; 001 the default"] --> load
+      recs["config/recordings.ts<br/>the registry: id · file · clock start<br/>?recording=id selects one; 002 the bare link's, 001 the golden's"] --> load
       load["data/capture.ts<br/>loadCapture: fetch once at startup, AO guard<br/>frameTracks"] --> norm["lib/adsb.ts<br/>toTrack: record → AdsbTrack<br/>identity is the literal 'cooperative'<br/>(normalizers run at capture time)"]
       norm --> replay["lib/replay.ts<br/>indexCapture → pictureAt(t): bracket by the track's own samples,<br/>interpolate, hold, coast then drop · memoryAt: identity memory as a fold over the frame grid<br/>historyAt / historiesAt(t): every track's position history — samples for an aircraft, grid instants for an inject —<br/>the map's trail at one window, the pattern detectors' input at another"]
       replaycfg["config/replay.ts<br/>coast window · tick"] --> replay
@@ -135,7 +142,7 @@ flowchart LR
     replay -- origins: first sample, first frame --> score
     frames -- kinematic box --> score
     score --> rank
-    recs -- the default's hour, for a caller without a clock --> rank
+    recs -- 001's hour, for a caller without a clock --> rank
     model --> airframe
     frames --> airframe
     workcfg --> hand
@@ -210,7 +217,7 @@ flowchart LR
   ao -- center · zoom · basemap: map, strip · default sites --> app
   sites -- session set: scorer, map, panel --> app
   cfg -- seed: strip --> app
-  recs -- ?recording= selection · the default --> app
+  recs -- ?recording= selection · 002 without one --> app
   scenarios -- ?scenario= name · on the first · off none · a run's length --> app
   studycfg -- ?mode=raw: the rule at 1 500 m, every derived reading hidden · a run: Begin · the window · the brief · the questions --> app
   run -- the run JSON: the end screen's Copy run --> app
