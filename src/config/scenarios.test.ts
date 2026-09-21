@@ -25,6 +25,7 @@ import { associate, scenarioFeed } from '../lib/feeds'
 import { KT_TO_MS, bearingDegrees, destinationPoint, distanceMeters } from '../lib/geo'
 import { gridTimeline, injectTracksAt, planScenario, timelineOf } from '../lib/injects'
 import { entryAt } from '../lib/projection'
+import { queueOrder } from '../lib/ranking'
 import { historiesAt, indexCapture, memoryAt, originsOf } from '../lib/replay'
 import { bandOf, scoreTrack } from '../lib/scoring'
 import type { InjectTrack } from '../lib/tracks'
@@ -692,7 +693,21 @@ describe('the demo member 03d (S11, #213)', () => {
   const FAR = 'inject-44'
   const CLOSE = 'inject-39'
 
-  it('is 03a’s crowd turned 270° under a third id set — fifty-one rows: two threats of its own, then 03a’s rows 3–49 turned, then 03a’s two threat rows re-cut as near misses; no id in either twin, and so no 03d threat ident a 03a or 03b threat ident', () => {
+  /** The idents the screen shows over ticks `from`–`to`, in both conditions (R2 on #167). */
+  function shownIdents(config: ScenarioConfig, from: number, to: number): Set<string> {
+    const plan = planScenario(timelineOf(CAPTURE), config)
+    const shown = new Set<string>()
+    for (const associationM of [STUDY_CONFIG.rawAssociationM, SCORING.cooperativity.mismatchM]) {
+      for (let tSec = from; tSec <= to; tSec++) {
+        for (const track of injectTracksAt(plan, tSec)) {
+          shown.add(trackIdent(associate(track, associationM)))
+        }
+      }
+    }
+    return shown
+  }
+
+  it('is 03a’s crowd turned 270° under a third id set — fifty-one rows: two threats of its own, then 03a’s rows 3–49 turned, then 03a’s two threat rows re-cut as near misses; no id in either twin, and no ident the bare link ever shows is one 03a or 03b shows in its window', () => {
     const rows = cast(SCENARIO_03D)
     expect(rows).toHaveLength(51)
     expect(SCENARIO_03D.maxInjects).toBe(0)
@@ -718,20 +733,45 @@ describe('the demo member 03d (S11, #213)', () => {
       expect([ids[i], row.remoteId === 'silent' ? n < 100 : n >= 148]).toEqual([ids[i], true])
     })
     expect(rows.filter((row) => row.remoteId === 'silent')).toHaveLength(27)
+    // The idents shown, not the ids (Codex, round 1): a heard row draws its UAS label from the
+    // seed, so the screens are compared — the bare link over the whole recording, each twin over
+    // its own window. The corroboration pair numbers from 11 and is not held apart (`ids.ts`).
+    const demo = shownIdents(SCENARIO_03D, 0, 1185)
+    for (const twin of [SCENARIO_03A, SCENARIO_03B]) {
+      const study = shownIdents(twin, T0, T0 + 218)
+      expect([...demo].filter((ident) => study.has(ident))).toEqual([])
+    }
   })
 
-  it('reads the cold open from t = 0: both threats warning at ranks 1 and 2, the close one on top until their ranges cross — 93 s in the app’s order — and the far one from then to its entry at 123 s; the close one enters at 158 s; nothing else is inside the ring or warning before 608 s', () => {
+  it('reads the cold open from t = 0: both threats warning at ranks 1 and 2 in the queue’s own order, the close one on top through 92 s and the far one from 93 s to its entry at 123 s; the close one enters at 158 s; nothing else is inside the ring or warning before 608 s', () => {
+    // The queue's comparator over the same picture (Codex, round 1): the crossing pinned at its
+    // tick, not a band — the app's order is `queueOrder`, and the shared fold sorts by composite.
+    const index = indexCapture(CAPTURE)
+    const feed = scenarioFeed(timelineOf(CAPTURE), SCENARIO_03D)
+    const origins = originsOf(index, feed.plan)
+    for (let tSec = 0; tSec <= 123; tSec++) {
+      const layer = feed.pictureAt(tSec)
+      const context = {
+        tSec,
+        minuteOfDay: 18 * 60 + 2 + Math.floor(tSec / 60),
+        memory: memoryAt((t) => injectTracksAt(feed.plan, t), feed.plan.intervalS, tSec),
+        history: historiesAt(index, feed.plan, layer, tSec, SCORING.pattern.windowS),
+        origins,
+      }
+      const top = layer
+        .map((track) => {
+          const score = scoreTrack(track, AO.protectedSites, context)
+          return { track, score, rangeM: score.rangeM }
+        })
+        .sort(queueOrder)
+        .slice(0, 2)
+        .map((entry) => entry.track.id)
+      expect([tSec, top]).toEqual([tSec, tSec < 93 ? [CLOSE, FAR] : [FAR, CLOSE]])
+    }
     const ticks = fold(SCENARIO_03D, 0, 607)
     for (const tick of ticks) {
       expect(of(tick, FAR)!.band).toBe('warning')
       expect(of(tick, CLOSE)!.band).toBe('warning')
-      const top = tick.scored.slice(0, 2).map((s) => s.track.id)
-      // The crossing is a tie of a few ticks — the app's comparator reads it at 93 s, and this
-      // fold's composite-only sort a few ticks earlier — so the pin holds either side of it.
-      if (tick.tSec <= 80) expect([tick.tSec, top]).toEqual([tick.tSec, [CLOSE, FAR]])
-      else if (tick.tSec >= 100 && tick.tSec <= 123) {
-        expect([tick.tSec, top]).toEqual([tick.tSec, [FAR, CLOSE]])
-      } else expect([tick.tSec, [...top].sort()]).toEqual([tick.tSec, [CLOSE, FAR].sort()])
       for (const s of tick.scored) {
         if (s.track.id === FAR || s.track.id === CLOSE) continue
         expect(distanceMeters(C, s.track.position)).toBeGreaterThan(SITE.radiusM)

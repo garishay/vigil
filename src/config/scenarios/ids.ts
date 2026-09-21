@@ -18,10 +18,13 @@
  *
  * The demo member 03d (S11, #213) takes a third set, disjoint from both: its twenty-seven silent
  * rows draw from the thirty-nine two-digit numbers the pair left, its twenty-four heard rows take
- * 148–171. Drawn once by the same shuffle, frozen here, held apart by `scenarios.test.ts` — so no
- * ident a viewer of the bare link has read is an ident a study run shows. Its row order is its own
- * table's: threat 1, threat 2, the baits, the furniture, the load, then 03a's two threat rows
- * re-cut as near misses.
+ * 148–171. Drawn once by the same shuffle, frozen here, held apart by `scenarios.test.ts` on the
+ * idents the screen shows — so no ident a viewer of the bare link has read is an ident 03a or 03b
+ * shows. The corroboration pair numbers from 11 and is not held apart: 02a and 02b's silent
+ * decoys read TRK-12 to TRK-16, and two of those, 14 and 16, are load rows here — non-threats on
+ * both sides, and 02's threat is heard, so nothing carries. Its row order is its own table's:
+ * threat 1, threat 2, the baits, the furniture, the load, then 03a's two threat rows re-cut as
+ * near misses.
  */
 
 /** 03a's ids, in cast-row order. */

@@ -189,7 +189,7 @@ charged against the budget.
 
 MVP is done when PRs 00–06 are merged through the full five-step path, CI is green, the README carries the §2 statement and a demo GIF, and this **90-second demo** runs cold:
 
-Open the app on the PHL picture — real traffic flowing calmly along the river approaches. At 0230 an inject appears low and slow, 10 km out. A silent drone is never calm at that hour, so it opens caution; it crosses to warning on approach, and climbs to the top of the queue as it begins to loiter inside the ring. Click it: the breakdown reads *non-cooperative, loitering, inside the ring, off-hours*, and the log shows the crossing and the onset at sim time → Escalate → Vigil generates the handoff summary addressed to PHL Tower → the next track promotes. Close by narrating any single PR's history — issue, review comments, iterations — to a stranger, decision by decision.
+Open the 001 link — `?recording=vigil-phl-001&scenario=001`, the bare link’s picture until S11 (#213) put the 03 crowd there — real traffic flowing calmly along the river approaches. At 0230 an inject appears low and slow, 10 km out. A silent drone is never calm at that hour, so it opens caution; it crosses to warning on approach, and climbs to the top of the queue as it begins to loiter inside the ring. Click it: the breakdown reads *non-cooperative, loitering, inside the ring, off-hours*, and the log shows the crossing and the onset at sim time → Escalate → Vigil generates the handoff summary addressed to PHL Tower → the next track promotes. Close by narrating any single PR's history — issue, review comments, iterations — to a stranger, decision by decision.
 
 ## 14. Cadence
 

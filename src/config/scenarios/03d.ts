@@ -17,7 +17,8 @@
  * saturated, so two closing tracks order by range), and enters 35 s before it. No other track is
  * warning before 608 s, when the band rows cross as they do on 03a. No 03d threat ident is a 03a
  * or 03b threat ident — the id sets are disjoint whole (`./ids.ts`) — and a threat here is a
- * near miss there, so a viewer who has watched the bare link carries nothing into a study run.
+ * near miss there, so a viewer who has watched the bare link carries nothing into a 03 run; the
+ * 02 pair numbers from 11 and shares two load idents, TRK-14 and TRK-16, non-threats on both sides.
  * Row order is entry order, the family's convention; the number beside each row is its id.
  */
 

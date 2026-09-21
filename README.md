@@ -49,7 +49,7 @@ A 02 study link (S3b, S4a) is the corroboration pair; a 03 link (S7) the priorit
 
 - `feed=recording:<id>` — the recording; the picture is its real layer with the scenario beside it. `vigil-phl-002` is the default, the demo's (S11); `vigil-phl-001` is the golden's.
 - `recording=<id>` — the same, as an alias: the two forms are one.
-- `scenario=<name>` — a scenario by name; `on`, the default, is the registry's first — `03d`, the demo's — and `off` none; `001` is the default deal the golden runs on. A study link names a study scenario.
+- `scenario=<name>` — a scenario by name; `on`, the default, is the registry's first — `03d`, the demo's — and `off` none; `001` is the default deal the golden runs on. A study link names one of the study's scenarios; on 03d it resolves and runs, uncounted, and shows the aftermath until S11b (#214).
 - `mode=raw` — the unaided condition; `vigil`, the default, is the app as built.
 - `subject=<code>` — with `run`, both or neither: the person's code, under which the browser keeps their runs.
 - `run=<n>` — 1 or 2; a link opened again resumes at the first run not yet saved and never re-runs a saved one.
