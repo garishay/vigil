@@ -540,9 +540,9 @@ export function MapView({
       fadeDuration: 0,
       // North-up, everywhere (#192, ruled; #36 [41]): the map neither rotates nor pitches — by
       // drag, touch or keyboard — and its bearing is held at 0. Rotation serves nothing here,
-      // every frame and sheet is drawn north-up, one accidental right-drag in a run would turn
-      // the picture with no obvious way back, and raw's label rule (R1 on #182) reads the true
-      // heading, which is the screen's only while north is up.
+      // every frame and sheet is drawn north-up, and one accidental right-drag in a run would
+      // turn the picture with no obvious way back. (A third ground, raw's label rule reading
+      // the true heading, went with the heading tick — S10b, #211.)
       bearing: 0,
       dragRotate: false,
       pitchWithRotate: false,
