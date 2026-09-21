@@ -3,7 +3,7 @@ import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import type { ExpressionSpecification, GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../lib/maplibreWorker'
-import { GLYPHS, GLYPH_BOX, GLYPH_PX, MARKS, glyphImage, reachAlong } from './glyphs'
+import { GLYPHS, GLYPH_BOX, GLYPH_PX, MARKS, glyphImage } from './glyphs'
 import { IdentityLegend } from './IdentityDot'
 import type { AreaOfOperations, FriendlyArea, ProtectedSite } from '../config/ao'
 import { bearingDegrees, circlePolygon } from '../lib/geo'
@@ -59,7 +59,7 @@ const hollowHalo = (width: number): ExpressionSpecification =>
  * marker, all three shapes, and every other track the neutral the unaided picture uses — no
  * caution fill, no identity stroke; the list and the drawer keep their chips and dots, with
  * words beside them. In both conditions the **opened** mark is the marker itself dropped to a
- * grey between untouched and hollow, its label and tick with it — the marker's own brightness,
+ * grey between untouched and hollow, its label with it — the marker's own brightness,
  * the operator's channel (ruled A; a ring at a weight that could be found was the loudest thing
  * on the picture, louder than the red beside it). A warning track keeps its colour at full
  * brightness when opened, until it is handled (item 3, ruled C): colour answers which one needs
@@ -71,7 +71,7 @@ const hollowHalo = (width: number): ExpressionSpecification =>
 const IS_OPENED = ['==', ['get', 'mark'], 'assessed'] as ExpressionSpecification
 const IS_WARNING = ['==', ['get', 'band'], 'warning'] as ExpressionSpecification
 /**
- * A run's ink for a marker, its stroke, its label and its tick: the neutral, the warning colour
+ * A run's ink for a marker, its stroke and its label: the neutral, the warning colour
  * in Vigil on a track at warning, the opened grey, and the neutral again once handled — the
  * hollow outline carries no colour.
  */
@@ -122,63 +122,25 @@ const ENTRY_SOURCE = 'selected-entry'
 /** The glyphs rasterised at twice the ratio, so the edge stays crisp on a dense display (S9). */
 const GLYPH_RATIO = 2
 /**
- * The two marks' box on screen, pixels (S10, #182): the heading tick is the box's height — one
- * fixed on-screen length for every track, whatever the zoom, since a symbol is placed in screen
- * pixels — and the arrowhead the box's height too.
+ * The arrowhead's box on screen, pixels (S10, #182): the box's height, one fixed on-screen
+ * size whatever the zoom, since a symbol is placed in screen pixels. The heading tick that
+ * shared the box is gone (S10b, #211): a viewer read it as a wake, so no inject carries a
+ * heading mark in either mode — direction is the trail on selection, and Vigil's path.
  */
 const MARK_PX = 12
-/**
- * Where a tick starts: at the marker's edge, not its centre (#182 item 5). The dot's edge is its
- * radius and stroke. The drone is drawn nose-up while the tick swings round it, so its edge
- * along the tick is the glyph's reach along that heading (#192, ruled 2) — the body on an
- * axis, a rotor's far edge on a diagonal — read from a table over the heading folded to 0–45°
- * by the glyph's four-fold and mirror symmetry, one entry a degree, to within a pixel. The
- * tick's centre sits half its length beyond the edge, along the heading — `icon-offset` is
- * read as if the rotated direction were up, so a negative y is forward.
- */
-const DOT_EDGE_PX = 4.5 + 2
-const tickOffset = (edgePx: number) => [0, -(edgePx + MARK_PX / 2)]
-const droneEdgePx = (headingDeg: number) =>
-  (reachAlong(GLYPHS.drone, headingDeg) / GLYPH_BOX) * GLYPH_PX
-const DRONE_TICK_OFFSET = [
-  'step',
-  ['min', ['%', ['get', 'heading'], 90], ['-', 90, ['%', ['get', 'heading'], 90]]],
-  ['literal', tickOffset(droneEdgePx(0))],
-  ...Array.from({ length: 45 }, (_, i) => [
-    i + 0.5,
-    ['literal', tickOffset(droneEdgePx(i + 1))],
-  ]).flat(),
-] as ExpressionSpecification
 /**
  * The arrowhead's tip is 0.5 units below the top of its box, and the anchor is the box's centre:
  * pushed back by the tip's distance from the centre, the tip sits on the entry point.
  */
 const ARROW_TIP_OFFSET_PX = ((GLYPH_BOX / 2 - 0.5) / GLYPH_BOX) * MARK_PX
 /**
- * Raw mode's one colour (S4a, #136, ruled A4; #131's fairness spec): every dot, every tick, every
- * label the same neutral — no band fill, no identity colour. Identity is read off the label. A
+ * Raw mode's one colour (S4a, #136, ruled A4; #131's fairness spec): every dot, every label the
+ * same neutral — no band fill, no identity colour. Identity is read off the label. A
  * study run's neutral in both conditions too (S9b), from the literal the brief's legend reads.
  */
 const RAW_COLOR = NEUTRAL_INK
 /** `--text` mirrored (R3 on #182): the path's arrowhead and its entry reading, to be seen. */
 const TEXT_COLOR = '#e6edf3'
-/**
- * The slowest track that carries a heading tick, knots (ruled R2 on #182): a tick asserts a
- * course, and a hover's drift under this is noise that would read as an inbound's. The
- * drawer's Heading row is untouched; this narrows S4a's predicate for the tick alone.
- */
-const TICK_MIN_KT = 2
-/**
- * Raw's label takes the side the tick is not on (ruled R1 on #182): a tick never runs under
- * its own track's label, so a track heading into the right-hand half — 20° to 160° — carries
- * its label on the left, and any other, or one with no tick, on the right.
- */
-const LABEL_LEFT: ExpressionSpecification = [
-  'all',
-  ['get', 'tick'],
-  ['>=', ['get', 'heading'], 20],
-  ['<', ['get', 'heading'], 160],
-]
 /**
  * The font stack the map's text is set in — raw's labels, the path's entry reading — the one the
  * basemap's own symbol layers declare, so the glyph fetch that a `glyphs` root makes is one the
@@ -416,12 +378,6 @@ function injectFeatures(
         // The shape (S9): a drone glyph for a heard, associated Remote ID, the dot otherwise —
         // read off the callsign the association rule left, never off the generator.
         shape: trackShape(track),
-        // Raw's heading tick (S10): an airborne inject with a heading, moving at TICK_MIN_KT or
-        // more, gets one, drawn by the tick layer along `heading`; the aircraft glyph turns
-        // instead and takes none (S9).
-        tick:
-          !track.onGround && track.headingDeg !== null && (track.groundSpeedKt ?? 0) >= TICK_MIN_KT,
-        heading: track.headingDeg ?? 0,
         terminal: terminalIds.includes(track.id),
         mark: marks.get(track.id) ?? '',
         band: bands.get(track.id) ?? 'calm',
@@ -536,7 +492,7 @@ export function MapView({
   projectionEntryS?: number | null
   /**
    * The study's condition (S4a, #136, ruled A4): in `raw` every shape wears one neutral colour,
-   * a label prints each track's ident and a tick the heading of a drone or a dot, and the legend
+   * a label prints each track's ident, and the legend
    * is not drawn — the layers exist in both modes, toggled and repainted from an effect, since
    * the session may resolve after the map has built. `vigil` is the map as built.
    */
@@ -584,9 +540,9 @@ export function MapView({
       fadeDuration: 0,
       // North-up, everywhere (#192, ruled; #36 [41]): the map neither rotates nor pitches — by
       // drag, touch or keyboard — and its bearing is held at 0. Rotation serves nothing here,
-      // every frame and sheet is drawn north-up, one accidental right-drag in a run would turn
-      // the picture with no obvious way back, and raw's label rule (R1 on #182) reads the true
-      // heading, which is the screen's only while north is up.
+      // every frame and sheet is drawn north-up, and one accidental right-drag in a run would
+      // turn the picture with no obvious way back. (A third ground, raw's label rule reading
+      // the true heading, went with the heading tick — S10b, #211.)
       bearing: 0,
       dragRotate: false,
       pitchWithRotate: false,
@@ -608,13 +564,11 @@ export function MapView({
           pixelRatio: GLYPH_RATIO,
         })
       }
-      // The two marks (S10) the same way: the heading tick and the path's arrowhead.
-      for (const mark of ['tick', 'arrow'] as const) {
-        map.addImage(mark, glyphImage(MARKS[mark], MARK_PX, GLYPH_RATIO), {
-          sdf: true,
-          pixelRatio: GLYPH_RATIO,
-        })
-      }
+      // The path's arrowhead (S10) the same way.
+      map.addImage('arrow', glyphImage(MARKS.arrow, MARK_PX, GLYPH_RATIO), {
+        sdf: true,
+        pixelRatio: GLYPH_RATIO,
+      })
       // Added empty and fed by the sites effect below (08a): the rings are the session's, not
       // the AO's, and a set change re-pushes the source rather than rebuilding the layer.
       map.addSource(SITES_SOURCE, { type: 'geojson', data: siteFeatures([], [], null) })
@@ -757,31 +711,6 @@ export function MapView({
         type: 'geojson',
         data: injectFeatures([], NO_TERMINAL, NO_BANDS, NO_MARKS),
       })
-      // Raw mode's heading tick (S4a; S10, #182 item 5): one mark per moving inject, from the
-      // marker's edge along the observed heading, one screen length at any zoom — it carries
-      // heading, never speed. Under the markers, hidden until the mode says raw; Vigil draws
-      // none. An aircraft takes none: its glyph is turned to its heading.
-      map.addLayer({
-        id: `${INJECT_SOURCE}-tick`,
-        type: 'symbol',
-        source: INJECT_SOURCE,
-        filter: ['get', 'tick'],
-        layout: {
-          visibility: 'none',
-          'icon-image': 'tick',
-          'icon-rotate': ['get', 'heading'],
-          'icon-rotation-alignment': 'map',
-          'icon-offset': [
-            'case',
-            ['==', ['get', 'shape'], 'drone'],
-            DRONE_TICK_OFFSET,
-            ['literal', tickOffset(DOT_EDGE_PX)],
-          ],
-          'icon-allow-overlap': true,
-          'icon-ignore-placement': true,
-        },
-        paint: { 'icon-color': RAW_COLOR, 'icon-opacity': 0.9 },
-      })
       map.addLayer({
         id: `${INJECT_SOURCE}-halo`,
         type: 'circle',
@@ -857,10 +786,12 @@ export function MapView({
              nothing — silently (#148 review). */
           'text-font': LABEL_FONT,
           'text-size': 11,
-          // The side the tick is not on (R1): anchored right, so it hangs to the left, for a
-          // track heading into the right-hand half; anchored left, hanging right, otherwise.
-          'text-anchor': ['case', LABEL_LEFT, 'right', 'left'],
-          'text-offset': ['case', LABEL_LEFT, ['literal', [-1.2, 0]], ['literal', [1.2, 0]]],
+          // Anchored left, hanging to the right of the marker — the S4a placement, and the one
+          // the aircraft's label keeps. R1 on #182 swung it to the side the heading tick was
+          // not on; with the tick gone (S10b, #211) there is no mark to clear, so every inject
+          // label takes the default side.
+          'text-anchor': 'left',
+          'text-offset': [1.2, 0],
           'text-allow-overlap': true,
         },
         paint: { 'text-color': RAW_COLOR, 'text-halo-color': '#0b1220', 'text-halo-width': 1 },
@@ -987,14 +918,14 @@ export function MapView({
       ?.setData(injectFeatures(injects, terminalIds, bands, marks))
   }, [injects, terminalIds, bands, marks, styleReady])
 
-  // Raw mode (S4a): the neutral paint on every dot, the labels and the ticks shown; Vigil's
-  // paint and hidden layers otherwise. From an effect, since the mode resolves with the session.
+  // Raw mode (S4a): the neutral paint on every dot, the labels shown; Vigil's paint and hidden
+  // labels otherwise. From an effect, since the mode resolves with the session.
   useEffect(() => {
     const map = mapRef.current
     if (!map || !styleReady) return
     const raw = mode === 'raw'
     const visibility = raw ? 'visible' : 'none'
-    for (const id of [`${INJECT_SOURCE}-tick`, `${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
+    for (const id of [`${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
       map.setLayoutProperty(id, 'visibility', visibility)
     }
     // Each fill is re-set through `hollowed`, so a handled marker stays empty when the mode
@@ -1013,14 +944,13 @@ export function MapView({
     map.setPaintProperty(`${INJECT_SOURCE}-dot`, 'circle-stroke-color', stroke)
     map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-color', hollowed(droneInk))
     map.setPaintProperty(`${INJECT_SOURCE}-glyph`, 'icon-halo-color', droneInk)
-    // The opened grey reaches the label and the tick too, where raw draws them — and only there:
-    // Vigil's hidden label layers keep their paint, so the demo's paint has no neutral in it.
+    // The opened grey reaches the label too, where raw draws it — and only there: Vigil's
+    // hidden label layers keep their paint, so the demo's paint has no neutral in it.
     if (raw) {
       const textInk = run ? runInk(false) : RAW_COLOR
       for (const id of [`${ADSB_SOURCE}-label`, `${INJECT_SOURCE}-label`]) {
         map.setPaintProperty(id, 'text-color', textInk)
       }
-      map.setPaintProperty(`${INJECT_SOURCE}-tick`, 'icon-color', textInk)
     }
     // The opened mark is the marker itself in a run, so S8-i's ring layers are withheld there;
     // the demo keeps them. The dim goes with the run too (ruled B): brightness is the operator's.
