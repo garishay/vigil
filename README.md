@@ -4,7 +4,7 @@
 
 ## Open it
 
-- **The demo** — <https://garishay.github.io/vigil/> — scenario 03d on the evening recording (S11, #213): the 03 crowd with two threats of its own, both red at the top of the list from the first tick, the far one overtaking the close one at 1:33 and entering the ring at 2:03, the close one at 2:38. Press Play, read the Priority list. Every merge to `main` redeploys it. Never a study scenario: a study run on it shows the flow and is never counted.
+- **The demo** — <https://garishay.github.io/vigil/> — scenario 03d on the evening recording (S11, #213): the 03 crowd with two threats of its own, both red at the top of the list from the first tick, the far one overtaking the close one at 1:33 and entering the ring at 2:03, the close one at 2:38. Press Play, read the Priority list. Every merge to `main` redeploys it. Never a study scenario and never counted; a study-run link on it runs at the study's Begin, after both threats have entered, until S11b (#214) gives 03d a Begin of its own.
 - **The demo, unaided** — [`?mode=raw`](https://garishay.github.io/vigil/?mode=raw) — the same picture with every derived reading hidden.
 - **The small-hours deal** — [`?recording=vigil-phl-001&scenario=001`](https://garishay.github.io/vigil/?recording=vigil-phl-001&scenario=001) — what the bare link opened before S11: six dealt injects on a calm picture, the golden's recording.
 - **The evening arrivals bank** — [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002).
@@ -27,8 +27,13 @@ A link that opens on **Session complete** means that code's session is finished 
 
 <details><summary>Every scenario link, and the URL parameters</summary>
 
+The demo's rows first. The 02 and 03 rows under them are the study's answer keys and are not forwarded before the pilot closes.
+
 | scenario | condition | link                                                                                                                                                                                                             |
 | -------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 03d      | Vigil     | [the bare link](https://garishay.github.io/vigil/) — the demo's default, spelled out [`?feed=recording:vigil-phl-002&scenario=03d`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03d) |
+| 03d      | unaided   | [`?mode=raw`](https://garishay.github.io/vigil/?mode=raw)                                                                                                                                                        |
+| 001      | Vigil     | [`?recording=vigil-phl-001&scenario=001`](https://garishay.github.io/vigil/?recording=vigil-phl-001&scenario=001) — the default deal on its own recording                                                        |
 | 02a      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02a`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a)                                                                                      |
 | 02a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=02a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02a&mode=raw)                                                                    |
 | 02b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=02b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=02b)                                                                                      |
@@ -37,9 +42,6 @@ A link that opens on **Session complete** means that code's session is finished 
 | 03a      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03a&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03a&mode=raw)                                                                    |
 | 03b      | Vigil     | [`?feed=recording:vigil-phl-002&scenario=03b`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b)                                                                                      |
 | 03b      | unaided   | [`?feed=recording:vigil-phl-002&scenario=03b&mode=raw`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03b&mode=raw)                                                                    |
-| 03d      | Vigil     | [the bare link](https://garishay.github.io/vigil/) — the demo's default, spelled out [`?feed=recording:vigil-phl-002&scenario=03d`](https://garishay.github.io/vigil/?feed=recording:vigil-phl-002&scenario=03d) |
-| 03d      | unaided   | [`?mode=raw`](https://garishay.github.io/vigil/?mode=raw)                                                                                                                                                        |
-| 001      | Vigil     | [`?recording=vigil-phl-001&scenario=001`](https://garishay.github.io/vigil/?recording=vigil-phl-001&scenario=001) — the default deal on its own recording                                                        |
 
 One link a row, not two: the Demo form this list once carried beside each Study form — `?recording=vigil-phl-002&scenario=…` — resolves to the same session, since `?recording=<id>` is the alias of `?feed=recording:<id>` and is folded into the feed list before anything else reads it (`src/lib/session.ts`); a link is a study run when it carries `subject` and `run`, whichever form named the recording.
 
