@@ -6,6 +6,7 @@ import { SCENARIO_02A } from './scenarios/02a'
 import { ROTATION_02B_DEG, SCENARIO_02B } from './scenarios/02b'
 import { SCENARIO_03A } from './scenarios/03a'
 import { ROTATION_03B_DEG, SCENARIO_03B } from './scenarios/03b'
+import { ROTATION_03D_DEG, SCENARIO_03D } from './scenarios/03d'
 import {
   HOVER_LEG_M,
   LEG_M,
@@ -52,15 +53,17 @@ const kind = (entry: CastEntry) =>
           : 'mover'
 
 describe('the scenario registry (S3b, #135, ruled A5; #36 [26] A)', () => {
-  it('lists default — the default deal — first, then the two study files; an unknown name is refused', () => {
+  it('lists 03d — the demo’s, what the bare link and `on` open — first, then 001, the default deal, then the study files; an unknown name is refused', () => {
     expect(SCENARIOS.map((scenario) => scenario.name)).toEqual([
-      'default',
+      '03d',
+      '001',
       '02a',
       '02b',
       '03a',
       '03b',
     ])
-    expect(SCENARIOS[0].config).toBe(SCENARIO)
+    expect(SCENARIOS[0].config).toBe(SCENARIO_03D)
+    expect(scenarioNamed('001').config).toBe(SCENARIO)
     expect(scenarioNamed('02a').config).toBe(SCENARIO_02A)
     expect(scenarioNamed('02b').config).toBe(SCENARIO_02B)
     expect(scenarioNamed('03a').config).toBe(SCENARIO_03A)
@@ -73,7 +76,11 @@ describe('the scenario registry (S3b, #135, ruled A5; #36 [26] A)', () => {
     expect(scenarioNamed('03b').runS).toBe(218)
     expect(scenarioNamed('02a').runS).toBeUndefined()
     expect(scenarioNamed('02b').runS).toBeUndefined()
-    expect(scenarioNamed('default').runS).toBeUndefined()
+    expect(scenarioNamed('001').runS).toBeUndefined()
+    // The demo's scenario is not a study scenario: no run length of its own (S11, #213).
+    expect(scenarioNamed('03d').runS).toBeUndefined()
+    expect(scenarioNamed('03d').pairedWith).toBeUndefined()
+    expect(SCENARIO_03D.seed).toBe('demo-03d')
     expect(SCENARIO_03A.seed).toBe('study-03a')
     expect(SCENARIO_03B.seed).toBe('study-03b')
     // The seeds are the study's, never a recording id (ruled on #135).
@@ -679,6 +686,61 @@ describe('the prioritization pair’s ids and idents (S7d, #167, ruled M1, M2; R
       ),
     ).toEqual(['inject-100', 'inject-101', 'inject-148'])
   })
+})
+
+describe('the demo member 03d (S11, #213)', () => {
+  const FAR = 'inject-44'
+  const CLOSE = 'inject-39'
+
+  it('is 03a’s crowd turned 270° under a third id set — fifty-one rows: two threats of its own, then 03a’s rows 3–49 turned, then 03a’s two threat rows re-cut as near misses; no id in either twin, and so no 03d threat ident a 03a or 03b threat ident', () => {
+    const rows = cast(SCENARIO_03D)
+    expect(rows).toHaveLength(51)
+    expect(SCENARIO_03D.maxInjects).toBe(0)
+    expect(rows.slice(2, 49)).toEqual(
+      cast(SCENARIO_03A)
+        .slice(2)
+        .map((entry) => rotated(entry, ROTATION_03D_DEG)),
+    )
+    // Through the plan, as the app numbers them (R1 on #167), against both twins’ plans.
+    const planned = (config: ScenarioConfig) =>
+      planScenario(timelineOf(CAPTURE), config).specs.map((spec) => spec.id)
+    const ids = planned(SCENARIO_03D)
+    const twins = new Set([...planned(SCENARIO_03A), ...planned(SCENARIO_03B)])
+    expect(ids).toHaveLength(51)
+    expect(ids.filter((id) => twins.has(id))).toEqual([])
+    expect(ids.slice(0, 2)).toEqual([FAR, CLOSE])
+    for (const id of ['inject-31', 'inject-57', 'inject-29', 'inject-23']) {
+      expect(ids.slice(0, 2)).not.toContain(id)
+    }
+    // A silent row shows two digits, a heard row never shows its three (R2).
+    rows.forEach((row, i) => {
+      const n = Number(ids[i].slice('inject-'.length))
+      expect([ids[i], row.remoteId === 'silent' ? n < 100 : n >= 148]).toEqual([ids[i], true])
+    })
+    expect(rows.filter((row) => row.remoteId === 'silent')).toHaveLength(27)
+  })
+
+  it('reads the cold open from t = 0: both threats warning at ranks 1 and 2, the close one on top until their ranges cross — 93 s in the app’s order — and the far one from then to its entry at 123 s; the close one enters at 158 s; nothing else is inside the ring or warning before 608 s', () => {
+    const ticks = fold(SCENARIO_03D, 0, 607)
+    for (const tick of ticks) {
+      expect(of(tick, FAR)!.band).toBe('warning')
+      expect(of(tick, CLOSE)!.band).toBe('warning')
+      const top = tick.scored.slice(0, 2).map((s) => s.track.id)
+      // The crossing is a tie of a few ticks — the app's comparator reads it at 93 s, and this
+      // fold's composite-only sort a few ticks earlier — so the pin holds either side of it.
+      if (tick.tSec <= 80) expect([tick.tSec, top]).toEqual([tick.tSec, [CLOSE, FAR]])
+      else if (tick.tSec >= 100 && tick.tSec <= 123) {
+        expect([tick.tSec, top]).toEqual([tick.tSec, [FAR, CLOSE]])
+      } else expect([tick.tSec, [...top].sort()]).toEqual([tick.tSec, [CLOSE, FAR].sort()])
+      for (const s of tick.scored) {
+        if (s.track.id === FAR || s.track.id === CLOSE) continue
+        expect(distanceMeters(C, s.track.position)).toBeGreaterThan(SITE.radiusM)
+        expect([tick.tSec, s.track.id, s.band]).not.toEqual([tick.tSec, s.track.id, 'warning'])
+      }
+    }
+    expect(ticks.find((t) => rangeAt(t, FAR) <= SITE.radiusM)!.tSec).toBe(123)
+    expect(ticks.find((t) => rangeAt(t, CLOSE) <= SITE.radiusM)!.tSec).toBe(158)
+  }, 30_000)
 })
 
 describe('the map’s shapes on the study casts (S9, #181)', () => {

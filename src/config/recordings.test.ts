@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_RECORDING, RECORDINGS, recordingNamed } from './recordings'
+import { DEFAULT_RECORDING, DEMO_RECORDING, RECORDINGS, recordingNamed } from './recordings'
 
 describe('recordings registry (#84)', () => {
-  it('opens on 001 with its configured small-hours clock, the golden’s and §13’s recording', () => {
+  it('keeps 001 as the golden’s and §13’s recording, with its configured small-hours clock', () => {
     expect(DEFAULT_RECORDING.id).toBe('vigil-phl-001')
     expect(DEFAULT_RECORDING.file).toBe('adsb-phl.json')
     expect(DEFAULT_RECORDING.clock).toEqual({ startLocal: '02:30' })
+  })
+
+  it('opens on 002 without a query parameter — the demo’s recording, the 03 family’s (S11, #213)', () => {
+    expect(DEMO_RECORDING).toBe(recordingNamed('vigil-phl-002'))
   })
 
   it('names 002 as an evening bank that takes its clock from its capture', () => {

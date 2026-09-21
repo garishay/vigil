@@ -8,12 +8,15 @@ import {
   parseFeedRef,
   resolveSession,
 } from './session'
-import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings'
+import { DEMO_RECORDING, RECORDINGS } from '../config/recordings'
 import { SCENARIOS } from '../config/scenarios'
 import { SCENARIO } from '../config/scenario'
+import { SCENARIO_03D } from '../config/scenarios/03d'
 
-/** `on` is the registry's first — the default deal, named default (S3b, #135; #36 [26] A). */
-const ON = { on: true, name: 'default', seed: SCENARIO.seed, runS: 360 }
+/** `on` is the registry's first — the demo's, 03d since S11 (#213; S3b, #135; #36 [26] A). */
+const ON = { on: true, name: '03d', seed: SCENARIO_03D.seed, runS: 360 }
+/** The default deal, the bare link's until S11, named 001 for its seed and its recording. */
+const DEAL = { on: true, name: '001', seed: SCENARIO.seed, runS: 360 }
 const OFF = { on: false }
 const rec = (id: string) => ({ kind: 'recording', id })
 
@@ -29,16 +32,16 @@ const refusal = (search: string, env = {}) => {
 }
 
 describe('resolveSession (#115, ruling 6)', () => {
-  it('opens the demo with no query and no env: the default recording, the scenario on', () => {
-    expect(BUILD_DEFAULTS).toEqual({ feeds: 'recording:vigil-phl-001', scenario: 'on' })
+  it('opens the demo with no query and no env: the demo’s recording, 002, with the scenario on — 03d (S11, #213)', () => {
+    expect(BUILD_DEFAULTS).toEqual({ feeds: 'recording:vigil-phl-002', scenario: 'on' })
     expect(resolveSession('')).toEqual({
-      feeds: [rec(DEFAULT_RECORDING.id)],
+      feeds: [rec(DEMO_RECORDING.id)],
       scenario: ON,
       mode: 'vigil',
       study: null,
     })
     expect(resolveSession('?other=1')).toEqual({
-      feeds: [rec('vigil-phl-001')],
+      feeds: [rec('vigil-phl-002')],
       scenario: ON,
       mode: 'vigil',
       study: null,
@@ -61,7 +64,7 @@ describe('resolveSession (#115, ruling 6)', () => {
     })
     // Each variable on its own: the other keeps the build's fallback.
     expect(resolveSession('', { VITE_DEFAULT_SCENARIO: 'off' })).toEqual({
-      feeds: [rec('vigil-phl-001')],
+      feeds: [rec('vigil-phl-002')],
       scenario: OFF,
       mode: 'vigil',
       study: null,
@@ -145,7 +148,15 @@ describe('resolveSession (#115, ruling 6)', () => {
       seed: 'study-02b',
       runS: 360,
     })
-    expect(resolveSession('?scenario=default').scenario).toEqual(ON)
+    expect(resolveSession('?scenario=03d').scenario).toEqual(ON)
+    // The default deal stays reachable by name, on whichever recording the link names (S11).
+    expect(resolveSession('?scenario=001').scenario).toEqual(DEAL)
+    expect(resolveSession('?recording=vigil-phl-001&scenario=001')).toEqual({
+      feeds: [rec('vigil-phl-001')],
+      scenario: DEAL,
+      mode: 'vigil',
+      study: null,
+    })
     // A study scenario's own run length rides on the state (S7, #152, ruled D3): the registry
     // entry's when it carries one, the study's 360 otherwise — 02's pins above.
     expect(resolveSession('?feed=recording:vigil-phl-002&scenario=03a').scenario).toEqual({
@@ -171,7 +182,7 @@ describe('resolveSession (#115, ruling 6)', () => {
     expect(resolveSession('?scenario=off', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual(OFF)
     // Anything else is refused in a sentence that names the registry — so the sentence is the
     // registry's, never a stale list.
-    const names = 'default, 02a, 02b, 03a, 03b'
+    const names = '03d, 001, 02a, 02b, 03a, 03b'
     expect(refusal('?scenario=maybe')).toBe(
       `?scenario= reads on, off, or a scenario name — ${names} — not "maybe"`,
     )
@@ -201,7 +212,7 @@ describe('resolveSession (#115, ruling 6)', () => {
     // The env is the one layer the operator cannot correct from the URL: an empty string falls
     // back to the demo rather than refusing every visitor.
     expect(resolveSession('', { VITE_DEFAULT_FEEDS: '', VITE_DEFAULT_SCENARIO: '' })).toEqual({
-      feeds: [rec('vigil-phl-001')],
+      feeds: [rec('vigil-phl-002')],
       scenario: ON,
       mode: 'vigil',
       study: null,
@@ -396,7 +407,9 @@ describe('the link run 2 opens at (S6a-iii, #165, ruled C3, E1)', () => {
     expect(SCENARIOS.find((s) => s.name === '03b')?.pairedWith).toBe('03a')
     expect(SCENARIOS.find((s) => s.name === '02a')?.pairedWith).toBe('02b')
     expect(SCENARIOS.find((s) => s.name === '02b')?.pairedWith).toBe('02a')
-    expect(SCENARIOS.find((s) => s.name === 'default')?.pairedWith).toBeUndefined()
+    expect(SCENARIOS.find((s) => s.name === '001')?.pairedWith).toBeUndefined()
+    // The demo's scenario is never a study scenario: no pair, so no run 2 (S11, #213).
+    expect(SCENARIOS.find((s) => s.name === '03d')?.pairedWith).toBeUndefined()
     const unpaired = '?scenario=on&subject=S13&run=1'
     expect(nextRunSearch(resolveSession(unpaired), unpaired)).toBeNull()
   })

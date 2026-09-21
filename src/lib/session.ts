@@ -10,7 +10,7 @@
  * is what the operator asked for or nothing (the #77 rule, applied to the URL).
  */
 
-import { DEFAULT_RECORDING, RECORDINGS } from '../config/recordings.ts'
+import { DEMO_RECORDING, RECORDINGS } from '../config/recordings.ts'
 import type { RecordingEntry } from '../config/recordings.ts'
 import { SCENARIOS, type NamedScenario } from '../config/scenarios.ts'
 import { STUDY } from '../config/study.ts'
@@ -60,11 +60,13 @@ export interface SessionEnv {
 }
 
 /**
- * Layer (a) when the build set nothing — the demo: the default recording with the scenario on.
- * The Pages deploy and local dev read exactly these, so an unset env changes nothing (A8).
+ * Layer (a) when the build set nothing — the demo: the demo's recording with the scenario on,
+ * which is the registry's first (S11, #213: 002 and 03d, the crowd under load; 001's deal on its
+ * own recording stays a named link). The Pages deploy and local dev read exactly these, so an
+ * unset env changes nothing (A8).
  */
 export const BUILD_DEFAULTS = {
-  feeds: `recording:${DEFAULT_RECORDING.id}`,
+  feeds: `recording:${DEMO_RECORDING.id}`,
   scenario: 'on',
 } as const
 
@@ -101,7 +103,7 @@ function parseFeeds(text: string): FeedRef[] {
 
 /**
  * `on`, `off`, or a scenario the registry names (#36 [26] A): `on` is the registry's first — the
- * default deal — and the refusal lists the names it knows, so the sentence is the registry's.
+ * demo's — and the refusal lists the names it knows, so the sentence is the registry's.
  */
 function parseScenario(
   where: string,

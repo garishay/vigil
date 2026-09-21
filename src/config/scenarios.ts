@@ -1,9 +1,10 @@
 /**
  * The scenarios a session can name (S3b, #135, ruled A5; #36 [26] A): `?scenario=<name>` opens
- * one, `on` the first — the default deal the demo and the golden run on — and `off` none. A
- * name is a scenario file, so the operator study's links say which cast they open; a named
- * combination (Study-02a-vigil) is a README row, never a value here (#115 ruling 1). A study
- * scenario may carry its run's length (S7, #152); one that does not runs the study's default.
+ * one, `on` the first — the demo's, 03d since S11 (#213) — and `off` none. A name is a scenario
+ * file, so the operator study's links say which cast they open; a named combination
+ * (Study-02a-vigil) is a README row, never a value here (#115 ruling 1). The default deal the
+ * golden runs on is `001`, named for its seed and the recording it was cut on. A study scenario
+ * may carry its run's length (S7, #152); one that does not runs the study's default.
  */
 
 import { SCENARIO, type ScenarioConfig } from './scenario.ts'
@@ -11,6 +12,7 @@ import { SCENARIO_02A } from './scenarios/02a.ts'
 import { SCENARIO_02B } from './scenarios/02b.ts'
 import { SCENARIO_03A } from './scenarios/03a.ts'
 import { SCENARIO_03B } from './scenarios/03b.ts'
+import { SCENARIO_03D } from './scenarios/03d.ts'
 
 export interface NamedScenario {
   name: string
@@ -32,9 +34,12 @@ export interface NamedScenario {
   pairedWith?: string
 }
 
-/** The registry, the default first. */
+/** The registry, the default first: what the bare link opens, and what `on` names. */
 export const SCENARIOS: readonly NamedScenario[] = [
-  { name: 'default', config: SCENARIO },
+  // The demo (S11, #213): the 03 crowd with its own threats, never a study scenario — no run
+  // length and no pair, so a run link on it is the study flow shown, not a run counted.
+  { name: '03d', config: SCENARIO_03D },
+  { name: '001', config: SCENARIO },
   { name: '02a', config: SCENARIO_02A, pairedWith: '02b' },
   { name: '02b', config: SCENARIO_02B, pairedWith: '02a' },
   // the last threat enters at 668 s: 668 − 480 + 30

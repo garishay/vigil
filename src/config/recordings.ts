@@ -39,11 +39,18 @@ const PHL_002 = {
 export const RECORDINGS: readonly RecordingEntry[] = [PHL_001, PHL_002]
 
 /**
- * The recording the app opens without a query parameter — the config switch (A2 on #84). Typed
- * as 001's literal rather than as an entry, so its configured clock is readable where no capture
- * is at hand yet: a caller without a clock scores frame 0 at this hour (`lib/ranking.ts`).
+ * The golden's recording, and every pinned test's (A2 on #84) — the bare link's until S11 (#213).
+ * Typed as 001's literal rather than as an entry, so its configured clock is readable where no
+ * capture is at hand yet: a caller without a clock scores frame 0 at this hour (`lib/ranking.ts`).
  */
 export const DEFAULT_RECORDING = PHL_001
+
+/**
+ * The recording the app opens without a query parameter (S11, #213): the evening bank the 03
+ * family is cut on, so the bare link shows the crowd under load. `lib/session.ts` reads it into
+ * the build's defaults; the golden and the tests stay on 001.
+ */
+export const DEMO_RECORDING = PHL_002
 
 /** The entry with this id. An unknown name is a refusal that says so, never a fallback. */
 export function recordingNamed(id: string): RecordingEntry {
