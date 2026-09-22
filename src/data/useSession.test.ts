@@ -63,6 +63,7 @@ describe('useSession (#115)', () => {
       on: true,
       name: '02a',
       seed: 'study-02a',
+      beginS: 480,
       runS: 360,
     })
     expect(result.current.scenario?.seed).toBe('study-02a')

@@ -78,8 +78,14 @@ describe('the scenario registry (S3b, #135, ruled A5; #36 [26] A)', () => {
     expect(scenarioNamed('02a').runS).toBeUndefined()
     expect(scenarioNamed('02b').runS).toBeUndefined()
     expect(scenarioNamed('001').runS).toBeUndefined()
-    // The demo's scenario is not a study scenario: no run length of its own (S11, #213).
-    expect(scenarioNamed('03d').runS).toBeUndefined()
+    // The demo's scenario is not a study scenario, so no pair; its own window since S11b (#214):
+    // Begin at 0 — a 0, not an absence — and 188 s, the last entry at 158 + 30 by the rule.
+    // Every study scenario carries no Begin and keeps the study's 480.
+    expect(scenarioNamed('03d').runS).toBe(188)
+    expect(scenarioNamed('03d').beginS).toBe(0)
+    for (const name of ['001', '02a', '02b', '03a', '03b']) {
+      expect(scenarioNamed(name).beginS).toBeUndefined()
+    }
     expect(scenarioNamed('03d').pairedWith).toBeUndefined()
     expect(SCENARIO_03D.seed).toBe('demo-03d')
     expect(SCENARIO_03A.seed).toBe('study-03a')

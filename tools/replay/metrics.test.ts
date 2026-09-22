@@ -383,6 +383,26 @@ describe('runMetrics — the hand calculation on the 03 fixtures (S5c-i, #138 re
   })
 
   it('S05 03a Vigil: in order, the hover opened after — 0 before the first threat, order ✓, frozen at the second escalation', () => {
+    // The demo's run on its own window (S11b, #214): Begin 0, so the entries read 123 and 158 s
+    // from Begin and the standoffs are measured at 20 and 50 s into the recording itself.
+    const demo = runMetrics(
+      readRuns(fixturePath('demo/S90-03d-vigil-1.json'))[0],
+      study.index,
+      planFor('03d', study.timeline),
+    )
+    expect(demo).toMatchObject({
+      subject: 'S90',
+      scenario: '03d',
+      mode: 'vigil',
+      runS: 188,
+      freezeT: 50,
+      orderCorrect: true,
+      falseEscalations: 0,
+    })
+    expect(demo.threats.map((t) => [t.id, t.entryT, t.timeToEscalateS])).toEqual([
+      ['inject-44', 123, 20],
+      ['inject-39', 158, 50],
+    ])
     expect(metricsOf('S05-03a-vigil-1.json')).toMatchObject({
       runS: 218,
       threats: [

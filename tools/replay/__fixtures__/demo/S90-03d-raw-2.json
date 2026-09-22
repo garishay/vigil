@@ -1,0 +1,10 @@
+{
+  "subject": "S90",
+  "scenario": "03d",
+  "mode": "raw",
+  "run": 2,
+  "build": "2.60.0+da9ddeb",
+  "began_at": "2026-09-21T23:26:52.780Z",
+  "events": [],
+  "answers": {"demand":4,"pressure":5,"confidence":7}
+}

@@ -14,9 +14,9 @@ import { SCENARIO } from '../config/scenario'
 import { SCENARIO_03D } from '../config/scenarios/03d'
 
 /** `on` is the registry's first — the demo's, 03d since S11 (#213; S3b, #135; #36 [26] A). */
-const ON = { on: true, name: '03d', seed: SCENARIO_03D.seed, runS: 360 }
+const ON = { on: true, name: '03d', seed: SCENARIO_03D.seed, beginS: 0, runS: 188 }
 /** The default deal, the bare link's until S11, named 001 for its seed and its recording. */
-const DEAL = { on: true, name: '001', seed: SCENARIO.seed, runS: 360 }
+const DEAL = { on: true, name: '001', seed: SCENARIO.seed, beginS: 480, runS: 360 }
 const OFF = { on: false }
 const rec = (id: string) => ({ kind: 'recording', id })
 
@@ -140,12 +140,14 @@ describe('resolveSession (#115, ruling 6)', () => {
       on: true,
       name: '02a',
       seed: 'study-02a',
+      beginS: 480,
       runS: 360,
     })
     expect(resolveSession('?recording=vigil-phl-002&scenario=02b').scenario).toEqual({
       on: true,
       name: '02b',
       seed: 'study-02b',
+      beginS: 480,
       runS: 360,
     })
     expect(resolveSession('?scenario=03d').scenario).toEqual(ON)
@@ -163,12 +165,14 @@ describe('resolveSession (#115, ruling 6)', () => {
       on: true,
       name: '03a',
       seed: 'study-03a',
+      beginS: 480,
       runS: 218,
     })
     expect(resolveSession('?scenario=03b&mode=raw').scenario).toEqual({
       on: true,
       name: '03b',
       seed: 'study-03b',
+      beginS: 480,
       runS: 218,
     })
     // The env reads the same grammar, and the URL still wins over it.
@@ -176,6 +180,7 @@ describe('resolveSession (#115, ruling 6)', () => {
       on: true,
       name: '02b',
       seed: 'study-02b',
+      beginS: 480,
       runS: 360,
     })
     expect(resolveSession('?scenario=on', { VITE_DEFAULT_SCENARIO: '02b' }).scenario).toEqual(ON)
@@ -269,12 +274,23 @@ describe('resolveSession (#115, ruling 6)', () => {
       on: true,
       name: 'timed',
       seed: 'timed-seed',
+      beginS: 480,
       runS: 200,
+    })
+    // A Begin of 0 is a Begin, not an absence (S11b, #214): read nullishly, never falsily.
+    const begun = [{ name: 'begun', config: { ...SCENARIO, seed: 'begun-seed' }, beginS: 0 }]
+    expect(resolveSession('?scenario=begun', {}, RECORDINGS, begun).scenario).toEqual({
+      on: true,
+      name: 'begun',
+      seed: 'begun-seed',
+      beginS: 0,
+      runS: 360,
     })
     expect(resolveSession('', {}, RECORDINGS, other).scenario).toEqual({
       on: true,
       name: 'other',
       seed: 'other-seed',
+      beginS: 480,
       runS: 360,
     })
     expect(() => resolveSession('?scenario=02a', {}, RECORDINGS, other)).toThrow(
@@ -287,7 +303,7 @@ describe('?mode= — the study’s condition (S4a, #136, ruled A1)', () => {
   it('reads raw or vigil, vigil when absent, and refuses anything else in the resolver’s words', () => {
     expect(resolveSession('?feed=recording:vigil-phl-002&scenario=02a&mode=raw')).toEqual({
       feeds: [rec('vigil-phl-002')],
-      scenario: { on: true, name: '02a', seed: 'study-02a', runS: 360 },
+      scenario: { on: true, name: '02a', seed: 'study-02a', beginS: 480, runS: 360 },
       mode: 'raw',
       study: null,
     })
@@ -307,7 +323,7 @@ describe('?subject= and ?run= — a study run (S4b, #137, ruled A1; #131)', () =
       resolveSession('?feed=recording:vigil-phl-002&scenario=02a&mode=raw&subject=S03&run=1'),
     ).toEqual({
       feeds: [rec('vigil-phl-002')],
-      scenario: { on: true, name: '02a', seed: 'study-02a', runS: 360 },
+      scenario: { on: true, name: '02a', seed: 'study-02a', beginS: 480, runS: 360 },
       mode: 'raw',
       study: { subject: 'S03', run: 1 },
     })

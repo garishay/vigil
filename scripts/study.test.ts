@@ -55,7 +55,18 @@ describe('the study config (A8)', () => {
     expect(STUDY.prioritization).toEqual({ lockToleranceTicks: 3, baitMissM: 1000, leakOpenS: 30 })
     // The replay's list stays the corroboration pair until the #138 re-gate; the bench runs all four.
     expect(STUDY_SCENARIOS).toEqual(['02a', '02b'])
-    expect(BENCH_SCENARIOS).toEqual(['02a', '02b', '03a', '03b'])
+    // The bench runs the four and the demo's 03d, last and never pooled (S11b, #214).
+    expect(BENCH_SCENARIOS).toEqual(['02a', '02b', '03a', '03b', '03d'])
+    expect(STUDY_CAST['03d']).toEqual({
+      family: 'prioritization',
+      demo: true,
+      threats: ['inject-44', 'inject-39'],
+      tangential: ['inject-93'],
+      orbit: 'inject-97',
+      band: ['inject-16', 'inject-72', 'inject-14', 'inject-92'],
+      lockS: 93,
+    })
+    for (const name of ['02a', '02b', '03a', '03b']) expect(STUDY_CAST[name].demo).toBeUndefined()
     expect(STUDY_CAST['02a']).toEqual({
       family: 'corroboration',
       threats: ['inject-11'],
@@ -363,9 +374,10 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
   /** The roles table's own names, for the rows it names. */
   const roles = (name: '03a' | '03b') => STUDY_CAST[name]
 
-  it('is the prioritization family, run to the registry’s length — 218 s on both since S7d — with no revisit row', () => {
+  it('is the prioritization family, run to the registry’s length — 218 s on both since S7d — with no revisit row; every study scenario folded from the study’s Begin', () => {
     expect(results['03a']).toMatchObject({ family: 'prioritization', runS: 218, revisit: null })
     expect(results['03b']).toMatchObject({ family: 'prioritization', runS: 218, revisit: null })
+    for (const name of ['02a', '02b', '03a', '03b']) expect(results[name].beginS).toBe(480)
     expect(results['02a']).toMatchObject({
       family: 'corroboration',
       runS: 360,
@@ -590,6 +602,39 @@ describe('the prioritization pair (S7, #152, ruled A8; #154 round 2; S7b)', () =
       'threat 1 over threat 2 min 0.42 at 546 s · rank 2 over rank 3 min 2.74 at 480 s (inject-21)',
     )
   })
+})
+
+describe('the demo member 03d on its own window (S11b, #214)', () => {
+  it('folds from Begin 0 for 188 s — the entry’s own numbers, read nullishly — with the family’s lines: both threats warning from 0 and entering at 123 and 158, the lock from 93 s with its inverted ticks counted, the baits and band rows clear, the rule’s 188', () => {
+    const result = results['03d']
+    expect(result).toMatchObject({ family: 'prioritization', beginS: 0, runS: 188, revisit: null })
+    const p = result.prioritization!
+    expect(p.threats).toEqual([
+      { id: 'inject-44', enteredS: 123, firstWarningS: 0, warningToEntry: true },
+      { id: 'inject-39', enteredS: 158, firstWarningS: 0, warningToEntry: true },
+    ])
+    expect(p).toMatchObject({
+      rowOrderIsEntryOrder: true,
+      entryBeforeBegin: null,
+      lockStatedS: 93,
+      lockS: 93,
+      invertedTicks: 93,
+      baitsEntered: [],
+      runS: { actual: 188, rule: 188 },
+    })
+    expect(p.band.every((row) => row.firstWarningS === null)).toBe(true)
+    // A registry entry without a Begin folds from the study's, as every study scenario does.
+    const named = scenarioNamed('03d', SCENARIOS)
+    const late = runStudy({ name: '03d', config: named.config, runS: 188 }, recording)
+    expect(late.beginS).toBe(480)
+    expect(late.prioritization?.entryBeforeBegin).toEqual({ id: 'inject-44', enteredS: 123 })
+    const text = renderStudy(result)
+    expect(text).toContain('# Study baseline — 03d on vigil-phl-002 · Begin 0 s · run 188 s')
+    expect(text).toContain(
+      'lock — ranks 1 and 2 the threats in entry order through the first entry: from 93 s (Begin + 93), 93 inverted ticks before it — T_lock 93 s (Begin + 93), tolerance 3 ticks ✓',
+    )
+    expect(text).toContain('runS 188 = last entry 158 − Begin 0 + 30 ✓')
+  }, 60_000)
 })
 
 describe('the prioritization lines fail on what they guard (S7b) — two synthetic casts', () => {

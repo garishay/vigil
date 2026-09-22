@@ -4,7 +4,7 @@
 
 ## Open it
 
-- **The demo** — <https://garishay.github.io/vigil/> — scenario 03d on the evening recording (S11, #213): the 03 crowd with two threats of its own, both red at the top of the list from the first tick, the far one overtaking the close one at 1:33 and entering the ring at 2:03, the close one at 2:38. Press Play, read the Priority list. Every merge to `main` redeploys it. Never a study scenario and never counted; a study-run link on it runs at the study's Begin, after both threats have entered, until S11b (#214) gives 03d a Begin of its own.
+- **The demo** — <https://garishay.github.io/vigil/> — scenario 03d on the evening recording (S11, #213): the 03 crowd with two threats of its own, both red at the top of the list from the first tick, the far one overtaking the close one at 1:33 and entering the ring at 2:03, the close one at 2:38. Press Play, read the Priority list. Every merge to `main` redeploys it. Never a study scenario and never counted: a study-run link on it (`subject` and `run` appended) runs the study flow on the demo's own window — the brief, Begin at the top of the recording, 3:08 to the last entry plus 30 s, the three questions, and with a second run in the other condition the results and the pair (S11b, #214). A 03d demonstration run is for audiences, never for a subject before their counted runs: the 03 crowd, turned, is not seen before a counted run (#131's free-play rule).
 - **The demo, unaided** — [`?mode=raw`](https://garishay.github.io/vigil/?mode=raw) — the same picture with every derived reading hidden.
 - **The small-hours deal** — [`?recording=vigil-phl-001&scenario=001`](https://garishay.github.io/vigil/?recording=vigil-phl-001&scenario=001) — what the bare link opened before S11: six dealt injects on a calm picture, the golden's recording.
 - **The evening arrivals bank** — [`?recording=vigil-phl-002`](https://garishay.github.io/vigil/?recording=vigil-phl-002).
@@ -49,7 +49,7 @@ A 02 study link (S3b, S4a) is the corroboration pair; a 03 link (S7) the priorit
 
 - `feed=recording:<id>` — the recording; the picture is its real layer with the scenario beside it. `vigil-phl-002` is the default, the demo's (S11); `vigil-phl-001` is the golden's.
 - `recording=<id>` — the same, as an alias: the two forms are one.
-- `scenario=<name>` — a scenario by name; `on`, the default, is the registry's first — `03d`, the demo's — and `off` none; `001` is the default deal the golden runs on. A study link names one of the study's scenarios; on 03d it resolves and runs, uncounted, and shows the aftermath until S11b (#214).
+- `scenario=<name>` — a scenario by name; `on`, the default, is the registry's first — `03d`, the demo's — and `off` none; `001` is the default deal the golden runs on. A study link names one of the study's scenarios; on 03d it runs the flow on 03d's own window, uncounted — the replay draws its frame and its pair, `--study` skips it in words, and the sheet refuses it beside a counted run (S11b, #214).
 - `mode=raw` — the unaided condition; `vigil`, the default, is the app as built.
 - `subject=<code>` — with `run`, both or neither: the person's code, under which the browser keeps their runs.
 - `run=<n>` — 1 or 2; a link opened again resumes at the first run not yet saved and never re-runs a saved one.

@@ -64,6 +64,8 @@ const isIsoTime = (text: string): boolean => {
 
 /** A study run's length on a scenario: the registry entry's own, or the study's default (S7, ruled D3). */
 export const runSOf = (scenario: string): number => scenarioNamed(scenario).runS ?? STUDY.runS
+/** A study run's Begin on a scenario (S11b, #214): the entry's own, or the study's — nullishly, 03d's is 0. */
+export const beginSOf = (scenario: string): number => scenarioNamed(scenario).beginS ?? STUDY.beginS
 
 function parseEvent(value: unknown, i: number, path: string, runS: number): RunEvent {
   if (!isObject(value)) return refuse(path, `events[${i}] is an object {t, type, track}`)

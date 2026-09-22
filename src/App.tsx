@@ -210,10 +210,11 @@ export default function App({
   const activeSurface: SurfaceId = inStudy ? 'queue' : surfaceId
   const surface = SURFACES.find((s) => s.id === activeSurface) ?? SURFACES[0]
   // The run's window (S4b, ruled A2, A4): Begin's tick to the run's end — the scenario's own
-  // length when its registry entry carries one (S7, #152, ruled D3), the study's default
-  // otherwise, resolved with the session so the link fixes it.
+  // Begin and length when its registry entry carries them (S7, #152, ruled D3; S11b, #214), the
+  // study's defaults otherwise, resolved with the session so the link fixes it.
+  const beginS = resolved?.scenario.on ? resolved.scenario.beginS : STUDY.beginS
   const runS = resolved?.scenario.on ? resolved.scenario.runS : STUDY.runS
-  const runWindow = useMemo(() => ({ fromS: STUDY.beginS, toS: STUDY.beginS + runS }), [runS])
+  const runWindow = useMemo(() => ({ fromS: beginS, toS: beginS + runS }), [beginS, runS])
 
   // Selection and filters persist across surface switches — client state only (§7.1 ruling, #3).
   const [selectedId, setSelectedId] = useState<string | null>(null)

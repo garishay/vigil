@@ -14,7 +14,6 @@
 
 import { AO } from '../../src/config/ao.ts'
 import { type Band } from '../../src/config/scoring.ts'
-import { STUDY } from '../../src/config/study.ts'
 import {
   BAND_COLOR,
   mismatchLine,
@@ -28,7 +27,7 @@ import { timeToEntry, type Projectable } from '../../src/lib/projection.ts'
 import type { RunEvent, RunRecord } from '../../src/lib/run.ts'
 import type { Track } from '../../src/lib/tracks.ts'
 import { candidatesAt, rankedAtSecond, type RankedAt } from './engine.ts'
-import type { Study } from './load.ts'
+import { beginSOf, type Study } from './load.ts'
 import { otherEscalations, threatsOf, type OtherEscalation, type RunMetrics } from './metrics.ts'
 import { pictureAtSecond, rangeM, SITE, trackAtSecond } from './regenerate.ts'
 
@@ -189,7 +188,7 @@ export interface TrackNames {
 }
 
 export function trackNamer({ record, metrics, study, plan }: FrameInput): TrackNames {
-  const { beginS } = STUDY
+  const beginS = beginSOf(record.scenario)
   const threatIds = metrics.threats.map((threat) => threat.id)
   const many = threatIds.length > 1
   const role = (id: string) => {
@@ -253,7 +252,7 @@ export interface CaptionLine {
  */
 export function captionLines(input: FrameInput): CaptionLine[] {
   const { record, metrics, study, plan } = input
-  const { beginS } = STUDY
+  const beginS = beginSOf(record.scenario)
   const threatIds = metrics.threats.map((threat) => threat.id)
   const many = threatIds.length > 1
   const { ident, name: named } = trackNamer(input)
@@ -697,7 +696,7 @@ export function frameDocument(input: FrameInput, options: FrameOptions = {}): Fr
 export function frameParts(input: FrameInput, options: FrameOptions = {}): FrameParts {
   const { record, metrics, study, plan } = input
   const clipId = options.clipId ?? 'panel'
-  const { beginS } = STUDY
+  const beginS = beginSOf(record.scenario)
   const freezeS = beginS + metrics.freezeT
   const lines = captionLines(input)
   // One name per track, the log’s (S5g, #175): the ident without the role, for the map.

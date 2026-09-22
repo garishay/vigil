@@ -422,6 +422,11 @@ describe('the subject sheet — the document', () => {
     expect(() => sheetSvg({ unaided: raw02a, vigil: vigil03b })).toThrow(
       "a sheet reads one family — S03's 02a is corroboration and S06's 03b is prioritization",
     )
+    // A demonstration scenario is never pooled (S11b, #214): refused in words before the family
+    // is read, whichever side it sits on and whatever the subject code.
+    expect(() => sheetSvg({ unaided: fixture('demo/S90-03d-raw-2'), vigil: vigil03a })).toThrow(
+      "a sheet reads the study's scenarios — S90's 03d is a demonstration scenario, never pooled",
+    )
     expect(() => sheetSvg({ unaided: raw03a, vigil: vigil03a })).toThrow(
       "a sheet reads two scenarios — S05 and S05 both ran 03a; two runs of one scenario are the pair's",
     )

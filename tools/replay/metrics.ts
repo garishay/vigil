@@ -20,8 +20,7 @@
  */
 
 import { STUDY_CAST } from '../../scripts/study-spec.ts'
-import { STUDY } from '../../src/config/study.ts'
-import { runSOf } from './load.ts'
+import { beginSOf, runSOf } from './load.ts'
 import type { InjectPlan } from '../../src/lib/injects.ts'
 import type { ReplayIndex } from '../../src/lib/replay.ts'
 import type { RunAnswers, RunRecord } from '../../src/lib/run.ts'
@@ -114,7 +113,7 @@ export function otherEscalations(
   index: ReplayIndex,
   plan: InjectPlan,
 ): OtherEscalation[] {
-  const { beginS } = STUDY
+  const beginS = beginSOf(record.scenario)
   const runS = runSOf(record.scenario)
   const threatIds = threatsOf(record.scenario)
   const isInject = (id: string) => plan.specs.some((spec) => spec.id === id)
@@ -149,7 +148,7 @@ export function otherEscalations(
 }
 
 export function runMetrics(record: RunRecord, index: ReplayIndex, plan: InjectPlan): RunMetrics {
-  const { beginS } = STUDY
+  const beginS = beginSOf(record.scenario)
   const runS = runSOf(record.scenario)
   const threatIds = threatsOf(record.scenario)
   const threats: ThreatMetrics[] = threatIds.map((id) => {

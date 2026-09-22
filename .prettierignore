@@ -21,3 +21,6 @@ docs/bench/baseline.md
 # The study replay tool’s fixtures — the run JSON as Copy run put it on the clipboard, byte for
 # byte (S5a): one event per line. Never hand-edit; captured from a headless run.
 tools/replay/__fixtures__/*.json
+
+# The demo scenario's two runs (S11b, #214), captured the same way; the folder walk of --study never sees a subfolder.
+tools/replay/__fixtures__/demo/*.json
