@@ -60,7 +60,7 @@ describe('the sheet in the browser (S6a-ii, #165, ruled B5)', () => {
     const study = await fetchStudy(fetcher)
     // The loader's sentence, with the page's own name for what it read where the CLI has a path.
     expect(() => runsIn(raw.replace('"02a"', '"01"'), 'pasted')).toThrow(
-      'pasted: scenario "01" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
+      'pasted: scenario "01" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
     // `compose` owns the count, so the page does not restate it (S6a-i, round 1).
     expect(() => documentOf([record(raw)], study)).toThrow(

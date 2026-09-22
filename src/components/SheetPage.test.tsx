@@ -96,7 +96,7 @@ describe('the sheet page (S6a-ii, #165, ruled B3–B6)', () => {
   it('refuses what the CLI refuses, in the CLI’s words, and draws nothing', async () => {
     await paste(fixture('S03-02a-raw-1.json').replace('"02a"', '"01"'))
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'pasted: scenario "01" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
+      'pasted: scenario "01" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
     expect(document.querySelector('.sheet__document')).toBeNull()
     // The paste is kept so it can be corrected rather than retyped.
@@ -161,7 +161,7 @@ describe('the sheet page (S6a-ii, #165, ruled B3–B6)', () => {
     const bad = { ...JSON.parse(fixture('S05-03a-vigil-1.json')), run: 2, scenario: '01' }
     await paste(JSON.stringify({ subject: good.subject, build: good.build, runs: [good, bad] }))
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'pasted runs[1]: scenario "01" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
+      'pasted runs[1]: scenario "01" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
     expect(screen.getByRole('alert').textContent).not.toContain('pasted: pasted')
   }, 30_000)
