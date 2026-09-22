@@ -21,7 +21,6 @@
 
 import { bearingDegrees } from '../../src/lib/geo.ts'
 import { injectTracksAt } from '../../src/lib/injects.ts'
-import { STUDY } from '../../src/config/study.ts'
 import type { RunRecord } from '../../src/lib/run.ts'
 import {
   CAPTION,
@@ -39,7 +38,8 @@ import {
   type FrameOptions,
   type FrameParts,
 } from './frame.ts'
-import { familyOf } from './figure.ts'
+import { familyOf, isDemo } from './figure.ts'
+import { beginSOf } from './load.ts'
 import { otherEscalations, type RunMetrics, type ThreatMetrics } from './metrics.ts'
 import { conditionWord } from './pair.ts'
 import { rangeM, SITE, trackAtSecond } from './regenerate.ts'
@@ -279,7 +279,7 @@ function atSecond(
     input.study.index,
     input.plan,
     id,
-    STUDY.beginS + t,
+    beginSOf(input.record.scenario) + t,
     input.record.mode,
   )
   return track === null
@@ -290,7 +290,7 @@ function atSecond(
 /** The same, from the plan alone — the entry point, which the run's own mode cannot move. */
 function planAtSecond(input: FrameInput, id: string, t: number | null): number | null {
   if (t === null) return null
-  const track = injectTracksAt(input.plan, STUDY.beginS + t).find(
+  const track = injectTracksAt(input.plan, beginSOf(input.record.scenario) + t).find(
     (candidate) => candidate.id === id,
   )
   return track === null || track === undefined ? null : bearingDegrees(SITE.center, track.position)
@@ -341,8 +341,15 @@ function sheetLayout(
 ): { width: number; blocks: SheetBlock[]; attrs: string } {
   const a = unaided.metrics
   const b = vigil.metrics
-  // The refusals in the order a reader would ask them: the family first, since two scenarios of
-  // unlike families share neither a claim nor a role; then the conditions, then the roles table.
+  // The refusals in the order a reader would ask them: a demonstration scenario first, since it
+  // is never pooled with a counted run (S11b, #214); the family, since two scenarios of unlike
+  // families share neither a claim nor a role; then the conditions, then the roles table.
+  const demo = [a, b].find((m) => isDemo(m.scenario))
+  if (demo) {
+    throw new Error(
+      `a sheet reads the study's scenarios — ${demo.subject}'s ${demo.scenario} is a demonstration scenario, never pooled`,
+    )
+  }
   if (familyOf(a.scenario) !== familyOf(b.scenario)) {
     throw new Error(
       `a sheet reads one family — ${a.subject}'s ${a.scenario} is ${familyOf(a.scenario)} and ${b.subject}'s ${b.scenario} is ${familyOf(b.scenario)}`,

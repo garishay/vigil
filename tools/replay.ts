@@ -24,7 +24,7 @@
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { csvText } from './replay/csv.ts'
-import { studySvg } from './replay/figure.ts'
+import { isDemo, studySvg } from './replay/figure.ts'
 import { compose, PAIR_QUEUE_CAP } from './replay/compose.ts'
 import { frameName, frameSvg } from './replay/frame.ts'
 import { loadStudy, readRuns } from './replay/files.ts'
@@ -120,18 +120,29 @@ export function main(argv: readonly string[], log: (line: string) => void = () =
   const files = collectRunFiles(args.paths)
   const study = loadStudy()
   const runs = runsOf(files, study)
-  const csv = csvText(runs.map((run) => run.metrics))
   mkdirSync(args.out, { recursive: true })
   if (args.study) {
+    // A demonstration scenario's run is never pooled (S11b, #214): skipped in words, by
+    // scenario, whatever its subject code — the CSV and the figure read the rest.
+    const pooled = runs.filter((run) => !isDemo(run.record.scenario))
+    for (const run of runs) {
+      if (!pooled.includes(run)) {
+        log(
+          `${run.file}: skipped — ${run.record.scenario} is a demonstration scenario, never pooled\n`,
+        )
+      }
+    }
+    const csv = csvText(pooled.map((run) => run.metrics))
     const out = join(args.out, 'study.csv')
     const figure = join(args.out, 'study.svg')
     // The figure drawn before either file is written (S5d-ii).
-    const svg = studySvg(runs.map((run) => run.metrics))
+    const svg = studySvg(pooled.map((run) => run.metrics))
     writeFileSync(out, csv)
     writeFileSync(figure, svg)
     log(`${figure}: written\n`)
-    return `${out}: ${runs.length} run${runs.length === 1 ? '' : 's'}\n`
+    return `${out}: ${pooled.length} run${pooled.length === 1 ? '' : 's'}\n`
   }
+  const csv = csvText(runs.map((run) => run.metrics))
   // Every frame drawn, and every name checked, before anything is written: a run the frame
   // refuses, or two runs that would share a file, leaves no partial set behind (#151 round 1).
   const named = new Map<string, string>()

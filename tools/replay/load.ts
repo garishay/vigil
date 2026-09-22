@@ -64,6 +64,8 @@ const isIsoTime = (text: string): boolean => {
 
 /** A study run's length on a scenario: the registry entry's own, or the study's default (S7, ruled D3). */
 export const runSOf = (scenario: string): number => scenarioNamed(scenario).runS ?? STUDY.runS
+/** A study run's Begin on a scenario (S11b, #214): the entry's own, or the study's — nullishly, 03d's is 0. */
+export const beginSOf = (scenario: string): number => scenarioNamed(scenario).beginS ?? STUDY.beginS
 
 function parseEvent(value: unknown, i: number, path: string, runS: number): RunEvent {
   if (!isObject(value)) return refuse(path, `events[${i}] is an object {t, type, track}`)
@@ -102,13 +104,14 @@ export function parseRun(text: string, path: string): RunRecord {
   if (typeof subject !== 'string' || !SUBJECT_CODE.test(subject)) {
     return refuse(path, `subject is a subject code, not ${JSON.stringify(subject)}`)
   }
-  // A study scenario only: the metrics measure the study cast's threats, which the default deal
-  // never holds — a run on it would read as a fabricated miss (#150 round 1). Every scenario the
-  // bench baselines, the corroboration pair and the prioritization pair (#138 re-gate).
+  // A scenario the bench baselines only: the metrics measure a cast's threats by the roles table,
+  // which the default deal never holds — a run on it would read as a fabricated miss (#150 round
+  // 1). The two study pairs (#138 re-gate) and the demo's 03d, whose runs draw but never pool
+  // (S11b, #214) — so the refusal says what the list is, not that every name on it is the study's.
   if (typeof scenario !== 'string' || !(BENCH_SCENARIOS as readonly string[]).includes(scenario)) {
     return refuse(
       path,
-      `scenario ${JSON.stringify(scenario)} — the replay reads a study scenario: ${BENCH_SCENARIOS.join(', ')}`,
+      `scenario ${JSON.stringify(scenario)} — the replay reads a scenario the bench baselines: ${BENCH_SCENARIOS.join(', ')}`,
     )
   }
   const runS = runSOf(scenario)

@@ -51,6 +51,9 @@ export const familyOf = (scenario: string): Family => {
   return roles.family
 }
 
+/** A demonstration scenario by the roles table's own word (S11b, #214): never pooled, whatever the code. */
+export const isDemo = (scenario: string): boolean => STUDY_CAST[scenario]?.demo === true
+
 const MODES = ['raw', 'vigil'] as const
 type Mode = (typeof MODES)[number]
 /** The condition's word in the rendered text — *unaided* for a raw run (ruled G4). */

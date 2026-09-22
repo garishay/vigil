@@ -57,7 +57,7 @@ const acted = (
 
 const session = (mode: 'raw' | 'vigil'): SessionConfig => ({
   feeds: [{ kind: 'recording', id: 'vigil-phl-002' }],
-  scenario: { on: true, name: '02a', seed: 'study-02a', runS: 360 },
+  scenario: { on: true, name: '02a', seed: 'study-02a', beginS: 480, runS: 360 },
   mode,
   study: { subject: 'S03', run: 1 },
 })

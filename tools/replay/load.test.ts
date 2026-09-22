@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { parseResults, parseRun, planFor, RunRefusal, runSOf, runsIn } from './load.ts'
+import { beginSOf, parseResults, parseRun, planFor, RunRefusal, runSOf, runsIn } from './load.ts'
 import { loadStudy, readRuns } from './files.ts'
 
 // Vitest runs from the repo root, as the tool does; the fixtures are named from there.
@@ -50,10 +50,10 @@ describe('parseRun (S5a, #138, ruled A2)', () => {
     // A study scenario only: the default deal has no cast, so its run has no threat to measure;
     // every scenario the bench baselines, since S5c-i (#138 re-gate).
     expect(refusal({ scenario: '02c' })).toBe(
-      'run.json: scenario "02c" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
+      'run.json: scenario "02c" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
     expect(refusal({ scenario: 'default' })).toBe(
-      'run.json: scenario "default" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
+      'run.json: scenario "default" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
     expect(refusal({ mode: 'fast' })).toBe('run.json: mode reads "fast", not raw or vigil')
     expect(refusal({ run: 0 })).toBe('run.json: run is a run number from 1, not 0')
@@ -132,6 +132,12 @@ describe('the loader on the prioritization pair (S5c-i, #138 re-gate, ruled N2)'
   it('reads a 03 record with the registry’s window as its bound — 218 on both since S7d, 360 on 02', () => {
     expect(runSOf('02a')).toBe(360)
     expect(runSOf('02b')).toBe(360)
+    // Begin per scenario (S11b, #214): the study's 480 where the entry carries none, and 03d's 0
+    // read as the 0 it is — the run's window from the top of the recording, 188 s long.
+    expect(beginSOf('02a')).toBe(480)
+    expect(beginSOf('03b')).toBe(480)
+    expect(beginSOf('03d')).toBe(0)
+    expect(runSOf('03d')).toBe(188)
     expect(runSOf('03a')).toBe(218)
     expect(runSOf('03b')).toBe(218)
     expect(on('03a', 218)).toBeNull()
@@ -170,7 +176,7 @@ describe('parseResults and runsIn — the results file (S6a-i, #165, ruled A5)',
     // The runs are the loader's own records, not the envelope's raw objects: an event list the
     // loader would refuse in a run file is refused inside an envelope too, naming where it sat.
     expect(refuseResults({ runs: [GOOD, { ...VIGIL, run: 2, scenario: '02c' }] })).toBe(
-      'results.json runs[1]: scenario "02c" — the replay reads a study scenario: 02a, 02b, 03a, 03b',
+      'results.json runs[1]: scenario "02c" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
   })
 

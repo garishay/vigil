@@ -23,8 +23,8 @@ export const STUDY_RECORDING = 'vigil-phl-002'
  * until the #138 re-gate carries the prioritization pair; the bench runs `BENCH_SCENARIOS`.
  */
 export const STUDY_SCENARIOS = ['02a', '02b'] as const
-/** Every study scenario the bench baselines, by registry name. */
-export const BENCH_SCENARIOS = ['02a', '02b', '03a', '03b'] as const
+/** Every scenario the bench baselines, by registry name — the demo's 03d last, never pooled (S11b, #214). */
+export const BENCH_SCENARIOS = ['02a', '02b', '03a', '03b', '03d'] as const
 /** The cast's first row is the threat, its second the revisit track (the study files' numbering). */
 export const THREAT_ID = 'inject-11'
 export const REVISIT_ID = 'inject-12'
@@ -44,6 +44,12 @@ export interface CastRoles {
   orbit?: string
   band?: readonly string[]
   lockS?: number
+  /**
+   * A demonstration scenario (S11b, #214): measured on the bench and drawn per run or as a pair,
+   * never pooled — `--study` skips its runs in words, the sheet refuses it beside a counted run,
+   * whatever the subject code. The demo's 03d.
+   */
+  demo?: true
 }
 
 export const STUDY_CAST: Record<string, CastRoles> = {
@@ -67,6 +73,18 @@ export const STUDY_CAST: Record<string, CastRoles> = {
     orbit: 'inject-19',
     band: ['inject-80', 'inject-33', 'inject-13', 'inject-95'],
     lockS: STUDY.beginS,
+  },
+  // The demo's member (S11, #213; S11b, #214): read with the family's lines on its own window
+  // from t = 0 — its threats in entry order, 03a's baits and band rows under 03d's ids — and
+  // T_lock at 93 s, the tick the far threat overtakes the close one (the ranges cross, #153).
+  '03d': {
+    family: 'prioritization',
+    demo: true,
+    threats: ['inject-44', 'inject-39'],
+    tangential: ['inject-93'],
+    orbit: 'inject-97',
+    band: ['inject-16', 'inject-72', 'inject-14', 'inject-92'],
+    lockS: 93,
   },
 }
 

@@ -26,6 +26,13 @@ export interface NamedScenario {
    */
   runS?: number
   /**
+   * Scenario seconds at Begin when the scenario sets its own (S11b, #214): the demo's 03d runs
+   * from the top of the recording, so a study run on it opens on its story rather than on the
+   * aftermath. Absent, Begin is `STUDY.beginS` — the study's 480 s on every study scenario, which
+   * carry none. Read nullishly wherever it is read: 0 is a Begin, not an absence.
+   */
+  beginS?: number
+  /**
    * The other scenario of this one's matched pair (S6a-iii, #165): a subject runs one of a pair
    * and then the other, so run 1's end screen can name run 2's link without asking anyone. The
    * registry, not the roles table — this says which two scenarios are a pair, never which track
@@ -36,9 +43,10 @@ export interface NamedScenario {
 
 /** The registry, the default first: what the bare link opens, and what `on` names. */
 export const SCENARIOS: readonly NamedScenario[] = [
-  // The demo (S11, #213): the 03 crowd with its own threats, never a study scenario — no run
-  // length and no pair, so a run link on it is the study flow shown, not a run counted.
-  { name: '03d', config: SCENARIO_03D },
+  // The demo (S11, #213): the 03 crowd with its own threats, never a study scenario and never
+  // counted — no pair. Its own window (S11b, #214): Begin at 0, the run 188 s = the last entry
+  // at 158 + 30, the rule; so a run link on it is the study flow shown on the demo's own story.
+  { name: '03d', config: SCENARIO_03D, beginS: 0, runS: 188 },
   { name: '001', config: SCENARIO },
   { name: '02a', config: SCENARIO_02A, pairedWith: '02b' },
   { name: '02b', config: SCENARIO_02B, pairedWith: '02a' },

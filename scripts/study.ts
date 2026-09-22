@@ -151,6 +151,8 @@ export interface StudyResult {
   recording: string
   family: Family
   config: StudyConfig
+  /** Begin, scenario seconds — the registry entry's own, or the study's default (S11b, #214). */
+  beginS: number
   /** The run's length from Begin — the registry entry's own, or the study's default. */
   runS: number
   threat: {
@@ -270,8 +272,9 @@ export function runStudy(
   const plan = feed.plan
   const origins = originsOf(index, plan)
   const runS = scenario.runS ?? config.runS
-  const begin = config.beginS
-  const end = config.beginS + runS
+  // Nullishly: 03d's Begin is 0 (S11b, #214).
+  const begin = scenario.beginS ?? config.beginS
+  const end = begin + runS
   if (end > index.durationS) {
     throw new Error(
       `${scenario.name}: the window ends at ${end} s, past ${recording.entry.id}'s ${index.durationS} s`,
@@ -455,6 +458,7 @@ export function runStudy(
     recording: recording.entry.id,
     family: roles.family,
     config,
+    beginS: begin,
     runS,
     threat: {
       firstFrameS: spec.startS,
@@ -653,8 +657,8 @@ const check = (ok: boolean) => (ok ? '✓' : '✗')
 
 export function renderStudy(result: StudyResult): string {
   const { config: c } = result
-  const begin = c.beginS
-  const end = c.beginS + result.runS
+  const begin = result.beginS
+  const end = begin + result.runS
   const lines: string[] = []
   lines.push(
     `# Study baseline — ${result.name} on ${result.recording} · Begin ${begin} s · run ${result.runS} s · 1 Hz through the feed`,

@@ -205,6 +205,50 @@ describe('the replay tool’s command line (S5a, #138, ruled A8)', () => {
     // It writes six documents through the CLI; the runner is slower than this machine (#166 round 1).
   }, 30_000)
 
+  it('never pools a demonstration run (S11b, #214): --study over a folder holding a 03d run beside 03a and 03b runs skips it in words, by scenario, and counts the rest; without --study the same run draws its frame, and two 03d runs their pair', () => {
+    const mixed = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(mixed)
+    for (const name of ['S05-03a-vigil-1.json', 'S06-03b-raw-1.json']) {
+      writeFileSync(join(mixed, name), readFileSync(join(FIXTURES, name)))
+    }
+    const demo = join(FIXTURES, 'demo', 'S90-03d-vigil-1.json')
+    writeFileSync(join(mixed, 'S90-03d-vigil-1.json'), readFileSync(demo))
+    const out = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(out)
+    const logged: string[] = []
+    expect(main(['--study', mixed, '--out', out], (line) => logged.push(line))).toBe(
+      `${join(out, 'study.csv')}: 2 runs\n`,
+    )
+    expect(logged).toEqual([
+      `${join(mixed, 'S90-03d-vigil-1.json')}: skipped — 03d is a demonstration scenario, never pooled\n`,
+      `${join(out, 'study.svg')}: written\n`,
+    ])
+    const csv = readFileSync(join(out, 'study.csv'), 'utf8')
+    expect(csv.split('\n').filter((line) => line.startsWith('S90'))).toEqual([])
+    expect(csv).toContain('\nS05,03a,vigil,1,')
+    expect(readFileSync(join(out, 'study.svg'), 'utf8')).toContain('Study — 2 runs · 2 subjects')
+    // A folder of demonstration runs alone pools nothing and says so per file.
+    const only = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(only)
+    writeFileSync(join(only, 'S90-03d-vigil-1.json'), readFileSync(demo))
+    expect(main(['--study', only, '--out', out], () => {})).toBe(
+      `${join(out, 'study.csv')}: 0 runs\n`,
+    )
+    // The bare form: the frame and, for the demo's two runs, the pair — on 03d's own window.
+    const frames = mkdtempSync(join(tmpdir(), 'vigil-replay-'))
+    temps.push(frames)
+    const printed = main([demo, join(FIXTURES, 'demo', 'S90-03d-raw-2.json'), '--out', frames])
+    expect(printed.split('\n')[1]).toMatch(/^S90,03d,vigil,1,/)
+    expect(readdirSync(frames).sort()).toEqual([
+      'S90-03d-raw-2.svg',
+      'S90-03d-vigil-1.svg',
+      'pair-S90-03d.svg',
+    ])
+    expect(readFileSync(join(frames, 'S90-03d-vigil-1.svg'), 'utf8')).toContain(
+      'frozen at the moment of the last escalation — 0:50',
+    )
+  })
+
   it('builds one plan per scenario across the runs, and stops on a refused file with nothing written', () => {
     const metrics = metricsOf(collectRunFiles([FIXTURES]), study)
     expect(metrics.map((m) => `${m.subject} ${m.scenario} ${m.mode}`)).toEqual([
