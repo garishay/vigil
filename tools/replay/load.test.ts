@@ -50,10 +50,10 @@ describe('parseRun (S5a, #138, ruled A2)', () => {
     // A study scenario only: the default deal has no cast, so its run has no threat to measure;
     // every scenario the bench baselines, since S5c-i (#138 re-gate).
     expect(refusal({ scenario: '02c' })).toBe(
-      'run.json: scenario "02c" — the replay reads a study scenario: 02a, 02b, 03a, 03b, 03d',
+      'run.json: scenario "02c" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
     expect(refusal({ scenario: 'default' })).toBe(
-      'run.json: scenario "default" — the replay reads a study scenario: 02a, 02b, 03a, 03b, 03d',
+      'run.json: scenario "default" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
     expect(refusal({ mode: 'fast' })).toBe('run.json: mode reads "fast", not raw or vigil')
     expect(refusal({ run: 0 })).toBe('run.json: run is a run number from 1, not 0')
@@ -176,7 +176,7 @@ describe('parseResults and runsIn — the results file (S6a-i, #165, ruled A5)',
     // The runs are the loader's own records, not the envelope's raw objects: an event list the
     // loader would refuse in a run file is refused inside an envelope too, naming where it sat.
     expect(refuseResults({ runs: [GOOD, { ...VIGIL, run: 2, scenario: '02c' }] })).toBe(
-      'results.json runs[1]: scenario "02c" — the replay reads a study scenario: 02a, 02b, 03a, 03b, 03d',
+      'results.json runs[1]: scenario "02c" — the replay reads a scenario the bench baselines: 02a, 02b, 03a, 03b, 03d',
     )
   })
 
